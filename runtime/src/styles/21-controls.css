@@ -1,0 +1,187 @@
+/* Form controls. Classes pw-input/pw-select/pw-textarea/pw-checkbox/pw-radio/pw-controls-text are
+ * added by AdminThemeBridge::hookInputfieldRender; untouched upstream inputs get the same look via
+ * the element selectors inside .InputfieldContent. */
+
+/* :where keeps this at 0,1,1 so module rules (PageAutocomplete paddings) still win, as under Uikit */
+.InputfieldContent input:where(:not([type=checkbox], [type=radio], [type=file], [type=submit], [type=button], [type=hidden], [type=range])),
+.InputfieldContent select,
+.InputfieldContent textarea,
+.pw-input, .pw-select, .pw-textarea {
+	box-sizing: border-box;
+	max-width: 100%;
+	min-height: 36px;
+	padding: 6px 12px;
+	font: inherit;
+	font-size: 14px;
+	line-height: 22px;
+	color: var(--foreground);
+	background: var(--pw-input-bg);
+	border: 1px solid var(--input);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-xs);
+	-webkit-appearance: none;
+	appearance: none;
+	transition: border-color var(--pw-transition), box-shadow var(--pw-transition);
+}
+.InputfieldContent :is(input, textarea)::placeholder, .pw-input::placeholder { color: var(--muted-foreground); }
+.InputfieldContent input[type=text], .InputfieldContent input[type=email], .InputfieldContent input[type=url],
+.InputfieldContent input[type=password], .InputfieldContent input[type=search], .InputfieldContent textarea,
+.pw-input, .pw-textarea { width: 100%; }
+.InputfieldContent input[type=number], .InputfieldContent input[type=date], .InputfieldContent input[type=time] { width: auto; }
+.Inputfield .InputfieldContent input[size]:not(.InputfieldMaxWidth), .InputfieldDatetime .InputfieldContent input.InputfieldDatetimeDatepicker { width: auto; }
+.Inputfield .InputfieldMaxWidth, .InputfieldColumnWidth > .InputfieldContent select:not(.InputfieldSetWidth) { width: 100%; }
+.InputfieldContent textarea, .pw-textarea { min-height: 7em; resize: vertical; }
+.InputfieldContent select, .pw-select {
+	padding-right: 32px;
+	/* Basecoat's chevron (Lucide chevron-down) in the muted colour of the scheme (--pw-chevron) */
+	background-image: var(--pw-chevron);
+	background-position: right 10px center;
+	background-size: 16px 16px;
+	background-repeat: no-repeat;
+}
+.InputfieldContent select[multiple], .InputfieldContent select[size] { background-image: none; padding-right: 12px; }
+.InputfieldContent :is(input, select, textarea):focus, .pw-input:focus, .pw-select:focus, .pw-textarea:focus {
+	outline: 0;
+	border-color: var(--ring);
+	box-shadow: 0 0 0 3px var(--ring-50);
+}
+.InputfieldStateError .InputfieldContent :is(input, select, textarea), .InputfieldContent [aria-invalid=true] { border-color: var(--destructive); }
+.pw-input-small, .pw-select-small { min-height: 32px; padding: 4px 8px; font-size: 13px; }
+.InputfieldContent input[disabled], .InputfieldContent select[disabled], .InputfieldContent textarea[disabled] { opacity: .5; }
+
+/* checkbox and radio lists: plain controls with the primary accent */
+.InputfieldRadios ul, .InputfieldCheckboxes ul, .pw-controls-text ul { list-style: none; margin: 0; padding: 0; }
+:is(.InputfieldRadios, .InputfieldCheckboxes, .InputfieldCheckbox) .InputfieldContent label, .InputfieldContent :is(.InputfieldRadios, .InputfieldCheckboxes) label, .pw-controls-text label {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-weight: 400;
+	text-transform: none;
+	cursor: pointer;
+	margin: 2px 16px 2px 0;
+}
+.InputfieldContent :is(input[type=radio], input[type=checkbox]), .pw-radio, .pw-checkbox { accent-color: var(--primary); width: 16px; height: 16px; margin: 0; vertical-align: middle; }
+
+/* toggle switches: single checkbox fields, checkbox lists, language status (Boss) */
+:is(.InputfieldCheckbox, .InputfieldCheckboxes, .LanguageSupport) input[type=checkbox] {
+	-webkit-appearance: none;
+	appearance: none;
+	position: relative;
+	flex: none;
+	width: 32px;
+	height: 18px;
+	margin: 0;
+	border: 1px solid transparent;
+	border-radius: 9999px;
+	background: var(--input);
+	box-shadow: var(--shadow-xs);
+	cursor: pointer;
+	transition: background var(--pw-transition), border-color var(--pw-transition);
+	vertical-align: middle;
+}
+:is(.InputfieldCheckbox, .InputfieldCheckboxes, .LanguageSupport) input[type=checkbox]::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 0;
+	width: 16px;
+	height: 16px;
+	transform: translateY(-50%);
+	border-radius: 50%;
+	background: var(--background);
+	box-shadow: none;
+	transition: left var(--pw-transition);
+}
+:is(.InputfieldCheckbox, .InputfieldCheckboxes, .LanguageSupport) input[type=checkbox]:checked { background: var(--primary); }
+:is(.InputfieldCheckbox, .InputfieldCheckboxes, .LanguageSupport) input[type=checkbox]:checked::after { left: 14px; background: var(--primary-foreground); }
+:is(.InputfieldCheckbox, .InputfieldCheckboxes, .LanguageSupport) input[type=checkbox]:focus-visible { outline: 0; box-shadow: 0 0 0 3px var(--ring-50); }
+
+/* chips: asmSelect, selectize, page tags */
+.asmList .asmListItem, .asmList .asmListItem.ui-state-default, .selectize-input .item, .InputfieldTextTags .selectize-input .item {
+	background: var(--secondary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	color: var(--secondary-foreground);
+}
+.asmList .asmListItem { padding: 5px 8px; margin: 0 0 4px; }
+.asmListItemLabel { color: inherit; }
+.asmListItem .asmListItemRemove { color: var(--pw-text-muted); text-decoration: none; }
+.asmListItem .asmListItemRemove:hover { color: var(--destructive); }
+
+/* images and files */
+.InputfieldImage .gridImage__overflow { border-radius: var(--radius-md); overflow: hidden; }
+.InputfieldImage .gridImage { border-radius: var(--radius-md); }
+ul.InputfieldFileList { list-style: none; margin: 0; padding: 0; }
+ul.InputfieldFileList > li { list-style: none; }
+/* image size slider in the field header (jQuery UI slider) */
+.InputfieldImageSizeSlider.ui-slider { width: 70px; height: 4px; margin: 0 14px 0 6px; border: 0; border-radius: 2px; background: var(--muted); vertical-align: middle; display: inline-block; position: relative; }
+.InputfieldImageSizeSlider .ui-slider-range { background: var(--primary); border: 0; border-radius: 2px; }
+.InputfieldImageSizeSlider .ui-slider-handle { top: -6px; width: 16px; height: 16px; margin-left: -8px; border: 1px solid var(--primary); border-radius: 50%; background: var(--background); box-shadow: var(--shadow-sm); cursor: grab; }
+.InputfieldImageListToggle { margin-left: 6px; color: var(--pw-text-muted); }
+.InputfieldImageListToggle:hover, .InputfieldImageListToggle.on { color: var(--foreground); }
+.InputfieldFileList .InputfieldFileItem, .InputfieldImageEdit { border-color: var(--pw-line); }
+.InputfieldFileUpload { color: var(--pw-text-muted); }
+.InputfieldFileUpload .ui-button, .InputfieldImage .ui-button, .InputfieldImage .pw-button { margin-right: 8px; }
+/* "Choose file": a neutral button over the file input (div.InputMask.ui-button) */
+.Inputfield .InputfieldContent .InputMask.ui-button, .Inputfield .InputfieldContent .InputMask.ui-button.ui-state-default {
+	height: auto;
+	min-height: 36px;
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 16px;
+	border: 1px solid var(--input);
+	border-radius: var(--radius-md);
+	background: var(--background);
+	color: var(--foreground);
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 34px;
+	box-shadow: var(--shadow-xs);
+	overflow: hidden;
+}
+.InputfieldContent .InputMask.ui-button:hover { border-color: var(--input); color: var(--accent-foreground); background: var(--accent); box-shadow: var(--shadow-xs); }
+.Inputfield .InputfieldContent .InputMask .ui-button-text { display: inline-flex; align-items: center; gap: 6px; padding: 0; line-height: 34px; }
+.InputfieldContent .InputMask input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 100px; }
+.InputfieldFileValidExtensions, .InputfieldImageValidExtensions { margin-left: 8px; color: var(--pw-text-muted); font-size: 13px; }
+
+/* language tabs on fields. With LanguageTabs jQueryUI=false (init.php) LanguageTabs.js only
+ * toggles .LanguageSupportCurrent on the panels and uk-active on the tab of a ul.uk-tab; showing
+ * one panel at a time is the theme's job, as AdminThemeUikit does in its pw.css. */
+.Inputfields .langTabsContainer .langTabs .LanguageSupportLabel { display: none; }
+.Inputfields .langTabsContainer .langTabs .LanguageSupport { display: none; }
+.Inputfields .langTabsContainer .langTabs .LanguageSupportCurrent { display: block; margin: 0; }
+.InputfieldContent > input.InputfieldMaxWidth, .LanguageSupport > input.InputfieldMaxWidth, .LanguageSupport > textarea { width: 100%; }
+.langTabs { position: relative; }
+.langTabsNote { position: absolute; top: 2px; right: 0; }
+.langTabsToggle { float: right; margin-right: 1em; cursor: pointer; opacity: .6; }
+/* language tabs: the same tab design as WireTabs (33-tabs.css), smaller; the active tab takes the
+ * card colour of the field it sits in */
+.langTabs > ul, ul.pw-lang-tabs { list-style: none; margin: 0 0 10px; padding: 0 2px; display: flex; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.langTabs > ul li, ul.pw-lang-tabs li { margin: 0 0 -1px; padding: 0; }
+.langTabs > ul li a, ul.pw-lang-tabs li a {
+	display: inline-block;
+	padding: 0 10px;
+	border: 1px solid transparent;
+	border-bottom: 0;
+	border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+	font-size: var(--pw-tiny);
+	font-weight: 500;
+	line-height: 24px;
+	text-decoration: none;
+	color: var(--muted-foreground);
+	opacity: 1; /* LanguageTabs.css dims empty tabs with opacity; the theme dims the label colour instead */
+}
+.langTabs > ul li a:hover, ul.pw-lang-tabs li a:hover { color: var(--foreground); }
+.langTabs > ul li.ui-tabs-active a, .langTabs > ul li.uk-active a, ul.pw-lang-tabs li.uk-active a {
+	line-height: 25px;
+	background: var(--card);
+	border-color: var(--border);
+	color: var(--foreground);
+	font-weight: 600;
+}
+/* empty language value: dim the label only (opacity would let the baseline show through the active tab) */
+.langTabs > ul :is(li.pw-empty, li.langTabEmpty):not(.uk-active, .ui-tabs-active) a { color: color-mix(in srgb, var(--muted-foreground) 65%, transparent); }
+/* icon + text links inside fields (Add New, Create New, Add Filter): keep a gap */
+.InputfieldContent a > :is(.fa, .fas, .far):first-child { margin-right: .3em; }

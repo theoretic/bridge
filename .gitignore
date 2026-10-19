@@ -1,0 +1,12 @@
+node_modules/
+sandbox/
+.DS_Store
+Thumbs.db
+*.log
+.claude/
+
+# internal notes (local environment, studio sites, unsent drafts)
+CLAUDE.md
+conformance/modules.txt
+conformance/upstream.txt
+docs/upstream/

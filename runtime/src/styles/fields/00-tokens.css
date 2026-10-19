@@ -1,0 +1,48 @@
+/* Field tokens: the few colours fields need beyond the theme tokens (00-tokens.css of theme.css) */
+:root {
+	--pw-checker-a: #fefefe; /* transparency checkerboard behind images */
+	--pw-checker-b: #e5e5e5;
+	--pw-highlight: var(--pw-primary-bg); /* "moved" / "matched" highlight, was #ffffaa */
+	--pw-code-a: #15803d; /* JSON values: string, number, boolean, null */
+	--pw-code-b: #c2410c;
+	--pw-code-c: #a16207;
+	--pw-code-d: #1d4ed8;
+
+	/* AdminThemeUikit's custom properties, read by modules written for it (Fluency, SeoNeo, ...) */
+	--pw-main-color: var(--primary);
+	--pw-main-background: var(--background);
+	--pw-blocks-background: var(--card);
+	--pw-text-background: var(--card);
+	--pw-text-color: var(--foreground);
+	--pw-muted-color: var(--muted-foreground);
+	--pw-border-color: var(--border);
+	--pw-inputs-background: var(--pw-input-bg);
+	--pw-notes-background: var(--muted);
+	--pw-code-background: var(--muted);
+	--pw-code-color: var(--foreground);
+	--pw-error-inline-text-color: var(--destructive);
+	--pw-button-background: var(--primary);
+	--pw-button-color: var(--primary-foreground);
+	--pw-button-border: var(--primary);
+	--pw-button-hover-background: var(--pw-primary-hover);
+	--pw-button-hover-color: var(--primary-foreground);
+	--pw-button-hover-border: var(--pw-primary-hover);
+	--pw-button-muted-background: var(--secondary);
+	--pw-button-muted-color: var(--secondary-foreground);
+	--pw-button-muted-border: var(--border);
+	--pw-alert-primary: var(--pw-primary-bg);
+	--pw-alert-success: var(--pw-success-bg);
+	--pw-alert-warning: var(--pw-warning-bg);
+	--pw-alert-danger: var(--pw-danger-bg);
+	--pw-alert-text-color: var(--foreground);
+	--pw-input-radius: var(--radius-md);
+	--pw-button-radius: var(--radius-md);
+}
+[data-pw-scheme="dark"] {
+	--pw-checker-a: #262626;
+	--pw-checker-b: #1c1c1c;
+	--pw-code-a: #4ade80;
+	--pw-code-b: #fb923c;
+	--pw-code-c: #facc15;
+	--pw-code-d: #60a5fa;
+}

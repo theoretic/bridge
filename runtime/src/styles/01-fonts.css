@@ -1,0 +1,7 @@
+/* Geist (Basecoat's default typeface), SIL Open Font License 1.1 (assets/fonts/OFL.txt).
+ * Self-hosted variable woff2 from @fontsource-variable/geist 5.3.0, one file per subset, weights
+ * 100-900 in each. The latin face takes everything else; the cyrillic face is declared last with
+ * its own range, so the browser picks it for Cyrillic text and fetches it only then. */
+
+@font-face { font-family: 'Geist'; font-weight: 100 900; font-display: swap; src: url(../fonts/geist-latin-wght-normal.woff2) format('woff2-variations'); }
+@font-face { font-family: 'Geist'; font-weight: 100 900; font-display: swap; src: url(../fonts/geist-cyrillic-wght-normal.woff2) format('woff2-variations'); unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }

@@ -1,0 +1,111 @@
+/* Inputfields on upstream markup (docs/contract.md section 1): structure + the Boss card look.
+ *
+ * Gutters: each li.Inputfield carries a transparent 10px border; the card (background, outline,
+ * shadow) is drawn on the padding box (background-clip, outline-offset, the shadow's -10px spread),
+ * so column widths written inline by the server still sum to 100% and rows wrap where intended. */
+
+.Inputfields, .Inputfields > li { list-style: none; margin: 0; padding: 0; }
+.Inputfields {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: stretch;
+	margin: 0 calc(var(--pw-gutter) * -1);
+}
+.Inputfields > .Inputfield {
+	position: relative;
+	box-sizing: border-box;
+	width: 100%;
+	border: var(--pw-gutter) solid transparent;
+	border-radius: calc(var(--radius-xl) + var(--pw-gutter));
+	background: var(--card);
+	background-clip: padding-box;
+	outline: 1px solid var(--border);
+	outline-offset: calc(var(--pw-gutter) * -1);
+	/* hairline only: a box-shadow would sit on the transparent gutter border, not on the card */
+	box-shadow: none;
+	color: var(--card-foreground);
+}
+.Inputfields > .InputfieldColumnWidth { float: none; }
+.maxColHeightSpacer { display: none; }
+
+/* header and content */
+.InputfieldHeader {
+	display: block;
+	margin: 0;
+	padding: var(--pw-field-pad) 12px 8px var(--pw-field-pad);
+	font-weight: 500;
+	font-size: 14px;
+	line-height: 20px;
+	color: var(--foreground);
+	transition: color var(--pw-transition), background var(--pw-transition);
+}
+.InputfieldHeader.InputfieldStateToggle { cursor: pointer; }
+.InputfieldHeader.InputfieldStateToggle:hover { color: var(--foreground); }
+.InputfieldHeader.InputfieldStateToggle:hover i.toggle-icon { opacity: 1; }
+.InputfieldHeader i.toggle-icon { float: right; opacity: .45; margin-top: 3px; color: var(--muted-foreground); transition: opacity var(--pw-transition); }
+.InputfieldHeader .InputfieldHeaderIcon { margin-right: 8px; color: var(--muted-foreground); }
+.InputfieldHeader { -webkit-user-select: none; user-select: none; }
+.InputfieldHeader.InputfieldHeaderHidden { display: none; }
+.InputfieldStateCollapsed > .InputfieldHeader.InputfieldHeaderHidden { display: block; }
+.InputfieldHeaderHidden > .InputfieldContent, .InputfieldHeaderHidden + .InputfieldContent { padding-top: calc(var(--pw-field-pad) + 3px); }
+.InputfieldContent { padding: 1px var(--pw-field-pad) 23px; }
+.InputfieldContent > *:first-child { margin-top: 0; }
+.InputfieldContent > *:last-child { margin-bottom: 0; }
+
+/* states */
+.InputfieldStateCollapsed > .InputfieldContent { display: none; }
+.InputfieldStateCollapsed > .InputfieldHeader { padding-bottom: var(--pw-field-pad); color: var(--muted-foreground); }
+.InputfieldStateCollapsed > .InputfieldHeader:hover { color: var(--foreground); }
+.InputfieldStateHidden { display: none; }
+.Inputfields .InputfieldHidden { display: none !important; }
+.InputfieldStateRequired > .InputfieldHeader::after { content: " *"; color: var(--destructive); }
+.Inputfield .description { margin: 0 0 10px; color: var(--muted-foreground); }
+.Inputfield .notes { margin: 10px 0 0; font-size: var(--pw-tiny); color: var(--pw-text-muted); }
+.Inputfield .detail { margin: 6px 0 0; font-size: var(--pw-tiny); }
+.InputfieldError, .ui-state-error-text { margin: 0 0 10px; color: var(--destructive); }
+.Inputfield.InputfieldStateError > .InputfieldHeader, .Inputfield.ui-state-error > .InputfieldHeader { color: var(--destructive); }
+.Inputfield.InputfieldStateError { outline-color: color-mix(in srgb, var(--destructive) 45%, transparent); }
+.InputfieldWrapper > .description { margin: 0 var(--pw-gutter) 16px; }
+
+/* wrappers (form tabs such as ProcessPageEditContent, plain InputfieldWrapper): no card of their own */
+.Inputfields > .InputfieldWrapper:not(.InputfieldFieldset) { background: none; outline: 0; box-shadow: none; }
+.Inputfields > .InputfieldWrapper:not(.InputfieldFieldset) > .InputfieldContent { padding: 0; }
+.Inputfields > .InputfieldWrapper:not(.InputfieldFieldset) > .InputfieldHeader { display: none; }
+/* fields inside fieldsets, repeater items and page tables: flat, no card shadow */
+.Inputfields .Inputfields { margin: 0 calc(var(--pw-gutter) * -1); }
+:is(.InputfieldFieldset, .InputfieldItemList, .InputfieldRepeaterItem) .Inputfields > .Inputfield { box-shadow: none; }
+.InputfieldFieldset > .InputfieldContent, .InputfieldItemList > .InputfieldContent { padding-bottom: 10px; }
+.InputfieldFieldset > .InputfieldHeader { border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+.InputfieldFieldset.InputfieldStateCollapsed > .InputfieldHeader { background: none; }
+.InputfieldRepeaterItem > .InputfieldHeader { padding: 10px var(--pw-field-pad); background: var(--muted); border-radius: var(--radius-xl) var(--radius-xl) 0 0; font-size: 14px; color: var(--foreground); }
+.InputfieldRepeaterItem.InputfieldStateCollapsed > .InputfieldHeader { border-radius: var(--radius-xl); }
+.InputfieldRepeaterItem > .InputfieldContent { padding-top: 12px; }
+.Inputfields > .InputfieldMarkup > .InputfieldContent > .pw-table, .Inputfields > .InputfieldMarkup > .InputfieldContent > .AdminDataTable { margin: 0 calc(var(--pw-field-pad) * -1) -23px; width: calc(100% + var(--pw-field-pad) * 2); max-width: none; }
+
+/* submit / button rows: no card */
+.Inputfields > .InputfieldSubmit, .Inputfields > .InputfieldButton {
+	background: none;
+	outline: 0;
+	box-shadow: none;
+	clear: both;
+}
+.InputfieldSubmit > .InputfieldHeader, .InputfieldButton > .InputfieldHeader { display: none; }
+.InputfieldSubmit > .InputfieldContent, .InputfieldButton > .InputfieldContent { padding: 10px 0 0; }
+
+/* parity with Uikit's pw-inputfields*.less (structural rules upstream markup relies on) */
+.Inputfields, .Inputfields *, .Inputfields *::before, .Inputfields *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.Inputfields > .InputfieldMarkup.InputfieldHeaderHidden { outline: 0; box-shadow: none; background: none; }
+.Inputfields > .InputfieldSubmit, .Inputfields > .InputfieldButton { width: auto; }
+.InputfieldRenderValueMode .InputfieldSubmit, .InputfieldRenderValueMode .InputfieldButton { display: none; }
+.Inputfields > .Inputfield.ui-state-error { border-color: transparent; }
+.Inputfields > .InputfieldFieldset.WireTab { outline: 0; box-shadow: none; background: none; }
+.InputfieldFieldset.WireTab > .InputfieldContent { padding-left: 0; padding-right: 0; }
+.Inputfield.pw-drag-in-file { background-color: var(--accent); outline: 2px dashed var(--ring); }
+.InputfieldContent :is(img, svg, video, canvas) { max-width: 100%; height: auto; }
+.langTabsOff .LanguageSupport { margin-bottom: 10px; }
+table.AdminDataTable .Inputfields { margin: 0; padding: 0; }
+table.AdminDataTable .Inputfields > .Inputfield { border: 0; outline: 0; box-shadow: none; background: none; }
+table.AdminDataTable .InputfieldContent { padding: 0; }
+ul.pw-button-dropdown { display: none; }
+.ProcessField #fieldgroupContextSelect { display: none; }

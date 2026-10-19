@@ -1,0 +1,59 @@
+/* Buttons: upstream .ui-button (InputfieldSubmit/InputfieldButton, jQuery UI .button() markup) and
+ * the theme's .pw-button family set through init.php config keys */
+
+.ui-button, .pw-button, button.pw-button, a.pw-button {
+	display: inline-block;
+	box-sizing: border-box;
+	margin: 0 8px 0 0;
+	padding: 0 16px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	background: var(--primary);
+	color: var(--primary-foreground);
+	font: inherit;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 34px;
+	text-transform: none;
+	text-decoration: none;
+	white-space: nowrap;
+	cursor: pointer;
+	box-shadow: var(--shadow-xs);
+	transition: background var(--pw-transition), color var(--pw-transition), box-shadow var(--pw-transition);
+}
+.ui-button:hover, .pw-button:hover { background: var(--pw-primary-hover); color: var(--primary-foreground); box-shadow: var(--shadow-xs); }
+.ui-button:focus-visible, .pw-button:focus-visible { outline: 0; box-shadow: 0 0 0 3px var(--ring-50); }
+.ui-button .ui-button-text { padding: 0; line-height: inherit; display: inline; }
+.ui-button .fa, .pw-button .fa { margin-right: 6px; font-size: inherit; }
+/* secondary priority = Basecoat outline */
+.ui-button.ui-priority-secondary, .pw-button.pw-button-secondary, .pw-button-secondary {
+	background: var(--background);
+	border-color: var(--input);
+	color: var(--foreground);
+}
+.ui-button.ui-priority-secondary:hover, .pw-button-secondary:hover { background: var(--accent); color: var(--accent-foreground); }
+.ui-button.ui-state-disabled, .pw-button[disabled], .ui-button[disabled] { opacity: .5; cursor: default; pointer-events: none; }
+/* small and text (ghost) variants (image/file buttons, lister actions) */
+.pw-button-small, .ui-button.ui-button-small { padding: 0 12px; font-size: 13px; line-height: 30px; }
+.pw-button-text { background: none; border-color: transparent; color: var(--foreground); box-shadow: none; padding: 0 8px; }
+.pw-button-text:hover { background: var(--accent); color: var(--accent-foreground); box-shadow: none; }
+.pw-head-button-copy { margin: 0; }
+/* button rows */
+.InputfieldSubmit .ui-button + .ui-button { margin-left: 0; }
+/* split buttons: main + dropdown toggle form one group (form row and content head) */
+.pw-button-dropdown-wrap { display: inline-flex; white-space: nowrap; }
+.ui-button.pw-button-dropdown-main { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.ui-button.pw-button-dropdown-toggle {
+	margin-left: 0;
+	padding: 0 10px;
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+	border-left-color: color-mix(in srgb, var(--primary-foreground) 30%, transparent);
+}
+.pw-button-dropdown-wrap .ui-button { box-shadow: none; }
+.pw-button-dropdown-wrap { border-radius: var(--radius-md); box-shadow: var(--shadow-xs); }
+/* a few upstream buttons are links styled as .ui-button inside tables and lists */
+td .ui-button, .PageListActions .ui-button { font-size: 13px; line-height: 30px; padding: 0 12px; }
+/* save without reload (scripts/page-save.js): busy state */
+body.pw-saving #ProcessPageEdit { cursor: progress; }
+.pw-save-spinner { margin-left: 6px; }

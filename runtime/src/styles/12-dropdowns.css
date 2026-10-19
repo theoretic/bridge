@@ -1,0 +1,98 @@
+/* Dropdown menus in both shapes: native (.pw-dropdown > .pw-dropdown-menu, shown by scripts/main.js)
+ * and legacy (upstream main.js moves .pw-dropdown-menu to <body>, applies jQuery UI .menu() classes
+ * and positions it inline). Also the Add New button menu and upstream ul.pw-button-dropdown.
+ * Look: Basecoat popover / dropdown-menu (popover surface, hairline border, rounded items). */
+
+.pw-dropdown { position: relative; }
+.pw-dropdown-menu, ul.pw-button-dropdown {
+	position: absolute;
+	z-index: 120;
+	box-sizing: border-box;
+	min-width: 200px;
+	margin: 4px 0 0;
+	padding: 4px;
+	list-style: none;
+	background: var(--popover);
+	color: var(--popover-foreground);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-md);
+	font-size: 14px;
+	font-weight: 400;
+	text-transform: none;
+}
+.pw-dropdown-menu li { position: relative; margin: 0; padding: 0; }
+.pw-dropdown-menu li a, ul.pw-button-dropdown li a {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: var(--radius-sm);
+	color: var(--popover-foreground);
+	text-decoration: none;
+	line-height: 20px;
+	white-space: nowrap;
+	cursor: default;
+}
+.pw-dropdown-menu li a[href] { cursor: pointer; }
+.pw-dropdown-menu li a :is(.fa, .fas, .far) { width: 16px; margin: 0; text-align: center; color: var(--muted-foreground); }
+/* hover, keyboard focus and the item whose flyout is open (jQuery UI puts ui-state-active on its
+ * link, which the jQuery UI skin would paint primary) all look the same, icons included */
+.pw-dropdown-menu li a:hover, .pw-dropdown-menu li > a:is(.ui-state-focus, .ui-state-active), .pw-dropdown-menu li:is(.ui-state-focus, .ui-state-active) > a {
+	background: var(--accent);
+	border-color: transparent;
+	color: var(--accent-foreground);
+}
+.pw-dropdown-menu li a:is(:hover, .ui-state-focus, .ui-state-active) :is(.fa, .fas, .far), .pw-dropdown-menu li:is(.ui-state-focus, .ui-state-active) > a :is(.fa, .fas, .far) { color: var(--accent-foreground); }
+/* flyout submenus: nested ul of a.pw-has-items (static) or a.pw-has-ajax-items (filled from
+ * navJSON). jQuery UI menu shows them with inline styles on legacy pages; :hover natively. All
+ * three place the submenu box (margin box) at the parent item's top: the negative top margin
+ * (border + padding) lines the first item up with its parent. */
+.pw-dropdown-menu li > ul {
+	/* shown by :hover (and by jQuery UI on legacy pages, inline display plus aria-hidden), hidden
+	 * with a 300 ms grace like jQuery UI's own submenu delay: a diagonal path from the parent row to
+	 * the flyout crosses sibling rows, and an instant :hover hide closed the flyout on the way */
+	display: block;
+	visibility: hidden;
+	opacity: 0;
+	z-index: 1;
+	transition: visibility 0s linear 300ms, opacity 100ms linear 200ms;
+	position: absolute;
+	top: 0;
+	left: 100%;
+	box-sizing: border-box;
+	min-width: 200px;
+	max-height: calc(100vh - var(--pw-masthead-h) - 40px);
+	overflow-y: auto;
+	scrollbar-width: thin;
+	margin: -5px 0 0 4px;
+	padding: 4px;
+	list-style: none;
+	background: var(--popover);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-md);
+}
+.pw-dropdown-menu li:hover > ul:not(:empty), .pw-dropdown-menu li > ul[aria-hidden="false"] { visibility: visible; opacity: 1; z-index: 2; transition-delay: 0s; }
+.pw-dropdown-menu li > ul:empty { display: none; }
+/* hover bridge over the 4px gap between a menu and its flyout */
+.pw-dropdown-menu li > a.pw-has-items::before { content: ""; position: absolute; top: 0; bottom: 0; right: -10px; width: 10px; }
+.pw-dropdown-menu a.pw-has-items { padding-right: 28px; }
+.pw-dropdown-menu a.pw-has-items::after { content: "\f105"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font: 900 12px/1 "Font Awesome 6 Free"; color: var(--muted-foreground); }
+.pw-dropdown-menu .pw-has-items-icon { display: none; }
+.pw-dropdown-menu li.add > a { color: var(--muted-foreground); }
+/* legacy shape: jQuery UI menu resets */
+.pw-dropdown-menu.ui-menu { font-family: inherit; }
+.pw-dropdown-menu.ui-menu .ui-menu-item { margin: 0; padding: 0; border: 0; list-style: none; }
+.pw-dropdown-menu.ui-menu .ui-menu-item a, .pw-dropdown-menu.ui-menu .ui-menu-item-wrapper { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 8px; border: 0; border-radius: var(--radius-sm); font-weight: 400; line-height: 20px; }
+.pw-dropdown-menu.ui-menu .ui-menu-item a.pw-has-items { padding-right: 28px; }
+.pw-dropdown-menu .ui-menu-icon { display: none; }
+.pw-dropdown-menu .ui-menu-divider { margin: 4px -4px; border: 0; border-top: 1px solid var(--border); }
+/* add new */
+.pw-add-new .pw-dropdown-menu { right: 0; }
+/* invisible bridge over the gap between toggle and menu, so moving the pointer across it keeps the
+ * menu hovered (upstream hides a hover menu 50 ms after the toggle is left) */
+/* exactly the 4px gap plus the border: it must not overlap the toggle, or a menu opening under
+ * a resting pointer takes the hover away from its own toggle */
+.pw-dropdown-menu::after { content: ""; position: absolute; left: 0; right: 0; top: -5px; height: 5px; }
+.pw-dropdown-menu.pw-dropdown-above::after { top: auto; bottom: -5px; }

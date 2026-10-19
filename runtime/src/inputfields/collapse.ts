@@ -1,0 +1,157 @@
+/**
+ * Collapse / expand of Inputfields on upstream markup, without jQuery.
+ *
+ * Markup contract (upstream InputfieldWrapper):
+ *   li.Inputfield[.InputfieldStateCollapsed][.collapsedN] > label.InputfieldHeader > i.toggle-icon[data-to]
+ *   li.Inputfield > div.InputfieldContent
+ *   AJAX-collapsed fields hold div.renderInputfieldAjax > input[type=hidden][value=url] inside the content.
+ *
+ * Classes written: InputfieldStateToggle (on headers that toggle), InputfieldStateCollapsed,
+ * InputfieldStateWasCollapsed, InputfieldAjaxLoading. Events dispatched on the li (bubbling):
+ * 'opened', 'closed', 'reloaded' (detail: { source: 'InputfieldAjaxLoad' }).
+ *
+ * collapsed9 = "never collapse" (no toggle). Everything else toggles on header click.
+ */
+
+import { legacyLoaded, loadLegacy } from '../legacy';
+
+const HEADER = '.InputfieldHeader, .ui-widget-header';
+
+export function initCollapse(root: ParentNode): void {
+	const items = root.querySelectorAll<HTMLElement>('.Inputfield');
+	items.forEach(li => {
+		if (li.classList.contains('collapsed9')) return;
+		const header = childHeader(li);
+		if (!header) return;
+		header.classList.add('InputfieldStateToggle');
+		if (li.classList.contains('InputfieldStateCollapsed')) syncIcon(li, true);
+	});
+}
+
+function childHeader(li: HTMLElement): HTMLElement | null {
+	for (const child of Array.from(li.children)) {
+		if (child.matches(HEADER)) return child as HTMLElement;
+	}
+	return null;
+}
+
+function syncIcon(li: HTMLElement, collapsed: boolean): void {
+	const header = childHeader(li);
+	const icon = header?.querySelector<HTMLElement>('i.toggle-icon');
+	if (!icon) return;
+	const to = (icon.getAttribute('data-to') || '').split(/\s+/).filter(Boolean);
+	if (to.length !== 2) return;
+	// data-to lists "open-class closed-class"; upstream toggles both. Normalise instead.
+	icon.classList.remove(to[0], to[1]);
+	icon.classList.add(collapsed ? to[1] : to[0]);
+}
+
+export function isCollapsed(li: HTMLElement): boolean {
+	return li.classList.contains('InputfieldStateCollapsed');
+}
+
+export function open(li: HTMLElement): void {
+	if (!isCollapsed(li)) return;
+	const ajax = ajaxPlaceholder(li);
+	if (ajax) {
+		void loadAjax(li, ajax);
+		return;
+	}
+	li.classList.remove('InputfieldStateCollapsed');
+	li.classList.add('InputfieldStateWasCollapsed');
+	syncIcon(li, false);
+	li.dispatchEvent(new CustomEvent('opened', { bubbles: true }));
+}
+
+export function close(li: HTMLElement): void {
+	if (isCollapsed(li)) return;
+	if (li.classList.contains('collapsed9')) return;
+	li.classList.add('InputfieldStateCollapsed');
+	li.classList.remove('InputfieldStateWasCollapsed');
+	syncIcon(li, true);
+	li.dispatchEvent(new CustomEvent('closed', { bubbles: true }));
+}
+
+export function toggle(li: HTMLElement): void {
+	if (isCollapsed(li)) open(li);
+	else close(li);
+}
+
+function ajaxPlaceholder(li: HTMLElement): HTMLElement | null {
+	for (const child of Array.from(li.children)) {
+		if (child.classList.contains('InputfieldContent')) {
+			const p = child.querySelector<HTMLElement>(':scope > .renderInputfieldAjax');
+			if (p) return p;
+		}
+		if (child.classList.contains('renderInputfieldAjax')) return child as HTMLElement;
+	}
+	return null;
+}
+
+async function loadAjax(li: HTMLElement, placeholder: HTMLElement): Promise<void> {
+	const urlInput = placeholder.querySelector<HTMLInputElement>(':scope > input');
+	const url = urlInput?.value || '';
+	if (!url) return;
+	if (li.classList.contains('InputfieldAjaxLoading')) return;
+	li.classList.remove('collapsed10', 'collapsed11');
+	li.classList.add('InputfieldAjaxLoading');
+	try {
+		const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+		const html = await res.text();
+		const tpl = document.createElement('template');
+		tpl.innerHTML = html;
+		li.classList.remove('InputfieldAjaxLoading', 'InputfieldStateCollapsed');
+		li.classList.add('InputfieldStateWasCollapsed');
+		syncIcon(li, false);
+		const scripts = Array.from(tpl.content.querySelectorAll('script'));
+		placeholder.replaceWith(tpl.content);
+		// inline scripts run, as with upstream's jQuery html(); content that needs the legacy stack
+		// (marked by the theme) runs them once the stack is there
+		if (scripts.length) {
+			if (!legacyLoaded() && li.querySelector('[data-bridge-legacy]')) await loadLegacy();
+			runScripts(scripts);
+		}
+		li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'InputfieldAjaxLoad' } }));
+		li.dispatchEvent(new CustomEvent('opened', { bubbles: true }));
+	} catch (err) {
+		li.classList.remove('InputfieldAjaxLoading');
+		console.error('Bridge: ajax load failed for', url, err);
+	}
+}
+
+/** Scripts inserted from a template never run: replace each with a live copy, in order */
+export function runScripts(scripts: HTMLScriptElement[]): void {
+	for (const old of scripts) {
+		if (!old.isConnected) continue;
+		const live = document.createElement('script');
+		for (const attr of Array.from(old.attributes)) live.setAttribute(attr.name, attr.value);
+		live.text = old.text;
+		old.replaceWith(live);
+	}
+}
+
+/**
+ * Delegated header click. Ignores clicks on controls inside the header and steps aside when
+ * the legacy stack owns the page.
+ */
+export function setupCollapseEvents(): void {
+	document.addEventListener('click', e => {
+		if (legacyLoaded()) return;
+		const target = e.target as HTMLElement;
+		// controls inside the header have their own job (the language tabs toggle shows all languages)
+		if (target.closest('a, button, input, select, textarea, .InputfieldHeaderAction, .langTabsToggle')) return;
+		const header = target.closest<HTMLElement>('.InputfieldStateToggle');
+		if (!header) return;
+		const li = header.parentElement;
+		if (!li || !li.classList.contains('Inputfield')) return;
+		e.preventDefault();
+		toggle(li);
+	});
+	// a WireTab whose content is AJAX-collapsed loads when its tab opens (upstream inputfields.js
+	// does this on 'wiretabclick'; the native WireTabs, scripts/wire-tabs.js, sends this event)
+	document.addEventListener('pw-wiretabs-change', e => {
+		if (legacyLoaded()) return;
+		const tab = (e as CustomEvent<{ tab: HTMLElement | null }>).detail.tab;
+		if (tab && tab.classList.contains('collapsed10')) open(tab);
+	});
+}

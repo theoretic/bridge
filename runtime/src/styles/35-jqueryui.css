@@ -1,0 +1,79 @@
+/* jQuery UI family. On legacy pages wire/templates-admin/styles/JqueryUI/JqueryUI.css is loaded
+ * with the stack (server-side or by the lazy loader, always before theme.css). It sets fonts and
+ * skin backgrounds on .ui-widget*, which every Inputfield carries. These rules neutralise that and
+ * recolour the widgets with the tokens. Harmless on native pages, where JqueryUI.css is absent. */
+
+.ui-widget, .ui-widget .ui-widget, .ui-widget input, .ui-widget select, .ui-widget textarea, .ui-widget button {
+	font-family: inherit;
+	font-size: inherit;
+}
+.Inputfield.ui-widget { border-color: transparent; }
+.Inputfield > .InputfieldHeader.ui-widget-header, .Inputfield > .InputfieldContent.ui-widget-content {
+	background: none;
+	border: 0;
+	color: inherit;
+	font-weight: 400;
+}
+.Inputfield.InputfieldRepeaterItem > .InputfieldHeader { color: var(--pw-h1); }
+.ui-widget-content:where(:not(.ui-dialog)) { background: var(--card); border-color: var(--border); color: var(--pw-text); }
+.ui-slider.ui-widget-content { background: var(--muted); }
+.ui-widget-content a { color: var(--pw-link); }
+.ui-widget-header { background: var(--muted); border-color: var(--border); color: var(--foreground); }
+.ui-corner-all { border-radius: var(--pw-radius); }
+.ui-state-default, .ui-widget-content .ui-state-default, .ui-widget-header .ui-state-default { background: var(--secondary); border-color: var(--border); color: var(--secondary-foreground); font-weight: 400; }
+.ui-state-hover, .ui-widget-content .ui-state-hover, .ui-state-focus, .ui-widget-content .ui-state-focus { background: var(--accent); border-color: var(--border); color: var(--accent-foreground); }
+.ui-state-active, .ui-widget-content .ui-state-active { background: var(--pw-primary); border-color: var(--pw-primary); color: var(--pw-on-primary); }
+.ui-state-default a, .ui-state-default a:link, .ui-state-default a:visited, .ui-state-hover a, .ui-state-hover a:link, .ui-state-focus a, .ui-state-focus a:link { color: inherit; }
+.ui-state-active a, .ui-state-active a:link { color: var(--pw-on-primary); }
+.ui-state-error, .ui-widget-content .ui-state-error { background: var(--pw-danger-bg); border-color: color-mix(in srgb, var(--destructive) 30%, transparent); color: var(--destructive); }
+.ui-state-highlight, .ui-widget-content .ui-state-highlight { background: var(--pw-warning-bg); border-color: color-mix(in srgb, var(--warning) 30%, transparent); color: var(--foreground); }
+.ui-widget-overlay { background: rgb(0 0 0 / .5); opacity: 1; }
+/* buttons rendered by jQuery UI .button(): keep ours */
+.ui-button.ui-state-default, .ui-button.ui-state-hover, .ui-button.ui-state-focus { background: var(--primary); border-color: transparent; color: var(--primary-foreground); }
+.ui-button.ui-state-hover { background: var(--pw-primary-hover); }
+.ui-button.ui-priority-secondary.ui-state-default, .ui-button.ui-priority-secondary.ui-state-focus { background: var(--background); border-color: var(--input); color: var(--foreground); }
+.ui-button.ui-priority-secondary.ui-state-hover { background: var(--accent); border-color: var(--input); color: var(--accent-foreground); }
+.ui-button-text-only .ui-button-text { padding: 0; }
+
+/* datepicker */
+.ui-datepicker {
+	padding: 12px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--popover);
+	color: var(--popover-foreground);
+	box-shadow: var(--shadow-md);
+	z-index: 200 !important;
+}
+.ui-datepicker .ui-datepicker-header { border: 0; border-radius: 0; background: none; color: var(--foreground); font-weight: 500; }
+.ui-datepicker .ui-datepicker-prev, .ui-datepicker .ui-datepicker-next { top: 2px; border: 1px solid var(--input); border-radius: var(--radius-md); }
+.ui-datepicker .ui-datepicker-prev-hover, .ui-datepicker .ui-datepicker-next-hover { top: 2px; background: var(--accent); border: 1px solid var(--input); }
+.ui-datepicker select.ui-datepicker-month, .ui-datepicker select.ui-datepicker-year { min-height: 28px; padding: 2px 4px; border: 1px solid var(--input); border-radius: var(--radius-sm); background-color: var(--background); color: var(--foreground); font: inherit; font-size: 13px; }
+.ui-datepicker th { color: var(--muted-foreground); font-weight: 400; font-size: 12px; }
+.ui-datepicker td a.ui-state-default { border: 0; border-radius: var(--radius-md); background: none; color: var(--foreground); text-align: center; }
+.ui-datepicker td a.ui-state-highlight { background: var(--accent); }
+.ui-datepicker td a.ui-state-hover { background: var(--accent); color: var(--accent-foreground); }
+.ui-datepicker td a.ui-state-active { background: var(--primary); color: var(--primary-foreground); }
+
+/* menus, autocomplete, progress, tooltips */
+.ui-menu.ui-autocomplete, .ui-autocomplete {
+	padding: 4px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--popover);
+	color: var(--popover-foreground);
+	box-shadow: var(--shadow-md);
+	overflow-x: hidden;
+	overflow-y: auto;
+	max-height: 230px;
+}
+.ui-autocomplete .ui-menu-item a, .ui-autocomplete .ui-menu-item-wrapper { padding: 6px 8px; border: 0; margin: 0; border-radius: var(--radius-sm); }
+.ui-progressbar { border: 0; background: color-mix(in srgb, var(--primary) 20%, transparent); border-radius: 9999px; overflow: hidden; }
+.ui-progressbar-value { border: 0; background: var(--pw-primary); }
+.ui-tooltip { border: 0; border-radius: var(--radius-md); background: var(--foreground); color: var(--background); box-shadow: none; font-size: 12px; padding: 6px 10px; }
+
+/* LanguageTabs.css (jQuery UI tab markup) and InputfieldFile.css leftovers */
+.langTabs.ui-tabs, .langTabs .ui-tabs-panel { padding: 0; border: 0; background: none; }
+.langTabs .ui-tabs-nav, .langTabs ul.ui-widget-header { padding: 0; border: 0; background: none; }
+.langTabs .ui-tabs-nav li { border: 0; background: none; margin: 0; }
+.InputfieldFileList .ui-state-hover, .InputfieldFileItem .ui-state-hover { background: var(--pw-primary-bg); }

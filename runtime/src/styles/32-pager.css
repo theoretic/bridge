@@ -1,0 +1,34 @@
+/* Pagination: MarkupPagerNav (listMarkup ul.pw-pagination.MarkupPagerNav) and the page tree's
+ * PageListPagination (paginationClass pw-pagination), as a joined button group */
+
+ul.pw-pagination, ul.MarkupPagerNav, ul.PageListPagination {
+	display: inline-flex;
+	flex-wrap: wrap;
+	list-style: none;
+	margin: 10px 0;
+	padding: 0;
+}
+ul.pw-pagination li, ul.MarkupPagerNav li, ul.PageListPagination li { margin: 0 0 0 -1px; padding: 0; float: none; }
+ul.pw-pagination li a, ul.pw-pagination li > span, ul.pw-pagination.MarkupPagerNav li a, ul.PageListPagination li a {
+	display: block;
+	min-width: 34px;
+	box-sizing: border-box;
+	padding: 4px 10px;
+	border: 1px solid var(--input);
+	background: var(--background);
+	color: var(--foreground);
+	font-size: 14px;
+	font-weight: 500;
+	text-align: center;
+	text-decoration: none;
+	line-height: 1.5;
+}
+ul.pw-pagination li:first-child a, ul.MarkupPagerNav li:first-child a, ul.PageListPagination li:first-child a { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+ul.pw-pagination li:last-child a, ul.MarkupPagerNav li:last-child a, ul.PageListPagination li:last-child a { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+ul.pw-pagination li a:hover, ul.MarkupPagerNav li a:hover, ul.PageListPagination li a:hover, .pw-link-hover { background: var(--accent); color: var(--accent-foreground); }
+ul.pw-pagination li.pw-active a, ul.MarkupPagerNav li.MarkupPagerNavOn a, ul.PageListPagination li.PageListPaginationCurrent a, a.pw-link-active {
+	background: var(--accent);
+	color: var(--foreground);
+	font-weight: 700;
+}
+ul.pw-pagination li.pw-disabled a, ul.pw-pagination li.pw-disabled span, ul.MarkupPagerNav li.MarkupPagerNavSeparator { color: var(--pw-text-muted-alt); pointer-events: none; }

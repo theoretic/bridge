@@ -1,0 +1,43 @@
+/* CKEditor 4, skin moono-lisa (the only one shipped; no dark variant). The skin stylesheet is
+ * injected after the theme sheets, so every rule here carries an extra `html`. The editing area
+ * is an iframe: its colours come from scripts/main.js (editorSchemes), not from here. */
+html .cke_chrome { border-color: var(--input); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-xs); }
+html .cke_inner, html .cke_wysiwyg_frame, html .cke_wysiwyg_div { background: var(--card); }
+html .cke_top, html .cke_bottom { background: var(--muted); border-color: var(--border); }
+html .cke_float .cke_top { border-color: var(--border); }
+html textarea.cke_source { background: var(--card); color: var(--foreground); }
+html .cke_resizer { border-right-color: var(--muted-foreground); color: var(--muted-foreground); }
+html .cke_combo_text, html .cke_button_label, html a.cke_path_item, html span.cke_path_empty { color: var(--foreground); }
+html a.cke_button_on, html .cke_combo_on a.cke_combo_button, html .cke_combo_off a.cke_combo_button:active { background: var(--card); border-color: var(--input); }
+html a.cke_button_off:hover, html a.cke_button_off:focus, html a.cke_button_off:active, html .cke_toolbox_collapser:hover,
+html .cke_combo_off a.cke_combo_button:hover, html .cke_combo_off a.cke_combo_button:focus, html a.cke_path_item:hover, html a.cke_path_item:focus { background: var(--accent); border-color: var(--input); }
+html .cke_toolgroup a.cke_button:last-child:after, html .cke_combo:after, html a.cke_toolbox_collapser { border-color: var(--border); }
+/* toolbar glyphs come from one dark sprite (icons.png) */
+[data-pw-scheme="dark"] .cke_button_icon { filter: invert(.9); }
+html .cke_button_arrow, html .cke_combo_arrow { border-top-color: var(--foreground); }
+/* dropdown panels (Format, Styles): the frame here, the list inside its iframe gets the injected style */
+html .cke_panel { background: var(--popover); border-color: var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+html .cke_menubutton_icon, html .cke_menubutton_disabled:hover .cke_menubutton_icon { background: var(--muted); }
+html .cke_menubutton:hover, html .cke_menubutton:focus, html .cke_menubutton:active, html .cke_menubutton:hover .cke_menubutton_icon,
+html .cke_menuitem .cke_menubutton_on, html .cke_menubutton_on .cke_menubutton_icon { background: var(--accent); }
+html .cke_menubutton_label, html .cke_menuitem span { color: var(--popover-foreground); }
+html .cke_menuseparator { background: var(--border); }
+/* CKEditor's own dialogs (table, special characters; links and images use ProcessWire modals) */
+html .cke_dialog_body, html .cke_dialog_contents, html a.cke_dialog_tab_selected, html a.cke_dialog_tab:hover { background: var(--popover); color: var(--popover-foreground); }
+html .cke_dialog_title, html .cke_dialog_footer, html a.cke_dialog_tab { background: var(--muted); border-color: var(--border); color: var(--foreground); }
+html .cke_dialog_contents, html .cke_dialog_footer { border-color: var(--border); }
+html .cke_dialog_ui_labeled_label, html .cke_dialog_ui_text, html .cke_dialog_ui_checkbox label { color: var(--popover-foreground); }
+html input.cke_dialog_ui_input_text, html input.cke_dialog_ui_input_password, html input.cke_dialog_ui_input_tel, html textarea.cke_dialog_ui_input_textarea, html select.cke_dialog_ui_input_select {
+	background: var(--pw-input-bg); border-color: var(--input); color: var(--foreground);
+}
+html a.cke_dialog_ui_button { background: var(--secondary); border-color: var(--input); color: var(--secondary-foreground); }
+html a.cke_dialog_ui_button:hover { background: var(--accent); }
+html .cke_dialog .cke_light_background { background: var(--muted); }
+[data-pw-scheme="dark"] .cke_dialog_close_button { filter: invert(.9); }
+/* inline editors: the content sits in the page (contents-inline.css paints #333 text, white cells) */
+.InputfieldForm .InputfieldCKEditorInline, .InputfieldForm .InputfieldCKEditorInline :is(p, li, td, th, blockquote, h1, h2, h3, h4, h5, h6) { color: var(--foreground); background-color: transparent; }
+.InputfieldForm .InputfieldCKEditorInline a { color: var(--primary); }
+.InputfieldForm .InputfieldCKEditorInline a:hover { background: var(--pw-primary-bg); }
+.InputfieldForm .InputfieldCKEditorInline :is(td, th), .InputfieldForm .InputfieldCKEditorInline hr { border-color: var(--border); }
+.InputfieldForm .InputfieldCKEditorInline blockquote { border-left-color: var(--border); color: var(--muted-foreground); }
+.InputfieldForm .InputfieldCKEditorInline :is(pre, code) { background: var(--muted); color: var(--foreground); }

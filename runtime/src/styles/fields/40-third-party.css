@@ -1,0 +1,57 @@
+/* Third-party fields seen on the sites Bridge is tested with. Modules that read AdminThemeUikit's
+ * custom properties (Fluency, ...) follow the scheme through 00-tokens.css alone. */
+
+/* SeoNeo: variable driven; the SERP preview switches to Google's dark palette */
+:root {
+	--sn-surface: var(--card);
+	--sn-ctrl-bg: var(--muted);
+	--sn-border-color: var(--border);
+	--sn-favicon-bg: var(--muted);
+	--sn-text: var(--foreground);
+	--sn-text-muted: var(--muted-foreground);
+	--sn-text-hover: var(--foreground);
+}
+[data-pw-scheme="dark"] {
+	--sn-serp-blue: #99c3ff;
+	--sn-serp-site: #dadce0;
+	--sn-serp-breadcrumb: #bdc1c6;
+	--sn-serp-desc: #bdc1c6;
+	--sn-green: #4ade80;
+	--sn-amber: #fbbf24;
+	--sn-red: #f87171;
+}
+
+/* FieldtypeImageReference */
+.InputfieldImageReference .uk-panel { border-color: var(--border); }
+.InputfieldImageReference .uk-panel > div { background-color: var(--muted); }
+.InputfieldImageReference .imagereference_thumbs_anypage:before { background-color: var(--card); }
+
+/* FieldtypeMatrix */
+table.Matrix td, table.Matrix th { border-color: var(--border); }
+table.Matrix tr:hover td, table.Matrix tr:hover th.MatrixRowNumber, li.InputfieldMatrix table tr.highlight_row { background: var(--accent); }
+li.InputfieldMatrix table tr.highlight_last_blank :not(th) { background: var(--pw-highlight) !important; }
+div.alert p { background: var(--card); color: var(--foreground); }
+
+/* FieldtypeColor (spectrum): the picker frame; its gradients are the colour model and stay */
+.sp-container { background-color: var(--popover); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+.sp-replacer { background: var(--pw-input-bg); border-color: var(--input); border-radius: var(--radius-md); color: var(--foreground); }
+.sp-replacer:hover, .sp-replacer.sp-active { border-color: var(--ring); color: var(--foreground); }
+.sp-input { border-color: var(--input); color: var(--foreground); }
+.sp-palette-container { border-right-color: var(--border); }
+.sp-dd { color: var(--muted-foreground); }
+
+/* PageTableNext: its icon sprite override is the dark one */
+[data-pw-scheme="dark"] .InputfieldPageTableNext .ui-icon { filter: invert(.85); }
+
+/* InputfieldFloatRange: slider and value box on one centre line with a gap; the module's black
+ * track (invisible on dark) becomes the theme's slider, like the image size slider, filled up to
+ * the thumb (--pw-range-fill, set by setupRangeFill in scripts/main.js) */
+.Inputfield.InputfieldFloatRange input[type=range] { height: 16px; margin: 0; vertical-align: middle; background: none; }
+.Inputfield.InputfieldFloatRange input[type=range].InputfieldFloatRange--with-value { width: calc(100% - 132px); margin-right: 12px; }
+.Inputfield.InputfieldFloatRange .InputfieldFloatRange__display { vertical-align: middle; border-left: 1px solid var(--input) !important; }
+.Inputfield.InputfieldFloatRange input[type=range]::-webkit-slider-runnable-track { height: 4px; border: 0; border-radius: 2px; background: linear-gradient(to right, var(--primary) var(--pw-range-fill, 0%), var(--input) var(--pw-range-fill, 0%)); box-shadow: none; }
+.Inputfield.InputfieldFloatRange input[type=range]::-moz-range-track { height: 4px; border: 0; border-radius: 2px; background: linear-gradient(to right, var(--primary) var(--pw-range-fill, 0%), var(--input) var(--pw-range-fill, 0%)); box-shadow: none; }
+.Inputfield.InputfieldFloatRange input[type=range]::-webkit-slider-thumb { width: 16px; height: 16px; margin-top: -6px; border: 1px solid var(--primary); border-radius: 50%; background: var(--background); box-shadow: var(--shadow-sm); }
+.Inputfield.InputfieldFloatRange input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: 1px solid var(--primary); border-radius: 50%; background: var(--background); box-shadow: var(--shadow-sm); box-sizing: border-box; }
+.Inputfield.InputfieldFloatRange input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--ring-50); }
+.Inputfield.InputfieldFloatRange input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--ring-50); }

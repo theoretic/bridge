@@ -1,0 +1,91 @@
+/* Notices: Boss-style cards in a reserved band between the masthead and the content: the band
+ * (#main's top padding, 10-layout.css) is always there, the notices are laid over it, so showing,
+ * closing or auto-hiding them never moves the page. More than one notice extends over the
+ * content as a shadowed layer. Modal windows and the login card keep them in the flow.
+ * Markup: AdminThemeFramework::renderNotices, ul#notices.pw-notices > li.NoticeMessage|
+ * NoticeWarning|NoticeError[.NoticeDebug][.pw-notice-group-parent|.pw-notice-group-child]; the
+ * first item carries a.pw-notice-remove, a group parent ends with a.pw-notice-group-toggle.
+ * Children stay hidden until the toggle opens them (core AdminTheme.css; upstream main.js
+ * slideDown, or scripts/main.js natively). */
+
+#notices {
+	box-sizing: border-box;
+	margin: 16px 0 0;
+	padding: 0 40px;
+	list-style: none;
+}
+body:not(.modal):not(.ProcessLogin) #notices {
+	position: absolute;
+	top: calc(var(--pw-masthead-h) + var(--pw-notice-gap));
+	left: 0;
+	right: 0;
+	z-index: 60;
+	margin: 0 auto; /* centred like .pw-container when the theme's max width is set (_head.php) */
+}
+body:not(.modal):not(.ProcessLogin) #notices li { box-shadow: var(--shadow-sm); }
+/* Notices that would cover the page go back into the flow and push it down instead: an expanded
+ * group (by hand), errors (they stay until closed, and must never hide the Save buttons) and more
+ * than one row. Only a single collapsed row of messages or warnings, which fits the band and goes
+ * away by itself, is laid over the band. The first row keeps its place: the band's top gap becomes
+ * the list's top padding (minus the masthead's 1px border), #main keeps what the band had below
+ * the row (gap minus the item's own bottom margin). */
+body:not(.modal):not(.ProcessLogin) #notices:is(:has(.pw-notice-group-open), :has(.NoticeError, .pw-notice-error), :has(> li:not(.pw-notice-group-child) ~ li:not(.pw-notice-group-child))) {
+	position: static;
+	padding-top: calc(var(--pw-notice-gap) - 1px);
+}
+/* (one :has() with a list: :has() may not be nested in :has()) */
+body:not(.modal):not(.ProcessLogin):has(> #notices .pw-notice-group-open, > #notices .NoticeError, > #notices .pw-notice-error, > #notices > li:not(.pw-notice-group-child) ~ li:not(.pw-notice-group-child)) #main {
+	padding-top: calc(var(--pw-notice-gap) - 6px);
+}
+#notices li {
+	position: relative;
+	margin: 0 0 6px;
+	padding: 10px 14px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--card);
+	color: var(--card-foreground);
+	font-size: 14px;
+	line-height: 20px;
+	overflow-wrap: anywhere;
+}
+/* close link (upstream puts one on the first notice, and on others in some layouts) and group
+ * toggle placed by what the item actually contains */
+#notices li:has(> .pw-notice-remove) { padding-right: 44px; }
+#notices li.pw-notice-group-parent { padding-right: 96px; }
+#notices li .pw-nav-icon { margin-right: 8px; color: var(--muted-foreground); }
+/* result palette (renderNotices adds pw-notice-success|warning|error; SystemNotifications too):
+ * Basecoat alert look, light tint, darker border, dark tinted text, strong icon */
+:is(#notices li, .pw-alert):is(.pw-notice-success, .pw-notice-warning, .pw-notice-error) {
+	background: var(--n-bg);
+	border-color: var(--n-border);
+	color: var(--n-fg);
+}
+:is(#notices li, .pw-alert):is(.pw-notice-success, .pw-notice-warning, .pw-notice-error) .pw-nav-icon { color: var(--n-icon); }
+.pw-notice-success { --n-bg: #f0fdf4; --n-border: #bbf7d0; --n-fg: #14532d; --n-icon: #16a34a; }
+.pw-notice-warning { --n-bg: #fffbeb; --n-border: #fde68a; --n-fg: #78350f; --n-icon: #d97706; }
+.pw-notice-error { --n-bg: #fef2f2; --n-border: #fecaca; --n-fg: #7f1d1d; --n-icon: #dc2626; }
+[data-pw-scheme="dark"] .pw-notice-success { --n-bg: #052e16; --n-border: #166534; --n-fg: #bbf7d0; --n-icon: #4ade80; }
+[data-pw-scheme="dark"] .pw-notice-warning { --n-bg: #451a03; --n-border: #92400e; --n-fg: #fde68a; --n-icon: #fbbf24; }
+[data-pw-scheme="dark"] .pw-notice-error { --n-bg: #450a0a; --n-border: #991b1b; --n-fg: #fecaca; --n-icon: #f87171; }
+/* debug notices stay neutral */
+#notices li.NoticeDebug { background: var(--card); border-color: var(--border); color: var(--muted-foreground); font-size: var(--pw-tiny); }
+#notices li.NoticeDebug .pw-nav-icon { color: var(--muted-foreground); }
+#notices .pw-notice-group-child { display: none; margin-left: 24px; }
+#notices .pw-notice-remove, #notices .pw-notice-group-toggle {
+	position: absolute;
+	top: 10px;
+	color: inherit;
+	text-decoration: none;
+	line-height: 20px;
+	opacity: .55;
+	transition: opacity var(--pw-transition);
+}
+#notices .pw-notice-remove { right: 14px; }
+#notices .pw-notice-group-toggle { right: 40px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+#notices .pw-notice-group-toggle .fa-bell, #notices .pw-notice-group-toggle .fa-bell-o { display: none; }
+#notices .pw-notice-remove:hover, #notices .pw-notice-group-toggle:hover { opacity: 1; }
+#notices li:not(:has(> .pw-notice-remove)) > .pw-notice-group-toggle { right: 14px; }
+#notices li a { color: inherit; }
+#notices pre { white-space: pre-wrap; font-size: var(--pw-tiny); }
+body.modal #notices { padding: 0 20px; margin-top: 10px; }

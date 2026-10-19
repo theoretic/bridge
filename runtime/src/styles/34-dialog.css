@@ -1,0 +1,77 @@
+/* Dialogs: <pw-dialog> (native dialog + iframe), jQuery UI dialog (modal.js on legacy pages), panels */
+
+dialog.pw-dialog {
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--background);
+	color: var(--foreground);
+	box-shadow: var(--shadow-lg);
+	width: 70vw;
+	height: 80vh;
+	max-width: 1200px;
+}
+dialog.pw-dialog::backdrop { background: rgb(0 0 0 / .5); }
+dialog.pw-dialog-small { width: 40vw; height: 50vh; }
+dialog.pw-dialog-large { width: 85vw; height: 88vh; max-width: none; }
+dialog.pw-dialog-full { width: 96vw; height: 94vh; max-width: none; }
+.pw-dialog-bar, .ui-dialog .ui-dialog-titlebar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	background: var(--background);
+	border: 0;
+	border-bottom: 1px solid var(--border);
+	border-radius: 0;
+	color: var(--foreground);
+	font-weight: 600;
+}
+.pw-dialog-close { border: 0; background: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--pw-text-muted); }
+.pw-dialog-close:hover { color: var(--pw-h1); }
+dialog.pw-dialog[open] { display: flex; flex-direction: column; }
+.pw-dialog-frame { display: block; flex: 1 1 auto; width: 100%; min-height: 0; border: 0; }
+/* buttons from the window's page (data-buttons, modal.js parity) */
+.pw-dialog-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--border); }
+.pw-dialog-buttons:empty { display: none; }
+.pw-dialog-buttons .ui-button { margin: 0; }
+dialog.pw-dialog-busy .pw-dialog-frame { opacity: .5; }
+
+.ui-dialog {
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--background);
+	box-shadow: var(--shadow-lg);
+	overflow: hidden;
+}
+.ui-dialog .ui-dialog-title { font-size: 16px; font-weight: 600; }
+.ui-dialog .ui-dialog-titlebar .ui-dialog-titlebar-close { position: static; display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 0; width: 32px; height: 32px; border: 0; border-radius: var(--radius-sm); background: none; box-shadow: none; color: var(--muted-foreground); }
+.ui-dialog .ui-dialog-titlebar .ui-dialog-titlebar-close:hover { background: var(--accent); color: var(--accent-foreground); }
+.ui-dialog .ui-dialog-titlebar-close .ui-button-text { display: none; }
+.ui-dialog .ui-dialog-content { padding: 0; background: var(--pw-bg); }
+.ui-dialog .ui-dialog-buttonpane { margin: 0; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--background); }
+.ui-dialog .ui-dialog-buttonpane .ui-button { font-size: 14px; line-height: 34px; padding: 0 16px; }
+
+/* panels (JqueryUI/panel.css, pw-panel links) */
+.pw-panel-container { box-shadow: var(--shadow-lg); border-left: 1px solid var(--border); }
+.pw-panel-button { background: var(--primary); color: var(--primary-foreground); border-radius: var(--radius-md) 0 0 var(--radius-md); }
+/* image lightbox (runtime util/lightbox.ts, in place of Magnific Popup on pages without jQuery) */
+dialog.pw-lightbox { max-width: none; max-height: none; padding: 0; border: 0; background: none; overflow: visible; }
+dialog.pw-lightbox::backdrop { background: rgb(0 0 0 / .85); }
+.pw-lightbox-figure { margin: 0; text-align: center; }
+.pw-lightbox-figure img { display: block; max-width: 92vw; max-height: 88vh; margin: 0 auto; cursor: zoom-out; }
+.pw-lightbox-figure figcaption { padding-top: 8px; color: #eee; font-size: 13px; }
+.pw-lightbox button { position: fixed; top: 50%; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgb(0 0 0 / .45); color: #fff; font-size: 22px; cursor: pointer; transform: translateY(-50%); }
+.pw-lightbox button:hover { background: rgb(0 0 0 / .7); }
+.pw-lightbox .pw-lightbox-prev { left: 16px; }
+.pw-lightbox .pw-lightbox-next { right: 16px; }
+.pw-lightbox .pw-lightbox-close { top: 16px; right: 16px; transform: none; }
+/* small choice dialog (runtime util/choose.ts, the repeater's copy / clone / paste in place of vex) */
+dialog.pw-ask { width: calc(100% - 32px); max-width: 520px; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--background); color: var(--foreground); box-shadow: var(--shadow-lg); }
+dialog.pw-ask::backdrop { background: rgb(0 0 0 / .5); }
+.pw-ask-message { margin: 0 0 12px; font-weight: 600; }
+.pw-ask select { width: 100%; }
+.pw-ask-note { margin-top: 8px; }
+.pw-ask-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.pw-ask-buttons .ui-button { margin: 0; }

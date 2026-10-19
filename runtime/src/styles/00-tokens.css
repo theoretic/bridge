@@ -1,0 +1,119 @@
+/* Design tokens. Look: Basecoat UI "vega" (shadcn token names and neutral values, ADR 0011);
+ * colours: AdminThemeBoss variant presets. Source of truth is the shadcn set; the older --pw-*
+ * names below alias it, so component files read either.
+ * A custom primary needs one value (--pw-primary on <html style>); everything else derives. */
+
+:root {
+	color-scheme: light;
+	/* shadcn tokens, vega neutral */
+	--background: #fff;
+	--foreground: #0a0a0a;
+	--card: #fff;
+	--card-foreground: #0a0a0a;
+	--popover: #fff;
+	--popover-foreground: #0a0a0a;
+	--pw-primary: #3584EA;
+	--primary: var(--pw-primary);
+	--primary-foreground: #fff;
+	--secondary: #f5f5f5;
+	--secondary-foreground: #171717;
+	--muted: #f5f5f5;
+	--muted-foreground: #737373;
+	--accent: #f5f5f5;
+	--accent-foreground: #171717;
+	--destructive: #e7000b;
+	--border: #e5e5e5;
+	--input: #e5e5e5;
+	--ring: var(--primary);
+	--radius: .625rem;
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+	--shadow-xs: 0 1px 2px 0 rgb(0 0 0 / .05);
+	--shadow-sm: 0 1px 3px 0 rgb(0 0 0 / .1), 0 1px 2px -1px rgb(0 0 0 / .1);
+	--shadow-md: 0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1);
+	--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1);
+	--ring-50: color-mix(in srgb, var(--ring) 50%, transparent);
+	--success: #15803d;
+	--warning: #b45309;
+	/* select chevron: a data URI cannot read tokens, so one per scheme, stroke = --muted-foreground */
+	--pw-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+
+	/* type and metrics */
+	--pw-font: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--pw-font-size: 14px;
+	--pw-line-height: 1.5;
+	--pw-tiny: 12px;
+	--pw-icon: 14px;
+	--pw-radius: var(--radius-md);
+	--pw-radius-m: var(--radius-lg);
+	--pw-masthead-h: 56px;
+	--pw-field-pad: 20px;
+	--pw-gutter: 6px; /* half the gap between field cards */
+	--pw-transition: 150ms;
+
+	/* aliases (older names) */
+	--pw-bg: var(--background);
+	--pw-surface: var(--card);
+	--pw-surface-2: var(--muted);
+	--pw-line: var(--border);
+	--pw-input-bg: transparent;
+	--pw-input-border: var(--input);
+	--pw-text: var(--foreground);
+	--pw-text-muted: var(--muted-foreground);
+	--pw-text-muted-alt: var(--muted-foreground);
+	--pw-link: var(--foreground);
+	--pw-link-hover: var(--primary);
+	--pw-h1: var(--foreground);
+	--pw-h2: var(--foreground);
+	--pw-on-primary: var(--primary-foreground);
+	--pw-masthead-bg: color-mix(in srgb, var(--background) 92%, transparent);
+	--pw-primary-hover: color-mix(in srgb, var(--primary) 90%, var(--background));
+	--pw-primary-40: color-mix(in srgb, var(--primary) 40%, transparent);
+	--pw-primary-20: color-mix(in srgb, var(--primary) 20%, transparent);
+	--pw-primary-bg: color-mix(in srgb, var(--primary) 8%, var(--background));
+	--pw-muted-bg: var(--muted);
+	--pw-selection-bg: var(--primary);
+	/* alert tints: a light wash of the status colour */
+	--pw-success-bg: color-mix(in srgb, var(--success) 10%, var(--background));
+	--pw-warning-bg: color-mix(in srgb, var(--warning) 12%, var(--background));
+	--pw-danger-bg: color-mix(in srgb, var(--destructive) 10%, var(--background));
+	--pw-shadow-card: var(--shadow-sm);
+	--pw-shadow-dropdown: var(--shadow-md);
+}
+
+/* colour presets: AdminThemeBoss's primaries */
+[data-pw-variant="blue"] { --pw-primary: #3584EA; }
+[data-pw-variant="vibrant"] { --pw-primary: #00BED7; }
+[data-pw-variant="black"] { --pw-primary: #171717; }
+[data-pw-variant="pink"] { --pw-primary: #f413a9; }
+[data-pw-variant="green"] { --pw-primary: #0aad77; }
+
+/* dark scheme: vega dark neutrals, primary kept per variant */
+[data-pw-scheme="dark"] {
+	color-scheme: dark;
+	--background: #0a0a0a;
+	--foreground: #fafafa;
+	--card: #171717;
+	--card-foreground: #fafafa;
+	--popover: #171717;
+	--popover-foreground: #fafafa;
+	--secondary: #262626;
+	--secondary-foreground: #fafafa;
+	--muted: #262626;
+	--muted-foreground: #a1a1a1;
+	--accent: #262626;
+	--accent-foreground: #fafafa;
+	--destructive: #ff6467;
+	--border: rgb(255 255 255 / .1);
+	--input: rgb(255 255 255 / .15);
+	--success: #4ade80;
+	--warning: #fbbf24;
+	--pw-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+	--pw-input-bg: rgb(255 255 255 / .045);
+	--shadow-sm: 0 1px 3px 0 rgb(0 0 0 / .4);
+	--shadow-md: 0 4px 6px -1px rgb(0 0 0 / .5), 0 2px 4px -2px rgb(0 0 0 / .5);
+	--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / .5), 0 4px 6px -4px rgb(0 0 0 / .5);
+}
+[data-pw-scheme="dark"][data-pw-variant="black"] { --pw-primary: #e5e5e5; --primary-foreground: #171717; }

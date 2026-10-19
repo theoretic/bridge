@@ -1,0 +1,16 @@
+/*
+ * AdminThemeBridge field stylesheet. Built by Vite into modules/AdminThemeBridge/assets/dist/fields.css,
+ * printed right after theme.css (ADR 0014). theme.css styles the admin frame and the Inputfield
+ * frame; this file recolours the inside of specific field modules (selectize, images, rich-text
+ * editors, JSON editor, third-party fields) whose own CSS hard-codes light colours. Every rule
+ * reads the tokens, so it holds in both schemes. Module styles are printed before both theme
+ * sheets: equal specificity wins; stylesheets injected later (CKEditor skin) need a higher one.
+ */
+@import './00-tokens.css';
+@import './10-selectize.css';
+@import './11-image-file.css';
+@import './12-widgets.css';
+@import './20-ckeditor.css';
+@import './21-tinymce.css';
+@import './30-jsoneditor.css';
+@import './40-third-party.css';

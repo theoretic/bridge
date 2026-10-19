@@ -1,0 +1,45 @@
+/* Tabs: WireTabs (ul.WireTabs > li > a#_id, active li.pw-active / a.on), <pw-tabs>, language tabs */
+
+/* one tab design for WireTabs, <pw-tabs> and language tabs (21-controls.css): a hairline
+ * baseline, tabs rounded at the top only, the active tab drawn in the surface colour so it merges
+ * into the baseline */
+ul.WireTabs, .pw-tabs-nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	list-style: none;
+	margin: 0 0 16px;
+	padding: 0 4px;
+	border-bottom: 1px solid var(--border);
+	box-sizing: border-box;
+}
+ul.WireTabs li, .pw-tabs-nav li { margin: 0 0 -1px; padding: 0; }
+ul.WireTabs li a, .pw-tabs-nav a {
+	display: inline-flex;
+	align-items: center;
+	height: 36px;
+	padding: 0 14px;
+	border: 1px solid transparent;
+	border-bottom: 0;
+	border-radius: var(--radius-md) var(--radius-md) 0 0;
+	color: var(--muted-foreground);
+	font-size: 14px;
+	font-weight: 500;
+	text-decoration: none;
+	white-space: nowrap;
+	transition: color var(--pw-transition), background var(--pw-transition);
+}
+ul.WireTabs li a:hover, .pw-tabs-nav a:hover { color: var(--foreground); background: color-mix(in srgb, var(--muted) 60%, transparent); }
+ul.WireTabs li.pw-active a, ul.WireTabs li a.on, .pw-tabs-nav li.pw-active a {
+	height: 37px;
+	background: var(--background);
+	border-color: var(--border);
+	color: var(--foreground);
+	font-weight: 600;
+}
+ul.WireTabs li a .fa { margin-right: 6px; }
+ul.WireTabs li a.WireTabTip, ul.WireTabs li a[title] { cursor: pointer; }
+/* page editor: the tab row sits in the content head area */
+#PageEditTabs { margin-top: 4px; }
+pw-tabs { display: block; margin: 0 0 16px; }
+pw-tabs > section[hidden] { display: none; }

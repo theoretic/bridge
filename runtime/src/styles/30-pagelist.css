@@ -1,0 +1,58 @@
+/* Page tree. Upstream ProcessPageList.css stays loaded (layout, sorting, placeholders); these rules
+ * give it the Boss look: no row borders, bold open item, action links as pills. */
+
+.PageList { font-size: 14px; }
+/* fixed line box: the action pills that appear on hover fit inside it, so rows never shift */
+.PageList .PageListItem { border: 0; padding: 3px 0; line-height: 22px; }
+.PageList .PageListItem > a.PageListPage { color: var(--foreground); text-decoration: none; }
+.PageList .PageListItem > a.PageListPage:hover { color: var(--primary); }
+.PageList .PageListItemOpen > a.PageListPage { font-weight: 600; }
+.PageList i.icon, .PageList .PageListStatusIcon { padding-right: .5em; color: var(--pw-text-muted); }
+.PageList .PageListNumChildren { color: var(--muted-foreground); font-size: 12px; }
+.PageList .PageListNote { color: var(--pw-text-muted); }
+.PageList .PageListStatusUnpublished > a.PageListPage, .PageList .PageListStatusHidden > a.PageListPage { opacity: .6; }
+.PageList .PageListItemHover { background: color-mix(in srgb, var(--muted) 60%, transparent); border-radius: var(--radius-sm); }
+
+.PageList .PageListActions > li { border: 0; padding: 0; margin: 0 3px 0 0; }
+.PageList .PageListActions li a, .PageListerActions a, .PageList .PageListMoveNote a {
+	display: inline-block;
+	vertical-align: top;
+	margin: 1px 2px 0 0;
+	padding: 1px 8px;
+	/* outline as a shadow: ProcessPageList.css sets border: none !important on .PageList a */
+	box-shadow: inset 0 0 0 1px var(--border);
+	border-radius: var(--radius-md);
+	background: var(--background);
+	color: var(--foreground);
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 18px;
+	text-decoration: none;
+	transition: background var(--pw-transition), color var(--pw-transition);
+}
+.PageListerActions { margin-left: 8px; }
+.PageList .PageListActions li a:hover, .PageListerActions a:hover { background: var(--accent); color: var(--accent-foreground); }
+.PageListActions li a .fa { font-size: inherit; }
+
+.PageListSortPlaceholder { background: var(--pw-primary-bg); outline: 1px dashed var(--pw-primary-40); }
+.PageListSorting .PageListSortItem > a.PageListPage { color: var(--pw-primary); }
+.PageListSelectHeader .PageListSelectName { color: var(--pw-h1); }
+.PageListSelectActionToggle { color: var(--pw-primary); }
+
+.PageList .PageListMoveNote { cursor: move; }
+.PageList .PageListPlaceholder .PageListPlaceholderItem { padding: 0; border: 0; }
+/* open/closed caret on items with children (Uikit pw-page-list.less) */
+body:not(.pw-narrow-width) .PageList .PageListItem > a.PageListPage::before { content: ""; display: inline-block; width: 10px; margin-right: 4px; font: 900 12px/1 "Font Awesome 6 Free"; color: var(--pw-text-muted-alt); }
+body:not(.pw-narrow-width) .PageList .PageListHasChildren:not(.PageListItemOpen) > a.PageListPage::before { content: "\f105"; }
+body:not(.pw-narrow-width) .PageList .PageListItemOpen.PageListHasChildren > a.PageListPage::before { content: "\f107"; }
+/* a branch that would run past the bottom of the screen scrolls like a dropdown menu (thin bar,
+ * no frame); only the deepest open branch, so scroll areas never nest. --pw-branch-max fits it to
+ * the space below its top (setupTreeFit in scripts/main.js) */
+.PageListRoot .PageList:not(:has(.PageList)) { max-height: var(--pw-branch-max, calc(100vh - var(--pw-masthead-h) - 40px)); overflow: hidden auto; scrollbar-width: thin; }
+/* a branch that does scroll (.pw-branch-scrolls, set by the script) has its scrollbar on the left,
+ * where it also separates the branch from its parents: right-to-left box, left-to-right rows. The
+ * box reaches 18px into the indent (2em) and pads it back, so the bar sits in the indent, clear of
+ * the chevrons: overlay scrollbars (drawn over the content, wider on hover) included */
+.PageListRoot .PageList.pw-branch-scrolls { direction: rtl; padding-left: 18px; }
+.PageList .PageList.pw-branch-scrolls { margin-left: calc(2em - 18px); }
+.PageListRoot .PageList.pw-branch-scrolls > * { direction: ltr; }

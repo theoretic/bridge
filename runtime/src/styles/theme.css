@@ -1,0 +1,27 @@
+/*
+ * AdminThemeBridge stylesheet. Built by Vite into modules/AdminThemeBridge/assets/dist/theme.css.
+ * Design spec: AdminThemeBoss (tokens in 00-tokens.css). Markup: upstream ProcessWire admin
+ * markup (docs/contract.md section 1) plus the theme's own frame (_masthead.php, _content.php).
+ * Order matters: tokens, base, frame, forms, components, widget skins, pages, responsive.
+ */
+@import './00-tokens.css';
+@import './01-fonts.css';
+@import './02-base.css';
+@import './10-layout.css';
+@import './11-masthead.css';
+@import './12-dropdowns.css';
+@import './13-breadcrumbs.css';
+@import './14-notices.css';
+@import './20-inputfields.css';
+@import './21-controls.css';
+@import './22-buttons.css';
+@import './30-pagelist.css';
+@import './31-tables.css';
+@import './32-pager.css';
+@import './33-tabs.css';
+@import './34-dialog.css';
+@import './35-jqueryui.css';
+@import './40-login.css';
+@import './41-process.css';
+@import './95-uikit-compat.css';
+@import './90-responsive.css';

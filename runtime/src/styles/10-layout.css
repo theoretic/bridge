@@ -1,0 +1,27 @@
+/* Page frame: container, content head, footer, modal layout (markup: _content.php, _footer.php) */
+
+.pw-container {
+	margin: 0 auto;
+	padding: 0 40px;
+	box-sizing: border-box;
+}
+/* the top padding is the notices band (14-notices.css): one notice row and its gaps, kept free
+ * whether or not notices show, so they never shift the page */
+:root { --pw-notice-gap: 8px; --pw-notice-row: 42px; }
+#main { padding-top: calc(var(--pw-notice-row) + 2 * var(--pw-notice-gap)); padding-bottom: 60px; }
+#pw-content-head { display: flow-root; margin-bottom: 20px; }
+#pw-content-head-buttons { float: right; display: flex; align-items: center; gap: 10px; margin-left: 20px; }
+#pw-content-title { margin: 6px 0 0; }
+#pw-content-body > p:first-child { margin-top: 0; }
+
+.pw-footer {
+	border-top: 1px solid var(--pw-line);
+	color: var(--pw-text-muted-alt);
+	font-size: var(--pw-tiny);
+	padding: 16px 0;
+}
+.pw-footer p { margin: 0; }
+.pw-footer small { margin-left: 10px; font-size: inherit; }
+
+body.modal #main { padding-top: 10px; padding-bottom: 30px; }
+body.modal .pw-container { padding: 0 20px; }

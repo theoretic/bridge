@@ -1,0 +1,40 @@
+/* Selectize: TextTags, file and image tags, any selectize control in a form. The core selectize
+ * theme and InputfieldTextTags.css paint white and #f0f3f7; same shape as other inputs here. */
+.Inputfield .selectize-control .selectize-input.items,
+.Inputfield .selectize-control.single .selectize-input.items {
+	background: var(--pw-input-bg);
+	border: 1px solid var(--input);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-xs);
+	color: var(--foreground);
+}
+.Inputfield .selectize-control .selectize-input.items.focus,
+.Inputfield .selectize-control.single .selectize-input.items.focus { border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-50); }
+.Inputfield .selectize-control .selectize-input.items.dropdown-active::before { background: var(--border); }
+.selectize-control .selectize-input input { color: var(--foreground); }
+.selectize-control .selectize-input input::placeholder { color: var(--muted-foreground); }
+.Inputfield .selectize-control .selectize-input.items.disabled { background: var(--muted); opacity: .6; }
+/* chips (theme.css colours .selectize-input .item; TextTags and file tags are more specific) */
+.Inputfield .selectize-control.multi .selectize-input.items > div {
+	background: var(--secondary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	color: var(--secondary-foreground);
+}
+.Inputfield .selectize-control.multi .selectize-input.items > div.active { background: var(--accent); border-color: var(--ring); color: var(--accent-foreground); }
+.Inputfield .selectize-control.multi .selectize-input.items > div a.remove { border-left-color: var(--border); color: var(--muted-foreground); }
+.Inputfield .selectize-control.multi .selectize-input.items > div a.remove:hover { background: none; color: var(--destructive); }
+/* dropdown: the popover look */
+.selectize-dropdown, .selectize-dropdown.form-control {
+	background: var(--popover);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-md);
+	color: var(--popover-foreground);
+}
+.selectize-dropdown .option, .selectize-dropdown .create, .selectize-dropdown .optgroup-header { color: var(--popover-foreground); }
+.selectize-dropdown .optgroup-header { background: var(--popover); color: var(--muted-foreground); }
+.selectize-dropdown .active, .selectize-dropdown .active.create { background: var(--accent); color: var(--accent-foreground); }
+.selectize-dropdown .create, .selectize-dropdown .no-results { color: var(--muted-foreground); }
+.selectize-dropdown [data-selectable] .highlight { background: var(--pw-primary-20); color: inherit; }
+.selectize-dropdown .optgroup:before { background: var(--border); }

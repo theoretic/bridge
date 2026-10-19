@@ -1,0 +1,17 @@
+/* Process screens and module add-ons: SystemNotifications alerts, selector builder, debug panel,
+ * logo per scheme, scheme toggle */
+
+.pw-alert { margin: 0 0 10px; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); color: var(--card-foreground); }
+.InputfieldSelector .selector-list > li { padding: 6px 0; border-bottom: 1px solid var(--pw-line); }
+.InputfieldSelector .selector-row, .InputfieldSelector .selector-row:last-child { border-color: var(--pw-line); }
+.InputfieldSelector .selector-add { margin-top: 8px; }
+#debug { margin-top: 16px; font-size: var(--pw-tiny); }
+/* Lister: results headline and pager on one line */
+h2.lister_headline { font-size: 1.25rem; margin: 24px 0 10px; }
+h2.lister_headline + .pw-pagination, .lister_headline ~ .MarkupPagerNav { margin-top: 24px; }
+#debug h3 { font-size: 14px; }
+
+/* logo: a dark-scheme variant is shown instead of the light one when both are configured */
+.pw-logo-dark, [data-pw-scheme="dark"] .pw-logo-light { display: none; }
+[data-pw-scheme="dark"] .pw-logo-dark { display: block; }
+.pw-scheme-toggle a .fa { width: 1.2em; }

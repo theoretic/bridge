@@ -1,0 +1,92 @@
+/* Masthead: logo, primary nav, user nav, search (markup: _masthead.php, renderPrimaryNav, renderUserNav) */
+
+.pw-masthead {
+	position: sticky;
+	top: 0;
+	z-index: 90;
+	background: var(--pw-masthead-bg);
+	-webkit-backdrop-filter: blur(12px);
+	backdrop-filter: blur(12px);
+	border-bottom: 1px solid var(--border);
+}
+.pw-masthead .pw-container { display: flex; align-items: center; gap: 20px; min-height: var(--pw-masthead-h); }
+.pw-logo-link { display: inline-flex; align-items: center; gap: 10px; color: var(--foreground); text-decoration: none; }
+.pw-logo-link svg { height: 28px; width: 28px; display: block; }
+.pw-logo-link img { max-height: 40px; width: auto; display: block; }
+.pw-logo-text { color: var(--pw-h1); font-weight: 600; font-size: 15px; letter-spacing: -.01em; }
+.pw-nav { flex: 1; min-width: 0; }
+.pw-primary-nav, .pw-user-nav { list-style: none; margin: 0; padding: 0; }
+.pw-primary-nav { display: flex; gap: 2px; }
+.pw-primary-nav > li > a, .pw-user-nav > li > a {
+	display: inline-flex;
+	align-items: center;
+	height: 32px;
+	padding: 0 10px;
+	border-radius: var(--radius-md);
+	color: var(--muted-foreground);
+	font-size: 14px;
+	font-weight: 500;
+	text-decoration: none;
+	white-space: nowrap;
+	transition: color var(--pw-transition), background var(--pw-transition);
+}
+.pw-primary-nav > li > a .fa, .pw-user-nav > li > a .fa { color: inherit; margin-right: 6px; }
+.pw-primary-nav > li > a:hover, .pw-user-nav > li > a:hover, .pw-primary-nav > li > a.hover { color: var(--accent-foreground); background: var(--accent); }
+/* current section: bolder text only, like every active marker (tabs, pager) */
+.pw-primary-nav > li.pw-current > a { color: var(--foreground); font-weight: 600; }
+/* the pills are 32px in a 56px bar: give every top-bar link a hit area as tall as the bar, so
+ * hovering anywhere above or below a label opens its menu */
+.pw-primary-nav > li > a, .pw-user-nav > li > a { position: relative; }
+.pw-primary-nav > li > a::after, .pw-user-nav > li > a::after { content: ""; position: absolute; left: 0; right: 0; top: calc((32px - var(--pw-masthead-h)) / 2); bottom: calc((32px - var(--pw-masthead-h)) / 2); }
+.pw-masthead-right { display: flex; align-items: center; gap: 8px; }
+
+/* search (upstream ProcessPageSearch form) */
+#ProcessPageSearchForm { position: relative; display: flex; align-items: center; }
+#ProcessPageSearchQuery {
+	width: 200px;
+	height: 32px;
+	padding: 0 12px 0 30px;
+	border: 1px solid var(--input);
+	border-radius: var(--radius-md);
+	background: var(--pw-input-bg);
+	color: var(--pw-text);
+	font: inherit;
+	font-size: 14px;
+	box-shadow: var(--shadow-xs);
+	transition: border-color var(--pw-transition), box-shadow var(--pw-transition);
+}
+#ProcessPageSearchForm > label { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); pointer-events: none; }
+/* no width change on focus: the nav is flexible and would run into the user menu */
+#ProcessPageSearchQuery:focus {
+	outline: 0;
+	border-color: var(--ring);
+	box-shadow: 0 0 0 3px var(--ring-50);
+}
+#ProcessPageSearchSubmit { display: none; }
+#ProcessPageSearchStatus { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--pw-text-muted); font-size: var(--pw-tiny); }
+
+/* mobile nav toggle, shown by 90-responsive.css */
+.pw-nav-toggle {
+	display: none;
+	border: 0;
+	background: none;
+	color: var(--pw-h1);
+	font: inherit;
+	font-size: 22px;
+	padding: 8px;
+	cursor: pointer;
+}
+
+/* live search results (scripts/main.js setupSearch, as AdminThemeUikit's adminsearchautocomplete) */
+.pw-dropdown-menu.pw-search-results { top: 100%; right: 0; min-width: 320px; max-width: min(480px, 90vw); max-height: 70vh; overflow-y: auto; scrollbar-width: thin; }
+.pw-search-results::before, .pw-search-results::after { display: none; }
+.pw-search-results .pw-search-type { padding: 6px 8px 2px; font-size: 12px; font-weight: 500; color: var(--muted-foreground); }
+.pw-search-results .pw-search-type + li { margin-top: 0; }
+.pw-search-results li + .pw-search-type { margin-top: 4px; border-top: 1px solid var(--border); padding-top: 8px; }
+.pw-search-results li a { overflow: hidden; text-overflow: ellipsis; }
+.pw-search-results li a.pw-active { background: var(--accent); color: var(--accent-foreground); }
+body.AdminThemeBridge .pw-search-results small { margin-left: 6px; color: inherit; opacity: .75; font-size: 13px; }
+.pw-search-results .pw-search-unpublished { text-decoration: line-through; }
+.pw-search-results .pw-search-hidden { opacity: .7; }
+.pw-search-results .pw-search-none { padding: 6px 16px; opacity: .8; }
+#ProcessPageSearchForm.pw-searching #ProcessPageSearchStatus::after { content: "\2026"; }

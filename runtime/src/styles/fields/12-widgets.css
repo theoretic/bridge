@@ -1,0 +1,89 @@
+/* Smaller widgets: jQuery UI icons, toggles, icon picker, rich-text frames, page list */
+
+/* icon sprites: dark glyphs on dark surfaces */
+[data-pw-scheme="dark"] .ui-icon { filter: invert(.85); }
+[data-pw-scheme="dark"] :is(.ui-state-active, .ui-state-error, .ui-button) .ui-icon { filter: none; }
+
+/* InputfieldToggle: InputfieldToggle.js appends a <style> with colours read at load (frozen in
+ * whatever scheme was on); one step more specific than that, with the tokens */
+html .InputfieldToggleGroup label { background-color: var(--pw-input-bg); border-color: var(--input); color: var(--muted-foreground); }
+html .InputfieldToggleGroup label.InputfieldToggleCurrent, html .InputfieldToggleGroup input:checked + label { background-color: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
+html .InputfieldToggleGroup label:not(.InputfieldToggleCurrent):hover, html .InputfieldToggleGroup input:not(:checked) + label:not(.InputfieldToggleCurrent):hover { background-color: var(--accent); color: var(--accent-foreground); }
+html .InputfieldToggleGroup input:focus-visible + label { box-shadow: 0 0 0 3px var(--ring-50); }
+
+/* InputfieldIcon picker */
+.InputfieldIconItem:hover, .InputfieldIconItem:active::after { background: var(--accent); color: var(--accent-foreground); }
+.InputfieldIconItem.on { background: var(--primary); color: var(--primary-foreground); }
+
+/* rich-text inline frames (classic editors: 20-ckeditor.css, 21-tinymce.css) */
+.InputfieldForm .InputfieldCKEditorInline { background: var(--pw-input-bg); border: 1px solid var(--input); border-radius: var(--radius-md); }
+.InputfieldForm div.cke_editable_inline.cke_focus { border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-50); outline: 0; }
+.InputfieldTinyMCE .InputfieldTinyMCEInline, .InputfieldTinyMCEPlaceholder { border: 1px solid var(--input); border-radius: var(--radius-md); background: var(--pw-input-bg); }
+.InputfieldTinyMCE .InputfieldTinyMCEInline.mce-edit-focus { outline: 0; border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-50); }
+
+/* page list: the item being moved */
+.PageListSortItem > a.PageListPage { background: var(--pw-highlight); }
+/* side panel (JqueryUI/panel.css) */
+.pw-panel-content { background: var(--background); }
+
+/* asmSelect rows: upstream pins the remove link and the status text to the top and nudges the
+ * trash icon down by hand; centre both on the row instead */
+.asmList .asmListItem .asmListItemRemove, .asmList .asmListItem span.asmListItemStatus { top: 50%; transform: translateY(-50%); line-height: 1; }
+.asmList .asmListItem .asmListItemRemove { right: 8px; }
+.Inputfields .asmList .asmListItem .asmListItemRemove i { top: 0; right: 0; }
+
+/* PageAutocomplete: the selected pages as asmSelect rows (same chip, padding and centring), listed
+ * below the search input as asmSelect lists them below its select. Upstream markup is ol + p */
+div.InputfieldPageAutocomplete { display: flex; flex-direction: column; }
+div.InputfieldPageAutocomplete > ol { order: 1; margin: 0; padding: 0; }
+.pw-content div.InputfieldPageAutocomplete > ol > li {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin: 4px 0 0;
+	padding: 5px 8px;
+	line-height: 24px;
+	background: var(--secondary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	color: var(--secondary-foreground);
+}
+.pw-content div.InputfieldPageAutocomplete > ol > li.itemTemplate + li { margin-top: 8px; }
+.pw-content div.InputfieldPageAutocomplete > ol > li .itemSort { float: none; top: 0; left: 0; margin: 0; }
+.pw-content div.InputfieldPageAutocomplete > ol > li .itemLabel { flex: 1 1 auto; padding: 0; }
+.pw-content div.InputfieldPageAutocomplete > ol > li .itemRemove { position: static; margin-left: auto; line-height: 1; color: var(--muted-foreground); }
+.pw-content div.InputfieldPageAutocomplete > ol > li .itemRemove:hover { color: var(--destructive); }
+.pw-content div.InputfieldPageAutocomplete > ol > li .itemRemove i { top: 0; right: 0; }
+
+/* Text counter (InputfieldTextLength): the over/under-limit part (upstream colours it inline red) */
+.InputfieldTextLengthNote { margin: 2px 0 0; }
+.InputfieldTextLengthError { color: var(--destructive); }
+
+/* native sorting (runtime/src/util/sortable.ts): handles take the pointer, not the page scroll */
+.asmListSortable .asmListItem, .pw-sortable-item { touch-action: none; }
+.pw-sorting { box-shadow: var(--shadow-md); position: relative; z-index: 1; }
+.pw-sorting-active { user-select: none; }
+/* PageAutocomplete: a page picked twice flashes in the list */
+.pw-highlight { background-color: var(--pw-highlight) !important; transition: background-color var(--pw-transition); }
+/* PageAutocomplete: room for the status icon at the start of the search box */
+.InputfieldPageAutocomplete p input[type=text] { padding-left: 30px; }
+/* autocomplete menus: whole-row items (upstream turns jQuery UI's div wrappers into inline <a>) */
+.ui-autocomplete .ui-menu-item > a { display: block; }
+
+/* jQuery UI datepicker structure (JqueryUI.css is legacy and absent on native pages, where the
+ * runtime's datetime widget renders the same markup); the theme's 35-jqueryui.css skins it */
+.ui-datepicker { box-sizing: border-box; width: 18em; }
+.ui-datepicker-inline { display: block; }
+.ui-datepicker .ui-datepicker-header { position: relative; padding: 2px 0 6px; }
+.ui-datepicker .ui-datepicker-prev, .ui-datepicker .ui-datepicker-next { position: absolute; top: 2px; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; color: var(--foreground); text-decoration: none; }
+.ui-datepicker .ui-datepicker-prev { left: 0; }
+.ui-datepicker .ui-datepicker-next { right: 0; }
+.ui-datepicker .ui-datepicker-title { display: flex; justify-content: center; gap: 4px; margin: 0 32px; line-height: 28px; text-align: center; }
+.ui-datepicker table { width: 100%; border-collapse: collapse; margin: 0; }
+.ui-datepicker th, .ui-datepicker td { border: 0; padding: 1px; text-align: center; }
+.ui-datepicker td a, .ui-datepicker td span { display: block; padding: 4px 0; text-decoration: none; }
+.ui-datepicker .ui-datepicker-buttonpane { display: flex; justify-content: space-between; margin: 8px 0 0; padding: 8px 0 0; border: 0; border-top: 1px solid var(--border); background: none; }
+.ui-datepicker .ui-datepicker-buttonpane button { padding: 2px 10px; border: 1px solid var(--input); border-radius: var(--radius-sm); background: var(--background); color: var(--foreground); cursor: pointer; }
+.ui-datepicker .ui-timepicker-div { display: flex; align-items: center; justify-content: center; gap: 4px; margin: 6px 0 0; }
+.ui-datepicker .ui-timepicker-div select { min-height: 28px; padding: 2px 4px; border: 1px solid var(--input); border-radius: var(--radius-sm); background: var(--background); color: var(--foreground); font-size: 13px; }
+.pw-ui-datepicker-trigger { margin-left: 8px; color: var(--muted-foreground); }

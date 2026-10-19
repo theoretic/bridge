@@ -1,0 +1,199 @@
+/* Uikit utility classes used by third-party modules (Fluency, AgentTools, PageTableNext,
+ * FieldtypeImageReference, FieldtypeSVGSprite, WireWall, ...) and a few core modules, measured on
+ * the local sites 2026-10-14. Bridge ships no Uikit; these keep such modules' layouts intact.
+ * Script-driven attributes (uk-tooltip, uk-switcher, uk-modal) need Uikit's JS and are not covered;
+ * their markup degrades to plain content. uk-icon falls back to Font Awesome glyphs. */
+
+/* layout */
+.uk-flex { display: flex; }
+.uk-inline { display: inline-block; position: relative; }
+.uk-flex-middle { align-items: center; }
+.uk-flex-top { align-items: flex-start; }
+.uk-flex-between { justify-content: space-between; }
+.uk-flex-center { justify-content: center; }
+.uk-flex-right { justify-content: flex-end; }
+.uk-flex-wrap { flex-wrap: wrap; }
+.uk-flex-column { flex-direction: column; }
+.uk-flex-1, .uk-width-expand { flex: 1; min-width: 0; }
+.uk-flex-none, .uk-width-auto { flex: none; }
+.uk-grid { display: flex; flex-wrap: wrap; margin: 0 0 0 -20px; padding: 0; list-style: none; }
+.uk-grid > * { box-sizing: border-box; padding-left: 20px; }
+.uk-grid-small { margin-left: -10px; }
+.uk-grid-small > * { padding-left: 10px; }
+.uk-grid-collapse { margin-left: 0; }
+.uk-grid-collapse > * { padding-left: 0; }
+.uk-grid-match > * { display: flex; flex-direction: column; }
+.uk-width-1-1 { width: 100%; }
+.uk-width-1-2 { width: 50%; }
+.uk-width-1-3 { width: 33.33%; }
+.uk-width-2-3 { width: 66.66%; }
+.uk-width-1-4 { width: 25%; }
+.uk-width-3-4 { width: 75%; }
+.uk-float-right { float: right; }
+.uk-float-left { float: left; }
+.uk-clearfix::after { content: ""; display: table; clear: both; }
+.uk-hidden, [hidden].uk-hidden { display: none !important; }
+.uk-invisible { visibility: hidden !important; }
+.uk-overflow-auto { overflow: auto; }
+
+/* spacing */
+.uk-margin { margin-bottom: 20px; }
+.uk-margin-top { margin-top: 20px !important; }
+.uk-margin-bottom { margin-bottom: 20px !important; }
+.uk-margin-small { margin-bottom: 10px; }
+.uk-margin-small-top { margin-top: 10px !important; }
+.uk-margin-small-bottom { margin-bottom: 10px !important; }
+.uk-margin-small-right { margin-right: 10px !important; }
+.uk-margin-small-left { margin-left: 10px !important; }
+.uk-margin-medium-bottom { margin-bottom: 40px !important; }
+.uk-margin-remove { margin: 0 !important; }
+.uk-margin-auto { margin-left: auto !important; margin-right: auto !important; }
+.uk-margin-auto-left { margin-left: auto !important; }
+.uk-margin-auto-right { margin-right: auto !important; }
+.uk-margin-remove-top { margin-top: 0 !important; }
+.uk-margin-remove-bottom { margin-bottom: 0 !important; }
+.uk-padding-small { padding: 15px; }
+.uk-padding-remove { padding: 0 !important; }
+
+/* uk-icon: Uikit's JS injects SVG icons; without it, show the matching Font Awesome glyph
+ * (the admin always loads Font Awesome). Later rules win where one name contains another. */
+[uk-icon]::before { display: inline-block; min-width: 1.25em; text-align: center; font: 900 .9em/1 "Font Awesome 6 Free", FontAwesome; -webkit-font-smoothing: antialiased; }
+[uk-icon*="chevron-right"]::before { content: "\f054"; }
+[uk-icon*="chevron-down"]::before { content: "\f078"; }
+[uk-icon*="chevron-left"]::before { content: "\f053"; }
+[uk-icon*="chevron-up"]::before { content: "\f077"; }
+[uk-icon*="triangle-down"]::before { content: "\f0d7"; }
+[uk-icon*="triangle-right"]::before { content: "\f0da"; }
+[uk-icon*="arrow-up"]::before { content: "\f062"; }
+[uk-icon*="arrow-down"]::before { content: "\f063"; }
+[uk-icon*="arrow-left"]::before { content: "\f060"; }
+[uk-icon*="arrow-right"]::before { content: "\f061"; }
+[uk-icon*="copy"]::before { content: "\f0c5"; }
+[uk-icon*="check"]::before { content: "\f00c"; }
+[uk-icon*="ban"]::before { content: "\f05e"; }
+[uk-icon*="pencil"]::before { content: "\f303"; }
+[uk-icon*="trash"]::before { content: "\f2ed"; }
+[uk-icon*="plus"]::before { content: "\f067"; }
+[uk-icon*="minus"]::before { content: "\f068"; }
+[uk-icon*="close"]::before { content: "\f00d"; }
+[uk-icon*="more"]::before { content: "\f141"; }
+[uk-icon*="more-vertical"]::before { content: "\f142"; }
+[uk-icon*="move"]::before { content: "\f047"; }
+[uk-icon*="image"]::before { content: "\f03e"; }
+[uk-icon*="link"]::before { content: "\f0c1"; }
+[uk-icon*="search"]::before { content: "\f002"; }
+[uk-icon*="cog"]::before { content: "\f013"; }
+[uk-icon*="settings"]::before { content: "\f013"; }
+[uk-icon*="info"]::before { content: "\f05a"; }
+[uk-icon*="warning"]::before { content: "\f071"; }
+[uk-icon*="question"]::before { content: "\f059"; }
+[uk-icon*="eye"]::before { content: "\f06e"; }
+[uk-icon*="eye-slash"]::before { content: "\f070"; }
+[uk-icon*="refresh"]::before { content: "\f021"; }
+[uk-icon*="history"]::before { content: "\f1da"; }
+[uk-icon*="upload"]::before { content: "\f093"; }
+[uk-icon*="download"]::before { content: "\f019"; }
+[uk-icon*="home"]::before { content: "\f015"; }
+[uk-icon*="user"]::before { content: "\f007"; }
+[uk-icon*="file"]::before { content: "\f15b"; }
+[uk-icon*="folder"]::before { content: "\f07b"; }
+[uk-icon*="list"]::before { content: "\f03a"; }
+[uk-icon*="grid"]::before { content: "\f00a"; }
+[uk-icon*="lock"]::before { content: "\f023"; }
+[uk-icon*="unlock"]::before { content: "\f09c"; }
+[uk-icon*="calendar"]::before { content: "\f133"; }
+[uk-icon*="clock"]::before { content: "\f017"; }
+[uk-icon*="mail"]::before { content: "\f0e0"; }
+[uk-icon*="tag"]::before { content: "\f02b"; }
+[uk-icon*="star"]::before { content: "\f005"; }
+[uk-icon*="heart"]::before { content: "\f004"; }
+[uk-icon*="location"]::before { content: "\f3c5"; }
+[uk-icon*="code"]::before { content: "\f121"; }
+[uk-icon*="comment"]::before { content: "\f075"; }
+[uk-icon*="expand"]::before { content: "\f065"; }
+[uk-icon*="shrink"]::before { content: "\f066"; }
+[uk-icon*="play"]::before { content: "\f04b"; }
+[uk-icon*="bolt"]::before { content: "\f0e7"; }
+.uk-icon-button[uk-icon]::before { font-size: 14px; }
+
+/* text */
+.uk-text-muted, .uk-text-meta { color: var(--pw-text-muted) !important; }
+.uk-text-meta { font-size: 14px; }
+.uk-text-small { font-size: 14px; }
+.uk-text-lead { font-size: 1.25rem; color: var(--pw-h1); }
+.uk-text-bold { font-weight: 700; }
+.uk-text-uppercase { text-transform: uppercase; }
+.uk-text-center { text-align: center !important; }
+.uk-text-right { text-align: right !important; }
+.uk-text-left { text-align: left !important; }
+.uk-text-nowrap { white-space: nowrap; }
+.uk-text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uk-text-danger { color: var(--destructive) !important; }
+.uk-text-success { color: var(--success) !important; }
+.uk-text-warning { color: var(--warning) !important; }
+.uk-text-primary { color: var(--pw-primary) !important; }
+.uk-link-muted, .uk-link-muted a { color: var(--pw-text-muted); }
+
+/* components */
+.uk-card { position: relative; box-sizing: border-box; border-radius: var(--radius-xl); }
+.uk-card-default { background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+.uk-card-body { padding: 20px; }
+.uk-card-small .uk-card-body, .uk-card-small.uk-card-body { padding: 12px 16px; }
+.uk-card-header { padding: 12px 20px; border-bottom: 1px solid var(--pw-line); }
+.uk-card-footer { padding: 12px 20px; border-top: 1px solid var(--pw-line); }
+.uk-card-title { margin: 0; font-size: 1.25rem; color: var(--pw-h1); }
+.uk-panel { position: relative; box-sizing: border-box; }
+.uk-label, .uk-badge {
+	display: inline-block;
+	padding: 0 8px;
+	border-radius: var(--radius-md);
+	background: var(--pw-primary);
+	color: var(--pw-on-primary);
+	font-size: 12px;
+	line-height: 20px;
+	font-weight: 500;
+	vertical-align: middle;
+}
+.uk-badge { min-width: 18px; border-radius: 9px; text-align: center; text-transform: none; }
+.uk-label-success { background: var(--success); }
+.uk-label-warning { background: var(--warning); }
+.uk-label-danger { background: var(--destructive); }
+.uk-alert { position: relative; margin: 0 0 16px; padding: 12px 16px; border-radius: var(--pw-radius-m); background: var(--pw-primary-bg); color: var(--pw-h1); }
+.uk-alert-primary { background: var(--pw-primary-bg); }
+.uk-alert-success { background: var(--pw-success-bg); }
+.uk-alert-warning { background: var(--pw-warning-bg); }
+.uk-alert-danger { background: var(--pw-danger-bg); }
+.uk-list { margin: 0; padding: 0; list-style: none; }
+.uk-list > li { padding: 4px 0; }
+.uk-list-divider > li + li { border-top: 1px solid var(--pw-line); }
+.uk-table { width: 100%; border-collapse: collapse; }
+.uk-table th, .uk-table td { padding: 10px 12px; text-align: left; vertical-align: top; }
+.uk-table th { color: var(--muted-foreground); font-weight: 500; font-size: 14px; }
+.uk-table-small th, .uk-table-small td { padding: 6px 10px; }
+.uk-table-divider > tbody > tr + tr > td, .uk-table-divider > tr + tr > td, .uk-table-divider th { border-bottom: 1px solid var(--pw-line); }
+.uk-table-hover tbody tr:hover > td { background: var(--pw-muted-bg); }
+.uk-button { display: inline-block; padding: 0 20px; border: 1px solid var(--pw-input-border); border-radius: var(--pw-radius); background: var(--background); color: var(--foreground); font: inherit; font-size: 14px; font-weight: 500; line-height: 34px; text-decoration: none; cursor: pointer; box-shadow: var(--shadow-xs); }
+.uk-button-primary { border-color: var(--pw-primary); background: var(--pw-primary); color: var(--pw-on-primary); }
+.uk-button-primary:hover { background: var(--pw-primary-hover); }
+.uk-button-small { padding: 0 12px; line-height: 28px; }
+.uk-button-text, .uk-button-link { padding: 0; border: 0; background: none; color: var(--pw-primary); line-height: inherit; }
+.uk-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--pw-surface-2); color: var(--pw-text); }
+.uk-thumbnav { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
+/* Uikit tabs from third-party modules, in the theme's tab design (33-tabs.css). The language tabs
+ * also carry uk-tab (init.php, a LanguageTabs.js hook) and are styled in 21-controls.css. */
+.uk-tab:not(.pw-lang-tabs) { display: flex; flex-wrap: wrap; gap: 2px; margin: 0 0 16px; padding: 0 4px; list-style: none; border-bottom: 1px solid var(--border); }
+.uk-tab:not(.pw-lang-tabs) > li { margin: 0 0 -1px; }
+.uk-tab:not(.pw-lang-tabs) > li > a { display: block; padding: 8px 14px; border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius-md) var(--radius-md) 0 0; color: var(--muted-foreground); font-weight: 500; text-decoration: none; }
+.uk-tab:not(.pw-lang-tabs) > li.uk-active > a { border-color: var(--border); background: var(--background); color: var(--foreground); font-weight: 600; }
+.uk-input, .uk-select, .uk-textarea { box-sizing: border-box; max-width: 100%; padding: 8px 12px; border: 1px solid var(--pw-input-border); background: var(--pw-input-bg); color: var(--pw-text); font: inherit; }
+.uk-input, .uk-textarea { width: 100%; }
+.uk-form-small { padding: 4px 8px; font-size: 14px; }
+.uk-form-width-small { width: 130px; }
+.uk-form-width-medium { width: 200px; }
+.uk-checkbox, .uk-radio { accent-color: var(--pw-primary); width: 16px; height: 16px; margin: 0 6px 0 0; vertical-align: middle; }
+
+/* PageTableNext rows paint a fixed light background; follow the surface in the dark scheme */
+[data-pw-scheme="dark"] .ptn { background: var(--pw-surface); }
+[data-pw-scheme="dark"] .ptn:hover .ptn_meta { background: var(--pw-muted-bg); }
+.InputfieldPageTableNext .ptn_actions a.uk-icon-button { background: var(--secondary); color: var(--secondary-foreground); }
+.InputfieldPageTableNext .ptn_actions a.uk-icon-button:hover { background: var(--accent) !important; }

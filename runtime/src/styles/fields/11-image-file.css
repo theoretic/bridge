@@ -1,0 +1,65 @@
+/* Images and files (InputfieldImage.css, InputfieldFile.css, ProcessPageEditImageSelect.css) */
+.gridImage { background: var(--card); box-shadow: var(--shadow-sm); }
+.gridImage.ui-sortable-placeholder { border-color: var(--border); }
+.gridImage.gridImagePlaceholder .gridImage__overflow, .InputfieldImageEditAll .gridImage.gridImagePlaceholder .gridImage__overflow { background: var(--muted); }
+/* transparency checkerboard, in the scheme's greys */
+.gridImage .gridImage__overflow, .InputfieldImageEditAll .gridImage .gridImage__overflow img, .InputfieldImageEdit__image {
+	background-color: var(--pw-checker-a);
+	background-image: linear-gradient(45deg, var(--pw-checker-b) 25%, transparent 25%, transparent 75%, var(--pw-checker-b) 75%, var(--pw-checker-b)),
+		linear-gradient(45deg, var(--pw-checker-b) 25%, transparent 25%, transparent 75%, var(--pw-checker-b) 75%, var(--pw-checker-b));
+}
+/* hover and selection overlays: a dark veil (white icons stay readable), selection in the primary */
+.gridImage:hover .gridImage__inner { background: rgb(0 0 0 / .45); }
+.gridImage.gridImageEditing .gridImage__inner, .gridImage--active .gridImage__inner { background: rgb(0 0 0 / .45); box-shadow: inset 0 0 0 3px var(--primary); }
+.gridImage--delete:hover .gridImage__inner { background: color-mix(in srgb, var(--destructive) 30%, transparent); }
+.InputfieldImageEditAll .gridImage:hover .gridImage__inner { background: none; }
+.gridImage__edit, .gridImage__resize { text-shadow: 0 1px 3px rgb(0 0 0 / .6); }
+.gridImage__btn { background: var(--card); color: var(--muted-foreground); }
+.gridImage:hover .gridImage__btn:hover { background: var(--card); color: var(--destructive); }
+.gridImage--active .gridImage__btn { background: var(--primary); color: var(--primary-foreground); }
+.gridImage--delete, .gridImage--delete .gridImage__trash, .gridImage--delete .gridImage__trash:hover, .InputfieldImageEditAll .gridImage--delete { background-color: var(--destructive); }
+.gridImage--delete .gridImage__trash { color: #fff; }
+/* tooltip: popover */
+.gridImage__tooltip { background: var(--popover); color: var(--popover-foreground); border-radius: var(--radius-md); box-shadow: var(--shadow-md); filter: none; }
+.gridImage__tooltip table th, .gridImage__tooltip table td { background: var(--popover) !important; color: var(--popover-foreground); }
+.gridImage__tooltip:after { border-top-color: var(--popover); }
+/* edit panel */
+.InputfieldImageEdit__inner { background-color: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: var(--radius-md); filter: none; box-shadow: var(--shadow-md); }
+.InputfieldImageEdit__arrow { border-bottom-color: var(--border); }
+.InputfieldImageEdit__imagewrapper { border-right-color: var(--border); }
+.InputfieldImageEdit__close { color: var(--muted-foreground) !important; }
+.InputfieldImageEdit__close:hover { color: var(--foreground) !important; }
+.InputfieldImageEdit__trash-single { color: var(--muted-foreground) !important; }
+.InputfieldImageEdit__info { color: var(--muted-foreground); }
+.InputfieldImageSingle .InputfieldImageEdit__inner { box-shadow: none; }
+/* buttons (Crop, Focus, Variations) and the actions select wrap as one flex row: the theme's buttons
+ * have no bottom margin, so a wrapped select touched them; the row gap clears its 3px focus ring */
+.InputfieldImageEdit__buttons, .InputfieldImageEdit__buttons > small,
+.InputfieldImageNarrow .InputfieldImageEdit__edit .InputfieldImageEdit__buttons,
+.InputfieldImageEditAll.InputfieldImageNarrow .gridImage .ImageData .InputfieldImageEdit__buttons {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px 8px;
+}
+/* narrow fields centre them, as upstream does with text-align */
+.InputfieldImageNarrow .InputfieldImageEdit__buttons, .InputfieldImageNarrow .InputfieldImageEdit__buttons > small { justify-content: center; }
+.InputfieldImageEdit__buttons :is(.pw-button, .ui-button) { margin: 0; }
+/* file list rows carry .ui-widget-content (JqueryUI.css: white) */
+.InputfieldFileList .InputfieldFileItem.ui-widget-content, .InputfieldFileItem .InputfieldFileData.ui-widget-content { background: var(--card); color: var(--card-foreground); }
+.InputfieldFileDescription input::placeholder, .InputfieldFileTags input::placeholder { color: var(--muted-foreground); }
+/* image picker in the rich-text image dialog */
+#select_images.thumbs img { background-color: var(--card); border-color: var(--border); }
+/* native size slider (header) and focus zoom (fields/image.ts): range inputs styled like the
+ * theme's other ranges, filled up to --pw-range-fill */
+.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider) { appearance: none; -webkit-appearance: none; height: 16px; padding: 0; border: 0; background: none; cursor: pointer; vertical-align: middle; }
+.InputfieldImage .InputfieldHeader input.InputfieldImageSizeSlider { float: right; width: 100px; margin: 0 14px 0 6px; top: auto; right: 1em; position: relative; }
+.InputfieldImage input.focusZoomSlider { display: block; width: 100%; }
+.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider)::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--primary) var(--pw-range-fill, 0%), var(--input) var(--pw-range-fill, 0%)); }
+.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider)::-moz-range-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--primary) var(--pw-range-fill, 0%), var(--input) var(--pw-range-fill, 0%)); }
+.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider)::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border: 1px solid var(--primary); border-radius: 50%; background: var(--background); box-shadow: var(--shadow-sm); }
+.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider)::-moz-range-thumb { width: 16px; height: 16px; border: 1px solid var(--primary); border-radius: 50%; background: var(--background); box-shadow: var(--shadow-sm); box-sizing: border-box; }
+.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider):focus-visible { outline: 0; }
+.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider):focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--ring-50); }
+.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider):focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--ring-50); }
+.InputfieldImage .focusCircle { touch-action: none; }

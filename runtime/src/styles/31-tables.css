@@ -1,0 +1,42 @@
+/* Tables: MarkupAdminDataTable (upstream CSS keeps responsive/sortable behaviour) and .pw-table */
+
+table.pw-table, table.AdminDataTable {
+	width: 100%;
+	border-collapse: collapse;
+	border-spacing: 0;
+	background: transparent;
+	font-size: 14px;
+}
+table.pw-table th, table.AdminDataTable th {
+	padding: 10px 12px;
+	border: 0;
+	border-bottom: 1px solid var(--pw-line);
+	background: none;
+	color: var(--muted-foreground);
+	font-weight: 500;
+	font-size: 14px;
+	text-align: left;
+	text-transform: none;
+	white-space: nowrap;
+}
+table.pw-table td, table.AdminDataTable td {
+	padding: 10px 12px;
+	border: 0;
+	border-bottom: 1px solid var(--pw-line);
+	vertical-align: top;
+}
+table.pw-table tbody tr:hover > td, table.AdminDataTable tbody tr:hover > td { background: color-mix(in srgb, var(--muted) 50%, transparent); }
+table.AdminDataList a { color: var(--pw-link); }
+table.AdminDataList tr td:first-child a { color: var(--foreground); font-weight: 500; }
+table.AdminDataTableSortable th:hover { color: var(--foreground); cursor: pointer; }
+table.AdminDataList th.headerSortUp, table.AdminDataList th.headerSortDown, table.AdminDataList th.tablesorter-headerAsc, table.AdminDataList th.tablesorter-headerDesc { color: var(--pw-h1); background: none; }
+table.AdminDataList caption { color: var(--pw-text-muted); text-align: left; padding: 8px 0; }
+table.AdminDataList tr.AdminDataListSeparator td { border-top: 2px solid var(--pw-line); }
+.InputfieldContent > table.AdminDataTable { margin-top: 4px; }
+dl.pw-dl { margin: 0; }
+dl.pw-dl dt { margin: 14px 0 2px; font-size: 15px; font-weight: 600; }
+dl.pw-dl dt a { color: var(--pw-h1); text-decoration: none; }
+dl.pw-dl dt a:hover { color: var(--primary); }
+dl.pw-dl dd { margin: 0; padding-bottom: 12px; border-bottom: 1px solid var(--pw-line); color: var(--pw-text-muted); }
+table.AdminDataTable td > :is(.fa, .fas, .far):first-child { margin-right: 6px; }
+table.AdminDataTable :is(.sort-date, .pw-table-sort-value) { display: none; }

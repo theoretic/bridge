@@ -1,0 +1,25 @@
+# Admin screens the conformance suite opens on every site, under AdminThemeUikit and under AdminThemeBridge.
+# One per line: relative admin URL. {admin} = $config->urls->admin. Lines starting with # are comments.
+{admin}
+{admin}page/
+{admin}page/edit/?id=1
+{admin}page/edit/?id={one-page-per-template}
+{admin}page/add/?parent_id=1
+{admin}page/lister/
+{admin}page/search/
+{admin}page/trash/
+{admin}setup/
+{admin}setup/field/
+{admin}setup/field/edit?id={one-field-per-fieldtype}
+{admin}setup/template/
+{admin}setup/template/edit?id={one-per-template}
+{admin}module/
+{admin}module/edit?name={one-per-installed-module-with-config}
+{admin}access/users/
+{admin}access/users/edit/?id=41
+{admin}access/roles/
+{admin}access/permissions/
+{admin}profile/
+{admin}login/
+# every admin page that runs a Process (module-provided screens included)
+{admin-process-pages}

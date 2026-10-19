@@ -1,0 +1,18 @@
+{
+  "name": "bridge-runtime",
+  "version": "0.1.0",
+  "description": "Client runtime and stylesheet of the Bridge admin shell (AdminThemeBridge)",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build && node scripts/check-css.mjs",
+    "watch": "vite build --watch",
+    "size": "node scripts/check-css.mjs"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "^6.4.3"
+  }
+}

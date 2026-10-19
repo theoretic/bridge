@@ -1,0 +1,38 @@
+/* Base: document, typography, links (Basecoat: sentence case, 600 headings, quiet links) */
+
+html.pw {
+	background: var(--pw-bg);
+	-webkit-text-size-adjust: 100%;
+}
+body.AdminThemeBridge {
+	margin: 0;
+	background: var(--pw-bg);
+	color: var(--pw-text);
+	font: var(--pw-font-size) / var(--pw-line-height) var(--pw-font);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+/* links never carry text-decoration (module CSS included); colour and weight carry emphasis */
+body.AdminThemeBridge a, body.AdminThemeBridge a:hover { color: var(--pw-link); text-decoration: none; }
+body.AdminThemeBridge a:hover { color: var(--pw-link-hover); }
+/* upstream hover underlines that outrank the rule above (PageAutocomplete labels, sortable table
+ * headers, column widths in a template's field list) */
+body.AdminThemeBridge :is(.InputfieldPageAutocomplete ol li .itemLabel a, table.AdminDataTableSortable th, .asmListItem > .asmListItemStatus > .columnWidth:not(.columnWidthOff)):hover { text-decoration: none; }
+body.AdminThemeBridge h1 { color: var(--pw-h1); font-size: 1.875rem; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; margin: 0 0 .5em; }
+body.AdminThemeBridge h2 { color: var(--pw-h2); font-size: 1.5rem; font-weight: 600; letter-spacing: -.015em; line-height: 1.25; margin: 0 0 .5em; }
+body.AdminThemeBridge h3 { color: var(--pw-h2); font-size: 1.125rem; font-weight: 600; margin: 0 0 .5em; }
+body.AdminThemeBridge h4 { color: var(--pw-h2); font-size: 1rem; font-weight: 600; margin: 0 0 .5em; }
+body.AdminThemeBridge ::selection { background: var(--pw-selection-bg); color: var(--pw-on-primary); }
+body.AdminThemeBridge hr { border: 0; border-top: 1px solid var(--pw-line); }
+body.AdminThemeBridge code, body.AdminThemeBridge pre { font-size: .875em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+body.AdminThemeBridge pre { overflow: auto; max-width: 100%; }
+body.AdminThemeBridge .fa, body.AdminThemeBridge .fas, body.AdminThemeBridge .far { font-size: var(--pw-icon); }
+body.AdminThemeBridge .pw-nav-icon { margin-right: 6px; }
+body.AdminThemeBridge :is(h1, h2, h3) > :is(.fa, .fas, .far):first-child { font-size: .75em; margin-right: .35em; vertical-align: .05em; }
+body.AdminThemeBridge .ui-priority-secondary { color: var(--pw-text-muted-alt); }
+body.AdminThemeBridge :is(button, .ui-button) .ui-priority-secondary { color: inherit; opacity: .75; }
+/* jQuery UI gives .ui-priority-secondary font-weight: normal; on an icon that switches Font
+ * Awesome 6 to its regular style, which lacks most icons. Keep icons at their own weight. */
+.ui-priority-secondary:is(.fa, .fas, .fa-solid) { font-weight: 900; }
+.ui-priority-secondary:is(.far, .fa-regular) { font-weight: 400; }
+body.AdminThemeBridge .detail, body.AdminThemeBridge .notes, body.AdminThemeBridge small { color: var(--pw-text-muted); }

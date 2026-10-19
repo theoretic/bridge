@@ -1,0 +1,39 @@
+/* InputfieldJson: jsoneditor 10 (jsoneditor/dist/jsoneditor.css, white surfaces, blue menu bar) */
+.InputfieldJson .jsoneditor { color: var(--foreground); border: 1px solid var(--input); border-radius: var(--radius-md); overflow: hidden; }
+.InputfieldJson div.jsoneditor-tree, .jsoneditor-frame, .jsoneditor-contextmenu .jsoneditor-menu, .jsoneditor .autocomplete.dropdown, .jsoneditor-modal, .ace-jsoneditor.ace_editor {
+	background: var(--popover); color: var(--popover-foreground);
+}
+.InputfieldJson div.jsoneditor-tree { background: var(--card); }
+.jsoneditor-menu { background-color: var(--primary); border-bottom-color: var(--primary); color: var(--primary-foreground); }
+.jsoneditor-menu a, .jsoneditor-menu > .jsoneditor-modes > button { color: var(--primary-foreground); }
+.jsoneditor-contextmenu .jsoneditor-menu { border-color: var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+.jsoneditor-contextmenu .jsoneditor-menu button { color: var(--popover-foreground); }
+.jsoneditor-contextmenu .jsoneditor-menu button:hover, .jsoneditor-contextmenu .jsoneditor-menu button:focus,
+.jsoneditor-contextmenu .jsoneditor-menu li ul li button:hover, .jsoneditor-contextmenu .jsoneditor-menu li ul li button:focus,
+.jsoneditor .autocomplete.dropdown .item.hover { background-color: var(--accent); color: var(--accent-foreground); }
+.jsoneditor-contextmenu .jsoneditor-menu li ul { background: var(--popover); border-color: var(--border); }
+.jsoneditor-contextmenu .jsoneditor-separator { border-top-color: var(--border); }
+.jsoneditor .autocomplete.dropdown .item, .jsoneditor-popover { color: var(--popover-foreground); }
+/* values and states */
+div.jsoneditor-value.jsoneditor-string, div.jsoneditor-value.jsoneditor-url, a.jsoneditor-value.jsoneditor-url { color: var(--pw-code-a); }
+div.jsoneditor-value.jsoneditor-number { color: var(--pw-code-b); }
+div.jsoneditor-value.jsoneditor-boolean { color: var(--pw-code-c); }
+div.jsoneditor-value.jsoneditor-null { color: var(--pw-code-d); }
+div.jsoneditor-value.jsoneditor-color-value, div.jsoneditor-value.jsoneditor-invalid { color: var(--foreground); }
+div.jsoneditor-readonly, div.jsoneditor td.jsoneditor-separator, div.jsoneditor-default { color: var(--muted-foreground); }
+div.jsoneditor-field.jsoneditor-empty::after, div.jsoneditor-value.jsoneditor-empty::after { color: var(--muted-foreground); }
+div.jsoneditor-empty { border-color: var(--border); }
+div.jsoneditor-field[contenteditable=true]:focus, div.jsoneditor-field[contenteditable=true]:hover,
+div.jsoneditor-value[contenteditable=true]:focus, div.jsoneditor-value[contenteditable=true]:hover,
+div.jsoneditor-field.jsoneditor-highlight, div.jsoneditor-value.jsoneditor-highlight { background-color: var(--pw-highlight); border-color: var(--pw-primary-40); }
+div.jsoneditor-field.jsoneditor-highlight-active, div.jsoneditor-value.jsoneditor-highlight-active { background-color: var(--pw-primary-20); border-color: var(--primary); }
+.jsoneditor-tree tr.jsoneditor-highlight, .jsoneditor-tree tr.jsoneditor-selected { background-color: var(--accent); }
+.jsoneditor-tree tr.jsoneditor-selected button { filter: none; }
+.jsoneditor .jsoneditor-text-errors tr { background-color: var(--pw-danger-bg); }
+.jsoneditor-treepath, .jsoneditor-navigation-bar { background: var(--muted); border-color: var(--border); color: var(--muted-foreground); }
+.jsoneditor-search input { color: var(--foreground); }
+/* tree buttons: grey glyphs from one sprite */
+[data-pw-scheme="dark"] .jsoneditor-tree button.jsoneditor-button:not(.jsoneditor-collapsed):not(.jsoneditor-expanded), [data-pw-scheme="dark"] .jsoneditor-contextmenu .jsoneditor-icon { filter: invert(.85) hue-rotate(180deg); }
+[data-pw-scheme="dark"] .jsoneditor-tree button.jsoneditor-collapsed, [data-pw-scheme="dark"] .jsoneditor-tree button.jsoneditor-expanded { filter: invert(.85); }
+div.jsoneditor-field, div.jsoneditor-value { color: var(--foreground); }
+div.jsoneditor-value.jsoneditor-object, div.jsoneditor-value.jsoneditor-array { color: var(--muted-foreground); }
