@@ -351,7 +351,7 @@ Bootstrap from phase 0 becomes the installer path; docs; upstream PRs (`wireDir`
 
 1. "Bridge" is the working name; the final name is chosen before any public announcement (phase 4 name check).
 2. Own code is MIT. Files derived from upstream stay MPL 2.0.
-3. Private GitHub remote `theoretic/bridge` (origin, branch `master`) since 2026-10-14. Stays private until milestone 1.1 ships (ADR 0008).
+3. GitHub `theoretic/bridge` (branch `master`): private from 2026-10-14 until milestone 1.1 shipped (ADR 0008); public since 2026-10-19 with the 0.8.2 release, its history starting at that release.
 4. Phase 0 bootstrap targets atispro (PageTableNext, CKEditor, AgentTools, AdminThemeBoss). Done: see gate 0 status.
 
 5. Pro modules: postponed (section 9).
