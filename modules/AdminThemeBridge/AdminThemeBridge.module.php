@@ -1,6 +1,7 @@
 <?php namespace ProcessWire;
 
-require_once(__DIR__ . '/BridgeComponent.php');
+// a module may have declared the interface already (docs/contract.md 2)
+if(!interface_exists('ProcessWire\\BridgeComponent', false)) require_once(__DIR__ . '/BridgeComponent.php');
 
 /**
  * AdminThemeBridge
@@ -24,7 +25,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.8.7',
+			'version' => '0.8.8',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -186,6 +187,31 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	protected $scriptsBeforeProcess = null;
 
 	/**
+	 * Field module directories whose jQuery script the Process added (needScriptsAddedByProcess):
+	 * the script is that module's Inputfield's business, unless no legacy Inputfield from the
+	 * directory was rendered (its Fieldtype renders a core native Inputfield: audit A4)
+	 *
+	 * @var array dir => 'Script:dir/file.js'
+	 */
+	protected $pendingScriptReasons = array();
+
+	/**
+	 * Module directories of the legacy Inputfields recorded on this request
+	 *
+	 * @var array dir => true
+	 */
+	protected $legacyInputfieldDirs = array();
+
+	/**
+	 * isJqueryScript() verdicts: 'file|mtime' => bool, kept in WireCache across requests
+	 *
+	 * @var array|null
+	 */
+	protected $jqueryVerdicts = null;
+	protected $jqueryVerdictsChanged = false;
+	const jqueryVerdictsCache = 'AdminThemeBridge.jqueryScripts';
+
+	/**
 	 * Colour presets (Boss's variants); 'custom' uses primaryColor
 	 *
 	 * @var array
@@ -223,6 +249,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->set('logoURLDark', '');
 		$this->set('extendedBreadcrumbs', 1);
 		$this->set('pageSaveInPlace', 1);
+		$this->set('printScripts', '');
 		$this->setClasses(array(
 			'input' => 'pw-input',
 			'input-small' => 'pw-input pw-input-small',
@@ -430,10 +457,15 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 *
 	 */
 	public function bossForcesUikit() {
+		static $forces = null;
+		if($forces !== null) return $forces;
 		$modules = $this->wire()->modules;
-		if(!$modules->isInstalled('AdminThemeBoss')) return false;
-		$boss = $modules->getConfig('AdminThemeBoss');
-		return !empty($boss['enablemodule']) && !empty($boss['allusers']);
+		if(!$modules->isInstalled('AdminThemeBoss')) return $forces = false;
+		// a setting never saved is Boss's default, and both default to on
+		// (AdminThemeBossConfig::getDefaults(): enablemodule, allusers => true)
+		$boss = (array) $modules->getConfig('AdminThemeBoss');
+		$on = function($key) use($boss) { return !array_key_exists($key, $boss) || !empty($boss[$key]); };
+		return $forces = $on('enablemodule') && $on('allusers');
 	}
 
 	public function ___install() {
@@ -459,6 +491,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		if(!$this->isCurrent()) return;
 
 		$this->addBodyClass('AdminThemeBridge');
+		if($this->legacyStack !== self::legacyAlways) $this->set('legacyStack', self::legacyAuto);
 		$this->addBodyClass('pw-legacy-' . $this->legacyStack);
 		$this->addBodyClass('pw-variant-' . $this->getVariant());
 		$this->addBodyClass('pw-scheme-' . $this->getColorScheme());
@@ -483,10 +516,33 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// the page editor (milestone 3.1): its inline init call falls back to the native editor, and
 		// the page tree in its Children tab stays legacy until the page tree is native (3.4)
 		$this->addHookAfter('ProcessPageEdit::execute', $this, 'hookPageEditExecute');
-		$this->addHookAfter('ProcessPageEdit::buildFormChildren', $this, 'hookPageEditChildren');
 		// tables print `AdminDataTable.initTable($('#id'))`: without jQuery the runtime's
 		// AdminDataTable (milestone 3.5) takes the element instead
 		$this->addHookAfter('MarkupAdminDataTable::render', $this, 'hookDataTableRender');
+		// inline jQuery code in a native markup field (a module's config screen, notes): A5
+		$this->addHookAfter('InputfieldMarkup::render', $this, 'hookMarkupRender');
+		$this->addHookAfter('InputfieldMarkup::renderValue', $this, 'hookMarkupRender');
+	}
+
+	/**
+	 * Hook after InputfieldMarkup::render / renderValue: InputfieldMarkup is native, but what it
+	 * prints is anyone's. An inline script in it that calls jQuery (PageTableNext's config prints
+	 * `$('#...').iFrameResize()`) needs the stack on this page (audit A5).
+	 *
+	 * @param HookEvent $event
+	 *
+	 */
+	public function hookMarkupRender(HookEvent $event) {
+		$out = $event->return;
+		if(!is_string($out) || stripos($out, '<script') === false || $this->useLegacyStack()) return;
+		if(!preg_match_all('~<script\b([^>]*)>(.*?)</script>~is', $out, $m, PREG_SET_ORDER)) return;
+		foreach($m as $script) {
+			if(preg_match('/\bsrc\s*=/i', $script[1])) continue;
+			if(preg_match('/\btype\s*=\s*[\'"]?(?!text\/javascript|application\/javascript|module)[\w\/+-]+/i', $script[1])) continue;
+			if(!self::needsJquery($script[2])) continue;
+			$this->needLegacy('Inline:' . $event->object->className());
+			return;
+		}
 	}
 
 	public function ready() {
@@ -631,13 +687,6 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 */
 	protected function markInputfield(Inputfield $inputfield, $record) {
 		$class = $inputfield->className();
-		// content of a legacy Process inside a native type (the editor's Children page tree)
-		$legacyProcess = (string) $inputfield->getSetting('bridgeLegacyProcess');
-		if($legacyProcess !== '') {
-			$inputfield->wrapAttr('data-bridge-legacy', $legacyProcess);
-			if($record) $this->needLegacy("Process:$legacyProcess");
-			return;
-		}
 		if($this->isNativeInputfield($inputfield)) {
 			$tag = '';
 			if($inputfield instanceof BridgeComponent) {
@@ -649,7 +698,11 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			$inputfield->wrapAttr('data-bridge-component', $tag === '' ? $class : $tag);
 		} else {
 			$inputfield->wrapAttr('data-bridge-legacy', $class);
-			if($record) $this->needLegacy("Inputfield:$class");
+			if($record) {
+				$this->needLegacy("Inputfield:$class");
+				$dir = $this->wire()->config->paths($class);
+				if($dir) $this->legacyInputfieldDirs[$dir] = true;
+			}
 		}
 	}
 
@@ -743,9 +796,14 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			if(!$this->isJqueryScript($url)) continue;
 			$path = preg_replace('/[?#].*$/', '', $url);
 			$dir = $this->siteModuleDir($path);
-			// a field module's script (added as its Inputfield renders) has the Inputfield's reason
-			if($dir !== '' && $this->isFieldModuleDir($dir)) continue;
-			$this->needLegacy('Script:' . basename(dirname($path)) . '/' . basename($path));
+			$reason = 'Script:' . basename(dirname($path)) . '/' . basename($path);
+			// a field module's script (added as its Inputfield renders) has the Inputfield's reason,
+			// if one of its Inputfields was legacy; settled in useLegacyStack()
+			if($dir !== '' && $this->isFieldModuleDir($dir)) {
+				$this->pendingScriptReasons[$dir] = $reason;
+				continue;
+			}
+			$this->needLegacy($reason);
 		}
 	}
 
@@ -825,8 +883,21 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 *
 	 */
 	public function isNativeProcess(Process $process) {
-		if($process instanceof BridgeComponent) return true;
+		// as for Inputfields (ADR 0015): a component counts for its own class, not its subclasses
+		if($process instanceof BridgeComponent) return $this->componentClass($process) === get_class($process);
 		return in_array($process->className(), $this->nativeProcesses, true);
+	}
+
+	/**
+	 * The class that declares a component's getBridgeComponent()
+	 *
+	 * @param BridgeComponent $module
+	 * @return string Fully qualified class name
+	 *
+	 */
+	protected function componentClass($module) {
+		$method = new \ReflectionMethod($module, 'getBridgeComponent');
+		return $method->getDeclaringClass()->getName();
 	}
 
 	/**
@@ -906,22 +977,6 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	}
 
 	/**
-	 * Hook after ProcessPageEdit::buildFormChildren: the Children tab renders the page tree
-	 * (ProcessPageList) inside an InputfieldMarkup; until the page tree is native that field needs
-	 * the legacy stack, now or when its AJAX tab opens
-	 *
-	 * @param HookEvent $event
-	 *
-	 */
-	public function hookPageEditChildren(HookEvent $event) {
-		if(in_array('ProcessPageList', $this->nativeProcesses, true)) return;
-		$wrapper = $event->return;
-		if(!$wrapper instanceof InputfieldWrapper) return;
-		$list = $wrapper->getChildByName('ChildrenPageList');
-		if($list && trim((string) $list->value) !== '') $list->set('bridgeLegacyProcess', 'ProcessPageList');
-	}
-
-	/**
 	 * Normalised component descriptor for a BridgeComponent module
 	 *
 	 * `module` is resolved to a URL: absolute URLs and root-relative paths are kept, anything
@@ -938,7 +993,10 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$url = empty($info['module']) ? '' : (string) $info['module'];
 		$version = empty($info['version']) ? '1' : (string) $info['version'];
 		if($url !== '' && strpos($url, '/') !== 0 && strpos($url, '://') === false) {
-			$base = $this->wire()->config->urls($module->className());
+			// relative to the directory of the class that declares the component (a subclass in
+			// another module would otherwise point at its own directory)
+			$declaring = $module instanceof BridgeComponent ? wireClassName($this->componentClass($module), false) : $module->className();
+			$base = $this->wire()->config->urls($declaring);
 			$url = ($base ? $base : '') . $url;
 		}
 		if($url !== '' && strpos($url, '?') === false) {
@@ -965,10 +1023,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		}
 		// a component counts for its own class only: a subclass may add jQuery scripts of its own
 		// (ADR 0015: native by exact class, never by inheritance)
-		if($inputfield instanceof BridgeComponent) {
-			$method = new \ReflectionMethod($inputfield, 'getBridgeComponent');
-			return $method->getDeclaringClass()->getName() === get_class($inputfield);
-		}
+		if($inputfield instanceof BridgeComponent) return $this->componentClass($inputfield) === get_class($inputfield);
 		return false;
 	}
 
@@ -992,7 +1047,22 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 */
 	public function useLegacyStack() {
 		if($this->legacyStack !== self::legacyAuto) return true;
+		$this->settleScriptReasons();
 		return $this->legacyNeeded;
+	}
+
+	/**
+	 * A jQuery script from a field module directory needs the stack unless a legacy Inputfield
+	 * from that directory was rendered (it then has that Inputfield's reason): a Fieldtype that
+	 * renders a core native Inputfield and adds its own jQuery script (FieldtypeOptionsColor)
+	 * would otherwise have its script deferred and never run (ADR 0015 3; audit A4)
+	 *
+	 */
+	protected function settleScriptReasons() {
+		foreach($this->pendingScriptReasons as $dir => $reason) {
+			unset($this->pendingScriptReasons[$dir]);
+			if(empty($this->legacyInputfieldDirs[$dir])) $this->needLegacy($reason);
+		}
 	}
 
 	/**
@@ -1032,28 +1102,80 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * RockMigrations adds one to every admin page. It is deferred with the stack instead, and runs
 	 * when (if) the stack loads, as core module scripts do. Decided from the file's content (a
 	 * jQuery call or the $ alias), for local root-relative .js URLs only; the theme's own scripts
-	 * never count. Cached per file and modification time for the request.
+	 * never count. Comments do not count ("No jQuery."), and a script that checks for jQuery
+	 * (`window.jQuery`, `typeof jQuery`) works without it and is printed (audit A3). URLs that
+	 * contain one of the lines of the printScripts setting are always printed. Verdicts are kept
+	 * per file and modification time in one WireCache entry (A14).
 	 *
 	 * @param string $url
 	 * @return bool
 	 *
 	 */
 	public function isJqueryScript($url) {
-		static $cache = array();
 		$config = $this->wire()->config;
 		$path = preg_replace('/[?#].*$/', '', (string) $url);
 		if(strpos($path, '/') !== 0 || strpos($path, '//') === 0 || substr($path, -3) !== '.js') return false;
 		if(strpos($path, $this->url()) === 0) return false;
+		foreach($this->printScriptsList() as $needle) if(strpos($path, $needle) !== false) return false;
 		$root = $config->urls->root;
 		if(strpos($path, $root) !== 0) return false;
 		$file = $config->paths->root . substr($path, strlen($root));
 		if(!is_file($file)) return false;
 		$key = $file . '|' . filemtime($file);
-		if(!isset($cache[$key])) {
-			$js = (string) file_get_contents($file, false, null, 0, 512 * 1024);
-			$cache[$key] = (bool) preg_match('/\bjQuery\b|(?<![\w$])\$\s*\(|(?<![\w$])\$\.\w/', $js);
+		if($this->jqueryVerdicts === null) {
+			$this->jqueryVerdicts = (array) $this->wire()->cache->get(self::jqueryVerdictsCache);
 		}
-		return $cache[$key];
+		if(!isset($this->jqueryVerdicts[$key])) {
+			$this->jqueryVerdicts[$key] = self::needsJquery((string) file_get_contents($file, false, null, 0, 512 * 1024));
+			$this->jqueryVerdictsChanged = true;
+		}
+		return (bool) $this->jqueryVerdicts[$key];
+	}
+
+	/**
+	 * Does this script source call jQuery? (isJqueryScript())
+	 *
+	 * @param string $js
+	 * @return bool
+	 *
+	 */
+	public static function needsJquery($js) {
+		// comments out (a // inside a string such as 'http://' is left alone: a : or quote before it)
+		$js = preg_replace('~/\*.*?\*/~s', '', $js);
+		$js = (string) preg_replace('~(^|[^:\'"\\\\])//[^\n]*~m', '$1', (string) $js);
+		// a script that asks whether jQuery is there runs without it
+		if(preg_match('/\bwindow\.jQuery\b|\btypeof\s+(window\.)?jQuery\b|[\'"]jQuery[\'"]\s+in\s+window/', $js)) return false;
+		return (bool) preg_match('/\bjQuery\b|(?<![\w$])\$\s*\(|(?<![\w$])\$\.\w/', $js);
+	}
+
+	/**
+	 * The printScripts setting as a list (one URL part per line)
+	 *
+	 * @return array
+	 *
+	 */
+	protected function printScriptsList() {
+		static $list = null;
+		if($list === null) $list = array_values(array_filter(array_map('trim', preg_split('/\r?\n/', (string) $this->get('printScripts')))));
+		return $list;
+	}
+
+	/**
+	 * Keep new isJqueryScript() verdicts for later requests (called once the head is printed)
+	 *
+	 */
+	public function saveScriptVerdicts() {
+		if(!$this->jqueryVerdictsChanged || !is_array($this->jqueryVerdicts)) return;
+		$this->jqueryVerdictsChanged = false;
+		// stale entries (an older mtime) go: keep the newest verdict per file
+		$byFile = array();
+		foreach($this->jqueryVerdicts as $key => $verdict) {
+			$file = substr($key, 0, strrpos($key, '|'));
+			$byFile[$file] = array($key, $verdict);
+		}
+		$keep = array();
+		foreach($byFile as $entry) $keep[$entry[0]] = $entry[1];
+		$this->wire()->cache->save(self::jqueryVerdictsCache, $keep, WireCache::expireNever);
 	}
 
 	/**
@@ -1152,12 +1274,22 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$sanitizer = $this->wire()->sanitizer;
 		$user = $this->wire()->user;
 		$out = '';
+		// attributes as AdminThemeUikit::renderUserNavItems() passes them (core 3.0.248 user nav
+		// items may carry id, class, data-* and on* handlers): href, target, class, id, data-*, on*
+		$allowAttrs = array('href', 'target', 'class', 'id');
 		foreach($this->getUserNavArray() as $item) {
-			$url = $sanitizer->entities($item['url']);
+			if(isset($item['url'])) $item['href'] = $item['url'];
 			$title = $sanitizer->entities1($item['title']);
 			$icon = empty($item['icon']) ? '' : $this->renderNavIcon($item['icon']);
-			$target = empty($item['target']) ? '' : " target='" . $sanitizer->entities($item['target']) . "'";
-			$out .= "<li><a href='$url'$target>$icon$title</a></li>";
+			$attrs = '';
+			foreach($item as $name => $value) {
+				if(!is_string($name) || is_array($value) || is_object($value)) continue;
+				if(in_array($name, $allowAttrs, true) || strpos($name, 'data-') === 0 || strpos($name, 'on') === 0) {
+					if($value === '' || $value === null) continue;
+					$attrs .= " $name='" . $sanitizer->entities((string) $value) . "'";
+				}
+			}
+			$out .= "<li><a$attrs>$icon$title</a></li>";
 		}
 		// colour scheme toggle; scripts/main.js cycles auto, light, dark and updates icon and label
 		$labels = array(
@@ -1170,9 +1302,11 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$out .= "<li class='pw-scheme-toggle'><a href='#' data-pw-scheme-toggle$attrs>" .
 			"<i class='fa fa-fw fa-adjust'></i><span class='pw-scheme-label'>" . $sanitizer->entities1($labels['auto']) . "</span></a></li>";
 		$name = $sanitizer->entities1($user->name);
+		// the name links to the profile when the user may edit it (touch: a second tap follows it)
+		$profile = $user->hasPermission('profile-edit') ? " href='" . $this->wire()->urls->admin . "profile/'" : " href='#'";
 		return
 			"<ul class='pw-user-nav'><li class='pw-dropdown'>" .
-			"<a id='tools-toggle' class='pw-dropdown-toggle' href='" . $this->wire()->urls->admin . "profile/'>" .
+			"<a id='tools-toggle' class='pw-dropdown-toggle'$profile>" .
 			$this->renderNavIcon('user') . $name . "</a>" .
 			"<ul class='pw-dropdown-menu' data-my='right top' data-at='right bottom' style='display:none'>$out</ul>" .
 			"</li></ul>";
@@ -1192,7 +1326,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public function ___renderBreadcrumbs() {
 		$breadcrumbs = $this->wire()->breadcrumbs;
 		if(!$breadcrumbs || !count($breadcrumbs)) return '';
-		if($this->isModal) return '';
+		if($this->isModal || !$this->isLoggedIn) return '';
 		$sanitizer = $this->wire()->sanitizer;
 		$extended = (bool) $this->extendedBreadcrumbs;
 		$process = $this->wire()->page->process;
@@ -1213,7 +1347,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			if($p && method_exists($p, 'getPage')) $editPage = $p->getPage();
 		}
 		foreach($breadcrumbs as $breadcrumb) {
-			$title = $sanitizer->entities1($breadcrumb->title);
+			// as AdminThemeUikit: markup a Process set for the crumb, else its title, translated
+			$title = (string) $breadcrumb->get('titleMarkup');
+			if($title === '') $title = $sanitizer->entities1($this->_($breadcrumb->title));
 			$href = (string) $breadcrumb->url;
 			$edit = '';
 			if($extended) {
@@ -1359,11 +1495,33 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$f->attr('value', $this->legacyStack);
 		$inputfields->add($f);
 
+		/** @var InputfieldTextarea $f */
+		$f = $modules->get('InputfieldTextarea');
+		$f->attr('name', 'printScripts');
+		$f->label = $this->_('Site scripts that never wait for the legacy stack');
+		$f->description = $this->_('On pages without jQuery, a site module script that calls jQuery is held back until the stack loads. One URL part per line (such as a module directory name) for scripts that work without it although they mention jQuery.');
+		$f->attr('rows', 3);
+		$f->attr('value', (string) $this->get('printScripts'));
+		$f->collapsed = Inputfield::collapsedBlank;
+		$inputfields->add($f);
+
 		/** @var InputfieldInteger $f */
 		$f = $modules->get('InputfieldInteger');
 		$f->attr('name', 'maxWidth');
 		$f->label = $this->_('Maximum content width (px), 0 for none');
-		$f->attr('value', (int) $this->maxWidth);
+		$f->attr('value', $this->getMaxWidth());
+		$f->attr('min', 0);
+		$f->attr('max', 4000);
 		$inputfields->add($f);
+	}
+
+	/**
+	 * Maximum content width in px (0 = none), within 0..4000
+	 *
+	 * @return int
+	 *
+	 */
+	public function getMaxWidth() {
+		return max(0, min(4000, (int) $this->get('maxWidth')));
 	}
 }

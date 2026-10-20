@@ -72,9 +72,11 @@ if($adminTheme->useLegacyStack()) {
 	$legacyStyles[] = $jqueryUiCss;
 }
 
-// the two shared admin scripts belong to the legacy stack; register them in upstream position
-// (after the Jquery modules, before module scripts would be too late: they are already there,
-// so insert right after the last Jquery module script)
+// the two shared admin scripts belong to the legacy stack. AdminThemeUikit appends them after
+// every registered script; Bridge puts them right after the last core script under wire/, so a
+// site script registered later still loads after inputfields.js and main.js and a module script
+// that core loads early keeps its place (the order conformance/run.php checks: inputfields.js
+// before every script outside wire/)
 $legacyShared = array(
 	$wireUrl . "templates-admin/scripts/inputfields.$ext?v=$version",
 	$wireUrl . "templates-admin/scripts/main.$ext?v=$version",
@@ -90,6 +92,7 @@ foreach($ordered as $i => $url) {
 array_splice($ordered, $lastJquery + 1, 0, $legacyShared);
 
 $split = $adminTheme->getScriptUrls($ordered);
+$adminTheme->saveScriptVerdicts();
 $printScripts = $split['print'];
 $printScripts[] = $themeUrl . "scripts/main.js?v=" . $themeAssetVersion('scripts/main.js');
 // save without reload (ADR 0013; other edit forms since milestone 3.8), never in modal windows
@@ -108,6 +111,12 @@ $bridgeJs['colorScheme'] = $adminTheme->getColorScheme();
 $bridgeJs['variant'] = $adminTheme->getVariant();
 $bridgeJs['legacyReasons'] = $adminTheme->getLegacyReasons();
 $bridgeJs['pageSave'] = $pageSave;
+// translated labels for the runtime's own dialogs (util/choose.ts, elements/pw-dialog.ts)
+$bridgeJs['labels'] = array(
+	'ok' => $adminTheme->_('OK'),
+	'cancel' => $adminTheme->_('Cancel'),
+	'close' => $adminTheme->_('Close'),
+);
 $bridgeJs['runtimeUrl'] = $themeUrl . "assets/dist/runtime.js?v=" . $themeAssetVersion('assets/dist/runtime.js');
 $process = $this->wire()->process;
 $bridgeJs['process'] = $process instanceof BridgeComponent ? $adminTheme->componentInfo($process) : null;

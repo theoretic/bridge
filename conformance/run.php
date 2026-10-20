@@ -160,7 +160,7 @@ class ConformanceClient {
 	public function __destruct() {
 		if(is_file($this->cookies)) @unlink($this->cookies);
 	}
-	public function request($url, array $post = null) {
+	public function request($url, ?array $post = null) {
 		$ch = curl_init($this->base . $url);
 		$headers = array('Accept: text/html,application/json');
 		// JSON endpoints are what modules call over AJAX; ask the way they do
@@ -251,7 +251,7 @@ function classList($el) {
 }
 
 function digest($status, $html, $url) {
-	$d = array('status' => $status, 'error' => '', 'fields' => array(), 'controls' => array(), 'links' => array(), 'buttons' => array(), 'tables' => array(), 'scripts' => array(), 'styles' => array(), 'notices' => array(), 'title' => '');
+	$d = array('status' => $status, 'error' => '', 'fields' => array(), 'controls' => array(), 'links' => array(), 'buttons' => array(), 'tables' => array(), 'scripts' => array(), 'styles' => array(), 'notices' => array(), 'title' => '', 'printed' => array(), 'deferred' => array());
 	if(strpos($url, 'render=JSON') !== false) {
 		$json = json_decode($html, true);
 		if($json === null) {
@@ -275,6 +275,7 @@ function digest($status, $html, $url) {
 		$src = normalizeUrl($s->getAttribute('src'));
 		if(isThemeAsset($src)) continue;
 		$d['scripts'][] = $src;
+		$d['printed'][] = $src;
 	}
 	// Bridge in auto mode hands the legacy stack to the client instead of printing it on a native
 	// page (ProcessWire.config.AdminThemeBridge.legacyScripts); those scripts are available on
@@ -285,6 +286,7 @@ function digest($status, $html, $url) {
 			$src = normalizeUrl((string) $src);
 			if(isThemeAsset($src)) continue;
 			$d['scripts'][] = $src;
+			$d['deferred'][] = $src;
 		}
 	}
 	foreach($xp->query('//link[@rel="stylesheet"][@href]') as $s) {
@@ -361,6 +363,33 @@ function digest($status, $html, $url) {
 	return $d;
 }
 
+/**
+ * What a matching digest does not show (audit A17, A18): a site script Bridge deferred on a
+ * screen that stayed native never runs there; on a printed stack inputfields.js must precede
+ * every script outside wire/ (Bridge's order is a superset of Uikit's, see _head.php)
+ *
+ * @param array $bridge Bridge's digest
+ * @return array Warning lines
+ */
+function scriptWarnings(array $bridge) {
+	$warn = array();
+	$wire = '/wire/';
+	$native = !preg_grep('~/wire/modules/Jquery/JqueryCore/~', $bridge['printed'] ?? array());
+	foreach($bridge['deferred'] ?? array() as $src) {
+		if(strpos($src, $wire) !== false) continue;
+		if($native) $warn[] = "deferred site script on a native screen (runs only if the stack loads): $src";
+	}
+	$printed = $bridge['printed'] ?? array();
+	$at = -1;
+	foreach($printed as $i => $src) if(strpos($src, 'templates-admin/scripts/inputfields.') !== false) $at = $i;
+	if($at > -1) {
+		foreach($printed as $i => $src) {
+			if($i < $at && strpos($src, $wire) === false) $warn[] = "printed before inputfields.js: $src";
+		}
+	}
+	return $warn;
+}
+
 function diffDigest(array $a, array $b) {
 	$diff = array();
 	foreach(array('status', 'error', 'title') as $k) {
@@ -410,6 +439,7 @@ foreach(array('uikit', 'bridge') as $name) {
 echo "logged in as uikit and bridge at $base$adminUrl; " . count($screens) . " screens\n\n";
 
 $results = array();
+$warnings = 0;
 $fails = 0;
 $siteFails = 0;
 $diffs = 0;
@@ -450,11 +480,15 @@ foreach($screens as $url) {
 		}
 	}
 	foreach($diff as $line) echo "       $line\n";
-	$results[$url] = array('uikit' => $row['uikit'], 'bridge' => $row['bridge'], 'diff' => $diff, 'failed' => $failed);
+	$warn = scriptWarnings($row['bridge']);
+	foreach($warn as $line) echo "       WARN $line\n";
+	$warnings += count($warn);
+	$results[$url] = array('uikit' => $row['uikit'], 'bridge' => $row['bridge'], 'diff' => $diff, 'failed' => $failed, 'warnings' => $warn);
 }
 
 $total = count($screens);
 echo "\n$total screens: " . ($total - $fails - $diffs - $siteFails) . " identical, $diffs differ, $fails failed, $siteFails fail identically under both themes (site)\n";
+echo "$warnings script warnings (deferred site scripts on native screens, order)\n";
 if($jsonOut) {
 	file_put_contents($jsonOut, json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 	echo "digests written to $jsonOut\n";

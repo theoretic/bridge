@@ -1,7 +1,15 @@
 <?php namespace ProcessWire;
 
+// the interface without depending on the theme: its file when the theme is there, else the same
+// one-method interface declared here (docs/contract.md 2)
 if(!interface_exists("ProcessWire\\BridgeComponent", false)) {
-	require_once(dirname(__DIR__) . '/AdminThemeBridge/BridgeComponent.php');
+	$bridgeComponentFile = dirname(__DIR__) . '/AdminThemeBridge/BridgeComponent.php';
+	if(is_file($bridgeComponentFile)) {
+		require_once($bridgeComponentFile);
+	} else {
+		interface BridgeComponent { public function getBridgeComponent(); }
+	}
+	unset($bridgeComponentFile);
 }
 
 /**

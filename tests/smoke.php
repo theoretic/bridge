@@ -5,7 +5,7 @@
  * non-default locations and checks that the core sees the layout correctly.
  *
  * Usage: php tests/smoke.php /path/to/sandbox/root
- * The sandbox is produced by tools/sandbox-atispro.sh (own DB copy, own site copy).
+ * The sandbox is produced by tools/sandbox-site.sh (own DB copy, own site copy).
  * Read-only for the database apart from what a normal boot writes (module cache refresh).
  */
 
@@ -259,6 +259,56 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	check('the theme script is never deferred', !$bridge->isJqueryScript($bridge->url() . 'scripts/main.js'));
 	@unlink($probe);
 	@unlink($plain);
+	// 0.8.8 (A3): what the content test counts
+	if(method_exists('ProcessWire\\AdminThemeBridge', 'needsJquery')) {
+		check('a "No jQuery." comment does not defer a script', !AdminThemeBridge::needsJquery("/**\n * No jQuery.\n */\ndocument.addEventListener('click', function() {});"));
+		check('a // comment mentioning $(...) does not either', !AdminThemeBridge::needsJquery("// was: \$('#x').hide()\nvar url = 'http://example.com';"));
+		check('a script that checks for jQuery is printed', !AdminThemeBridge::needsJquery("if(window.jQuery) jQuery(document).on('x', f); else document.addEventListener('x', f);"));
+		check('a jQuery body is deferred', AdminThemeBridge::needsJquery("var u = 'http://x'; jQuery(function(\$) { \$('.a').hide(); });"));
+		check('the $ alias is deferred', AdminThemeBridge::needsJquery("\$.ajax({ url: 'x' });"));
+		check('the demo script is printed', !$bridge->isJqueryScript($config->urls->siteModules . 'BridgeDemo/ProcessBridgeDemo.js') || !is_file($config->paths->siteModules . 'BridgeDemo/ProcessBridgeDemo.js'));
+	}
+	// A9: a component Process counts for its own class only
+	if($modules->isInstalled('ProcessBridgeDemo')) {
+		$modules->getModule('ProcessBridgeDemo', array('noInit' => true, 'noPermissionCheck' => true));
+		if(!class_exists('ProcessWire\\BridgeSmokeSubDemo', false)) {
+			eval('namespace ProcessWire; class BridgeSmokeSubDemo extends ProcessBridgeDemo {}');
+		}
+		check('a component Process is native', $bridge->isNativeProcess($modules->getModule('ProcessBridgeDemo', array('noInit' => true, 'noPermissionCheck' => true))));
+		check('a subclass of a component Process is not native', !$bridge->isNativeProcess($modules->wire(new BridgeSmokeSubDemo())));
+	}
+	// A4: a field module's jQuery script is a reason unless a legacy Inputfield of that module is
+	$settle = function(array $legacyDirs) use($modules) {
+		$probe = $modules->wire(new AdminThemeBridge());
+		foreach(array('pendingScriptReasons' => array('/x/FieldtypeSmoke/' => 'Script:FieldtypeSmoke/smoke.js'), 'legacyInputfieldDirs' => $legacyDirs) as $prop => $value) {
+			$r = new \ReflectionProperty($probe, $prop);
+			$r->setAccessible(true);
+			$r->setValue($probe, $value);
+		}
+		return array($probe->useLegacyStack(), array_keys($probe->getLegacyReasons()));
+	};
+	list($needed, $reasons) = $settle(array());
+	check('a field module script without a legacy Inputfield of its module needs the stack', $needed && in_array('Script:FieldtypeSmoke/smoke.js', $reasons, true), implode(',', $reasons));
+	list($needed) = $settle(array('/x/FieldtypeSmoke/' => true));
+	check('with a legacy Inputfield of its module it adds no reason of its own', !$needed);
+	// A6: AdminThemeBoss's never-saved settings are its defaults (both on)
+	check('bossForcesUikit() reads Boss defaults', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "!array_key_exists(\$key, \$boss)") !== false);
+	// A20: both sides guard the interface declaration
+	check('the interface file is guarded', strpos((string) file_get_contents($themeDir . 'BridgeComponent.php'), "if(!interface_exists('ProcessWire\\\\BridgeComponent', false))") !== false);
+	// A21: the inline-script rewrites match strings that still occur in core
+	$wire = $config->paths->wire;
+	$needles = array(
+		'modules/Process/ProcessTemplate/ProcessTemplate.module' => array('$(document).ready(function() { ProcessTemplateInitFields(); });', "\$('#ProcessTemplatePageLister').iFrameResize({ });"),
+		'modules/Process/ProcessField/ProcessField.module' => array('"jQuery(document).ready(function() { " . '),
+		'modules/Markup/MarkupAdminDataTable/MarkupAdminDataTable.module' => array("AdminDataTable.initTable($('#\$id'));"),
+		'modules/Process/ProcessPageEdit/ProcessPageEdit.module' => array("\$func = 'initPageEditForm();';", '"<scr" . "ipt>$func</script>"'),
+		'modules/LanguageSupport/LanguageTabs.module' => array("setupLanguageTabs(\$('#\$id'));", '"<script>$func</script>"'),
+		'modules/Process/ProcessPageEditImageSelect/ProcessPageEditImageSelect.module' => array('$(document).ready(function() { setupProcessSave('),
+	);
+	foreach($needles as $file => $list) {
+		$src = is_file($wire . $file) ? (string) file_get_contents($wire . $file) : '';
+		foreach($list as $needle) check("core still prints the string the theme rewrites ($file)", $src !== '' && strpos($src, $needle) !== false, $needle);
+	}
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

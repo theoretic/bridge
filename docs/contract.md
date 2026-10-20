@@ -24,11 +24,19 @@ interface ProcessWire\BridgeComponent {
 }
 ```
 
-Defined in `modules/AdminThemeBridge/BridgeComponent.php`. Implementing it declares: this module's markup and behaviour need neither jQuery, jQuery UI, `wire/templates-admin/scripts/inputfields.js` nor `main.js`. Load the interface defensively so the module does not depend on load order:
+Defined in `modules/AdminThemeBridge/BridgeComponent.php`. Implementing it declares: this module's markup and behaviour need neither jQuery, jQuery UI, `wire/templates-admin/scripts/inputfields.js` nor `main.js`. Load the interface defensively, so the module depends neither on load order nor on the theme being installed (the theme's own file is guarded the same way, 0.8.8):
 
 ```php
+// the interface without depending on the theme: its file when the theme is there, else the same
+// one-method interface declared here (docs/contract.md 2)
 if(!interface_exists("ProcessWire\\BridgeComponent", false)) {
-	require_once(dirname(__DIR__) . '/AdminThemeBridge/BridgeComponent.php');
+	$bridgeComponentFile = dirname(__DIR__) . '/AdminThemeBridge/BridgeComponent.php';
+	if(is_file($bridgeComponentFile)) {
+		require_once($bridgeComponentFile);
+	} else {
+		interface BridgeComponent { public function getBridgeComponent(); }
+	}
+	unset($bridgeComponentFile);
 }
 ```
 
@@ -70,7 +78,9 @@ Reasons are reported in `ProcessWire.config.AdminThemeBridge.legacyReasons` as `
 
 Scripts of site and third-party modules print as registered, except those written against jQuery (milestone 3.2, `isJqueryScript()`): a local `.js` file that calls `jQuery` or the `$` alias goes to `legacyScripts` with the stack and runs when the stack loads. RockMigrations, for example, adds one to every admin page; printed on a page without the stack it would throw. The theme's own scripts never count.
 
-A Process is legacy unless it is a `BridgeComponent` or a core Process the theme stands in for, by exact class (ADR 0016; `isNativeProcess()`, the list in 4.4). Content of a legacy Process rendered inside a native field is marked on that field: the page editor's Children tab (`#wrap_ChildrenPageList`, the page tree) carries `data-bridge-legacy="ProcessPageList"` and counts as `Process:ProcessPageList`, now or when its AJAX tab loads.
+A Process is legacy unless it is a `BridgeComponent` (its own class, not a subclass: 0.8.8) or a core Process the theme stands in for, by exact class (ADR 0016; `isNativeProcess()`, the list in 4.4).
+
+Other reasons (0.8.8): a site or module script that calls jQuery (comments do not count, a script that checks `window.jQuery` / `typeof jQuery` works without it) is deferred with the stack; when a Process adds such a script while it builds the screen, it is a reason (`Script:dir/file.js`), unless it comes from a field module directory one of whose Inputfields is legacy on the page (that Inputfield's reason covers it). An inline `<script>` calling jQuery inside native markup (`InputfieldMarkup` output) is a reason (`Inline:InputfieldMarkup`). The setting "Site scripts that never wait for the legacy stack" (`printScripts`, URL parts) prints a script whatever it contains.
 
 ## 4. Client side
 

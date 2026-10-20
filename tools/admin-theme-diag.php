@@ -87,7 +87,8 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	echo "  AdminThemeBridge cache stale: " . var_export($stale, true) . ($stale ? " -> the theme loads at boot; see docs/install-live.md" : '') . "\n";
 }
 $logFile = $config->paths->logs . 'admin-theme-bridge.txt';
-$last = is_file($logFile) ? trim((string) array_slice(file($logFile), -1)[0]) : '';
+$lines = is_file($logFile) ? (array) file($logFile) : array();
+$last = $lines ? trim((string) end($lines)) : '';
 if(strpos($last, 'Loaded at boot') !== false && strtotime(substr($last, 0, 19)) >= $started) {
 	echo "  this run found the cache stale and rebuilt it (Bridge loaded at boot); the lines above show the repaired state\n";
 }

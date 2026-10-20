@@ -41,6 +41,11 @@ On a live site, back up the database first and follow
 [docs/install-live.md](docs/install-live.md). It covers modules that break a module cache
 rebuild, and AdminThemeBoss's "activate for all users" setting, which blocks the selection.
 
+On pages without jQuery, a site module script that calls jQuery waits until the legacy stack
+loads (it would throw otherwise). If such a script works without jQuery, add a part of its URL
+(the module's directory name) to "Site scripts that never wait for the legacy stack" in the
+module settings.
+
 To uninstall: switch your profile back to Uikit, then uninstall the module.
 
 ## Development

@@ -19,10 +19,10 @@
 $root = rtrim(str_replace('\\', '/', $argv[1] ?? ''), '/');
 $userName = $argv[2] ?? '';
 if(!is_file("$root/index.php")) exit("Usage: php tools/deploy-local.php /path/to/site/webroot [username]\n");
-if(!is_dir("$root/site/modules/AdminThemeBridge")) exit("FAIL $root/site/modules/AdminThemeBridge is missing (create the junction first)\n");
-
 if(empty($_SERVER['DOCUMENT_ROOT'])) $_SERVER['DOCUMENT_ROOT'] = $root;
 include "$root/index.php";
+// the site directory from the config (site/, site-name/ or a bootstrap layout's app/)
+if(!is_dir($config->paths->siteModules . 'AdminThemeBridge')) exit("FAIL {$config->paths->siteModules}AdminThemeBridge is missing (create the junction first)\n");
 /** @var Modules $modules */
 /** @var Users $users */
 /** @var Config $config */
@@ -41,8 +41,9 @@ if($modules->isInstalled('AdminThemeBridge')) {
 }
 
 if($modules->isInstalled('AdminThemeBoss')) {
-	$boss = $modules->getConfig('AdminThemeBoss');
-	if(!empty($boss['allusers'])) {
+	$boss = (array) $modules->getConfig('AdminThemeBoss');
+	// never saved = Boss's default, which is on (AdminThemeBossConfig::getDefaults())
+	if(!array_key_exists('allusers', $boss) || !empty($boss['allusers'])) {
 		$boss['allusers'] = 0;
 		$modules->saveConfig('AdminThemeBoss', $boss);
 		echo "note AdminThemeBoss 'activate for all users' switched OFF (it forced Uikit on every user); re-enable in Modules > AdminThemeBoss to undo\n";

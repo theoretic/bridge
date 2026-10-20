@@ -16,6 +16,7 @@
  */
 
 import { legacyLoaded } from '../legacy';
+import { label } from '../util/labels';
 
 export type DialogSize = 'small' | 'medium' | 'large' | 'full';
 
@@ -59,7 +60,7 @@ export class PwDialog extends HTMLElement {
 		const closeBtn = document.createElement('button');
 		closeBtn.type = 'button';
 		closeBtn.className = 'pw-dialog-close';
-		closeBtn.setAttribute('aria-label', 'Close');
+		closeBtn.setAttribute('aria-label', label('close', 'Close'));
 		closeBtn.textContent = '×';
 		closeBtn.addEventListener('click', () => this.close(true));
 		bar.append(title, closeBtn);

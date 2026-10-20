@@ -509,6 +509,22 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	}
 	await page5.close();
 
+	// demo-button: the demo's own script (ProcessBridgeDemo.js, no jQuery, says so in a comment) is
+	// printed, not deferred with the stack, so its AJAX button works on the native demo (audit A3)
+	const page6 = await ctx.newPage();
+	await page6.goto(ADMIN + 'setup/bridge-demo/', { waitUntil: 'networkidle' });
+	const demo = await page6.evaluate(() => ({
+		printed: [...document.scripts].some(s => /ProcessBridgeDemo\.js/.test(s.src)),
+		deferred: ((ProcessWire.config.AdminThemeBridge || {}).legacyScripts || []).some(u => /ProcessBridgeDemo\.js/.test(u)),
+		button: !!document.getElementById('BridgeDemoLoadLegacy'),
+	}));
+	check('demo-button: the demo script is printed, not deferred', demo.printed && !demo.deferred, JSON.stringify(demo));
+	if(demo.button) {
+		await page6.click('#BridgeDemoLoadLegacy');
+		check('demo-button: the AJAX button loads the legacy field', await page6.waitForFunction(() => document.getElementById('BridgeDemoLegacy').getAttribute('data-loaded') === '1', null, { timeout: 10000 }).then(() => true, () => false));
+	}
+	await page6.close();
+
 	await consoleErrors.settle();
 	consoleErrors.check(check);
 	await browser.close();

@@ -66,8 +66,9 @@ foreach(array_merge(array_unique($themes), array('ProcessBridgeDemo')) as $theme
 // AdminThemeBoss with "activate for all users" rewrites every user's admin_theme to Uikit on
 // each request (AdminThemeBoss::init), which would undo the per-user themes below
 if($modules->isInstalled('AdminThemeBoss')) {
-	$bossConfig = $modules->getConfig('AdminThemeBoss');
-	if(!empty($bossConfig['allusers'])) {
+	$bossConfig = (array) $modules->getConfig('AdminThemeBoss');
+	// never saved = Boss's default, which is on (AdminThemeBossConfig::getDefaults())
+	if(!array_key_exists('allusers', $bossConfig) || !empty($bossConfig['allusers'])) {
 		$bossConfig['allusers'] = 0;
 		$modules->saveConfig('AdminThemeBoss', $bossConfig);
 		echo "ok   AdminThemeBoss 'allusers' switched off (it forces Uikit for everyone)

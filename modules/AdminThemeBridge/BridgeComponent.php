@@ -17,6 +17,8 @@
  *
  * Original work, MIT.
  */
+if(!interface_exists('ProcessWire\\BridgeComponent', false)) {
+
 interface BridgeComponent {
 
 	/**
@@ -29,4 +31,6 @@ interface BridgeComponent {
 	 *
 	 */
 	public function getBridgeComponent();
+}
+
 }

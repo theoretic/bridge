@@ -20,7 +20,7 @@ $homeUrl = $adminTheme->isLoggedIn ? $config->urls->admin : $config->urls->root;
 	<div class='pw-container'>
 		<a class='pw-logo-link' href='<?php echo $homeUrl; ?>'><?php echo $adminTheme->renderLogo(); ?></a>
 		<?php if($adminTheme->isLoggedIn): ?>
-		<button type='button' class='pw-nav-toggle' aria-controls='pw-nav' aria-expanded='false' aria-label='<?php echo $adminTheme->_('Menu'); ?>'><i class='fa fa-bars'></i></button>
+		<button type='button' class='pw-nav-toggle' aria-controls='pw-nav' aria-expanded='false' aria-label='<?php echo $adminTheme->wire()->sanitizer->entities1($adminTheme->_('Menu')); ?>'><i class='fa fa-bars'></i></button>
 		<nav class='pw-nav' id='pw-nav'>
 			<?php echo $adminTheme->renderPrimaryNav(); ?>
 		</nav>

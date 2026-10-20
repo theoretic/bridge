@@ -1,5 +1,47 @@
 # Changelog
 
+## AdminThemeBridge 0.8.8: audit phase 4, PHP theme correctness (2026-10-20)
+
+- **Site scripts are classified by what they run, not by what they mention** (`isJqueryScript()`, `needsJquery()`). Comments no longer count, and a script that checks for jQuery (`window.jQuery`, `typeof jQuery`) runs without it and is printed. The demo's own `ProcessBridgeDemo.js` ("No jQuery." in a comment) was deferred with the stack, so the AJAX button on the native demo page was dead. SeoNeo's guarded script had the same fate. Verdicts are now kept per file and modification time in one WireCache entry, instead of reading every site script (up to 512 kB) on every request. The new setting "Site scripts that never wait for the legacy stack" (`printScripts`, URL parts) prints a script whatever it contains.
+- **A field module's script with no legacy Inputfield is a legacy reason** (ADR 0015 §3). A jQuery script from a directory holding an Inputfield or Fieldtype module was taken as that Inputfield's business. When the Fieldtype renders a core native Inputfield (FieldtypeOptionsColor with core Select or Radios), nobody recorded a reason, the script was deferred and the colour swatches never worked. It is now a `Script:` reason unless a legacy Inputfield from the same directory was rendered.
+- **Inline jQuery in native markup is a legacy reason** (`Inline:InputfieldMarkup`): a markup field's `<script>` that calls jQuery (PageTableNext's config screen prints `$('#…').iFrameResize()`) threw `$ is not defined`.
+- **AdminThemeBoss defaults**: a Boss install whose settings were never saved has "enable" and "activate for all users" on (`AdminThemeBossConfig::getDefaults()`). Bridge read only saved settings, so it neither warned about nor blocked the switch back to Uikit. The same applies in `tools/deploy-local.php` and `tools/sandbox-admin.php`.
+- **Navigation like Uikit's**:
+  - breadcrumbs are translated and use a Process's `titleMarkup`; none for guests;
+  - user menu items keep `id`, `class`, `target`, `data-*` and `on*` (core 3.0.248 API);
+  - the name links to the profile only with `profile-edit`.
+- **Component Processes by exact class**: a subclass of a BridgeComponent Process is legacy (it may add jQuery), as for Inputfields. A relative component `module` URL resolves against the declaring class's directory.
+- **`BridgeComponent` without the theme**: the interface file and the theme's include are guarded with `interface_exists()`. The snippet in `docs/contract.md` (and the demo modules) declares the one-method interface itself when the theme is not installed, instead of a fatal `require_once`.
+- Smaller fixes:
+  - escaped translated strings in attributes (masthead menu label, demo tabs);
+  - translatable footer;
+  - `maxWidth` validated (0..4000);
+  - `legacyStack` limited to auto/always in the body class;
+  - bootstrap errors that name server paths go to the error log, not the page;
+  - `tools/deploy-local.php` takes the site directory from the config;
+  - `tools/admin-theme-diag.php` handles an empty log;
+  - `conformance/run.php` nullable parameter (PHP 8.4);
+  - the dead Children-tab hook removed;
+  - translated labels for the runtime's dialogs (`config.AdminThemeBridge.labels`).
+- **Conformance shows what a matching digest hid**: deferred scripts are recorded apart from printed ones. A deferred site script on a native screen and a script outside `wire/` printed before `inputfields.js` are now reported as `WARN` lines with a count. The `_head.php` comment now states Bridge's order: the shared scripts go after the last core script, which is a superset of Uikit's order.
+- New checks:
+  - `tests/smoke.php`:
+    - the content test (comment, guard, `$` alias);
+    - the A4 rule both ways;
+    - a subclass of the demo Process is not native;
+    - Boss defaults and the interface guard;
+    - every string the theme rewrites in core output still occurs in its core file (ProcessTemplate, ProcessField, MarkupAdminDataTable, ProcessPageEdit, LanguageTabs, ProcessPageEditImageSelect).
+  - `tools/native-check.js` demo-button: the demo script is printed and its button loads the legacy field.
+- `docs/contract.md` §3 (reasons), README (the new setting).
+
+Checked on the atispro sandbox, each in Chromium and Firefox:
+- conformance 162 of 163 identical, 0 differ, 0 script warnings
+- Gate 2 70/70
+- lister 26/26, page-edit 36/36, page-save 48/48, screens 21/21, setup 30/30, pagetree 21/21, repeater 35/35, form-save 19/19, image-select 20/20, image-file 34/34 (upload case skipped)
+- scheme scan 0 findings, dropdown stress 0 violations, smoke passes
+
+davinci (Gate 1): 159 of 171 identical, 0 differ, 11 fail identically under both themes (site). The one failure is an `Uncaught ValueError` on a page editor under Uikit only. The 116 warnings are RockMigrations' admin-wide script, deferred on native screens as designed.
+
 ## AdminThemeBridge 0.8.7: audit phase 3, who owns the page, placeholders, init once (2026-10-20)
 
 - **AJAX placeholders no longer load the legacy stack** (`legacy.needsStack()`): the theme marks an AJAX-collapsed legacy field `data-bridge-legacy` when it renders, but only its content needs the stack. An in-place save, a repeater item or `Inputfields.reload()` that inserted such a placeholder loaded jQuery, jQuery UI and every core script mid-session and switched the runtime off. Now only the content arriving does.

@@ -1,7 +1,15 @@
 <?php namespace ProcessWire;
 
+// the interface without depending on the theme: its file when the theme is there, else the same
+// one-method interface declared here (docs/contract.md 2)
 if(!interface_exists("ProcessWire\\BridgeComponent", false)) {
-	require_once(dirname(__DIR__) . '/AdminThemeBridge/BridgeComponent.php');
+	$bridgeComponentFile = dirname(__DIR__) . '/AdminThemeBridge/BridgeComponent.php';
+	if(is_file($bridgeComponentFile)) {
+		require_once($bridgeComponentFile);
+	} else {
+		interface BridgeComponent { public function getBridgeComponent(); }
+	}
+	unset($bridgeComponentFile);
 }
 
 /**
@@ -112,8 +120,8 @@ class ProcessBridgeDemo extends Process implements Module, BridgeComponent {
 		$editUrl = $sanitizer->entities($this->wire()->config->urls->admin . 'page/edit/?id=1');
 		$out .= "<h2>" . $this->_('Runtime elements') . "</h2>";
 		$out .= "<pw-tabs id='BridgeDemoTabs'>";
-		$out .= "<section id='demo-tab-one' data-tab='" . $this->_('Tab one') . "'><p>" . $this->_('First tab. The active tab is kept in the URL hash.') . "</p></section>";
-		$out .= "<section id='demo-tab-two' data-tab='" . $this->_('Tab two') . "'><p><a class='pw-modal pw-modal-large' href='$editUrl'>" . $this->_('Open the home page editor in a dialog (pw-modal)') . "</a></p></section>";
+		$out .= "<section id='demo-tab-one' data-tab='" . $sanitizer->entities1($this->_('Tab one')) . "'><p>" . $this->_('First tab. The active tab is kept in the URL hash.') . "</p></section>";
+		$out .= "<section id='demo-tab-two' data-tab='" . $sanitizer->entities1($this->_('Tab two')) . "'><p><a class='pw-modal pw-modal-large' href='$editUrl'>" . $this->_('Open the home page editor in a dialog (pw-modal)') . "</a></p></section>";
 		$out .= "</pw-tabs>";
 		$out .= "<h2>" . $this->_('Lazy legacy stack') . "</h2>";
 		$out .= "<p><button type='button' class='ui-button' id='BridgeDemoLoadLegacy' data-url='$legacyUrl'>" . $this->_('Load a legacy Inputfield over AJAX') . "</button></p>";

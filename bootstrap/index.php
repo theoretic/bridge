@@ -34,7 +34,15 @@ if(file_exists($composerAutoloader)) require_once($composerAutoloader);
 $bridgeDir = isset($layout['bridge']) ? rtrim($layout['bridge'], '/\\') : "$rootPath/vendor/bridge/bootstrap";
 if(!class_exists("ProcessWire\\BridgeBootstrap", false)) require_once("$bridgeDir/Bootstrap.php");
 
-$config = BridgeBootstrap::buildConfig($layout);
+try {
+	$config = BridgeBootstrap::buildConfig($layout);
+} catch(\RuntimeException $e) {
+	// the message names server paths: to the error log, not the page
+	error_log($e->getMessage());
+	header("HTTP/1.1 500 Internal Server Error");
+	echo "Bridge bootstrap: the folder layout in project.php does not match the server (details in the error log)";
+	exit(1);
+}
 
 if(!$config->dbName) {
 	header("HTTP/1.1 404 Page Not Found");

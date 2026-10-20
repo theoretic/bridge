@@ -17,8 +17,10 @@ if(!defined("PROCESSWIRE")) die();
 		<p>
 			<span>Bridge <?php echo $adminTheme->version; ?></span>
 			<?php if($adminTheme->isLoggedIn): ?>
-			<small>based on ProcessWire <?php echo $config->versionName . '<!--v' . $config->systemVersion . '-->'; ?>,
-				colours from <a href='https://github.com/noelboss/AdminThemeBoss' target='_blank' rel='noopener'>AdminThemeBoss</a></small>
+			<small><?php
+				echo sprintf($adminTheme->_('based on ProcessWire %s'), $config->versionName . '<!--v' . $config->systemVersion . '-->') . ', ' .
+					sprintf($adminTheme->_('colours from %s'), "<a href='https://github.com/noelboss/AdminThemeBoss' target='_blank' rel='noopener'>AdminThemeBoss</a>");
+			?></small>
 			<?php endif; ?>
 		</p>
 		<?php
