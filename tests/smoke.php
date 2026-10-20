@@ -150,6 +150,19 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	// boot and repairs the cache from ready() (docs/install-live.md)
 	check('module info cache has the conditional autoload', !$bridge->moduleCacheIsStale(), var_export($modules->info->moduleInfoCache('AdminThemeBridge', 'autoload'), true));
 	check('a refresh can be forced past the file snapshot', method_exists($bridge, 'repairModuleCache') && method_exists($bridge, 'ready'));
+	// 0.8.5: the repair runs only for a superuser in the admin, once per interval (a rebuild that
+	// dies must not run on every request of the site); the core floor covers the APIs used
+	check('the cache repair refuses a CLI request (no admin page, no superuser)', method_exists($bridge, 'canRepairModuleCache') && !$bridge->canRepairModuleCache());
+	$requires = (string) (AdminThemeBridge::getModuleInfo()['requires'] ?? '');
+	check('requires ProcessWire 3.0.227 (FilenameArray::urls())', strpos($requires, 'ProcessWire>=3.0.227') !== false, $requires);
+}
+// 0.8.5 client fixes, by source (behaviour: lister-check L, native-check legacy-404, page-save-check)
+$listerJs = (string) @file_get_contents($themeDir . 'scripts/lister.js');
+check('Lister reads ProcessListerScript by id, not by offset', strpos($listerJs, "getElementById('ProcessListerScript')") !== false && strpos($listerJs, 'pos + 21') === false);
+check('legacy loader skips a script that fails to load', strpos($mainJs, 'urls.reduce(') === false && strpos($mainJs, 'console.warn(err.message)') !== false);
+$pageSaveJs = (string) @file_get_contents($themeDir . 'scripts/page-save.js');
+check('in-place save never re-posts a form it sent', !preg_match('/if\(!res\.redirected\) \{[^}]*classic\(/s', $pageSaveJs));
+if($modules->isInstalled('AdminThemeBridge')) {
 	// native status is per exact class (ADR 0015): a component's subclass may add jQuery scripts
 	if($modules->isInstalled('InputfieldBridgeText')) {
 		$modules->get('InputfieldBridgeText');

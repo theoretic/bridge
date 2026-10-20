@@ -41,6 +41,52 @@
 	}
 	function bridge() { return window.Bridge || null; }
 
+	/**
+	 * The results' ProcessListerScript part: what core's ProcessPageLister::renderExternalAssets()
+	 * (3.0.274) prints for scripts, styles and config the session has not had yet, as jQuery code:
+	 * `$.getScript('url', function(){ ... })` chains, `$('<link ... href="url">').appendTo('head')`
+	 * and `var configAdd={...}; $.extend(config, configAdd);`. It is empty unless something reset
+	 * the session's record of loaded files (a Lister reset in another tab). With the legacy stack on
+	 * the page that code runs as upstream; without jQuery it would throw, so the same is done here:
+	 * config merged, styles appended, scripts kept for a later stack load (they are legacy scripts).
+	 */
+	function runListerScript(js) {
+		js = (js || '').trim();
+		if(!js) return;
+		if(window.jQuery) return runScript(js);
+		var config = (window.ProcessWire && window.ProcessWire.config) || null;
+		var m = js.match(/var configAdd=(\{[\s\S]*?\});\s*\$\.extend\(config, configAdd\);/);
+		if(m && config) {
+			try {
+				var add = JSON.parse(m[1]);
+				// shallow, as $.extend(config, configAdd); the theme's own key describes this page
+				Object.keys(add).forEach(function(key) { if(key !== 'AdminThemeBridge') config[key] = add[key]; });
+			} catch(e) {
+				if(window.console) console.warn('Bridge Lister: config from the results not read', e);
+			}
+		}
+		var linked = $$('link[rel=stylesheet]').map(function(l) { return l.getAttribute('href'); });
+		js.replace(/\$\('<link rel="stylesheet" type="text\/css" href="([^"]+)">'\)/g, function(all, href) {
+			if(linked.indexOf(href) > -1) return all;
+			var link = document.createElement('link');
+			link.rel = 'stylesheet';
+			link.href = href;
+			var theme = $('link[data-pw-theme]');
+			if(theme) theme.parentNode.insertBefore(link, theme); else document.head.appendChild(link);
+			linked.push(href);
+			return all;
+		});
+		var bridgeConfig = config && config.AdminThemeBridge;
+		if(bridgeConfig) {
+			var list = bridgeConfig.legacyScripts = bridgeConfig.legacyScripts || [];
+			var loadedScripts = $$('script[src]').map(function(s) { return s.getAttribute('src'); });
+			js.replace(/\$\.getScript\('([^']+)'/g, function(all, src) {
+				if(list.indexOf(src) < 0 && loadedScripts.indexOf(src) < 0) list.push(src);
+				return all;
+			});
+		}
+	}
+
 	var ProcessLister = window.ProcessLister = {
 		native: true,
 		inInit: true,
@@ -172,7 +218,8 @@
 			ProcessLister.inAjax = true;
 			ProcessLister.spin(true);
 			fetch(url, { method: 'POST', body: data, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-				.then(function(res) { return res.text(); })
+				// an error page is never put in the results (nor are its scripts run)
+				.then(function(res) { if(!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
 				.then(function(html) { ProcessLister._submitSuccess(html); })
 				.catch(function(err) {
 					ProcessLister.inAjax = false;
@@ -262,19 +309,12 @@
 				window.dispatchEvent(new Event('resize'));
 			}, 250);
 
-			var pos = data.indexOf('ProcessListerScript');
-			if(pos > -1) {
-				var js = data.substring(pos + 21);
-				if(js !== '</div>') {
-					js = js.substring(0, js.indexOf('</div>'));
-					if(js.trim().length) runScript(js);
-				}
-			}
-			if(data.indexOf('</script>') > -1) {
-				var d = document.createElement('div');
-				d.innerHTML = data;
-				$$('.Inputfield script', d).forEach(function(s) { runScript(s.text || s.textContent || ''); });
-			}
+			// found by its id, never by a character offset: upstream's offset assumes id='...' in
+			// quotes, and an output filter that drops them made it run ".getScript(..."
+			var parsed = new DOMParser().parseFromString('<div>' + data + '</div>', 'text/html');
+			var part = parsed.getElementById('ProcessListerScript');
+			if(part) runListerScript(part.textContent);
+			$$('.Inputfield script', parsed).forEach(function(s) { runScript(s.text || s.textContent || ''); });
 		},
 
 		_refreshRow: function(pageID, message) {

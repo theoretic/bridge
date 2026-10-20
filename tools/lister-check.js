@@ -35,6 +35,10 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			await page.fill('#login_name', 'bridge');
 			await page.fill('#login_pass', process.env.PROBE_PASS);
 			await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
+			// the page after login (a Lister) posts for its results 250 ms after load: let that finish,
+			// or a following ?reset=1 can be served first and the results come back for an emptied
+			// session (that race once made "no page errors" fail at random)
+			await page.waitForLoadState('networkidle');
 			if(statePath) await ctx.storageState({ path: statePath });
 			await page.goto(ADMIN + path, { waitUntil: 'networkidle' });
 		}
@@ -136,6 +140,29 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	check('J narrow screen: cells get their column labels', await waitFor(() => !!document.querySelector('.ProcessListerTable.AdminDataTableMobile td > .th'), null, 5000));
 	await page.setViewportSize({ width: 1300, height: 950 });
 
+	await open('page/lister/?reset=1');
+
+	// L: the results' ProcessListerScript part is jQuery code from core ($.getScript chains for
+	// scripts the session has not loaded, $.extend(config, configAdd)). A reset elsewhere in the same
+	// session (another tab: the request below, redirect not followed, so no page render records the
+	// files again) empties that record, and the next results carry the whole payload. On a page
+	// without jQuery nothing may throw, and the config must still arrive
+	await open('page/lister/');
+	await loaded(/1 to/);
+	const errorsBeforeL = errors.length;
+	await ctx.request.get(ADMIN + 'page/lister/?reset=1', { maxRedirects: 0 }).catch(() => {});
+	let payload = '';
+	const response = page.waitForResponse(r => r.request().method() === 'POST' && r.url().indexOf('/page/lister/') > -1, { timeout: 15000 }).catch(() => null);
+	await page.click('#_ProcessListerRefreshTab');
+	const r = await response;
+	if(r) { try { const m = (await r.text()).match(/id=['"]?ProcessListerScript['"]?>([\s\S]*?)<\/div>/); if(m) payload = m[1]; } catch(e) {} }
+	await loaded(/1 to/);
+	await page.waitForTimeout(600);
+	let configKeys = [];
+	try { configKeys = Object.keys(JSON.parse((payload.match(/var configAdd=(\{[\s\S]*?\});/) || [])[1] || '{}')); } catch(e) {}
+	const merged = configKeys.length ? await page.evaluate((keys) => keys.every(k => k in ProcessWire.config), configKeys) : false;
+	check('L a results payload for a reset session (getScript, configAdd) throws nothing', /getScript|configAdd/.test(payload) && errors.length === errorsBeforeL, payload.slice(0, 100) + ' | ' + errors.slice(errorsBeforeL).join(' | '));
+	check('L its config keys reach ProcessWire.config', merged, configKeys.join(','));
 	await open('page/lister/?reset=1');
 
 	// K: no layout shift while the filters initialise and the results arrive (Lighthouse CLS)

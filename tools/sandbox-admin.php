@@ -14,8 +14,9 @@
  */
 
 $root = rtrim(str_replace('\\', '/', $argv[1] ?? ''), '/');
-if(!is_file("$root/index.php") || !is_file("$root/project.php")) {
-	exit("Usage: php tools/sandbox-admin.php /path/to/sandbox/root\n");
+// a sandbox/ directory only: this drops cache rows and creates superusers sharing one password
+if(!is_file("$root/index.php") || !is_file("$root/project.php") || strpos($root, '/sandbox/') === false) {
+	exit("Usage: php tools/sandbox-admin.php /path/to/sandbox/root (a sandbox/ directory)\n");
 }
 
 // some sites read $_SERVER['DOCUMENT_ROOT'] in config (StaticPages); CLI has none

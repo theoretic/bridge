@@ -24,17 +24,22 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.8.4',
+			'version' => '0.8.5',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
-			'requires' => 'ProcessWire>=3.0.200, PHP>=8.1',
+			// FilenameArray::urls() is 3.0.227, ModulesInfo::moduleInfoCache() 3.0.218
+			'requires' => 'ProcessWire>=3.0.227, PHP>=8.1',
 			'icon' => 'cubes',
 		);
 	}
 
 	const legacyAlways = 'always';
 	const legacyAuto = 'auto';
+
+	// WireCache name and lifetime (seconds) of the last module info cache rebuild (ready())
+	const repairFlag = 'AdminThemeBridge.moduleCacheRepair';
+	const repairInterval = 600;
 
 	/**
 	 * Core Inputfield classes that ship no JavaScript and need nothing from the legacy stack
@@ -401,6 +406,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 */
 	public function repairModuleCache() {
 		if(!$this->moduleCacheIsStale()) return false;
+		// set before the rebuild: a rebuild that dies (a module running out of memory in it) must
+		// not run again on the next request
+		$this->wire()->cache->save(self::repairFlag, time(), self::repairInterval);
 		$modules = $this->wire()->modules;
 		// refresh() compares this snapshot of module file times first and returns when it matches;
 		// an empty one forces the rebuild, as refresh() itself does (deleteCache() leaves the
@@ -482,8 +490,39 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	}
 
 	public function ready() {
-		if(!$this->loadedAtBoot) return;
-		if($this->repairModuleCache()) $this->log('Loaded at boot: module info cache was stale, rebuilt it');
+		if(!$this->loadedAtBoot || !$this->moduleCacheIsStale()) return;
+		// the stale state is harmless (init() sits the request out); a rebuild on every request of a
+		// site, front end included, is not: rebuild only for a superuser in the admin, at most once
+		// per interval, and say so once per interval otherwise
+		$cache = $this->wire()->cache;
+		if(!$this->canRepairModuleCache()) {
+			if(!$cache->get(self::repairFlag . '.noted')) {
+				$cache->save(self::repairFlag . '.noted', time(), self::repairInterval);
+				$this->log('Loaded at boot: module info cache is stale; a superuser opening the admin rebuilds it (or Modules > Refresh)');
+			}
+			return;
+		}
+		try {
+			if($this->repairModuleCache()) $this->log('Loaded at boot: module info cache was stale, rebuilt it');
+		} catch(\Throwable $e) {
+			$this->log('Loaded at boot: rebuilding the module info cache failed: ' . $e->getMessage());
+		}
+	}
+
+	/**
+	 * May this request rebuild the module info cache (see moduleCacheIsStale())?
+	 *
+	 * Only an admin request by a superuser, and not again within repairInterval of the last try.
+	 *
+	 * @return bool
+	 *
+	 */
+	public function canRepairModuleCache() {
+		$page = $this->wire()->page;
+		$user = $this->wire()->user;
+		if(!$page || !$page->template || $page->template->name !== 'admin') return false;
+		if(!$user || !$user->isSuperuser()) return false;
+		return !$this->wire()->cache->get(self::repairFlag);
 	}
 
 	/**

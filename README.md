@@ -8,7 +8,7 @@ Inputfield and Process module. Based on [ProcessWire](https://processwire.com); 
 ## What it is
 
 - **`AdminThemeBridge`**, an ordinary admin theme module for a stock ProcessWire 3
-  (3.0.200+, PHP 8.1+). It renders the admin frame with its own markup and a small TypeScript
+  (3.0.227+, PHP 8.1+). It renders the admin frame with its own markup and a small TypeScript
   runtime, without jQuery.
 - **A legacy bridge.** jQuery, jQuery UI, `inputfields.js`, WireTabs and the rest of the
   upstream stack load only on screens that hold a jQuery-era Inputfield or Process module, with

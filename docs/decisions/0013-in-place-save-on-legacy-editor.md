@@ -39,8 +39,12 @@ Keeping the old form markup after a background save leaves it stale:
   - Shift+click submits classically in the same tab: the browser's own Shift+submit would open
     a new window.
 - **Fallbacks:**
-  - no redirect (CSRF or landmark failure, server error): classic submit, on the next tick,
-    because `requestSubmit()` is ignored while the form fires its submit event;
+  - no redirect (CSRF or landmark failure, server error, a hook that answered itself): the response
+    is shown as it came, as on the other editors below. Until 0.8.5 the form was posted again
+    classically, which saved twice when the first post had saved (a 500 after the save, a hook's
+    200). Amended 2026-10-20 (audit B6);
+  - no answer at all (a lost connection): a message, no second post, because the request may have
+    reached the server; the user saves again knowingly;
   - a redirect elsewhere, or an exception while swapping: navigate to the response URL (the page
     is saved).
 - **Events on `document`:** `pw-page-save` (cancelable; cancelling falls back to the classic save)
@@ -86,8 +90,8 @@ swap also runs `ProcessWireAdminTheme.setup.init()` again.
   set-up run again (`scripts/setup.js`, `scripts/screens.js`), and the tab, open fields, scroll
   and focus are restored.
 - **No second post:** a redirect elsewhere is followed. A response without a redirect is shown as
-  it came, unlike the page editor, which posts again classically: on these screens a response
-  without a redirect may already have saved something, so it is never posted twice.
+  it came (since 0.8.5 the page editor does the same): a response without a redirect may already
+  have saved something, so it is never posted twice.
 - **Always classic:** Save + Exit (button value `exit`) and Shift+click.
 - **Events:** `pw-form-save` (cancelable) and `pw-form-saved` (`detail.form`, `detail.url`,
   `detail.errors`).

@@ -903,10 +903,22 @@ var ProcessWireAdminTheme = {
 			var styles = ProcessWireAdminTheme.config().legacyStyles || [];
 			document.body.classList.add('pw-legacy-loading');
 			self.promise = Promise.all(styles.map(function(url) { return self.loadStyle(url); })).then(function() {
-				return urls.reduce(function(p, url) {
-					return p.then(function() { return self.loadScript(url); }).then(function() { self.holdReady(); self.guardNative(); });
-				}, Promise.resolve());
+				// all at once: async=false keeps the execution order, and each script's load event
+				// fires right after it ran, before the next one runs, so holdReady() still patches
+				// jQuery.fn.ready before any later script registers a handler. A script that fails
+				// to load is skipped (as a missing file would be with the stack printed upstream)
+				return Promise.all(urls.map(function(url) {
+					return self.loadScript(url).then(function() { self.holdReady(); self.guardNative(); }, function(err) {
+						if(window.console) console.warn(err.message);
+					});
+				}));
 			}).then(function() {
+				if(!window.jQuery) {
+					// without jQuery nothing upstream can run: undo, and let a later call try again
+					self.promise = null;
+					document.body.classList.remove('pw-legacy-loading');
+					throw new Error('Bridge: the legacy stack did not load (no jQuery)');
+				}
 				self.loaded = true;
 				document.body.classList.remove('pw-legacy-loading');
 				document.body.classList.add('pw-legacy-loaded');
@@ -915,8 +927,13 @@ var ProcessWireAdminTheme = {
 				document.dispatchEvent(new CustomEvent('pw-legacy-handover'));
 				self.releaseReady();
 				if(typeof ProcessWireAdmin !== 'undefined') {
-					ProcessWireAdmin.init();
-					ProcessWireAdminTheme.setupDropdownPointers();
+					// a throw here must not keep pw-legacy-loaded from firing: later() callers wait on it
+					try {
+						ProcessWireAdmin.init();
+						ProcessWireAdminTheme.setupDropdownPointers();
+					} catch(e) {
+						if(window.console) console.error('Bridge: ProcessWireAdmin.init failed', e);
+					}
 				}
 				document.dispatchEvent(new CustomEvent('pw-legacy-loaded'));
 			});
@@ -1061,7 +1078,9 @@ var ProcessWireAdminTheme = {
 					}
 				}
 				targets.forEach(function(el) {
-					self.load().then(function() { self.initElement(el); });
+					self.load().then(function() { self.initElement(el); }, function(err) {
+						if(window.console) console.error(err.message);
+					});
 				});
 			});
 			self.observer.observe(document.body, { childList: true, subtree: true });

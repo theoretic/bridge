@@ -430,6 +430,34 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	check('leave warning: not asked when saving', !leaveAsked);
 	check('no page errors', errors.length === 0, errors.join(' | '));
 
+	// legacy-404: one deferred legacy script fails to load while the stack loads late (on a native
+	// page, as an AJAX legacy field or a component would start it). The stack must still finish:
+	// jQuery there, ready handlers released, loading class gone, upstream's admin initialised. One
+	// missing file used to leave the page stuck for the session. Own page, own error list: code
+	// that needs the missing file may fail, as it would with the stack printed upstream
+	const page3 = await ctx.newPage();
+	await page3.goto(ADMIN + 'setup/bridge-demo/', { waitUntil: 'networkidle' });
+	const missing = await page3.evaluate(() => ((ProcessWire.config.AdminThemeBridge || {}).legacyScripts || [])
+		.find(u => /\/wire\/modules\/(Jquery|Inputfield|Process|Language)/.test(u) && !/JqueryCore|JqueryUI\/JqueryUI\./.test(u)) || '');
+	if(missing) {
+		const path = missing.replace(/\?.*$/, '');
+		await page3.route(u => u.pathname === path, r => r.fulfill({ status: 404, body: '' }));
+		await page3.reload({ waitUntil: 'networkidle' });
+		const outcome = await page3.evaluate(() => ProcessWireAdminTheme.legacy.load().then(() => 'resolved', e => 'rejected: ' + e.message));
+		await page3.waitForTimeout(400);
+		const state = await page3.evaluate(() => ({
+			loaded: document.body.classList.contains('pw-legacy-loaded'),
+			loading: document.body.classList.contains('pw-legacy-loading'),
+			held: !!(window.jQuery && jQuery.fn.ready && jQuery.fn.ready.pwHeld),
+			jquery: typeof window.jQuery === 'function',
+			admin: typeof window.ProcessWireAdmin === 'object',
+		}));
+		check('legacy-404: a missing legacy script does not stop the stack', outcome === 'resolved' && state.loaded && !state.loading && !state.held && state.jquery && state.admin, outcome + ' ' + JSON.stringify(state) + ' missing ' + path);
+	} else {
+		check('legacy-404: a deferred core legacy script to fail found on the demo page', false, 'none');
+	}
+	await page3.close();
+
 	await browser.close();
 	const failed = results.filter(r => !r.ok);
 	for(const r of results) console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.name}${r.info && !r.ok ? '  [' + r.info + ']' : ''}`);

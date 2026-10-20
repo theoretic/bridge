@@ -142,20 +142,26 @@
 			.then(function(res) { return res.text().then(function(html) { return { res: res, html: html }; }); })
 			.then(function(r) { if(rule) doneForm(form, submitter, rule, r.res, r.html); else done(form, submitter, r.res, r.html); })
 			.catch(function(err) {
-				// nothing reached the server: post it the classic way
+				// no answer: the request may still have reached the server (a connection lost after
+				// the save), so posting again could save twice. Say so and let the user save again
 				if(window.console) console.error('Bridge page save:', err);
 				busy = false;
 				setBusy(form, submitter, false);
-				classic(form, submitter);
+				var msg = 'The save got no answer from the server. Check the page and save again if needed.';
+				if(window.ProcessWire && typeof ProcessWire.alert === 'function') ProcessWire.alert(msg); else window.alert(msg);
 			});
 	}
 
 	function done(form, submitter, res, html) {
 		busy = false;
 		if(!res.redirected) {
-			// not saved (CSRF or form landmark failed, server error): let upstream show its own result
-			setBusy(form, submitter, false);
-			return classic(form, submitter);
+			// no redirect: not saved (CSRF or form landmark failed), a server error, or a hook that
+			// answered itself. Show the answer as it came, as doneForm() does: posting the form again
+			// the classic way repeated a save that had happened (a 500 after the save, a hook's 200)
+			document.open();
+			document.write(html);
+			document.close();
+			return;
 		}
 		var url = new URL(res.url, location.href);
 		var here = new URL(location.href);
