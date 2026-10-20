@@ -7,11 +7,13 @@
   "license": "MIT",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build && node scripts/check-css.mjs",
+    "build": "tsc --noEmit && vite build && node scripts/fa-subset.mjs && node scripts/check-css.mjs",
     "watch": "vite build --watch",
-    "size": "node scripts/check-css.mjs"
+    "size": "node scripts/check-css.mjs",
+    "fa-subset": "node scripts/fa-subset.mjs"
   },
   "devDependencies": {
+    "subset-font": "^2.9.0",
     "typescript": "~5.9.3",
     "vite": "^6.4.3"
   }

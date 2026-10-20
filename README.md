@@ -66,6 +66,35 @@ npm run build
 
 The build also checks that `runtime.js` and `theme.css` stay within their size budgets.
 
+### Font Awesome subsets
+
+Core's Font Awesome 6 fonts carry every icon (about 300 kB); an admin screen shows a few dozen.
+With `BRIDGE_WIRE` pointing at core's `wire/` directory, `npm run build` also cuts small subsets
+of the icons in common use and writes `modules/AdminThemeBridge/assets/fonts/fa-<version>/`
+(committed): `fa.css`, which the theme prints instead of core's `all.min.css`, the subsets and
+copies of the full font files.
+
+```bash
+BRIDGE_WIRE=/path/to/wire npm run build
+```
+
+The subsets hold the icons used by core, by Bridge and by the names in `runtime/fa-icons.txt`.
+Any other icon still renders: it comes from the full file, which the browser then fetches once.
+Nothing can go missing; a rare icon only costs the full download. The theme uses the subsets
+only for the Font Awesome version they were cut from and falls back to core's stylesheet
+otherwise.
+
+For one site, add its modules and the icons stored in its database (templates, fields, admin
+pages) and deploy that build to it:
+
+```bash
+php tools/fa-icons-site.php /path/to/webroot > site-icons.txt
+BRIDGE_WIRE=/path/to/wire BRIDGE_FA_SCAN=/path/to/webroot/site/modules \
+  BRIDGE_FA_ICONS=site-icons.txt npm run build
+```
+
+`tools/fa-coverage.js` opens admin screens and lists the icons that still come from a full file.
+
 The sandbox and test tools build disposable copies of local ProcessWire sites under
 `sandbox/` (gitignored); the header of each script in `tools/` describes it. Never point the
 tests at a real site's database.

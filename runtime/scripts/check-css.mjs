@@ -49,4 +49,17 @@ for (const { name, budget, with: parts = [] } of FILES) {
 	console.log(`${name}${parts.length ? ' + ' + parts.join(' + ') : ''}: ${raw} B raw, ${gz} B gzip (budget ${budget})` + (fonts ? `, ${fonts} font url(s)` : ''));
 	if (gz > budget) { console.error(`${name}: over the gzip budget`); failed = true; }
 }
+
+// Font Awesome (scripts/fa-subset.mjs): fa.css replaces core's all.min.css (21 kB gzip) and adds
+// explicit ranges; the subsets are what a screen in common use fetches
+const fontsDir = fileURLToPath(new URL('../../modules/AdminThemeBridge/assets/fonts/', import.meta.url));
+for (const dir of existsSync(fontsDir) ? readdirSync(fontsDir).filter(d => /^fa-\d/.test(d)) : []) {
+	const css = readFileSync(fontsDir + dir + '/fa.css', 'utf8');
+	const gz = gzipSync(css, { level: 9 }).length;
+	const subsets = readdirSync(fontsDir + dir).filter(f => f.endsWith('-subset.woff2'));
+	const bytes = subsets.reduce((a, f) => a + statSync(fontsDir + dir + '/' + f).size, 0);
+	console.log(`${dir}/fa.css: ${gz} B gzip (budget ${28 * 1024}); ${subsets.length} subsets: ${bytes} B (budget ${48 * 1024})`);
+	if (gz > 28 * 1024) { console.error(`${dir}/fa.css: over the gzip budget`); failed = true; }
+	if (bytes > 48 * 1024) { console.error(`${dir}: subsets over budget, check runtime/fa-icons.txt and the scan`); failed = true; }
+}
 process.exit(failed ? 1 : 0);

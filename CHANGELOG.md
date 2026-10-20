@@ -1,5 +1,19 @@
 # Changelog
 
+## AdminThemeBridge 0.8.4: Font Awesome from small subsets (2026-10-20)
+
+An admin screen fetched about 180–300 kB of Font Awesome fonts (solid 155 kB and regular 25 kB on every screen, brands 116 kB on Modules) for a few dozen icons. Now it is 30–34 kB (all fonts with Geist: 63–74 kB instead of about 244 kB; Lighthouse, atispro sandbox), and the icons render pixel for pixel as before.
+- **`runtime/scripts/fa-subset.mjs`, part of `npm run build`** (with `BRIDGE_WIRE` set to core's `wire/`):
+  - finds the icons in use: `fa-*` names and `icon` keys and tables in core, Bridge and `BRIDGE_FA_SCAN` trees; raw code points in CSS and JS; core's v4 to v6 name map (`wire/core/Functions/fa.php`); `runtime/fa-icons.txt` and `BRIDGE_FA_ICONS` lists. Icon pickers and name maps (over 150 icons in one file) are skipped as catalogs.
+  - writes woff2 subsets (via `subset-font`) and copies of core's full files to `assets/fonts/fa-<version>/`, and `fa.css`: core's `all.min.css` with its `@font-face` rules replaced by rules with explicit `unicode-range`. Each code point keeps the face core would use, from the subset when it holds the glyph, else from the full file.
+  - **Why the rules are replaced, not added to:** core's faces have no range, so any character in a Font Awesome element (a space inside `<i class="fa">`) made the browser fetch a full face to look for it. With explicit ranges nothing else fetches a font. The space stays in each family's main subset range, so the line box keeps Font Awesome's metrics: without it icons sat a pixel lower.
+- **`_head.php`** prints `fa.css` instead of core's `all.min.css` for the version it was built from (core's stylesheet otherwise), and preloads Geist latin and the solid subset.
+- **`runtime/fa-icons.txt`**: icons of the modules, templates, fields and admin pages of ten production sites that core and Bridge do not use (101 names).
+- **`tools/fa-icons-site.php <webroot>`** lists a site's database icons for a per-site build; **`tools/fa-coverage.js`** reports the screens that still fetch a full file.
+- `check-css.mjs` budgets: `fa.css` 28 kB gzip (25.3), subsets 48 kB (36.3).
+
+Checked on the atispro sandbox: 144 screens, none fetches a full file; 9 screens in both schemes pixel-identical to core's Font Awesome; Gate 2 61/61 in Chromium and Firefox; screens, setup, page tree and page editor checks pass; scheme scan 0 findings in both browsers. `lister-check.js` is 19/20: a page error on the first Lister load after login (`Failed to execute 'appendChild' on 'Node': Unexpected token '.'`) that the 0.8.2 build and core's Font Awesome show as well, so it comes from the sandbox's state, not from this change; open. `fa.css` is 25 kB gzip against core's 21 kB.
+
 ## AdminThemeBridge 0.8.3: the Lister loads without layout shift (2026-10-20)
 
 Lighthouse (desktop) gave the Lister 81 against 95+ on the other screens: cumulative layout shift 0.335. Two shifts, both after the first paint:

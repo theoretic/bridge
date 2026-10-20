@@ -36,7 +36,15 @@ $ext = $config->debug ? "js" : "min.js";
 
 $styles->prepend($wireUrl . "templates-admin/styles/AdminTheme.css?v=$version");
 if($iconVersion && version_compare($iconVersion, '6.0.0', '>=')) {
-	$styles->append($wireUrl . "templates-admin/styles/font-awesome-$iconVersion/css/all.min.css");
+	// core's all.min.css with its fonts split (runtime/scripts/fa-subset.mjs): icons in common use
+	// come from small subsets, the rest from the full files, nothing else fetches a font; built for
+	// one Font Awesome version, so any other version gets core's stylesheet
+	$faCss = "assets/fonts/fa-$iconVersion/fa.css";
+	if(is_file(__DIR__ . "/$faCss")) {
+		$styles->append($themeUrl . "$faCss?v=" . $themeAssetVersion($faCss));
+	} else {
+		$styles->append($wireUrl . "templates-admin/styles/font-awesome-$iconVersion/css/all.min.css");
+	}
 	$styles->append($wireUrl . "templates-admin/styles/font-awesome-$iconVersion/css/v4-shims.min.css");
 } else {
 	$styles->append($wireUrl . "templates-admin/styles/font-awesome/css/font-awesome.min.css?v=$version");
@@ -126,6 +134,13 @@ $config->js('AdminThemeBridge', $bridgeJs);
 		})(document.documentElement);
 	</script>
 <?php
+// the fonts every screen paints with, fetched alongside the stylesheets instead of after them
+// (same URLs as theme.css and fa.css ask for, crossorigin as font requests are)
+$preloads = array('assets/fonts/geist-latin-wght-normal.woff2');
+if(!empty($faCss) && is_file(__DIR__ . "/$faCss")) $preloads[] = dirname($faCss) . '/fa-solid-900-subset.woff2';
+foreach($preloads as $font) {
+	if(is_file(__DIR__ . "/$font")) echo "\n\t<link rel='preload' href='$themeUrl$font' as='font' type='font/woff2' crossorigin />";
+}
 foreach($styles->urls() as $file) {
 	if($adminTheme->isOtherThemeAsset($file)) continue;
 	echo "\n\t<link type='text/css' href='$file' rel='stylesheet' />";
