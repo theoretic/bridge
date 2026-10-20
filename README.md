@@ -52,16 +52,19 @@ To uninstall: switch your profile back to Uikit, then uninstall the module.
 
 ```
 bootstrap/                 front controller and project.php layout config
-modules/AdminThemeBridge/  the admin theme; assets/dist/ holds the built runtime (committed)
+modules/AdminThemeBridge/  the admin theme; assets/dist/ and scripts/ hold built files (committed)
 modules/BridgeDemo/        native Process and Inputfield used as a test fixture
-runtime/                   TypeScript runtime and stylesheets, built with Vite
+runtime/                   TypeScript runtime, stylesheets (Vite) and the theme's classic
+                           scripts (src/classic/, minified with esbuild into scripts/)
 conformance/               screen-by-screen comparison against Uikit
 tests/smoke.php            smoke test against a sandbox install
-tools/                     sandbox builders, deploy and diagnostic scripts, Playwright checks
+tools/                     sandbox builders, deploy and diagnostic scripts, Playwright checks,
+                           bench/ (Lighthouse benchmark)
 docs/                      component contract, ADRs, install notes
 ```
 
-Build the runtime after changing `runtime/src/`:
+Build after changing anything in `runtime/src/` (the classic scripts included: the files in
+`modules/AdminThemeBridge/scripts/` are build output):
 
 ```bash
 cd runtime
@@ -69,7 +72,12 @@ npm install
 npm run build
 ```
 
-The build also checks that `runtime.js` and `theme.css` stay within their size budgets.
+The build also checks that the runtime, the stylesheets and each classic script stay within
+their gzip size budgets, and keeps the previous build's chunks for one more release (a tab left
+open across a deploy still loads them).
+
+Supported browsers: Chrome and Edge 111+, Safari 16.2+, Firefox 121+ (the CSS uses
+`color-mix()` and `:has()`).
 
 ### Font Awesome subsets
 

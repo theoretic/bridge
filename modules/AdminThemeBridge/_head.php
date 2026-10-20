@@ -155,7 +155,12 @@ $config->js('AdminThemeBridge', $bridgeJs);
 // the fonts every screen paints with, fetched alongside the stylesheets instead of after them
 // (same URLs as theme.css and fa.css ask for, crossorigin as font requests are)
 $preloads = array('assets/fonts/geist-latin-wght-normal.woff2');
-if(!empty($faCss) && is_file(__DIR__ . "/$faCss")) $preloads[] = dirname($faCss) . '/fa-solid-900-subset.woff2';
+// the solid subset's name carries a content hash (fa-subset.mjs): read from fa.css, whose
+// @font-face rules come first
+if(!empty($faCss) && is_file(__DIR__ . "/$faCss")) {
+	$faHead = (string) file_get_contents(__DIR__ . "/$faCss", false, null, 0, 16384);
+	if(preg_match('/url\((fa-solid-900-subset(?:\.[0-9a-f]+)?\.woff2)\)/', $faHead, $m)) $preloads[] = dirname($faCss) . '/' . $m[1];
+}
 foreach($preloads as $font) {
 	if(is_file(__DIR__ . "/$font")) echo "\n\t<link rel='preload' href='$themeUrl$font' as='font' type='font/woff2' crossorigin />";
 }
@@ -168,8 +173,26 @@ echo "\n\t<link type='text/css' href='$fieldsCss' rel='stylesheet' data-pw-field
 if($adminTheme->maxWidth) {
 	echo "\n\t<style data-pw-keep>.pw-container, #notices { max-width:" . (int) $adminTheme->maxWidth . "px; }</style>";
 }
+// the runtime module and the chunk it imports statically, fetched while the page parses instead
+// of after main.js imports it at the end of the body (audit B21, C32); same URL as that import()
+$runtimeFile = __DIR__ . '/assets/dist/runtime.js';
+if(is_file($runtimeFile)) {
+	echo "\n\t<link rel='modulepreload' href='{$bridgeJs['runtimeUrl']}' />";
+	if(preg_match_all('~from\s*["\']\./(chunks/[\w.-]+\.js)["\']~', (string) file_get_contents($runtimeFile), $m)) {
+		foreach(array_unique($m[1]) as $chunk) echo "\n\t<link rel='modulepreload' href='{$themeUrl}assets/dist/$chunk' />";
+	}
+}
+// theme scripts that no inline code calls while the page parses run deferred (in order, before
+// DOMContentLoaded); main.js (stand-ins, InputfieldSubmitDropdown), lister.js
+// (ProcessLister.initialized), page-edit.js and wire-tabs.js (the editor's inline init) do not
+$deferrable = array('scripts/setup.js', 'scripts/screens.js', 'scripts/link.js', 'scripts/image-select.js', 'scripts/page-save.js');
 foreach($printScripts as $file) {
 	if($adminTheme->isOtherThemeAsset($file)) continue;
-	echo "\n\t<script type='text/javascript' src='$file'></script>";
+	$defer = '';
+	if(strpos($file, $themeUrl) === 0) {
+		$rel = preg_replace('/\?.*$/', '', substr($file, strlen($themeUrl)));
+		if(in_array($rel, $deferrable, true)) $defer = ' defer';
+	}
+	echo "\n\t<script type='text/javascript' src='$file'$defer></script>";
 }
 echo "\n";

@@ -10,3 +10,7 @@ CLAUDE.md
 conformance/modules.txt
 conformance/upstream.txt
 docs/upstream/
+
+# build byproducts: Vite manifest (read by runtime/scripts/prune-chunks.mjs), classic source maps
+modules/AdminThemeBridge/assets/dist/.vite/
+runtime/.maps/

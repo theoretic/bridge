@@ -7,8 +7,10 @@
   "license": "MIT",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build && node scripts/fa-subset.mjs && node scripts/check-css.mjs",
+    "build": "tsc --noEmit && vite build && node scripts/prune-chunks.mjs && node scripts/build-classic.mjs && node scripts/fa-subset.mjs && node scripts/check-css.mjs",
     "watch": "vite build --watch",
+    "watch:classic": "node scripts/build-classic.mjs --watch",
+    "classic": "node scripts/build-classic.mjs",
     "size": "node scripts/check-css.mjs",
     "fa-subset": "node scripts/fa-subset.mjs"
   },

@@ -1,0 +1,29 @@
+{
+	"note": "chunks of the last build; the next build keeps them (scripts/prune-chunks.mjs)",
+	"chunks": [
+		"asmselect-og8EDZAF.js",
+		"autocomplete-Db6HKdwS.js",
+		"cookie-BtovzRz-.js",
+		"datatable-AsHlI0JO.js",
+		"datetime-ClONod3e.js",
+		"file-wd5h-ogH.js",
+		"icon-CWwOrC4L.js",
+		"image-Cqmug3KP.js",
+		"image-focus-Dms1qNjL.js",
+		"image-upload-BMdfCUZz.js",
+		"index-3ibvlIrr.js",
+		"lightbox-CMfRDYeW.js",
+		"notice-EeTg5joH.js",
+		"page-CA1_dxAT.js",
+		"pageautocomplete-D5JrxXQo.js",
+		"pagelist-BmZYVMks.js",
+		"pagelistselect-BvQQ2bjO.js",
+		"pagename-DH7EwPf9.js",
+		"pagetable-Cmrfs46d.js",
+		"password-OLinkuZn.js",
+		"repeater-D4hsY2Kl.js",
+		"selector-WlP19WtZ.js",
+		"sortable-CNgqzTo9.js",
+		"texttags-Bt4NSkUz.js"
+	]
+}

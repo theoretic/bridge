@@ -1,5 +1,30 @@
 # Changelog
 
+## AdminThemeBridge 0.9.0: audit phase 6, built classic scripts, asset loading (2026-10-20)
+
+- **The theme's classic scripts are built** (`runtime/scripts/build-classic.mjs`, audit B20, C32). Their sources moved to `runtime/src/classic/`; their history up to 0.8.9 stays under the old path (`git log -- modules/AdminThemeBridge/scripts/main.js`), which now holds the built file. `npm run build` minifies them with esbuild into `modules/AdminThemeBridge/scripts/` under the same names, so `_head.php`, the sandboxes' junctions and `nativeProcessScripts()` keep their paths. Each file stays a plain classic script (no bundle wrapper), so its top-level globals stay globals. Source maps go to `runtime/.maps/` (not committed). Together they drop from about 75 kB to 38 kB gzip (`main.js` 20.4 to 10.1 kB). `npm run watch:classic` rebuilds on change.
+- **Budgets for them** (`check-css.mjs`): each script has a gzip budget about 15 % over its 0.9.0 size, and all of them together have 40 kB. A file that is not minified (edited in place) fails the build. The CSS check now also catches `@import` and `}&` left in the output.
+- **Five scripts are deferred**: `setup.js`, `screens.js`, `link.js`, `image-select.js`, `page-save.js`. Inline core code never calls them while the page parses. The rest stay blocking because inline code needs them at once: `main.js` (stand-ins, `InputfieldSubmitDropdown.init()`), `lister.js` (`ProcessLister.initialized`, Bookmarks), `page-edit.js` and `wire-tabs.js` (the editor's inline init).
+- **The runtime is preloaded** (`<link rel=modulepreload>` for `runtime.js` and the chunk it imports, read from `runtime.js`; B21). It was discovered only by `import()` at the end of the body, after `main.js` ran.
+- **Font Awesome subsets carry a content hash** (`fa-solid-900-subset.8d4d8a3a.woff2`, `fa-subset.mjs`; C31). A re-cut subset under the same name was served from the browser cache without its new glyphs, so those icons rendered blank. `_head.php` reads the preload name from `fa.css`.
+- **Chunks of the previous build stay one more release** (`scripts/prune-chunks.mjs`, Vite `emptyOutDir: false`; B27). A tab left open across a deploy imports its runtime's lazy widget chunks, which `emptyOutDir` had deleted ("field widget failed"). The build keeps the chunks named by its own manifest and by the previous build's list (`assets/dist/chunks.json`), and removes the rest.
+- **The real browser baseline** (C30): `cssTarget` is Chrome 111, Safari 16.2, Firefox 121 (`color-mix()`, `:has()`), was Chrome 108, Safari 16, Firefox 110. The README states it.
+- **Lighthouse bench in the repository** (`tools/bench/`): `bench.mjs`, `summary.mjs`, `regzip.mjs`, and `switch-theme.php`, which refuses a directory outside `sandbox/` and no longer sets `HTTP_HOST`, a setting that left cached URLs behind in the sandbox. Lighthouse is its own dependency (`cd tools/bench && npm install`). Bridge only, three runs:
+  - average score 98 (0.8.4: 97);
+  - LCP 854 ms (908);
+  - JS per screen 28, 42, 38 and 42 kB gzip (32, 51, 44, 52 at 0.8.3);
+  - no full Font Awesome file fetched.
+- `tests/smoke.php` reads the classic sources from `runtime/src/classic/` and checks the build: every `scripts/*.js` is the minified build of its source, the head preloads the runtime, the subsets are hashed, the chunk list exists.
+- Not in this release:
+  - a Geist latin-ext subset (C35: needs the font file from Fontsource, a download);
+  - converting the classic scripts to TypeScript and sharing helpers with the runtime (B23, the codebase half). The sources now live next to the runtime, so they can move file by file.
+
+Checked on the atispro sandbox, each in Chromium and Firefox, all on the first run:
+- conformance 162 of 163 identical, 0 differ
+- Gate 2 70/70
+- lister 26/26, page-edit 36/36, page-save 48/48, screens 26/26 (Firefox 25), setup 30/30, pagetree 21/21, repeater 35/35, form-save 19/19, image-select 20/20, image-file 34/34 (upload case skipped)
+- scheme scan 0 findings, dropdown stress 0 violations, smoke passes
+
 ## AdminThemeBridge 0.8.9: audit phase 5, layout and CSS (2026-10-20)
 
 - **Notices never cover the head buttons** (`setupNotices()`, `body.pw-notices-static`): a single message or warning laid over the notice band covered the breadcrumbs, the title and the copied Save when it wrapped (a phone, a long text, debug prefixes). The theme script now measures each row and puts a list that does not fit into the flow. The band's change animates.

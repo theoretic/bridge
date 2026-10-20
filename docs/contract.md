@@ -86,6 +86,8 @@ Other reasons (0.8.8): a site or module script that calls jQuery (comments do no
 
 ### 4.1 Theme script `ProcessWireAdminTheme` (scripts/main.js, classic)
 
+The theme's classic scripts (`scripts/*.js`) are built: their sources are `runtime/src/classic/*.js`, minified by `npm run build` (0.9.0). `main.js`, `lister.js`, `page-edit.js` and `wire-tabs.js` are printed blocking in `<head>` (inline core code calls them while the page parses); `setup.js`, `screens.js`, `link.js`, `image-select.js` and `page-save.js` are `defer`red. `runtime.js` and its shared chunk are `modulepreload`ed.
+
 | Member | Meaning |
 |---|---|
 | `legacy.loaded` | `true` once jQuery, jQuery UI, inputfields.js, main.js are on the page |

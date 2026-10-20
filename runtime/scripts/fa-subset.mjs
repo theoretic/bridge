@@ -16,6 +16,7 @@
 // Output: modules/AdminThemeBridge/assets/fonts/fa-<version>/ (committed, like assets/dist/).
 // The theme uses it only while core ships that Font Awesome version.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, existsSync, rmSync } from 'fs';
+import { createHash } from 'crypto';
 import { join, delimiter, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import subsetFont from 'subset-font';
@@ -152,7 +153,10 @@ for(const [file, f] of Object.entries(files)) {
 	f.subset = new Set();
 	if(cps.length) {
 		const sub = await subsetFont(f.src, String.fromCodePoint(...cps), { targetFormat: 'woff2' });
-		writeFileSync(join(out, file + '-subset.woff2'), sub);
+		// the name carries the content: a browser with an older cut cached would otherwise lack the
+		// glyphs added since and show blank icons until its cache expires (audit C31)
+		f.subsetName = file + '-subset.' + createHash('sha256').update(sub).digest('hex').slice(0, 8) + '.woff2';
+		writeFileSync(join(out, f.subsetName), sub);
 		f.subset = await cmap(sub);
 		f.subsetBytes = sub.length;
 	}
@@ -187,7 +191,8 @@ for(const g of groups.values()) {
 	const main = [...byFile.keys()].filter(f => f.endsWith('-subset')).sort((a, b) => byFile.get(b).length - byFile.get(a).length)[0] || [...byFile.keys()][0];
 	if(main) byFile.get(main).unshift('U+20');
 	for(const [file, parts] of byFile) {
-		rules.push(`@font-face{font-family:"${g.family}";font-style:normal;${g.weight ? `font-weight:${g.weight};` : ''}font-display:block;src:url(${file}.woff2) format("woff2");unicode-range:${parts.join(',')}}`);
+		const url = file.endsWith('-subset') ? files[file.slice(0, -'-subset'.length)].subsetName : file + '.woff2';
+		rules.push(`@font-face{font-family:"${g.family}";font-style:normal;${g.weight ? `font-weight:${g.weight};` : ''}font-display:block;src:url(${url}) format("woff2");unicode-range:${parts.join(',')}}`);
 	}
 }
 

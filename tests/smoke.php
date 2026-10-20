@@ -138,8 +138,11 @@ if(is_file($fieldsCss)) {
 	$posFields = strpos($head, 'data-pw-fields />');
 	check('fields.css linked after theme.css', $posTheme !== false && $posFields !== false && $posFields > $posTheme);
 }
+// the classic scripts' sources (0.9.0: runtime/src/classic/, built minified into scripts/); the
+// source checks below read them, the presence checks the built files
+$classicDir = is_dir(dirname(__DIR__) . '/runtime/src/classic') ? dirname(__DIR__) . '/runtime/src/classic/' : $themeDir . 'scripts/';
 // notices from a page save time out (scripts/main.js); behaviour is checked in a browser
-$mainJs = (string) @file_get_contents($themeDir . 'scripts/main.js');
+$mainJs = (string) @file_get_contents($classicDir . 'main.js');
 check('theme script times out page-save notices', strpos($mainJs, 'this.setupNoticeTimeout();') !== false && strpos($mainJs, "addEventListener('pw-page-saved', arm)") !== false);
 if($modules->isInstalled('AdminThemeBridge')) {
 	$bridge = $modules->getModule('AdminThemeBridge', array('noInit' => true, 'noPermissionCheck' => true));
@@ -157,10 +160,10 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	check('requires ProcessWire 3.0.227 (FilenameArray::urls())', strpos($requires, 'ProcessWire>=3.0.227') !== false, $requires);
 }
 // 0.8.5 client fixes, by source (behaviour: lister-check L, native-check legacy-404, page-save-check)
-$listerJs = (string) @file_get_contents($themeDir . 'scripts/lister.js');
+$listerJs = (string) @file_get_contents($classicDir . 'lister.js');
 check('Lister reads ProcessListerScript by id, not by offset', strpos($listerJs, "getElementById('ProcessListerScript')") !== false && strpos($listerJs, 'pos + 21') === false);
 check('legacy loader skips a script that fails to load', strpos($mainJs, 'urls.reduce(') === false && strpos($mainJs, 'console.warn(err.message)') !== false);
-$pageSaveJs = (string) @file_get_contents($themeDir . 'scripts/page-save.js');
+$pageSaveJs = (string) @file_get_contents($classicDir . 'page-save.js');
 check('in-place save never re-posts a form it sent', !preg_match('/if\(!res\.redirected\) \{[^}]*classic\(/s', $pageSaveJs));
 // 0.8.6: one inline-script runner, synchronous stand-ins (behaviour: setup-check ?focus=, lister, repeater)
 check('theme script has the shared script runner', strpos($mainJs, 'runScripts: function(rootOrScripts, options)') !== false);
@@ -168,8 +171,8 @@ check('theme script defines stand-ins for Inputfields, Bridge, AdminDataTable', 
 // a runner copies a script's text into a new element and puts that in the page; loaders (src) don't
 $runnerRe = '/\.text = [^;]+;\s*[\w.]*(appendChild|replaceChild|replaceWith)\(/';
 $runners = array();
-foreach(array('scripts/lister.js', 'scripts/page-save.js') as $f) {
-	if(preg_match($runnerRe, (string) @file_get_contents($themeDir . $f))) $runners[] = $f;
+foreach(array('lister.js', 'page-save.js') as $f) {
+	if(preg_match($runnerRe, (string) @file_get_contents($classicDir . $f))) $runners[] = $f;
 }
 $runtimeSrc = dirname(__DIR__) . '/runtime/src/';
 if(is_dir($runtimeSrc)) {
@@ -188,10 +191,23 @@ foreach(array('pw-notices-static', 'pw-nav-overflow', 'forced-colors', '@media p
 check('theme script measures notices and the top bar, and handles touch', strpos($mainJs, 'setupNotices: function()') !== false && strpos($mainJs, 'setupNavFit: function()') !== false && strpos($mainJs, "e.pointerType === 'touch'") !== false);
 $headPhp = (string) @file_get_contents($themeDir . '_head.php');
 check('the head declares both colour schemes', strpos($headPhp, '<meta name="color-scheme" content="light dark">') !== false);
+// 0.9.0: built assets (runtime/scripts/build-classic.mjs, prune-chunks.mjs, fa-subset.mjs)
+$unbuilt = array();
+foreach(glob($themeDir . 'scripts/*.js') as $f) {
+	$js = (string) file_get_contents($f);
+	if(substr_count($js, "
+") > 2 || strpos($js, 'built from runtime/src/classic/') === false) $unbuilt[] = basename($f);
+}
+check('every theme script is the minified build of its source', !count($unbuilt) && count(glob($themeDir . 'scripts/*.js')) === count(glob($classicDir . '*.js')), implode(', ', $unbuilt));
+check('the head preloads the runtime module', strpos($headPhp, "rel='modulepreload'") !== false);
+$faCssFile = glob($themeDir . 'assets/fonts/fa-*/fa.css');
+$faCssText = $faCssFile ? (string) file_get_contents($faCssFile[0]) : '';
+check('Font Awesome subsets carry a content hash', $faCssText === '' || (bool) preg_match('/url\(fa-solid-900-subset\.[0-9a-f]{8}\.woff2\)/', $faCssText));
+check('the last build listed its chunks (kept one more release)', is_file($themeDir . 'assets/dist/chunks.json'));
 // 0.8.7: one body observer, ownership by the stack (not by jQuery), placeholders, hand-over
 // (behaviour: native-check placeholder and foreign-jquery, lister-check M, repeater-check B)
 $observers = array();
-foreach(glob($themeDir . 'scripts/*.js') as $f) $observers[basename($f)] = substr_count((string) file_get_contents($f), 'new MutationObserver(');
+foreach(glob($classicDir . '*.js') as $f) $observers[basename($f)] = substr_count((string) file_get_contents($f), 'new MutationObserver(');
 if(is_dir($runtimeSrc)) {
 	foreach(new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($runtimeSrc, \FilesystemIterator::SKIP_DOTS)) as $file) {
 		if(substr($file->getFilename(), -3) === '.ts') $observers[$file->getFilename()] = substr_count((string) file_get_contents($file->getPathname()), 'new MutationObserver(');
@@ -204,7 +220,7 @@ check('the runtime asks the theme who owns the page', $legacyTs === '' || strpos
 check('an AJAX placeholder of a legacy field does not load the stack', strpos($mainJs, 'needsStack: function(li)') !== false && strpos($mainJs, 'renderInputfieldAjax') !== false);
 $handoverMissing = array();
 foreach(array('lister.js', 'page-edit.js', 'setup.js', 'screens.js') as $f) {
-	$js = (string) @file_get_contents($themeDir . 'scripts/' . $f);
+	$js = (string) @file_get_contents($classicDir . $f);
 	// every listener but DOMContentLoaded carries the hand-over signal (nested per-drag ones aside)
 	$all = preg_match_all('/\.addEventListener\(\'(?!DOMContentLoaded)/', $js);
 	$bound = substr_count($js, 'handover.bind(');
