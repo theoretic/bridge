@@ -94,7 +94,7 @@ $wire->addHookAfter('AdminThemeBridge::nativeMap', function(HookEvent $e) {
 
 Other reasons (0.8.8): a site or module script that calls jQuery (comments do not count, a script that checks `window.jQuery` / `typeof jQuery` works without it) is deferred with the stack; when a Process adds such a script while it builds the screen, it is a reason (`Script:dir/file.js`), unless it comes from a field module directory one of whose Inputfields is legacy on the page (that Inputfield's reason covers it). An inline `<script>` calling jQuery inside native markup (`InputfieldMarkup` output) is a reason (`Inline:InputfieldMarkup`). The setting "Site scripts that never wait for the legacy stack" (`printScripts`, URL parts) prints a script whatever it contains.
 
-From 0.9.2:
+From 0.9.3:
 - A module's config screen (ProcessModule `edit?name=X`): a jQuery script from X's own directory is a reason (`Script:dir/file.js`) whenever it was added. Modules add it at init or ready when they see `?name=X`, before the Process runs.
 - A Process that throws (core shows its error) keeps the reasons it would have had: itself unless native, and the scripts it added.
 - In `Script:<dir>/<file>`, `<dir>` is the module's directory under site/modules (`Script:Fluency/fluency.js`), not the script's own subdirectory.
