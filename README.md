@@ -25,11 +25,7 @@ Upstream `wire/` is never edited or patched. DOM ids and classes, AJAX endpoints
 names and hookable methods stay as upstream defines them, so modules and hooks find what they
 expect. Design decisions are recorded in [docs/decisions/](docs/decisions/).
 
-## Status
-
-Phases 1 (shell and legacy bridge) and 2 (core Inputfields without jQuery) are complete.
-Phase 3 (native Process screens) has its milestones done and its third-party module audit
-complete. Phase 4 (distribution) is next. The plan and its gates are in [PLAN.md](PLAN.md).
+## Compatibility
 
 Compatibility is checked by a conformance suite ([conformance/](conformance/)), which compares
 every admin screen under Uikit and Bridge on copies of real sites with widely used community
