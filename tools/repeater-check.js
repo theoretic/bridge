@@ -28,6 +28,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const statePath = process.env.PW_STATE || '';
 	const ctx = await browser.newContext(Object.assign({ viewport: { width: 1300, height: 950 } },
 		statePath && fs.existsSync(statePath) ? { storageState: statePath } : {}));
+	const consoleErrors = require('./console-errors')(ctx);
 	const page = await ctx.newPage();
 	const errors = [];
 	const ignore = process.env.IGNORE_ERRORS ? new RegExp(process.env.IGNORE_ERRORS) : null;
@@ -145,12 +146,23 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	check('A item headers get controls and handles', built.controls === 4 && built.drag === 4, JSON.stringify(built));
 	check('A depth shown as indent', built.depth.join() === '0px,50px,0px', JSON.stringify(built));
 
-	// B: AJAX item load
+	// B: AJAX item load; each new field hears 'reloaded' once (upstream does it once per load;
+	// the loader, the content observer and a second announcement used to add up, audit B3/B17)
 	const first = nth(R, 1);
+	await page.evaluate(() => {
+		window.__reloaded = new Map();
+		document.addEventListener('reloaded', e => { const li = e.target; if(li && li.id) window.__reloaded.set(li.id, (window.__reloaded.get(li.id) || 0) + 1); });
+	});
 	await page.$eval(first, el => el.scrollIntoView({ block: 'center' }));
 	await page.click(first + ' > .InputfieldHeader .InputfieldRepeaterItemLabel');
 	const loaded = await waitFor((s) => { const i = document.querySelector(s); return i.querySelector('.InputfieldRepeaterLoaded').value === '1' && !!i.querySelector('input[name^="bf_text"]'); }, first);
 	check('B opening an item loads its fields', loaded, await page.evaluate((s) => document.querySelector(s).querySelector('input[name^="bf_text"]') ? document.querySelector(s).querySelector('input[name^="bf_text"]').value : 'none', first));
+	await page.waitForTimeout(500);
+	const heard = await page.evaluate((s) => {
+		const ids = [...document.querySelector(s).querySelectorAll(':scope > .InputfieldContent .Inputfield')].map(li => li.id).filter(Boolean);
+		return ids.map(id => id.replace(/^wrap_Inputfield_/, '') + '=' + (window.__reloaded.get(id) || 0));
+	}, first);
+	check('B each loaded field hears reloaded once', heard.length > 0 && heard.every(h => /=1$/.test(h)), heard.join(' '));
 
 	// D: delete toggle
 	const before = await items(R);
@@ -295,6 +307,8 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	check('O legacy editor: upstream runs the repeater', await jq() && await page.evaluate(() => !document.querySelector('[data-pw-repeater]') && !!document.querySelector('.InputfieldRepeater .InputfieldRepeaterItemControls')));
 
 	check('no page errors', errors.length === 0, errors.join(' | '));
+	await consoleErrors.settle();
+	consoleErrors.check(check);
 	report();
 	await browser.close();
 })().catch(e => { check('run completed', false, String(e.message).split(String.fromCharCode(10))[0]); report(); process.exit(1); });

@@ -26,16 +26,18 @@
 (function(theme) {
 	'use strict';
 	if(!theme || theme.setup) return;
+	// listeners end when upstream's own script for this screen takes over (main.js handover)
+	var handover = (theme && theme.handover) || { over: false, bind: function(o) { return o; } };
 
 	function $(sel, root) { return (root || document).querySelector(sel); }
 	function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
-	function on(el, type, fn) { if(el) el.addEventListener(type, fn); }
+	function on(el, type, fn) { if(el) el.addEventListener(type, fn, handover.bind()); }
 	// document listeners bind once: init() runs again after a save without reload (milestone 3.8)
 	var docBound = {};
 	function onDocument(key, type, fn) {
 		if(docBound[key]) return;
 		docBound[key] = true;
-		document.addEventListener(type, fn);
+		document.addEventListener(type, fn, handover.bind());
 	}
 	function show(el, yes) { if(el) el.style.display = yes ? '' : 'none'; }
 	function shown(el) { return !!el && el.style.display !== 'none'; }
@@ -76,7 +78,7 @@
 				if(table && table.tagName === 'TABLE') show(table, !off);
 				if(fieldset) fieldset.classList.toggle('ui-priority-secondary', off);
 			};
-			radio.addEventListener('change', apply);
+			radio.addEventListener('change', apply, handover.bind());
 			apply();
 		});
 	}
@@ -102,7 +104,7 @@
 						flash(r);
 					});
 				}
-			});
+			}, handover.bind());
 		});
 		$$('button.ProcessModuleSettings').forEach(function(btn) {
 			btn.addEventListener('click', function() {
@@ -110,7 +112,7 @@
 				var cm = tr ? $('.ConfigurableModule', tr) : null;
 				var a = cm ? cm.closest('a') : null;
 				if(a) window.location.href = a.getAttribute('href') + '&collapse_info=1';
-			});
+			}, handover.bind());
 		});
 		var form = $('#modules_form');
 		if(form) tabs(form, { items: $$('.Inputfields li.WireTab'), rememberTabs: true });
@@ -122,7 +124,7 @@
 				sections.forEach(function(s) { show(s, section === '' || s.classList.contains('modules_' + section)); });
 				document.cookie = select.getAttribute('name') + '=' + section;
 			};
-			select.addEventListener('change', apply);
+			select.addEventListener('change', apply, handover.bind());
 			apply();
 		});
 		onDocument('modules-check', 'click', function(e) {
@@ -146,7 +148,7 @@
 			on($(sel), 'change', function() { submitForm(filter); });
 		});
 		$$('#wrap_show_system input').forEach(function(input) {
-			input.addEventListener('click', function() { submitForm($('#field_filter_form')); });
+			input.addEventListener('click', function() { submitForm($('#field_filter_form')); }, handover.bind());
 		});
 
 		var status = $('#asmListItemStatus');
@@ -184,7 +186,7 @@
 				input.value = range.value + '%';
 				input.dispatchEvent(new Event('change', { bubbles: true }));
 				if(input.id === 'columnWidth') setStatus();
-			});
+			}, handover.bind());
 			input.addEventListener('change', function() {
 				var v = parseInt(input.value, 10);
 				if(isNaN(v)) v = 100;
@@ -192,7 +194,7 @@
 				if(v < 10) v = 10;
 				input.value = v + '%';
 				range.value = v;
-			});
+			}, handover.bind());
 		});
 
 		var edit = $('#ProcessFieldEdit');
@@ -207,14 +209,14 @@
 			window.location = href;
 		});
 		$$('a.fieldFlag').forEach(function(a) {
-			a.addEventListener('click', function(e) { if(a.getAttribute('href') === '#') e.preventDefault(); });
+			a.addEventListener('click', function(e) { if(a.getAttribute('href') === '#') e.preventDefault(); }, handover.bind());
 		});
 		importExport();
 		$$('#wrap_Inputfield_send_templates :is(input, select, textarea)').forEach(function(el) {
 			el.addEventListener('change', function() {
 				var changed = $('#_send_templates_changed');
 				if(changed) changed.value = 'changed';
-			});
+			}, handover.bind());
 		});
 
 		// access tab: guest view means everyone views; edit implies view
@@ -223,14 +225,14 @@
 			if(guestView.checked) $$('input.viewRoles').forEach(function(c) { c.checked = true; });
 		});
 		$$('input.viewRoles:not(#viewRoles_37)').forEach(function(c) {
-			c.addEventListener('click', function(e) { if(guestView && guestView.checked) e.preventDefault(); });
+			c.addEventListener('click', function(e) { if(guestView && guestView.checked) e.preventDefault(); }, handover.bind());
 		});
 		$$('input.editRoles:not(:disabled)').forEach(function(c) {
 			c.addEventListener('click', function() {
 				if(!c.checked) return;
 				var tr = c.closest('tr');
 				$$('input.viewRoles', tr || undefined).forEach(function(v) { v.checked = true; });
-			});
+			}, handover.bind());
 		});
 
 		$$('.override-select-all').forEach(function(a) {
@@ -240,7 +242,7 @@
 				var check = !a.classList.contains('override-checked');
 				$$('input[type=checkbox]', table || undefined).forEach(function(c) { c.checked = check; });
 				a.classList.toggle('override-checked', check);
-			});
+			}, handover.bind());
 		});
 		onDocument('fields-overrides', 'pw-modal-closed', function(e) {
 			if(!e.target || !e.target.closest || !e.target.closest('a')) return;
@@ -305,7 +307,7 @@
 					show($('#useRolesYes'), false);
 					show($('#accessOverrides'), false);
 				}
-			});
+			}, handover.bind());
 		});
 		if($('#useRoles_0:checked')) {
 			show($('#useRolesYes'), false);
@@ -313,7 +315,7 @@
 		}
 		on(guest, 'click', adjust);
 		$$('input.viewRoles:not(#roles_37)').forEach(function(c) {
-			c.addEventListener('click', function(e) { if(guest && guest.checked) e.preventDefault(); });
+			c.addEventListener('click', function(e) { if(guest && guest.checked) e.preventDefault(); }, handover.bind());
 		});
 		var editRolesClick = function() {
 			var num = 0;
@@ -338,11 +340,11 @@
 			}).length;
 			show($('#wrap_noInherit'), num > 0);
 		};
-		$$('#roles_editor input.editRoles').forEach(function(c) { c.addEventListener('click', editRolesClick); });
-		$$('#roles_editor input.editRoles, #roles_editor input.addRoles').forEach(function(c) { c.addEventListener('click', editOrAddClick); });
+		$$('#roles_editor input.editRoles').forEach(function(c) { c.addEventListener('click', editRolesClick, handover.bind()); });
+		$$('#roles_editor input.editRoles, #roles_editor input.addRoles').forEach(function(c) { c.addEventListener('click', editOrAddClick, handover.bind()); });
 		editRolesClick();
 		editOrAddClick();
-		$$('#wrap_redirectLogin input').forEach(function(c) { c.addEventListener('click', redirectLoginClick); });
+		$$('#wrap_redirectLogin input').forEach(function(c) { c.addEventListener('click', redirectLoginClick, handover.bind()); });
 		adjust();
 		redirectLoginClick();
 	}
@@ -416,10 +418,10 @@
 				return w === 66 || w === 33 || w === 34 || w % 5 === 0;
 			});
 		};
-		wrap.addEventListener('asm-ready', ready);
-		select.addEventListener('init', ready);
+		wrap.addEventListener('asm-ready', ready, handover.bind());
+		select.addEventListener('init', ready, handover.bind());
 		if($('.asmListItem', wrap)) ready();
-		wrap.addEventListener('asmItemUpdated', setupRows);
+		wrap.addEventListener('asmItemUpdated', setupRows, handover.bind());
 
 		select.addEventListener('change', function(e) {
 			var changed = $('#_fieldgroup_fields_changed');
@@ -437,7 +439,7 @@
 				fieldgroup_fields: values,
 				_fieldgroup_fields_changed: 'changed'
 			}).catch(function() {});
-		});
+		}, handover.bind());
 
 		// a column width changes by dragging its percentage sideways (or up/down)
 		var setWidth = function(item, width) {
@@ -533,7 +535,7 @@
 			document.addEventListener('pointermove', move);
 			document.addEventListener('pointerup', up);
 			document.addEventListener('pointercancel', up);
-		}, true);
+		}, handover.bind(true));
 	}
 
 	/**
@@ -564,7 +566,7 @@
 					}];
 				}
 			});
-		});
+		}, handover.bind());
 	}
 
 	function addField(doc) {
@@ -602,7 +604,7 @@
 
 	function templates() {
 		$$('#wrap_filter_system input').forEach(function(input) {
-			input.addEventListener('click', function() { submitForm(input.closest('form')); });
+			input.addEventListener('click', function() { submitForm(input.closest('form')); }, handover.bind());
 		});
 		on($('#filter_field'), 'change', function() { submitForm(this.closest('form')); });
 		templateAccess();
@@ -645,7 +647,7 @@
 				alert.innerHTML = '&nbsp;(' + cfg.notEditableAlert + ')';
 				label.appendChild(alert);
 				setTimeout(function() { alert.remove(); }, 2000);
-			});
+			}, handover.bind());
 		});
 	}
 
@@ -722,16 +724,16 @@
 				return;
 			}
 			if(el.tagName === 'INPUT') setTimeout(function() { updatePermissions(false, [el]); }, 100);
-		});
+		}, handover.bind());
 		$$('.toggle-template-permissions').forEach(function(a) {
-			a.addEventListener('click', function(e) { e.preventDefault(); toggleTemplatePermissions(a.closest('tr')); });
+			a.addEventListener('click', function(e) { e.preventDefault(); toggleTemplatePermissions(a.closest('tr')); }, handover.bind());
 		});
 		$$('.template-permissions-click').forEach(function(el) {
 			toggleTemplatePermissions(el.closest('tr'));
 			el.classList.remove('template-permissions-click');
 		});
 		$$('.permission-title').forEach(function(el) {
-			el.addEventListener('click', function() { toggleTemplatePermissions(el.closest('tr')); });
+			el.addEventListener('click', function() { toggleTemplatePermissions(el.closest('tr')); }, handover.bind());
 		});
 		// template permission checkboxes get the global ones' classes (uk-checkbox and the like)
 		var first = $('input.global-permission');
@@ -777,7 +779,7 @@
 			try {
 				if(window.ResizeObserver && frame.contentDocument && frame.contentDocument.body) new ResizeObserver(fit).observe(frame.contentDocument.body);
 			} catch(e) { /* another origin */ }
-		});
+		}, handover.bind());
 		fit();
 	};
 

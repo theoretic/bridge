@@ -11,7 +11,8 @@
  *
  * Public API (also for components): ProcessWireAdminTheme.legacy.load() -> Promise,
  * ProcessWireAdminTheme.legacy.loaded, ProcessWireAdminTheme.legacy.initElement(el),
- * ProcessWireAdminTheme.runScripts(rootOrScripts, {legacy}) -> Promise.
+ * ProcessWireAdminTheme.runScripts(rootOrScripts, {legacy}) -> Promise,
+ * ProcessWireAdminTheme.observe(fn) -> unregister, ProcessWireAdminTheme.upstream().
  */
 
 var ProcessWireAdminTheme = {
@@ -62,6 +63,69 @@ var ProcessWireAdminTheme = {
 		return Promise.resolve();
 	},
 
+	/**
+	 * Does upstream own the shell? Once the legacy stack is on the page and initialised
+	 * (printed by the server, or loaded late), upstream main.js and inputfields.js handle
+	 * dropdowns, collapse, dependencies and dialogs. A jQuery that a site module brought along
+	 * by itself does not count: without upstream's scripts nobody else would (audit B11).
+	 *
+	 * @returns {boolean}
+	 */
+	upstream: function() {
+		return this.legacy.loaded || typeof window.ProcessWireAdmin !== 'undefined';
+	},
+
+	/**
+	 * One MutationObserver on <body> for the theme and the runtime: fn(records) is called for
+	 * every batch of DOM changes in the body (subtree, childList), in registration order; a throw
+	 * in one does not stop the others. Returns a function that unregisters fn (audit B18).
+	 *
+	 * @param {Function} fn
+	 * @returns {Function}
+	 */
+	observe: function(fn) {
+		var self = this;
+		if(!self.watchers) self.watchers = [];
+		self.watchers.push(fn);
+		if(!self.bodyObserver && window.MutationObserver) {
+			self.bodyObserver = new MutationObserver(function(records) {
+				self.watchers.slice().forEach(function(watch) {
+					try { watch(records); } catch(e) { if(window.console) console.error('Bridge: content observer failed', e); }
+				});
+			});
+			self.bodyObserver.observe(document.body, { childList: true, subtree: true });
+		}
+		return function() {
+			var i = self.watchers.indexOf(fn);
+			if(i > -1) self.watchers.splice(i, 1);
+		};
+	},
+
+	/**
+	 * The end of the theme's screen scripts (lister.js, page-edit.js, setup.js, screens.js): when
+	 * the legacy stack loads late, upstream's script for the screen (ProcessPageLister.js,
+	 * ProcessPageEdit.js, ...) arrives with it and binds the same controls, so every click would be
+	 * handled twice (two Lister POSTs). Their listeners take bind(options), which adds a signal
+	 * aborted at 'pw-legacy-handover'; over is true from then on (audit N1).
+	 */
+	handover: (function() {
+		var ctl = window.AbortController ? new AbortController() : null;
+		var state = { over: false };
+		document.addEventListener('pw-legacy-handover', function() {
+			state.over = true;
+			if(ctl) ctl.abort();
+		});
+		state.bind = function(options) {
+			if(!ctl) return options;
+			var o = {};
+			if(options === true || options === false) o.capture = options;
+			else if(options) for(var k in options) o[k] = options[k];
+			o.signal = ctl.signal;
+			return o;
+		};
+		return state;
+	})(),
+
 	init: function() {
 		var cfg = this.config();
 		this.legacy.loaded = !!cfg.legacy;
@@ -111,14 +175,18 @@ var ProcessWireAdminTheme = {
 			return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 		},
 
-		apply: function() {
+		/**
+		 * @param {string} [source] what changed it: 'toggle' (the user menu), 'system' (the OS
+		 * scheme under auto); passed on as pw-scheme-change detail.source
+		 */
+		apply: function(source) {
 			var setting = this.setting();
 			var root = document.documentElement;
 			var before = root.getAttribute('data-pw-scheme');
 			var scheme = this.effective(setting);
 			root.setAttribute('data-pw-scheme', scheme);
 			if(before && before !== scheme) {
-				document.dispatchEvent(new CustomEvent('pw-scheme-change', { detail: { scheme: scheme } }));
+				document.dispatchEvent(new CustomEvent('pw-scheme-change', { detail: { scheme: scheme, source: source || 'toggle' } }));
 			}
 			var links = document.querySelectorAll('[data-pw-scheme-toggle]');
 			for(var i = 0; i < links.length; i++) {
@@ -132,7 +200,7 @@ var ProcessWireAdminTheme = {
 		cycle: function() {
 			var next = this.order[(this.order.indexOf(this.setting()) + 1) % this.order.length];
 			try { window.localStorage.setItem('pwScheme', next); } catch(e) {}
-			this.apply();
+			this.apply('toggle');
 		},
 
 		init: function() {
@@ -140,7 +208,7 @@ var ProcessWireAdminTheme = {
 			this.apply();
 			if(window.matchMedia) {
 				this.media = window.matchMedia('(prefers-color-scheme: dark)');
-				var onChange = function() { if(self.setting() === 'auto') self.apply(); };
+				var onChange = function() { if(self.setting() === 'auto') self.apply('system'); };
 				if(this.media.addEventListener) this.media.addEventListener('change', onChange);
 			}
 			document.addEventListener('click', function(e) {
@@ -268,11 +336,11 @@ var ProcessWireAdminTheme = {
 			}
 			return false;
 		};
-		new MutationObserver(function(records) {
+		this.observe(function(records) {
 			for(var i = 0; i < records.length; i++) {
 				if(inTree(records[i].addedNodes) || inTree(records[i].removedNodes)) return schedule();
 			}
-		}).observe(document.body, { childList: true, subtree: true });
+		});
 		window.addEventListener('resize', schedule);
 		schedule();
 	},
@@ -292,7 +360,7 @@ var ProcessWireAdminTheme = {
 			this.tinymce();
 			// editors whose scripts arrive with the legacy stack (loaded on demand)
 			document.addEventListener('pw-legacy-loaded', function() { self.ckeditor(); self.tinymce(); });
-			document.addEventListener('pw-scheme-change', function() { self.refresh(); });
+			document.addEventListener('pw-scheme-change', function(e) { self.refresh(e.detail && e.detail.source); });
 		},
 
 		dark: function() {
@@ -389,22 +457,37 @@ var ProcessWireAdminTheme = {
 			});
 		},
 
-		refresh: function() {
+		/**
+		 * @param {string} [source] pw-scheme-change detail.source
+		 */
+		refresh: function(source) {
+			var self = this;
 			var CK = window.CKEDITOR;
 			if(CK && CK.pwScheme) {
 				for(var name in CK.instances) this.ckApply(CK.instances[name]);
 				this.ckPanels();
 			}
 			var MCE = window.InputfieldTinyMCE;
-			if(MCE && MCE.pwScheme && window.jQuery && window.tinymce) {
-				// re-create the classic editors: the skin is chosen at init
-				var $editors = jQuery('.' + MCE.cls.loaded).not('.' + MCE.cls.inline);
-				$editors.each(function() {
-					var editor = window.tinymce.get(this.id);
-					if(editor) editor.save();
+			if(!MCE || !MCE.pwScheme || !window.jQuery || !window.tinymce) return;
+			// re-creating a TinyMCE editor loses its caret, undo history and resized height: on the
+			// user's toggle at once, on an OS switch under auto (sunset) only once no editor has focus
+			var active = window.tinymce.activeEditor;
+			if(source === 'system' && active && active.hasFocus && active.hasFocus()) {
+				if(this.mcePending) return;
+				this.mcePending = true;
+				active.once('blur', function() {
+					self.mcePending = false;
+					setTimeout(function() { self.refresh('system'); }, 0);
 				});
-				if($editors.length) MCE.resetEditors($editors);
+				return;
 			}
+			// re-create the classic editors: the skin is chosen at init
+			var $editors = jQuery('.' + MCE.cls.loaded).not('.' + MCE.cls.inline);
+			$editors.each(function() {
+				var editor = window.tinymce.get(this.id);
+				if(editor) editor.save();
+			});
+			if($editors.length) MCE.resetEditors($editors);
 		}
 	},
 
@@ -479,8 +562,8 @@ var ProcessWireAdminTheme = {
 
 	/**
 	 * Native handlers for the shell's widgets. Dropdowns and notice groups step aside as soon as
-	 * jQuery is present, because upstream main.js then owns .pw-dropdown-toggle and
-	 * .pw-notice-group-toggle; closing notices and the mobile nav are always the theme's.
+	 * upstream owns the page (upstream()), because upstream main.js then owns .pw-dropdown-toggle
+	 * and .pw-notice-group-toggle; closing notices and the mobile nav are always the theme's.
 	 */
 	setupNative: function() {
 		var self = this;
@@ -503,11 +586,11 @@ var ProcessWireAdminTheme = {
 				document.body.classList.remove('pw-nav-open');
 			}
 		});
-		// dropdowns (native pages only: with jQuery, upstream main.js owns .pw-dropdown-toggle).
+		// dropdowns (native pages only: with the stack, upstream main.js owns .pw-dropdown-toggle).
 		// Hover opens like upstream; click toggles for touch; .pw-dropdown-toggle-click is click-only.
 		var hoverTimer = null;
 		document.addEventListener('mouseover', function(e) {
-			if(window.jQuery) return;
+			if(self.upstream()) return;
 			var toggle = e.target.closest('.pw-dropdown-toggle:not(.pw-dropdown-toggle-click)');
 			if(toggle) {
 				clearTimeout(hoverTimer);
@@ -520,7 +603,7 @@ var ProcessWireAdminTheme = {
 			if(e.target.closest('.pw-dropdown-menu, .pw-dropdown-toggle')) clearTimeout(hoverTimer);
 		});
 		document.addEventListener('mouseout', function(e) {
-			if(window.jQuery) return;
+			if(self.upstream()) return;
 			if(!e.target.closest('.pw-dropdown-menu, .pw-dropdown-toggle')) return;
 			var to = e.relatedTarget;
 			if(to && to.closest && to.closest('.pw-dropdown-menu, .pw-dropdown-toggle')) return;
@@ -528,7 +611,7 @@ var ProcessWireAdminTheme = {
 			hoverTimer = setTimeout(function() { self.closeDropdowns(); }, 400);
 		});
 		document.addEventListener('click', function(e) {
-			if(window.jQuery) return;
+			if(self.upstream()) return;
 			var toggle = e.target.closest('.pw-dropdown-toggle');
 			if(toggle) {
 				var menu = self.dropdownMenu(toggle);
@@ -557,7 +640,7 @@ var ProcessWireAdminTheme = {
 			}
 		});
 		document.addEventListener('keydown', function(e) {
-			if(e.key === 'Escape' && !window.jQuery) self.closeDropdowns();
+			if(e.key === 'Escape' && !self.upstream()) self.closeDropdowns();
 		});
 	},
 
@@ -864,7 +947,8 @@ var ProcessWireAdminTheme = {
 		if(!head) return;
 		var buttons = document.querySelectorAll('button.pw-head-button, button.head_button_clone');
 		if(!buttons.length) return;
-		var jq = window.jQuery || null;
+		// upstream's dropdown data travels with clone(true); without upstream the menus are copied
+		var jq = this.upstream() && window.jQuery ? window.jQuery : null;
 		var toggles = {};
 		var mains = {};
 		var copies = [];
@@ -931,7 +1015,7 @@ var ProcessWireAdminTheme = {
 
 		loaded: false,
 		promise: null,
-		observer: null,
+		unobserve: null,
 
 		urls: function() {
 			var cfg = ProcessWireAdminTheme.config();
@@ -1073,27 +1157,55 @@ var ProcessWireAdminTheme = {
 		},
 
 		/**
-		 * Run upstream initialisation on legacy markup that arrived after page load
+		 * Initialise markup that arrived after page load, as upstream does after its own AJAX
+		 * loads: with the stack, Inputfields.init() and upstream's 'reloaded' (['BridgeLegacyLoad',
+		 * $el]) on each field; without it, the runtime's init and a native 'reloaded' per field
+		 * (detail.source 'BridgeLegacyLoad'), which non-jQuery field scripts and components listen
+		 * to (docs/contract.md 4.3; audit B7). The one place that does this for legacy content: the
+		 * observer below and the in-place save call it, the runtime's loaders do not (audit B3).
+		 *
 		 * @param {Element} el
 		 */
 		initElement: function(el) {
-			if(!window.jQuery || !window.Inputfields) return;
-			var $el = jQuery(el);
-			Inputfields.init($el);
-			var $fields = $el.is('.Inputfield') ? $el : $el.find('.Inputfield');
-			$fields.trigger('reloaded', ['BridgeLegacyLoad', $el]);
+			if(!el || el.nodeType !== 1) return;
+			var fields = el.matches('.Inputfield') ? [el] : Array.prototype.slice.call(el.querySelectorAll('.Inputfield'));
+			var I = window.Inputfields;
+			if(this.loaded && window.jQuery && I && !I.native && !I.pwStub && typeof I.init === 'function') {
+				var $el = jQuery(el);
+				I.init($el);
+				jQuery(fields).trigger('reloaded', ['BridgeLegacyLoad', $el]);
+				return;
+			}
+			if(window.Bridge && Bridge.Inputfields) Bridge.Inputfields.init(el);
+			fields.forEach(function(li) {
+				li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'BridgeLegacyLoad' } }));
+			});
+		},
+
+		/**
+		 * Does a legacy field need the stack now? Not while it is an AJAX placeholder: the theme
+		 * marks a collapsed-AJAX field data-bridge-legacy when it renders, but until it is opened
+		 * nothing of it runs (audit B2); its content arriving is what counts.
+		 *
+		 * @param {Element} li .Inputfield[data-bridge-legacy]
+		 * @returns {boolean}
+		 */
+		needsStack: function(li) {
+			return !li.querySelector(':scope > .InputfieldContent > .renderInputfieldAjax, :scope > .renderInputfieldAjax');
 		},
 
 		hasLegacy: function(el) {
 			if(el.nodeType !== 1) return false;
-			if(el.matches('.Inputfield[data-bridge-legacy]')) return true;
-			return !!el.querySelector('.Inputfield[data-bridge-legacy]');
+			var self = this;
+			var sel = '.Inputfield[data-bridge-legacy]';
+			if(el.matches(sel) && self.needsStack(el)) return true;
+			return Array.prototype.some.call(el.querySelectorAll(sel), function(li) { return self.needsStack(li); });
 		},
 
 		/**
 		 * The element to initialise for an inserted node, or null: the node itself when it is or
-		 * holds legacy markup, else the legacy field it was inserted into. An AJAX-collapsed field
-		 * arrives as bare content inside its already marked wrapper.
+		 * holds legacy markup that needs the stack, else the legacy field it was inserted into (an
+		 * AJAX-collapsed field's content arrives as bare nodes inside its already marked wrapper).
 		 *
 		 * @param {Node} node
 		 * @returns {Element|null}
@@ -1101,19 +1213,20 @@ var ProcessWireAdminTheme = {
 		legacyTarget: function(node) {
 			if(this.hasLegacy(node)) return node;
 			var parent = node.parentElement;
-			return parent ? parent.closest('.Inputfield[data-bridge-legacy]') : null;
+			var li = parent ? parent.closest('.Inputfield[data-bridge-legacy]') : null;
+			return li && this.needsStack(li) ? li : null;
 		},
 
 		/**
-		 * Watch for legacy markup inserted into the page
+		 * Watch for legacy markup inserted into the page (through the theme's one body observer);
+		 * once the stack is there upstream initialises what it loads itself, and the watch ends
 		 */
 		observe: function() {
 			var self = this;
-			if(self.loaded || !window.MutationObserver) return;
-			self.observer = new MutationObserver(function(records) {
-				// once the stack is on the page, upstream initialises what it loads itself
+			if(self.loaded) return;
+			self.unobserve = ProcessWireAdminTheme.observe(function(records) {
 				if(self.loaded) {
-					self.observer.disconnect();
+					if(self.unobserve) self.unobserve();
 					return;
 				}
 				var targets = [];
@@ -1124,13 +1237,15 @@ var ProcessWireAdminTheme = {
 						if(target && targets.indexOf(target) < 0) targets.push(target);
 					}
 				}
-				targets.forEach(function(el) {
+				// an element inside another target is initialised with it
+				targets.filter(function(el) {
+					return !targets.some(function(other) { return other !== el && other.contains(el); });
+				}).forEach(function(el) {
 					self.load().then(function() { self.initElement(el); }, function(err) {
 						if(window.console) console.error(err.message);
 					});
 				});
 			});
-			self.observer.observe(document.body, { childList: true, subtree: true });
 		}
 	}
 };
@@ -1146,7 +1261,8 @@ var ProcessWireAdminTheme = {
  * itself, so only what is still undefined gets one (audit B4).
  */
 (function(w) {
-	if(w.jQuery) return;
+	var cfg = (w.ProcessWire && w.ProcessWire.config && w.ProcessWire.config.AdminThemeBridge) || {};
+	if(cfg.legacy) return;
 	var make = function(queue, path) {
 		return new Proxy(function() {}, {
 			get: function(target, key) {
@@ -1173,7 +1289,7 @@ var ProcessWireAdminTheme = {
  * dialogs until then; upstream's versions replace these when the stack loads.
  */
 (function(pw) {
-	if(!pw || window.jQuery) return;
+	if(!pw || ProcessWireAdminTheme.upstream()) return;
 	var strip = function(s) { var d = document.createElement('div'); d.innerHTML = String(s); return d.textContent || ''; };
 	if(!pw.alert) pw.alert = function(message, allowMarkup, expire, func) { window.alert(strip(message)); if(typeof func === 'function') func(); };
 	if(!pw.confirm) pw.confirm = function(message, funcOk, funcCancel) {
@@ -1201,11 +1317,11 @@ var ProcessWireAdminTheme = {
  * builds that tree (fields/pagelist.ts) when the markup arrives, so the call has nothing to do.
  * ProcessPageList.js replaces this when the stack loads.
  */
-if(!window.jQuery && typeof window.ProcessPageListInit === 'undefined') {
+if(!ProcessWireAdminTheme.upstream() && typeof window.ProcessPageListInit === 'undefined') {
 	window.ProcessPageListInit = function() {};
 }
 
-if(!window.jQuery && !window.InputfieldSubmitDropdown) {
+if(!ProcessWireAdminTheme.upstream() && !window.InputfieldSubmitDropdown) {
 	window.InputfieldSubmitDropdown = {
 		native: true,
 		itemClicked: false,

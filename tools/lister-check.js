@@ -23,6 +23,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const statePath = process.env.PW_STATE || '';
 	const ctx = await browser.newContext(Object.assign({ viewport: { width: 1300, height: 950 } },
 		statePath && fs.existsSync(statePath) ? { storageState: statePath } : {}));
+	const consoleErrors = require('./console-errors')(ctx);
 	const page = await ctx.newPage();
 	const errors = [];
 	const ignore = process.env.IGNORE_ERRORS ? new RegExp(process.env.IGNORE_ERRORS) : null;
@@ -181,7 +182,27 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	else check('K the Lister loads without layout shift (CLS < 0.1)', cls < 0.1, cls.toFixed(3));
 	await page2.close();
 
+	// M: the legacy stack loads late (a legacy field arriving by AJAX would do it): upstream's
+	// ProcessPageLister.js comes with it and binds the same controls; Bridge's lister.js steps
+	// aside at the hand-over, so a refresh posts once, not twice (audit N1)
+	await open('page/lister/');
+	await loaded(/1 to/);
+	await page.evaluate(() => ProcessWireAdminTheme.legacy.load());
+	await page.waitForTimeout(1500);
+	let posts = 0;
+	const countPost = (req) => { if(req.method() === 'POST' && req.url().indexOf('/page/lister/') > -1) posts++; };
+	page.on('request', countPost);
+	await page.click('#_ProcessListerRefreshTab');
+	await page.waitForTimeout(2500);
+	page.off('request', countPost);
+	const handed = await page.evaluate(() => ({ over: !!ProcessWireAdminTheme.handover.over, upstream: !!(window.ProcessLister && !ProcessLister.native) }));
+	check('M after a late stack load upstream\'s Lister takes over', handed.over && handed.upstream, JSON.stringify(handed));
+	check('M a refresh then posts once', posts === 1, posts + ' POSTs');
+	check('M the results still load', await loaded(/1 to/));
+
 	check('no page errors', errors.length === 0, errors.join(' | '));
+	await consoleErrors.settle();
+	consoleErrors.check(check);
 	report();
 	await browser.close();
 })().catch(e => { check('run completed', false, String(e.message).split(String.fromCharCode(10))[0]); report(); process.exit(1); });

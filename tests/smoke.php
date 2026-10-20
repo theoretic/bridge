@@ -180,6 +180,29 @@ if(is_dir($runtimeSrc)) {
 }
 check('no other inline-script runner (lister, page-save, runtime)', !count($runners), implode(', ', $runners));
 check('in-place save steps aside for Enter in a text field', strpos($pageSaveJs, 'if(implicitSubmit(form, e.submitter)) return;') !== false);
+// 0.8.7: one body observer, ownership by the stack (not by jQuery), placeholders, hand-over
+// (behaviour: native-check placeholder and foreign-jquery, lister-check M, repeater-check B)
+$observers = array();
+foreach(glob($themeDir . 'scripts/*.js') as $f) $observers[basename($f)] = substr_count((string) file_get_contents($f), 'new MutationObserver(');
+if(is_dir($runtimeSrc)) {
+	foreach(new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($runtimeSrc, \FilesystemIterator::SKIP_DOTS)) as $file) {
+		if(substr($file->getFilename(), -3) === '.ts') $observers[$file->getFilename()] = substr_count((string) file_get_contents($file->getPathname()), 'new MutationObserver(');
+	}
+}
+$observers = array_filter($observers);
+check('one body MutationObserver (main.js observe(), plus its <head> style order)', $observers === array('main.js' => 2) && strpos($mainJs, 'observe: function(fn)') !== false, json_encode($observers));
+$legacyTs = is_dir($runtimeSrc) ? (string) @file_get_contents($runtimeSrc . 'legacy.ts') : '';
+check('the runtime asks the theme who owns the page', $legacyTs === '' || strpos($legacyTs, 'theme.upstream()') !== false);
+check('an AJAX placeholder of a legacy field does not load the stack', strpos($mainJs, 'needsStack: function(li)') !== false && strpos($mainJs, 'renderInputfieldAjax') !== false);
+$handoverMissing = array();
+foreach(array('lister.js', 'page-edit.js', 'setup.js', 'screens.js') as $f) {
+	$js = (string) @file_get_contents($themeDir . 'scripts/' . $f);
+	// every listener but DOMContentLoaded carries the hand-over signal (nested per-drag ones aside)
+	$all = preg_match_all('/\.addEventListener\(\'(?!DOMContentLoaded)/', $js);
+	$bound = substr_count($js, 'handover.bind(');
+	if(!$bound || $bound < $all - 3) $handoverMissing[] = "$f ($bound of $all)";
+}
+check('screen scripts end their listeners at the hand-over', !count($handoverMissing), implode(', ', $handoverMissing));
 if($modules->isInstalled('AdminThemeBridge')) {
 	// native status is per exact class (ADR 0015): a component's subclass may add jQuery scripts
 	if($modules->isInstalled('InputfieldBridgeText')) {

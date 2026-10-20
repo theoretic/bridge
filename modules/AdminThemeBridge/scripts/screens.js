@@ -19,10 +19,12 @@
 (function(theme) {
 	'use strict';
 	if(!theme || theme.screens) return;
+	// listeners end when upstream's own script for this screen takes over (main.js handover)
+	var handover = (theme && theme.handover) || { over: false, bind: function(o) { return o; } };
 
 	function $(sel, root) { return (root || document).querySelector(sel); }
 	function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
-	function on(el, type, fn) { if(el) el.addEventListener(type, fn); }
+	function on(el, type, fn) { if(el) el.addEventListener(type, fn, handover.bind()); }
 	function show(el, yes) { if(el) el.style.display = yes ? '' : 'none'; }
 	function flash(el) {
 		if(!el || !el.animate) return;
@@ -140,7 +142,7 @@
 				input.addEventListener('keyup', function() {
 					if(timer) clearTimeout(timer);
 					timer = setTimeout(checkExists, 250);
-				});
+				}, handover.bind());
 			});
 		}
 
@@ -150,7 +152,7 @@
 				var option = template.querySelector('option[value="' + template.value + '"]');
 				if(option && parseInt(option.getAttribute('data-nolang'), 10) > 0) hideLanguageTabs(); else unhideLanguageTabs();
 			};
-			if(template.tagName === 'SELECT') { template.addEventListener('change', langs); langs(); }
+			if(template.tagName === 'SELECT') { template.addEventListener('change', langs, handover.bind()); langs(); }
 			if(parseInt(template.getAttribute('data-nolang'), 10) > 0) hideLanguageTabs();
 		}
 		$$('.InputfieldPageName .LanguageSupport input[type=text]').forEach(function(input) {
@@ -159,7 +161,7 @@
 				var label = input.nextElementSibling;
 				var box = label && label.tagName === 'LABEL' ? $(':scope > input', label) : null;
 				if(box && !box.checked) box.checked = true;
-			});
+			}, handover.bind());
 		});
 	}
 
@@ -219,13 +221,25 @@
 				ProcessLogger.stopSpinner(!updateOnlyNew);
 				var p = $('#ProcessLogPage');
 				if(p) p.setAttribute('data-time', data.time);
-			}).catch(function() { ProcessLogger.stopSpinner(!updateOnlyNew); });
+			}).catch(function() {
+				ProcessLogger.stopSpinner(!updateOnlyNew);
+				// one failed request must not end the polling for good (audit B14)
+				if(updateOnlyNew) ProcessLogger.poll();
+			});
+		},
+		// the next check for new entries in 5 s; while the tab is hidden it only re-arms
+		poll: function() {
+			if(ProcessLogger.timer) clearTimeout(ProcessLogger.timer);
+			if(handover.over) return; // upstream's ProcessLogger polls from here
+			ProcessLogger.timer = setTimeout(function() {
+				if(document.hidden) return ProcessLogger.poll();
+				ProcessLogger.submitFilters(true);
+			}, 5000);
 		},
 		setupLogEntries: function() {
 			var page = $('#ProcessLogPage');
 			ProcessLogger.pageNum = page ? parseInt(page.getAttribute('data-page'), 10) || 1 : 1;
-			if(ProcessLogger.timer) clearTimeout(ProcessLogger.timer);
-			ProcessLogger.timer = setTimeout(function() { ProcessLogger.submitFilters(true); }, 5000);
+			ProcessLogger.poll();
 			if(ProcessLogger.pageNum !== 1) return;
 			$$('.ProcessLogNew').forEach(function(el) {
 				var tr = el.closest('tr');
@@ -269,11 +283,11 @@
 		},
 		init: function() {
 			on($('#Inputfield_q'), 'keyup', ProcessLogger.filterChange);
-			$$('#Inputfield_date_to, #Inputfield_date_from').forEach(function(el) { el.addEventListener('change', ProcessLogger.filterChange); });
+			$$('#Inputfield_date_to, #Inputfield_date_from').forEach(function(el) { el.addEventListener('change', ProcessLogger.filterChange, handover.bind()); });
 			document.addEventListener('click', function(e) {
 				var a = e.target.closest ? e.target.closest('.MarkupPagerNav a') : null;
 				if(a && $('#ProcessLogEntries') && $('#ProcessLogEntries').contains(a)) ProcessLogger.paginationClick.call(a, e);
-			});
+			}, handover.bind());
 			ProcessLogger.setupLogEntries();
 		}
 	};

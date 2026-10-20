@@ -54,7 +54,10 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 	let active = -1;
 
 	const control = document.createElement('div');
-	control.className = ('selectize-control ' + original.className.replace(/\bselectized\b/, '') + (single ? ' single' : ' multi') + (single ? '' : ' plugin-remove_button')).replace(/\s+/g, ' ').trim();
+	// the control carries the original's classes, as selectize's does; marked selectized too, or a
+	// late legacy stack's InputfieldTextTags() (`.InputfieldTextTagsSelect:not(.selectized)`, any
+	// element) would try to build a control from it (JSON.parse of its missing data-opts)
+	control.className = ('selectize-control ' + original.className.replace(/\bselectized\b/, '') + (single ? ' single' : ' multi') + (single ? '' : ' plugin-remove_button') + ' selectized').replace(/\s+/g, ' ').trim();
 	const box = document.createElement('div');
 	box.className = 'selectize-input items';
 	const text = document.createElement('input');
@@ -104,6 +107,8 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 
 	const renderItems = (): void => {
 		box.querySelectorAll(':scope > .item').forEach(el => el.remove());
+		// the typing input first: the chips go before it (a field saved with tags renders them at once)
+		if (text.parentElement !== box) box.appendChild(text);
 		items.forEach(t => {
 			const div = document.createElement('div');
 			div.className = 'item';
@@ -111,7 +116,6 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 			div.innerHTML = esc(t.label) + (single ? '' : '<a href="javascript:void(0)" class="remove" tabindex="-1" title="Remove">×</a>');
 			box.insertBefore(div, text);
 		});
-		if (!text.parentElement) box.appendChild(text);
 		const full = !!max && items.length >= max;
 		box.classList.toggle('has-items', items.length > 0);
 		box.classList.toggle('full', full);

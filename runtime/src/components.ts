@@ -9,6 +9,8 @@
  * `{ tag, version }` is recorded for diagnostics.
  */
 
+import { importAgain } from './util/retry';
+
 export interface ComponentModule {
 	tag?: string;
 	version?: string;
@@ -28,7 +30,7 @@ export function load(url: string): Promise<ComponentModule | null> {
 	const existing = registry.get(key);
 	if (existing) return existing.promise;
 	const entry: Entry = { url: key, promise: Promise.resolve(null), module: null, error: null };
-	entry.promise = import(/* @vite-ignore */ key)
+	entry.promise = importAgain(() => import(/* @vite-ignore */ key))
 		.then(m => {
 			const def = (m && typeof m === 'object' && 'default' in m ? (m as { default: ComponentModule }).default : null) || {};
 			entry.module = def;
@@ -38,6 +40,9 @@ export function load(url: string): Promise<ComponentModule | null> {
 		.catch((err: Error) => {
 			entry.error = err;
 			console.error('Bridge: component module failed', key, err);
+			// not only in the console: the field it drives stays dead (audit B24)
+			document.dispatchEvent(new CustomEvent('pw-component-failed', { detail: { url: key, error: err } }));
+			void import('./util/notice').then(m => m.notice('A part of this screen failed to load (' + key.split('/').pop() + '). Reload the page to try again.'));
 			return null;
 		});
 	registry.set(key, entry);

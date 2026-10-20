@@ -18,6 +18,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 (async () => {
 	const browser = await pw[browserName].launch({ headless: true });
 	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+	const consoleErrors = require('./console-errors')(ctx);
 	const page = await ctx.newPage();
 	page.on('dialog', d => d.accept());
 	await page.goto(ADMIN);
@@ -211,6 +212,8 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	await open(1264, '&modal=1');
 	check('J modal editor has no in-place save', await page.evaluate(() => !(ProcessWire.config.AdminThemeBridge || {}).pageSave && ![...document.scripts].some(s => /page-save\.js/.test(s.src))));
 
+	await consoleErrors.settle();
+	consoleErrors.check(check);
 	report();
 	await browser.close();
 })().catch(e => { check('run completed', false, String(e.message).split(String.fromCharCode(10))[0]); report(); process.exit(1); });

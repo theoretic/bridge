@@ -1,13 +1,18 @@
 /**
- * Is the upstream legacy stack (jQuery + inputfields.js) on the page?
+ * Is the upstream legacy stack (jQuery + inputfields.js + main.js) on the page?
  *
  * When it is, upstream owns Inputfield behaviours (collapse, dependencies, widths) and the
- * runtime must not act on the same events. The flag lives on the theme's classic script.
+ * runtime must not act on the same events. The theme script decides (ProcessWireAdminTheme
+ * .upstream(): its legacy flag or upstream's ProcessWireAdmin); a jQuery that a site module
+ * brought along by itself does not make upstream the owner (audit B11).
  */
 export function legacyLoaded(): boolean {
-	const w = window as unknown as { ProcessWireAdminTheme?: { legacy?: { loaded?: boolean } }; jQuery?: unknown };
-	if (w.ProcessWireAdminTheme?.legacy?.loaded) return true;
-	return typeof w.jQuery !== 'undefined';
+	const w = window as unknown as { ProcessWireAdminTheme?: { upstream?: () => boolean; legacy?: { loaded?: boolean } }; ProcessWireAdmin?: unknown; jQuery?: unknown };
+	const theme = w.ProcessWireAdminTheme;
+	if (theme && typeof theme.upstream === 'function') return theme.upstream();
+	if (theme?.legacy?.loaded || typeof w.ProcessWireAdmin !== 'undefined') return true;
+	// no theme script (the runtime on its own): jQuery is the only sign there is
+	return !theme && typeof w.jQuery !== 'undefined';
 }
 
 /**

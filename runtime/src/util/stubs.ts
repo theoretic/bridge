@@ -32,14 +32,11 @@ export function replay(stub: unknown, real: unknown, name: string): void {
 			owner = target;
 			target = (target as Record<string, unknown>)[key];
 		}
-		if (typeof target !== 'function') {
-			console.warn(`Bridge: ${[name, ...call.path].join('.')} is not a function, call dropped`);
-			continue;
-		}
 		try {
 			(target as (...args: unknown[]) => unknown).apply(owner, call.args);
 		} catch (err) {
-			console.error(`Bridge: replayed ${[name, ...call.path].join('.')}() failed`, err);
+			// not a function on the real object, or it threw
+			console.error('Bridge: replayed call failed', [name, ...call.path].join('.'), err);
 		}
 	}
 }

@@ -141,7 +141,7 @@ export function init(table?: HTMLElement): void {
 		ready = true;
 		let timer = 0;
 		window.addEventListener('resize', () => { window.clearTimeout(timer); timer = window.setTimeout(resize, 500); });
-		if (typeof (window as unknown as { jQuery?: unknown }).jQuery === 'undefined') {
+		if (!legacyLoaded()) {
 			// over the theme's stand-in too, replaying the tables' inline initTable() calls
 			installGlobal('AdminDataTable', {
 				native: true,

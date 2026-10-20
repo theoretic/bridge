@@ -46,21 +46,36 @@ export const Bridge = {
  * Content that arrives after load (AJAX, dialogs): import declared component modules, and
  * while the page is still native, initialise Inputfield behaviours. Legacy arrivals are the
  * theme script's business (it loads the stack).
+ *
+ * One batch of mutations, one pass (audit B17): the added elements, without those inside another
+ * added one; Inputfields.init() once per distinct parent, without parents inside another. The
+ * records come from the theme script's one body observer (ProcessWireAdminTheme.observe, B18).
  */
+export function contentAdded(records: MutationRecord[]): void {
+	const added: HTMLElement[] = [];
+	for (const record of records) {
+		record.addedNodes.forEach(node => {
+			if (node.nodeType === 1 && node.isConnected) added.push(node as HTMLElement);
+		});
+	}
+	if (!added.length) return;
+	const top = added.length > 1 ? added.filter(el => !added.some(other => other !== el && other.contains(el))) : added;
+	const roots: Node[] = [];
+	const native = !legacyLoaded();
+	for (const el of top) {
+		void loadComponentsFrom(el);
+		if (!native || !(el.matches('.Inputfield') || el.querySelector('.Inputfield'))) continue;
+		const root = el.parentNode || el;
+		if (roots.indexOf(root) < 0) roots.push(root);
+	}
+	roots.filter(root => !roots.some(other => other !== root && other.contains(root)))
+		.forEach(root => Inputfields.init(root as ParentNode));
+}
+
+// the runtime is imported by the theme script only (scripts/main.js), whose observer it shares
 function observeContent(): void {
-	if (!window.MutationObserver) return;
-	const observer = new MutationObserver(records => {
-		for (const record of records) {
-			record.addedNodes.forEach(node => {
-				if (node.nodeType !== 1) return;
-				const el = node as HTMLElement;
-				void loadComponentsFrom(el);
-				if (legacyLoaded()) return;
-				if (el.matches('.Inputfield') || el.querySelector('.Inputfield')) Inputfields.init(el.parentNode || el);
-			});
-		}
-	});
-	observer.observe(document.body, { childList: true, subtree: true });
+	const theme = (window as unknown as { ProcessWireAdminTheme?: { observe?: (fn: (records: MutationRecord[]) => void) => () => void } }).ProcessWireAdminTheme;
+	if (theme && theme.observe) theme.observe(contentAdded);
 }
 
 declare global {

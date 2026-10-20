@@ -24,6 +24,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const statePath = process.env.PW_STATE || '';
 	const ctx = await browser.newContext(Object.assign({ viewport: { width: 1300, height: 950 } },
 		statePath && fs.existsSync(statePath) ? { storageState: statePath } : {}));
+	const consoleErrors = require('./console-errors')(ctx);
 	const page = await ctx.newPage();
 	const errors = [];
 	const ignore = process.env.IGNORE_ERRORS ? new RegExp(process.env.IGNORE_ERRORS) : null;
@@ -277,6 +278,8 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	check('F Access submenus show labels, not their markup', labels.length > 0 && !/<span|PageListStatus/.test(labels), labels.slice(0, 200));
 
 	check('no page errors', errors.length === 0, errors.join(' | '));
+	await consoleErrors.settle();
+	consoleErrors.check(check);
 	report();
 	await browser.close();
 })().catch(e => { check('run completed', false, String(e.message).split(String.fromCharCode(10))[0]); report(); process.exit(1); });

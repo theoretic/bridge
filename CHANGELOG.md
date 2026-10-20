@@ -1,5 +1,38 @@
 # Changelog
 
+## AdminThemeBridge 0.8.7: audit phase 3, who owns the page, placeholders, init once (2026-10-20)
+
+- **AJAX placeholders no longer load the legacy stack** (`legacy.needsStack()`): the theme marks an AJAX-collapsed legacy field `data-bridge-legacy` when it renders, but only its content needs the stack. An in-place save, a repeater item or `Inputfields.reload()` that inserted such a placeholder loaded jQuery, jQuery UI and every core script mid-session and switched the runtime off. Now only the content arriving does.
+- **One announcer for legacy content** (`legacy.initElement()`): an AJAX field, a repeater item or a reload with legacy fields got upstream's `reloaded` twice (the runtime's loader and the theme's observer), so field scripts without a guard bound twice. The runtime's loaders now leave legacy fields to the theme. Without jQuery `initElement()` runs the runtime's init and a native `reloaded` per field, which contract 4.3 promised after an in-place save and nothing sent.
+- **Repeater items**: `reloaded` comes after the item's scripts ran, as upstream does.
+- **Who owns the page** (`ProcessWireAdminTheme.upstream()`): the native dropdowns, the runtime (collapse, dependencies, dialogs), the stand-ins and the Inputfields facade decided by `window.jQuery`. A site module that loads its own jQuery switched all of them off, with no upstream script to take over. Now it takes the theme's legacy flag or upstream's `ProcessWireAdmin`.
+- **A late stack no longer doubles the screen scripts** (`ProcessWireAdminTheme.handover`): upstream's `ProcessPageLister.js`, `ProcessPageEdit.js`, `ProcessField.js`, `ProcessLogger.js` … are in the deferred list. Loaded late, they bound the same controls as Bridge's `lister.js`, `page-edit.js`, `setup.js`, `screens.js`, so one Lister refresh posted twice. Those scripts' listeners now end at `pw-legacy-handover`.
+- **TextTags with a late stack**: the native control carries the original's classes, as selectize's does, so upstream's `InputfieldTextTags()` tried to build a control from it and threw (`JSON.parse` of a missing `data-opts`). The control is marked `selectized` too. A field saved with tags threw at render (`insertBefore`: the chips went in before the typing input was in the box).
+- **One body observer** (`ProcessWireAdminTheme.observe(fn)`): the theme's legacy watch, its page-tree fit and the runtime shared the page with three `MutationObserver`s on `<body>` for the page's lifetime. Now there is one; the legacy watch unregisters once the stack is there.
+- **Batched re-init**: the runtime initialised every added node's parent on its own, and once more for each `reloaded` that followed. A repeater item with W fields meant W full rescans plus one per field. Now there is one `Inputfields.init()` per distinct root per batch, and none for a `reloaded` right after an init that covered the field.
+- Smaller fixes:
+  - selector builder: preview and count per builder, so two on one page no longer suppress each other; an older count answer no longer overwrites a newer one; failed requests clear the spinner.
+  - Logs: polling survives a failed request and pauses while the tab is hidden.
+  - `Bridge.dialog.open()` on an open dialog tells the first opener it was closed (`abort`).
+  - TinyMCE editors are re-created on an OS scheme switch only once none has focus (`pw-scheme-change` `detail.source`: `toggle` or `system`).
+  - A component module that fails to load shows a warning notice and dispatches `pw-component-failed`.
+  - A dynamic import is retried once after a second: Firefox rejects pending imports while a page is being left.
+- **Console errors are counted**: `tools/console-errors.js` collects `console.error` from every page of a check (`IGNORE_ERRORS` honoured), and every harness ends with "no console errors". It found the TextTags and Firefox import cases above.
+- New checks:
+  - `tools/native-check.js`: placeholder (an inserted AJAX placeholder loads nothing, its content does) and foreign-jquery (a site's own jQuery leaves collapse and dropdowns working).
+  - `tools/lister-check.js` M: after a late stack load a refresh posts once.
+  - `tools/repeater-check.js` B: each field of a loaded item hears `reloaded` once.
+  - `tests/smoke.php`: one body observer, ownership asked of the theme, placeholder rule, hand-over signal in the screen scripts.
+- `docs/contract.md` 4.1 and 4.2.
+
+Checked on the atispro sandbox, each in Chromium and Firefox, now with "no console errors" in every harness:
+- conformance 162 of 163 identical, 0 differ
+- Gate 2 68/68
+- lister 26/26, page-edit 36/36, page-save 48/48, screens 21/21, setup 30/30, pagetree 21/21, repeater 35/35, form-save 19/19, image-select 20/20, image-file 34/34 (upload case skipped)
+- scheme scan 0 findings, dropdown stress 0 violations, smoke passes
+
+The sandbox's missing upload files (its copy has no `assets/files`) are left out of the console count by the gate (`IGNORE_ERRORS`).
+
 ## AdminThemeBridge 0.8.6: audit phase 2, one script runner, stand-ins, Enter guard (2026-10-20)
 
 - **One inline-script runner** (`ProcessWireAdminTheme.runScripts(rootOrScripts, {legacy})`, `runtime/src/util/scripts.ts`): the Lister, the in-place save, AJAX-collapsed fields, repeater items and `Inputfields.reload()` each had their own, differing in what they copied and skipped. Data scripts (`application/json`, `text/x-template`, `ld+json`) no longer run as JavaScript and throw, attributes such as `type=module` are kept, a `src` already on the page is not loaded twice, and `Inputfields.reload()` of a legacy field now waits for the legacy stack as the others did. The Lister runs every inline script of fresh results, as upstream's `.html(data)` does (column and extension markup lost theirs), and the field scripts of refreshed rows.

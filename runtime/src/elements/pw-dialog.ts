@@ -71,12 +71,9 @@ export class PwDialog extends HTMLElement {
 			if (this.frame) this.frame.src = 'about:blank';
 			footer.innerHTML = '';
 			dialog.classList.remove('pw-dialog-busy');
-			const detail = { dialog: this, abort: this.abort };
 			const opts = this.options;
 			this.options = {};
-			if (opts.source && opts.source.isConnected) opts.source.dispatchEvent(new CustomEvent('pw-modal-closed', { bubbles: true, detail }));
-			document.dispatchEvent(new CustomEvent('pw-modal-closed', { detail }));
-			if (opts.onClose) opts.onClose({ abort: detail.abort });
+			this.closed(opts, this.abort);
 		});
 		dialog.addEventListener('cancel', () => { this.abort = true; }); // Escape
 		dialog.addEventListener('click', e => {
@@ -97,8 +94,23 @@ export class PwDialog extends HTMLElement {
 		return frame;
 	}
 
+	/** tell the opener (source, document, onClose) that its window is gone */
+	private closed(opts: DialogOptions, abort: boolean): void {
+		const detail = { dialog: this, abort };
+		if (opts.source && opts.source.isConnected) opts.source.dispatchEvent(new CustomEvent('pw-modal-closed', { bubbles: true, detail }));
+		document.dispatchEvent(new CustomEvent('pw-modal-closed', { detail }));
+		if (opts.onClose) opts.onClose({ abort });
+	}
+
 	open(url: string, size: DialogSize = 'medium', options: DialogOptions = {}): void {
 		if (!this.dialog || !this.frame) return;
+		// the shared window is taken over while open: its first opener hears it closed (aborted),
+		// as it would if the window had been closed first (audit B16)
+		if (this.dialog.open) {
+			const previous = this.options;
+			this.options = {};
+			this.closed(previous, true);
+		}
 		// a fresh window per opening: reopening right after a close would race the blank page the
 		// closed one is navigating to (Firefox then drops the new URL)
 		const frame = this.makeFrame();

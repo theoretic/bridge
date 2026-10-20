@@ -12,6 +12,7 @@
 import { open, close, toggle, isCollapsed } from './collapse';
 import { isHidden } from './dependencies';
 import { installGlobal } from '../util/stubs';
+import { legacyLoaded } from '../legacy';
 import { runScripts } from '../util/scripts';
 
 type Target = string | Element | ArrayLike<Element> | null | undefined;
@@ -171,7 +172,7 @@ export const InputfieldsFacade = {
 };
 
 export function installFacade(): void {
-	if (typeof (window as unknown as { jQuery?: unknown }).jQuery !== 'undefined') return;
+	if (legacyLoaded()) return;
 	// over the theme's stand-in too; what inline code called on it runs after the theme's tabs
 	// have been set up (they run at DOMContentLoaded too)
 	if (!installGlobal('Inputfields', InputfieldsFacade, true)) return;

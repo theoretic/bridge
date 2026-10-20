@@ -108,8 +108,11 @@ async function loadAjax(li: HTMLElement, placeholder: HTMLElement): Promise<void
 		placeholder.replaceWith(tpl.content);
 		// inline scripts run, as with upstream's jQuery html(); content that needs the legacy stack
 		// (marked by the theme) runs them once the stack is there
-		if (scripts.length) await runScripts(scripts, { legacy: !!li.querySelector('[data-bridge-legacy]') });
-		li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'InputfieldAjaxLoad' } }));
+		// a legacy field's content: the theme's observer loads the stack and announces it
+		// (upstream's 'reloaded', once); here that would be a second one (audit B3)
+		const legacy = li.matches('[data-bridge-legacy]') || !!li.querySelector('[data-bridge-legacy]');
+		if (scripts.length) await runScripts(scripts, { legacy });
+		if (!legacy) li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'InputfieldAjaxLoad' } }));
 		li.dispatchEvent(new CustomEvent('opened', { bubbles: true }));
 	} catch (err) {
 		li.classList.remove('InputfieldAjaxLoading');

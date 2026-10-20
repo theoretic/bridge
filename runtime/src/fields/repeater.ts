@@ -282,10 +282,23 @@ function runFieldScripts(root: HTMLElement): Promise<void> {
 	return runScripts(scripts, { legacy: !!root.querySelector('[data-bridge-legacy]') });
 }
 
-function initContent(root: HTMLElement, source: string): void {
+/**
+ * New item content: the runtime's init, then upstream's 'reloaded' per field (after the item's
+ * scripts ran, as upstream does). A wrapper holding legacy fields is the theme's to announce: its
+ * observer loads the stack and triggers upstream's event once (audit B3).
+ */
+function initContent(root: HTMLElement, source: string, wrappers?: HTMLElement[]): void {
 	const bridge = (window as unknown as { Bridge?: { Inputfields?: { init(r: ParentNode): void } } }).Bridge;
 	if (bridge && bridge.Inputfields) bridge.Inputfields.init(root);
-	root.querySelectorAll('.Inputfield').forEach(li => li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source } })));
+	const legacy = (el: Element): boolean => el.matches('[data-bridge-legacy]') || !!el.querySelector('[data-bridge-legacy]');
+	// every field of the item, as upstream (its hidden fields too), but those of a new wrapper
+	// holding legacy fields: the theme announces that wrapper
+	const theirs = (wrappers || [root]).filter(legacy);
+	const fields = root.matches('.Inputfield') ? [root, ...Array.from(root.querySelectorAll('.Inputfield'))] : Array.from(root.querySelectorAll('.Inputfield'));
+	fields.forEach(li => {
+		if (theirs.some(w => w === li || w.contains(li))) return;
+		li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source } }));
+	});
 }
 
 async function loadItem(item: HTMLElement): Promise<void> {
@@ -315,7 +328,6 @@ async function loadItem(item: HTMLElement): Promise<void> {
 		const added: HTMLElement[] = [];
 		wrappers.forEach(w => { const el = document.importNode(w, true) as HTMLElement; fields?.appendChild(el); added.push(el); });
 		item.classList.remove('InputfieldRepeaterItemLoading');
-		if (fields) initContent(fields, 'InputfieldRepeaterItemEdit');
 		const nested = added.some(w => w.querySelector('.InputfieldRepeater'));
 		if (nested) added.forEach(w => w.querySelectorAll<HTMLElement>('.InputfieldRepeater').forEach(r => initRepeater(r)));
 		else item.querySelectorAll<HTMLElement>('.InputfieldRepeaterSettings').forEach(s => { s.style.display = 'none'; });
@@ -323,7 +335,10 @@ async function loadItem(item: HTMLElement): Promise<void> {
 		if (spinner) { spinner.classList.remove('fa-spin', 'fa-spinner'); spinner.classList.add(ic); }
 		updateAccordion(item);
 		toggleFamily(item, true);
-		if (fields) await runFieldScripts(fields);
+		if (fields) {
+			await runFieldScripts(fields);
+			initContent(fields, 'InputfieldRepeaterItemEdit', added);
+		}
 	} catch (err) {
 		item.classList.remove('InputfieldRepeaterItemLoading');
 		if (content) content.style.display = '';

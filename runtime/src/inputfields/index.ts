@@ -17,12 +17,27 @@ import { legacyLoaded } from '../legacy';
 
 let eventsReady = false;
 
+// roots init() ran on in the current task: a 'reloaded' that follows right after (a loader
+// initialises new content, then announces each field) needs no second pass (audit B17)
+const recent: Node[] = [];
+let clearing = false;
+function remember(root: ParentNode): void {
+	recent.push(root as Node);
+	if (clearing) return;
+	clearing = true;
+	window.setTimeout(() => { recent.length = 0; clearing = false; }, 0);
+}
+function covered(el: Node): boolean {
+	return recent.some(root => root === el || root.contains(el));
+}
+
 export const Inputfields = {
 	/**
 	 * Initialise behaviours under root (document by default). Safe to call again for new content.
 	 */
 	init(root: ParentNode = document): void {
 		if (legacyLoaded()) return;
+		remember(root);
 		initCollapse(root);
 		initDependencies(root, () => recalcColumns(root));
 		recalcColumns(root);
@@ -43,7 +58,7 @@ export const Inputfields = {
 			installFacade();
 			document.addEventListener('reloaded', e => {
 				const li = e.target as HTMLElement;
-				if (li && li.nodeType === 1) Inputfields.init(li);
+				if (li && li.nodeType === 1 && !covered(li)) Inputfields.init(li);
 			});
 		}
 	},

@@ -28,6 +28,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const statePath = process.env.PW_STATE || '';
 	const ctx = await browser.newContext(Object.assign({ viewport: { width: 1280, height: 900 } },
 		statePath && fs.existsSync(statePath) ? { storageState: statePath } : {}));
+	const consoleErrors = require('./console-errors')(ctx);
 	const page = await ctx.newPage();
 	const errors = [];
 	page.on('pageerror', e => errors.push(e.message));
@@ -436,6 +437,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	// missing file used to leave the page stuck for the session. Own page, own error list: code
 	// that needs the missing file may fail, as it would with the stack printed upstream
 	const page3 = await ctx.newPage();
+	consoleErrors.skip(page3);
 	await page3.goto(ADMIN + 'setup/bridge-demo/', { waitUntil: 'networkidle' });
 	const missing = await page3.evaluate(() => ((ProcessWire.config.AdminThemeBridge || {}).legacyScripts || [])
 		.find(u => /\/wire\/modules\/(Jquery|Inputfield|Process|Language)/.test(u) && !/JqueryCore|JqueryUI\/JqueryUI\./.test(u)) || '');
@@ -458,6 +460,57 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	}
 	await page3.close();
 
+	// placeholder: an AJAX-collapsed legacy field is marked data-bridge-legacy when it renders, but
+	// until it is opened nothing of it runs; inserting one (an in-place save, a repeater item,
+	// Inputfields.reload) must not load the stack, its content arriving must (audit B2)
+	const page4 = await ctx.newPage();
+	await page4.goto(LAB, { waitUntil: 'networkidle' });
+	const insert = (withPlaceholder) => page4.evaluate((ph) => {
+		const list = document.querySelector('#wrap_Inputfield_lab_collapsed').parentNode;
+		const li = document.createElement('li');
+		li.className = 'Inputfield InputfieldMarkup InputfieldStateCollapsed';
+		li.id = 'wrap_probe_' + (ph ? 'placeholder' : 'content');
+		li.setAttribute('data-bridge-legacy', 'Inputfield:Probe');
+		li.innerHTML = '<label class="InputfieldHeader">Probe</label><div class="InputfieldContent">' +
+			(ph ? '<div class="renderInputfieldAjax"><input type="hidden" value="./?probe=1"></div>' : '<p>content</p>') + '</div>';
+		list.appendChild(li);
+	}, withPlaceholder);
+	await insert(true);
+	await page4.waitForTimeout(1200);
+	const ph = await page4.evaluate(() => ({ jquery: !!window.jQuery, loading: document.body.classList.contains('pw-legacy-loading'), loaded: document.body.classList.contains('pw-legacy-loaded') }));
+	check('placeholder: an inserted AJAX placeholder of a legacy field does not load the stack', !ph.jquery && !ph.loading && !ph.loaded, JSON.stringify(ph));
+	await insert(false);
+	const came = await page4.waitForFunction(() => document.body.classList.contains('pw-legacy-loaded'), null, { timeout: 15000 }).then(() => true, () => false);
+	check('placeholder: legacy content arriving loads it', came);
+	await page4.close();
+
+	// foreign jQuery: a site module that loads its own jQuery (a CDN copy, not the deferred stack)
+	// does not make upstream the owner: without inputfields.js and main.js nobody else would run
+	// collapse, dropdowns and dialogs (audit B11)
+	const page5 = await ctx.newPage();
+	await page5.goto(LAB, { waitUntil: 'networkidle' });
+	const jqUrl = await page5.evaluate(() => ((ProcessWire.config.AdminThemeBridge || {}).legacyScripts || []).find(u => /JqueryCore\//.test(u)) || '');
+	if(jqUrl) {
+		await page5.addScriptTag({ url: jqUrl });
+		await page5.waitForFunction(() => !!window.jQuery, null, { timeout: 5000 }).catch(() => {});
+		const own = await page5.evaluate(() => ({ jquery: !!window.jQuery, upstream: ProcessWireAdminTheme.upstream(), runtime: !Bridge.legacy.loaded(), passive: document.body.classList.contains('pw-runtime-passive') }));
+		check('foreign-jquery: a site\'s own jQuery leaves the page native', own.jquery && !own.upstream && own.runtime && !own.passive, JSON.stringify(own));
+		await page5.click('#wrap_Inputfield_lab_collapsed > .InputfieldHeader');
+		await page5.waitForTimeout(400);
+		check('foreign-jquery: collapse still works', await page5.evaluate(() => !document.getElementById('wrap_Inputfield_lab_collapsed').classList.contains('InputfieldStateCollapsed')));
+		const toggle = page5.locator('#pw-masthead a.pw-dropdown-toggle').first();
+		if(await toggle.count()) {
+			await toggle.hover();
+			await page5.waitForTimeout(400);
+			check('foreign-jquery: masthead dropdowns still open', await page5.evaluate(() => [...document.querySelectorAll('.pw-dropdown-menu')].some(m => m.style.display === 'block')));
+		}
+	} else {
+		check('foreign-jquery: JqueryCore URL in the deferred list', false, 'none');
+	}
+	await page5.close();
+
+	await consoleErrors.settle();
+	consoleErrors.check(check);
 	await browser.close();
 	const failed = results.filter(r => !r.ok);
 	for(const r of results) console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.name}${r.info && !r.ok ? '  [' + r.info + ']' : ''}`);

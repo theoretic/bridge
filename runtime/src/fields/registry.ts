@@ -6,6 +6,7 @@
  */
 
 import { legacyLoaded } from '../legacy';
+import { importAgain } from '../util/retry';
 
 export type FieldWidget = { init(el: HTMLElement): void };
 
@@ -49,7 +50,7 @@ export function initWidgets(root: ParentNode): void {
 		if (!els.length) continue;
 		let promise = loading.get(entry);
 		if (!promise) {
-			promise = entry.load();
+			promise = importAgain(entry.load);
 			loading.set(entry, promise);
 		}
 		promise.then(widget => {

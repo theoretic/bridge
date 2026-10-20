@@ -20,7 +20,10 @@ import { attachAutocomplete } from '../util/autocomplete';
 import { initWidgets } from './registry';
 
 const SPINNER = "<i class='fa fa-lg fa-spin fa-spinner'></i>";
-let lastSelector = '';
+// per builder (two on one page do not suppress each other's preview and count): the last
+// selector shown and the number of the newest count request (an older answer is dropped)
+const lastSelector = new WeakMap<Element, string>();
+const testSeq = new WeakMap<Element, number>();
 let ready = false;
 
 const entities = (s: string): string => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
@@ -157,10 +160,18 @@ async function changeField(select: HTMLSelectElement): Promise<void> {
 	const spinner = document.createElement('span');
 	spinner.innerHTML = SPINNER;
 	row.appendChild(spinner);
-	const res = await fetch('./?InputfieldSelector=' + action + '&field=' + encodeURIComponent(field) + '&type=' + encodeURIComponent(type) + '&name=' + encodeURIComponent(name),
-		{ credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-	const data = await res.text();
-	spinner.remove();
+	let data = '';
+	try {
+		const res = await fetch('./?InputfieldSelector=' + action + '&field=' + encodeURIComponent(field) + '&type=' + encodeURIComponent(type) + '&name=' + encodeURIComponent(name),
+			{ credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+		if (!res.ok) throw new Error('HTTP ' + res.status);
+		data = await res.text();
+	} catch (err) {
+		console.error('Bridge selector: field options failed', field, err);
+		return;
+	} finally {
+		spinner.remove();
+	}
 	const fill = (target: Element | null, html: string): void => {
 		if (!target) return;
 		target.innerHTML = html;
@@ -313,7 +324,7 @@ function changeAny(item: Element): void {
 	const preview = content.querySelector<HTMLElement>('.selector-preview');
 	let init = preview ? preview.getAttribute('data-init-value') || '' : '';
 	if (init) init += ', ';
-	if (selector.length && selector !== lastSelector && preview) {
+	if (selector.length && selector !== lastSelector.get(root) && preview) {
 		if (!preview.classList.contains('selector-preview-disabled')) {
 			preview.innerHTML = '<code>' + entities(init + selector) + '</code>';
 			fadeIn(preview);
@@ -321,11 +332,21 @@ function changeAny(item: Element): void {
 		const counter = preview.parentElement ? preview.parentElement.querySelector<HTMLElement>(':scope > .selector-counter') : null;
 		if (counter && !counter.classList.contains('selector-counter-disabled')) {
 			counter.innerHTML = SPINNER;
-			lastSelector = selector;
+			lastSelector.set(root, selector);
+			const seq = (testSeq.get(root) || 0) + 1;
+			testSeq.set(root, seq);
 			const body = new URLSearchParams({ selector });
 			void fetch('./?InputfieldSelector=test&name=' + encodeURIComponent(hidden.name), {
 				method: 'POST', body, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' },
-			}).then(r => r.text()).then(html => { counter.innerHTML = html; });
+			}).then(r => {
+				if (!r.ok) throw new Error('HTTP ' + r.status);
+				return r.text();
+			}).then(html => {
+				if (testSeq.get(root) === seq) counter.innerHTML = html;
+			}).catch(err => {
+				if (testSeq.get(root) === seq) counter.innerHTML = '';
+				console.error('Bridge selector: count failed', err);
+			});
 		}
 	}
 	if (hidden.value !== selector) {
@@ -337,7 +358,7 @@ function changeAny(item: Element): void {
 		}
 		hidden.dispatchEvent(new Event('change', { bubbles: true }));
 	}
-	lastSelector = selector;
+	lastSelector.set(root, selector);
 	const notes = root.querySelector<HTMLElement>('.or-notes');
 	if (notes) notes.style.display = showOrNotes ? '' : 'none';
 }

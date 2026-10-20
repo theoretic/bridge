@@ -23,6 +23,8 @@
 (function(theme) {
 	'use strict';
 	if(!theme || theme.pageEdit) return;
+	// listeners end when upstream's own script for this screen takes over (main.js handover)
+	var handover = (theme && theme.handover) || { over: false, bind: function(o) { return o; } };
 
 	function each(list, fn) {
 		Array.prototype.forEach.call(list, fn);
@@ -67,7 +69,7 @@
 					e.preventDefault();
 					e.stopImmediatePropagation();
 				}
-			}, true);
+			}, handover.bind(true));
 			document.addEventListener('pw-wiretabs-change', function(e) {
 				var tab = e.detail.tab;
 				var previous = e.detail.previous;
@@ -83,7 +85,7 @@
 						el.style.display = '';
 					});
 				}
-			});
+			}, handover.bind());
 		},
 
 		setupDelete: function(form) {
@@ -104,7 +106,7 @@
 				// as upstream's jQuery trigger('submit'): submit listeners run, browser validation does not
 				var ev = new Event('submit', { bubbles: true, cancelable: true });
 				if(form.dispatchEvent(ev)) form.submit();
-			});
+			}, handover.bind());
 		},
 
 		setupDropdowns: function() {
@@ -135,7 +137,7 @@
 				if(!item) return;
 				e.preventDefault();
 				item.click();
-			});
+			}, handover.bind());
 		},
 
 		// the template select arrives by AJAX (a hidden #template stands in until its field opens), so
@@ -152,7 +154,7 @@
 				each(document.querySelectorAll('.pw-button-dropdown-toggle'), function(toggle) {
 					toggle.style.display = on ? '' : 'none';
 				});
-			});
+			}, handover.bind());
 		},
 
 		setupTitle: function() {
@@ -167,7 +169,7 @@
 			var original = input.value;
 			input.addEventListener('input', function() {
 				title.textContent = input.value.length ? input.value : original;
-			});
+			}, handover.bind());
 		}
 	};
 })(window.ProcessWireAdminTheme);
