@@ -137,6 +137,23 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	await page.setViewportSize({ width: 1300, height: 950 });
 
 	await open('page/lister/?reset=1');
+
+	// K: no layout shift while the filters initialise and the results arrive (Lighthouse CLS)
+	const page2 = await ctx.newPage();
+	await page2.addInitScript(() => {
+		window.__cls = 0;
+		window.__clsSupported = (PerformanceObserver.supportedEntryTypes || []).indexOf('layout-shift') > -1;
+		if(window.__clsSupported) new PerformanceObserver(list => { for(const e of list.getEntries()) if(!e.hadRecentInput) window.__cls += e.value; })
+			.observe({ type: 'layout-shift', buffered: true });
+	});
+	await page2.goto(ADMIN + 'page/lister/', { waitUntil: 'networkidle' });
+	await page2.waitForFunction(() => document.querySelector('#ProcessListerResults tbody tr'), null, { timeout: 15000 }).catch(() => {});
+	await page2.waitForTimeout(500);
+	const cls = await page2.evaluate(() => window.__clsSupported ? window.__cls : -1);
+	if(cls < 0) check('K layout shift: not measurable in ' + browserName + ' (Chromium only), skipped', true);
+	else check('K the Lister loads without layout shift (CLS < 0.1)', cls < 0.1, cls.toFixed(3));
+	await page2.close();
+
 	check('no page errors', errors.length === 0, errors.join(' | '));
 	report();
 	await browser.close();

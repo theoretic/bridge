@@ -9,6 +9,9 @@
 /* Lister: results headline and pager on one line */
 h2.lister_headline { font-size: 1.25rem; margin: 24px 0 10px; }
 h2.lister_headline + .pw-pagination, .lister_headline ~ .MarkupPagerNav { margin-top: 24px; }
+/* the results arrive by AJAX into an empty div: hold the space, so the footer starts below the
+ * fold instead of jumping down when they land (layout shift) */
+#ProcessListerResults:empty { min-height: 100vh; }
 #debug h3 { font-size: 14px; }
 
 /* logo: a dark-scheme variant is shown instead of the light one when both are configured */

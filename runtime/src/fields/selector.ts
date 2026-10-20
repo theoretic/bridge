@@ -384,7 +384,13 @@ export function init(root: HTMLElement): void {
 	if (root.hasAttribute('data-pw-selector')) return;
 	root.setAttribute('data-pw-selector', '');
 	setupEvents();
-	root.querySelectorAll<HTMLElement>('.selector-preview').forEach(hide);
+	// a preview the module rendered with a value stays visible in its final form, so the field
+	// does not grow when changeAny() below shows it again (layout shift); empty ones hide
+	root.querySelectorAll<HTMLElement>('.selector-preview').forEach(preview => {
+		const value = (preview.textContent || '').trim();
+		if (!value || preview.classList.contains('selector-preview-disabled')) { hide(preview); return; }
+		preview.innerHTML = '<code>' + entities(value) + '</code>';
+	});
 	const hidden = root.querySelector<HTMLInputElement>('input.selector-value');
 	const name = hidden ? hidden.name : '';
 	root.querySelectorAll<HTMLElement>('.selector-row').forEach(row => {

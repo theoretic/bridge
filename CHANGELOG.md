@@ -1,5 +1,13 @@
 # Changelog
 
+## AdminThemeBridge 0.8.3: the Lister loads without layout shift (2026-10-20)
+
+Lighthouse (desktop) gave the Lister 81 against 95+ on the other screens: cumulative layout shift 0.335. Two shifts, both after the first paint:
+- **The filters grew** (0.194): the selector builder hid the preview the module renders (the current selector) and showed it again a moment later in `changeAny()`. A preview with a value now stays visible from the start, already in its final `<code>` form; empty or disabled previews still hide (`fields/selector.ts`).
+- **The footer jumped** (0.141): the results arrive by AJAX in an empty `#ProcessListerResults`, so the footer sat in the viewport and was pushed down when they landed. While empty, the results div keeps `min-height: 100vh`, so the footer starts below the fold (`styles/41-process.css`).
+
+Result on the atispro sandbox: CLS 0.335 → 0.01, Lighthouse score 81 → 95. `tools/lister-check.js` check K measures the layout shift of a fresh Lister load (Chromium; reported as skipped where the browser has no layout-shift API): 20/20 in Chromium, Firefox 20/20 with K skipped. Gate 2 61/61 in both browsers, smoke passes.
+
 ## AdminThemeBridge 0.8.2: AdminThemeBoss "all users" no longer lets Bridge be selected (testfly.me, 2026-10-18)
 
 On testfly.me, selecting Bridge in the profile ended in `Class "SiteIndex" not found` from a site hook. `docs/install-live.md` has the full account.
