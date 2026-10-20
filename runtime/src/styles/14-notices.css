@@ -50,8 +50,8 @@ body.pw-notices-static:not(.modal):not(.ProcessLogin) #main {
 	border-radius: var(--radius-lg);
 	background: var(--card);
 	color: var(--card-foreground);
-	font-size: 14px;
-	line-height: 20px;
+	font-size: .875rem;
+	line-height: 1.25rem;
 	overflow-wrap: anywhere;
 }
 /* close link (upstream puts one on the first notice, and on others in some layouts) and group
@@ -67,12 +67,9 @@ body.pw-notices-static:not(.modal):not(.ProcessLogin) #main {
 	color: var(--n-fg);
 }
 :is(#notices li, .pw-alert):is(.pw-notice-success, .pw-notice-warning, .pw-notice-error) .pw-nav-icon { color: var(--n-icon); }
-.pw-notice-success { --n-bg: #f0fdf4; --n-border: #bbf7d0; --n-fg: #14532d; --n-icon: #16a34a; }
-.pw-notice-warning { --n-bg: #fffbeb; --n-border: #fde68a; --n-fg: #78350f; --n-icon: #d97706; }
-.pw-notice-error { --n-bg: #fef2f2; --n-border: #fecaca; --n-fg: #7f1d1d; --n-icon: #dc2626; }
-[data-pw-scheme="dark"] .pw-notice-success { --n-bg: #052e16; --n-border: #166534; --n-fg: #bbf7d0; --n-icon: #4ade80; }
-[data-pw-scheme="dark"] .pw-notice-warning { --n-bg: #451a03; --n-border: #92400e; --n-fg: #fde68a; --n-icon: #fbbf24; }
-[data-pw-scheme="dark"] .pw-notice-error { --n-bg: #450a0a; --n-border: #991b1b; --n-fg: #fecaca; --n-icon: #f87171; }
+.pw-notice-success { --n-bg: var(--pw-status-success-bg); --n-border: var(--pw-status-success-border); --n-fg: var(--pw-status-success-fg); --n-icon: var(--pw-status-success-icon); }
+.pw-notice-warning { --n-bg: var(--pw-status-warning-bg); --n-border: var(--pw-status-warning-border); --n-fg: var(--pw-status-warning-fg); --n-icon: var(--pw-status-warning-icon); }
+.pw-notice-error { --n-bg: var(--pw-status-error-bg); --n-border: var(--pw-status-error-border); --n-fg: var(--pw-status-error-fg); --n-icon: var(--pw-status-error-icon); }
 /* debug notices stay neutral */
 #notices li.NoticeDebug { background: var(--card); border-color: var(--border); color: var(--muted-foreground); font-size: var(--pw-tiny); }
 #notices li.NoticeDebug .pw-nav-icon { color: var(--muted-foreground); }
@@ -82,12 +79,12 @@ body.pw-notices-static:not(.modal):not(.ProcessLogin) #main {
 	top: 10px;
 	color: inherit;
 	text-decoration: none;
-	line-height: 20px;
+	line-height: 1.25rem;
 	opacity: .55;
 	transition: opacity var(--pw-transition);
 }
 #notices .pw-notice-remove { right: 14px; }
-#notices .pw-notice-group-toggle { right: 40px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+#notices .pw-notice-group-toggle { right: 40px; font-size: .8125rem; font-weight: 500; white-space: nowrap; }
 #notices .pw-notice-group-toggle .fa-bell, #notices .pw-notice-group-toggle .fa-bell-o { display: none; }
 #notices .pw-notice-remove:hover, #notices .pw-notice-group-toggle:hover { opacity: 1; }
 #notices li:not(:has(> .pw-notice-remove)) > .pw-notice-group-toggle { right: 14px; }

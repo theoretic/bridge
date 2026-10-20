@@ -1,5 +1,43 @@
 # Changelog
 
+## AdminThemeBridge 0.9.2: audit phase 8, tokens and contrast (2026-10-21)
+
+Last phase of the 2026-10-20 audit.
+- **Token layers** (`00-tokens.css`, audit C39), in this order:
+  - light base values;
+  - variant primaries;
+  - dark values;
+  - derived tokens (`--primary`, `--ring`, every `--pw-*` alias, every colour mix) declared on `:root`, `[data-pw-scheme]` and `[data-pw-variant]`.
+
+  A custom property is computed where it is declared, so derived values declared on `:root` alone ignored a scheme or variant set on a subtree.
+- **Contrast** (C21, re-rated in the audit: Boss's blue and pink stay, ADR 0010):
+  - Text on the primary: near-black on cyan (`vibrant`) and `green`, where white was 2.25 and 2.89 to 1 (now 8.8 and 6.8). White stays on blue (3.7), pink (3.8), black and custom colours.
+  - Focus ring: `--ring` is now the primary darkened toward the text colour, solid. `--ring-50` keeps its name and holds the same colour; at half opacity it was 1.5 to 2.2 to 1 against the page, now 3.4 or more.
+  - Switch off track 1.3 to about 3 to 1 (`--pw-switch-off`).
+  - Field toggle icon and language-tab toggle more opaque.
+  - An empty language tab is italic in the plain muted colour (was 2.5 to 1).
+  - Dark-scheme success and warning labels get dark text (white was 1.7).
+- **rem metrics** (C25): font sizes and line heights are in rem, 68 literal px values converted, the same at the default 16px root. A larger browser font size now scales controls, buttons and the notice band (`--pw-notice-row`), not only the headings.
+- **Token cleanup** (C29):
+  - one status palette, `--pw-status-*` (notices, alerts and jQuery UI states read it, instead of a second hard-coded set in `14-notices.css`);
+  - `--pw-notice-gap` and `--pw-notice-row` moved into the tokens;
+  - the internal `--pw-text-muted-alt` merged into `--pw-text-muted`;
+  - the `--pw-pointer-x` the theme script wrote and nothing read removed.
+
+  Every public `--pw-*` name in `docs/contract.md` §4.0 stays.
+- **Vendor versions** (C40) named in the recolouring headers, as checked: CKEditor 4.19.0, TinyMCE 6.8.2, selectize 0.12.4, jsoneditor 10.
+- `docs/contract.md`: §4.0 on the new layers and tokens. §7 "Not covered yet" is rewritten (B26): what has been done since it was written, and what is still open (header actions, the rest of upstream's `Inputfields` API, `InputfieldFormNoWidths`). Three doc comments in `main.js` that had drifted from their functions are back above them.
+- New checks:
+  - `tools/screens-check.js` G: primary text and focus-ring contrast from computed colours, for every variant in both schemes. Text must reach 4.5 to 1 (3.5 for white on blue and pink), the ring 3 to 1. On 0.9.1 cyan and green failed both.
+  - `runtime/scripts/check-css.mjs`: derived tokens on the three selectors, and no `var()` of an undeclared token (138 declared, 0 missing).
+- Before and after screenshots of the field lab and the page editor in five variants and two schemes (`drafts/screenshots/audit-p8/`, not in the repository). The differences are the button text on cyan and green, the toggles, the switch tracks and the empty language tab.
+
+Checked on the atispro sandbox, each in Chromium and Firefox:
+- conformance 162 of 163 identical, 0 differ, 0 script warnings
+- Gate 2 70/70
+- lister 26/26, page-edit 36/36, page-save 48/48, screens 27/27 (Firefox 26), setup 30/30, pagetree 21/21, repeater 35/35, form-save 19/19, image-select 20/20, image-file 34/34 (upload case skipped)
+- scheme scan 0 findings, dropdown stress 0 violations, smoke passes
+
 ## AdminThemeBridge 0.9.1: audit phase 7, one hookable native map (2026-10-20)
 
 - **One map of what is native** (`$nativeBase`, `nativeMap()`; audit A19). Seven hand-kept lists and an if-chain are now one table, class => `kind` plus Process details:

@@ -12,8 +12,8 @@
 	min-height: 36px;
 	padding: 6px 12px;
 	font: inherit;
-	font-size: 14px;
-	line-height: 22px;
+	font-size: .875rem;
+	line-height: 1.375rem;
 	color: var(--foreground);
 	background: var(--pw-input-bg);
 	border: 1px solid var(--input);
@@ -46,7 +46,7 @@
 	box-shadow: 0 0 0 3px var(--ring-50);
 }
 .InputfieldStateError .InputfieldContent :is(input, select, textarea), .InputfieldContent [aria-invalid=true] { border-color: var(--destructive); }
-.pw-input-small, .pw-select-small { min-height: 32px; padding: 4px 8px; font-size: 13px; }
+.pw-input-small, .pw-select-small { min-height: 32px; padding: 4px 8px; font-size: .8125rem; }
 .InputfieldContent input[disabled], .InputfieldContent select[disabled], .InputfieldContent textarea[disabled] { opacity: .5; }
 
 /* checkbox and radio lists: plain controls with the primary accent */
@@ -73,7 +73,7 @@
 	margin: 0;
 	border: 1px solid transparent;
 	border-radius: 9999px;
-	background: var(--input);
+	background: var(--pw-switch-off);
 	box-shadow: var(--shadow-xs);
 	cursor: pointer;
 	transition: background var(--pw-transition), border-color var(--pw-transition);
@@ -135,18 +135,18 @@ ul.InputfieldFileList > li { list-style: none; }
 	border-radius: var(--radius-md);
 	background: var(--background);
 	color: var(--foreground);
-	font-size: 14px;
+	font-size: .875rem;
 	font-weight: 500;
-	line-height: 34px;
+	line-height: 2.125rem;
 	box-shadow: var(--shadow-xs);
 	overflow: hidden;
 }
 .InputfieldContent .InputMask.ui-button:hover { border-color: var(--input); color: var(--accent-foreground); background: var(--accent); box-shadow: var(--shadow-xs); }
-.Inputfield .InputfieldContent .InputMask .ui-button-text { display: inline-flex; align-items: center; gap: 6px; padding: 0; line-height: 34px; }
+.Inputfield .InputfieldContent .InputMask .ui-button-text { display: inline-flex; align-items: center; gap: 6px; padding: 0; line-height: 2.125rem; }
 .InputfieldContent .InputMask input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 100px; }
 /* the file input is transparent: its focus shows on the mask (audit C23) */
 .InputfieldContent .InputMask.ui-button:focus-within { box-shadow: 0 0 0 3px var(--ring-50); }
-.InputfieldFileValidExtensions, .InputfieldImageValidExtensions { margin-left: 8px; color: var(--pw-text-muted); font-size: 13px; }
+.InputfieldFileValidExtensions, .InputfieldImageValidExtensions { margin-left: 8px; color: var(--pw-text-muted); font-size: .8125rem; }
 
 /* language tabs on fields. With LanguageTabs jQueryUI=false (init.php) LanguageTabs.js only
  * toggles .LanguageSupportCurrent on the panels and uk-active on the tab of a ul.uk-tab; showing
@@ -157,7 +157,7 @@ ul.InputfieldFileList > li { list-style: none; }
 .InputfieldContent > input.InputfieldMaxWidth, .LanguageSupport > input.InputfieldMaxWidth, .LanguageSupport > textarea { width: 100%; }
 .langTabs { position: relative; }
 .langTabsNote { position: absolute; top: 2px; right: 0; }
-.langTabsToggle { float: right; margin-right: 1em; cursor: pointer; opacity: .6; }
+.langTabsToggle { float: right; margin-right: 1em; cursor: pointer; opacity: .8; }
 /* language tabs: the same tab design as WireTabs (33-tabs.css), smaller; the active tab takes the
  * card colour of the field it sits in */
 .langTabs > ul, ul.pw-lang-tabs { list-style: none; margin: 0 0 10px; padding: 0 2px; display: flex; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
@@ -170,21 +170,22 @@ ul.InputfieldFileList > li { list-style: none; }
 	border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 	font-size: var(--pw-tiny);
 	font-weight: 500;
-	line-height: 24px;
+	line-height: 1.5rem;
 	text-decoration: none;
 	color: var(--muted-foreground);
 	opacity: 1; /* LanguageTabs.css dims empty tabs with opacity; the theme dims the label colour instead */
 }
 .langTabs > ul li a:hover, ul.pw-lang-tabs li a:hover { color: var(--foreground); }
 .langTabs > ul li.ui-tabs-active a, .langTabs > ul li.uk-active a, ul.pw-lang-tabs li.uk-active a {
-	line-height: 25px;
+	line-height: 1.5625rem;
 	background: var(--card);
 	border-color: var(--border);
 	color: var(--foreground);
 	font-weight: 600;
 }
 /* empty language value: dim the label only (opacity would let the baseline show through the active tab) */
-.langTabs > ul :is(li.pw-empty, li.langTabEmpty):not(.uk-active, .ui-tabs-active) a { color: color-mix(in srgb, var(--muted-foreground) 65%, transparent); }
+/* an empty language: in italics; the muted colour itself stays readable (at 65 % it was 2.5 to 1) */
+.langTabs > ul :is(li.pw-empty, li.langTabEmpty):not(.uk-active, .ui-tabs-active) a { color: var(--muted-foreground); font-style: italic; font-weight: 400; }
 /* icon + text links inside fields (Add New, Create New, Add Filter): keep a gap */
 .InputfieldContent a > :is(.fa, .fas, .far):first-child { margin-right: .3em; }
 

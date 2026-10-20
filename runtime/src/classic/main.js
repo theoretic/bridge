@@ -867,12 +867,6 @@ var ProcessWireAdminTheme = {
 	},
 
 	/**
-	 * Mirror form buttons flagged .pw-head-button into the content head, as AdminThemeUikit does:
-	 * a main button and its dropdown toggle (pw-button-dropdown-main / -toggle) go into one
-	 * span.pw-button-dropdown-wrap so they read as a single button group. With jQuery the copies
-	 * keep the originals' handlers and dropdown data (clone(true)), so the toggle's menu works.
-	 */
-	/**
 	 * Live search in the masthead, framework-free (AdminThemeUikit does this with a jQuery UI
 	 * autocomplete in its own main.js, so upstream markup alone has none): the ProcessPageSearch
 	 * form's data-action answers JSON {matches: [{type, title, editUrl, template_label, tip, icon,
@@ -1019,13 +1013,6 @@ var ProcessWireAdminTheme = {
 	},
 
 	/**
-	 * Upstream's delegated toggle mouseleave arms a 50 ms timer that hides the menu unless the menu
-	 * itself is hovered, and never cancels it: a path that grazes a toggle, leaves and comes back
-	 * within 50 ms (Firefox reports these quickly) gets the menu it just opened hidden under a
-	 * resting pointer. Replace it with one that is cancelled on re-entry and re-checks both the
-	 * toggle and its menu when it fires.
-	 */
-	/**
 	 * Click menus (pw-dropdown-toggle-click: button dropdowns such as Save) can be shared by two
 	 * toggles, the form button and its head copy. Upstream gives each toggle a 1 s leave timer that
 	 * only checks its own toggle and the menu, then fades the menu out: a timer left running by the
@@ -1052,6 +1039,13 @@ var ProcessWireAdminTheme = {
 		};
 	},
 
+	/**
+	 * Upstream's delegated toggle mouseleave arms a 50 ms timer that hides the menu unless the menu
+	 * itself is hovered, and never cancels it: a path that grazes a toggle, leaves and comes back
+	 * within 50 ms (Firefox reports these quickly) gets the menu it just opened hidden under a
+	 * resting pointer. Replace it with one that is cancelled on re-entry and re-checks both the
+	 * toggle and its menu when it fires.
+	 */
 	patchToggleLeave: function() {
 		var $ = window.jQuery;
 		if(!$ || this.toggleLeavePatched) return;
@@ -1110,11 +1104,15 @@ var ProcessWireAdminTheme = {
 				if(Math.abs(want - m.top) > .5) ul.style.top = (top + want - m.top) + 'px';
 			}
 			ul.classList.toggle('pw-dropdown-above', !below);
-			var x = Math.max(16, Math.min(m.width - 16, t.left + t.width / 2 - m.left));
-			ul.style.setProperty('--pw-pointer-x', Math.round(x) + 'px');
 		});
 	},
 
+	/**
+	 * Mirror form buttons flagged .pw-head-button into the content head, as AdminThemeUikit does:
+	 * a main button and its dropdown toggle (pw-button-dropdown-main / -toggle) go into one
+	 * span.pw-button-dropdown-wrap so they read as a single button group. With jQuery the copies
+	 * keep the originals' handlers and dropdown data (clone(true)), so the toggle's menu works.
+	 */
 	setupHeadButtons: function() {
 		if(document.body.classList.contains('modal')) return;
 		var head = document.getElementById('pw-content-head-buttons');
@@ -1478,15 +1476,6 @@ var ProcessWireAdminTheme = {
 })(window.ProcessWire);
 
 /**
- * Native stand-in for upstream InputfieldSubmit/dropdown.js (jQuery) on pages without jQuery.
- * InputfieldSubmit prints `InputfieldSubmitDropdown.init('#id', null, required)` right after a
- * button with dropdown items; with the script deferred that call would throw. Same markup
- * contract: ul#<button id>_dropdown with a[data-pw-dropdown-value] items, the hidden input named
- * by data-pw-dropdown-input, data-pw-dropdown-submit copying the value to the button. The menu
- * becomes a native click dropdown (.pw-dropdown-toggle-click, opened by setupNative). If the
- * legacy stack loads later, upstream's dropdown.js replaces this object for new buttons.
- */
-/**
  * The page tree an AJAX tab loads (the page editor's Children) ends with an inline
  * `ProcessPageListInit()` from upstream ProcessPageList.js; without the legacy stack the runtime
  * builds that tree (fields/pagelist.ts) when the markup arrives, so the call has nothing to do.
@@ -1496,6 +1485,15 @@ if(!ProcessWireAdminTheme.upstream() && typeof window.ProcessPageListInit === 'u
 	window.ProcessPageListInit = function() {};
 }
 
+/**
+ * Native stand-in for upstream InputfieldSubmit/dropdown.js (jQuery) on pages without jQuery.
+ * InputfieldSubmit prints `InputfieldSubmitDropdown.init('#id', null, required)` right after a
+ * button with dropdown items; with the script deferred that call would throw. Same markup
+ * contract: ul#<button id>_dropdown with a[data-pw-dropdown-value] items, the hidden input named
+ * by data-pw-dropdown-input, data-pw-dropdown-submit copying the value to the button. The menu
+ * becomes a native click dropdown (.pw-dropdown-toggle-click, opened by setupNative). If the
+ * legacy stack loads later, upstream's dropdown.js replaces this object for new buttons.
+ */
 if(!ProcessWireAdminTheme.upstream() && !window.InputfieldSubmitDropdown) {
 	window.InputfieldSubmitDropdown = {
 		native: true,

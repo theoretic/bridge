@@ -32,7 +32,7 @@ body.ProcessLogin .InputfieldHeader:not(.InputfieldHeaderHidden) { padding: 0 0 
 body.ProcessLogin #login_name, body.ProcessLogin #login_pass {
 	width: 100%;
 	padding: 6px 12px;
-	font-size: 14px;
+	font-size: .875rem;
 	border: 1px solid var(--input);
 	border-radius: var(--radius-md);
 	background: var(--pw-input-bg);
@@ -42,7 +42,7 @@ body.ProcessLogin #login_name::placeholder, body.ProcessLogin #login_pass::place
 body.ProcessLogin .Inputfields > .InputfieldSubmit { width: 100% !important; }
 body.ProcessLogin #ProcessLoginForm .InputfieldSubmit > .InputfieldContent { padding: 8px 0 0; }
 body.ProcessLogin .InputfieldSubmit .ui-button, body.ProcessLogin .InputfieldSubmit .pw-button { display: block; width: 100%; margin: 0; text-align: center; }
-body.ProcessLogin .pw-login-links { margin: 16px 0 0; text-align: center; font-size: 13px; }
+body.ProcessLogin .pw-login-links { margin: 16px 0 0; text-align: center; font-size: .8125rem; }
 body.ProcessLogin .pw-login-links a, body.ProcessLogin #pw-content-body > p a { color: var(--muted-foreground); text-transform: none; }
 body.ProcessLogin .pw-login-links a:hover, body.ProcessLogin #pw-content-body > p a:hover { color: var(--foreground); }
 body.ProcessLogin .pw-footer { border: 0; text-align: center; }

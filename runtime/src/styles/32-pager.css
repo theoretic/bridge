@@ -17,7 +17,7 @@ ul.pw-pagination li a, ul.pw-pagination li > span, ul.pw-pagination.MarkupPagerN
 	border: 1px solid var(--input);
 	background: var(--background);
 	color: var(--foreground);
-	font-size: 14px;
+	font-size: .875rem;
 	font-weight: 500;
 	text-align: center;
 	text-decoration: none;
@@ -31,4 +31,4 @@ ul.pw-pagination li.pw-active a, ul.MarkupPagerNav li.MarkupPagerNavOn a, ul.Pag
 	color: var(--foreground);
 	font-weight: 700;
 }
-ul.pw-pagination li.pw-disabled a, ul.pw-pagination li.pw-disabled span, ul.MarkupPagerNav li.MarkupPagerNavSeparator { color: var(--pw-text-muted-alt); pointer-events: none; }
+ul.pw-pagination li.pw-disabled a, ul.pw-pagination li.pw-disabled span, ul.MarkupPagerNav li.MarkupPagerNavSeparator { color: var(--pw-text-muted); pointer-events: none; }

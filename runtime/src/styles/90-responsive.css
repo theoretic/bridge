@@ -40,7 +40,7 @@
 }
 @media (max-width: 767px) {
 	.pw-user-nav > li > a { padding: 0 6px; font-size: 0; }
-	.pw-user-nav > li > a > i { margin: 0; font-size: 18px; }
+	.pw-user-nav > li > a > i { margin: 0; font-size: 1.125rem; }
 	.pw-masthead-right { gap: 4px; min-width: 0; }
 	#ProcessPageSearchForm { min-width: 0; }
 	#ProcessPageSearchQuery, #ProcessPageSearchQuery:focus { width: 110px; }

@@ -23,7 +23,7 @@ ul.WireTabs li a, .pw-tabs-nav a {
 	border-bottom: 0;
 	border-radius: var(--radius-md) var(--radius-md) 0 0;
 	color: var(--muted-foreground);
-	font-size: 14px;
+	font-size: .875rem;
 	font-weight: 500;
 	text-decoration: none;
 	white-space: nowrap;

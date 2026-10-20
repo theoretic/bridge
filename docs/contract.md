@@ -135,6 +135,13 @@ Native widgets (dropdowns, notice close, head-button clone) are handled without 
 
 Components may use the tokens instead of fixed colours so they follow variant and scheme: `--pw-primary`, `--pw-primary-hover`, `--pw-primary-bg`, `--pw-primary-20`, `--pw-on-primary`, `--pw-bg`, `--pw-surface`, `--pw-surface-2`, `--pw-line`, `--pw-text`, `--pw-text-muted`, `--pw-h1`, `--pw-input-bg`, `--pw-input-border`, `--pw-radius`, `--pw-radius-m`, `--pw-shadow-card`, `--pw-shadow-dropdown`, `--pw-font`. Names are stable from 0.6.0; values are not. From 0.7.0 the source of truth is the shadcn token set (ADR 0011), and components should prefer it: `--background`, `--foreground`, `--card`, `--card-foreground`, `--popover`, `--popover-foreground`, `--primary`, `--primary-foreground`, `--secondary`, `--muted`, `--muted-foreground`, `--accent`, `--accent-foreground`, `--destructive`, `--border`, `--input`, `--ring`, `--radius`, `--radius-sm|md|lg|xl`, `--shadow-xs|sm|md|lg`. The `--pw-*` names above alias them.
 
+From 0.9.2:
+- Derived tokens (`--primary`, `--ring`, the `--pw-*` aliases, colour mixes) are declared on `:root`, `[data-pw-scheme]` and `[data-pw-variant]`, so an element that sets its own scheme or variant gets values computed for it.
+- `--primary-foreground` follows the variant: near-black on the cyan (`vibrant`) and `green` presets, white on the others and on a custom colour.
+- `--ring` is the primary darkened toward the text colour, and `--ring-50` is that same solid colour. The name is kept for components; both are at least 3 to 1 against the page.
+- Font sizes and line heights are in rem.
+- The status palette is `--pw-status-{success,warning,error}-{bg,border,fg,icon}`, used by notices, `--pw-success-bg`, `--pw-warning-bg` and `--pw-danger-bg`.
+
 A second stylesheet, `fields.css` (ADR 0014), follows `theme.css` and recolours field modules whose own CSS hard-codes light colours. It also maps AdminThemeUikit's custom properties to the tokens (`--pw-main-color`, `--pw-main-background`, `--pw-blocks-background`, `--pw-text-color`, `--pw-muted-color`, `--pw-border-color`, `--pw-inputs-background`, `--pw-notes-background`, `--pw-code-background`, `--pw-button-*`, `--pw-alert-*`, …), so a module styled with them follows variant and scheme under Bridge as well. A module that wants to react to a live scheme switch listens for `pw-scheme-change`.
 
 Classes the theme adds to controls (never to `li.Inputfield`): `pw-input`, `pw-select`, `pw-select-asm`, `pw-textarea`, `pw-checkbox`, `pw-radio`, `pw-button`; on content: `pw-controls-text`. Through config keys (`init.php`): `pw-pagination`, `pw-active`, `pw-disabled`, `pw-link*`, `pw-lang-tabs uk-tab` (a hook name for LanguageTabs.js, no Uikit), `pw-alert*`, `pw-table`, `pw-dl`.
@@ -363,9 +370,12 @@ For a Process: implement `BridgeComponent` too; its `module` is imported once pe
 
 Verified 2026-10-14 on the atispro sandbox under Bridge in `auto` mode.
 
-## 7. Not covered yet (milestone 1.5+)
+## 7. Not covered yet
 
-- `WireTabs` markup from `JqueryWireTabs` on native pages (ProcessPageEdit is legacy today); `<pw-tabs>` is the replacement once a native editor exists.
-- `pw-modal` extras: `data-buttons` mirroring into the dialog bar, `data-autoclose`, `data-close`.
-- Header actions (`InputfieldHeaderAction`), `Inputfields.reload()` by URL, focus and hash actions, the `InputfieldFormNoWidths` mode.
+Covered since this section was first written: WireTabs on native pages (`scripts/wire-tabs.js`, 4.4); the `pw-modal` options `data-buttons`, `data-autoclose`, `data-close` (4.2, `<pw-dialog>`); `Inputfields.reload()` and the `#find-`, `#focus-`, `#highlight-` hash actions (4.2). Still open (audit 2026-10-20, findings B10 and B12):
+
+- Header actions: `Inputfields.addHeaderAction()` and its `InputfieldHeaderAction` markup are not in the facade. A click inside one does not collapse its field (collapse.ts), but nothing builds them on a native page.
+- The rest of upstream's `Inputfields` API that the facade lacks: `init`, `show`, `hide`, `toggleAll`, `startSpinner`, `stopSpinner`, `columnWidth`, `insertBefore` and `insertAfter`, `header`, `content`, `icon`. `toggle(target, open)` ignores `open`.
+- The `InputfieldFormNoWidths` mode (column widths off for a whole form).
+- `ProcessLister.results` and `.filters` are DOM elements, where upstream has jQuery objects.
 - A `<pw-field>` element was dropped (PLAN.md, milestone 1.3 findings): `li.Inputfield` is the contract.

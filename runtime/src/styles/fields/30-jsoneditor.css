@@ -1,4 +1,7 @@
-/* InputfieldJson: jsoneditor 10 (jsoneditor/dist/jsoneditor.css, white surfaces, blue menu bar) */
+/* InputfieldJson: jsoneditor 10 (jsoneditor/dist/jsoneditor.css, white surfaces, blue menu bar).
+ * Recolourings here and in the other files of this folder are pinned to the vendor version named
+ * in each header: a vendor update can bring light colours back, which tools/scheme-scan.js shows
+ * on the fixture page (in the gate) */
 .InputfieldJson .jsoneditor { color: var(--foreground); border: 1px solid var(--input); border-radius: var(--radius-md); overflow: hidden; }
 .InputfieldJson div.jsoneditor-tree, .jsoneditor-frame, .jsoneditor-contextmenu .jsoneditor-menu, .jsoneditor .autocomplete.dropdown, .jsoneditor-modal, .ace-jsoneditor.ace_editor {
 	background: var(--popover); color: var(--popover-foreground);

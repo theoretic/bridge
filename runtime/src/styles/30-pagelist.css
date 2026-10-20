@@ -1,14 +1,14 @@
 /* Page tree. Upstream ProcessPageList.css stays loaded (layout, sorting, placeholders); these rules
  * give it the Boss look: no row borders, bold open item, action links as pills. */
 
-.PageList { font-size: 14px; }
+.PageList { font-size: .875rem; }
 /* fixed line box: the action pills that appear on hover fit inside it, so rows never shift */
-.PageList .PageListItem { border: 0; padding: 3px 0; line-height: 22px; }
+.PageList .PageListItem { border: 0; padding: 3px 0; line-height: 1.375rem; }
 .PageList .PageListItem > a.PageListPage { color: var(--foreground); text-decoration: none; }
 .PageList .PageListItem > a.PageListPage:hover { color: var(--primary); }
 .PageList .PageListItemOpen > a.PageListPage { font-weight: 600; }
 .PageList i.icon, .PageList .PageListStatusIcon { padding-right: .5em; color: var(--pw-text-muted); }
-.PageList .PageListNumChildren { color: var(--muted-foreground); font-size: 12px; }
+.PageList .PageListNumChildren { color: var(--muted-foreground); font-size: .75rem; }
 .PageList .PageListNote { color: var(--pw-text-muted); }
 .PageList .PageListStatusUnpublished > a.PageListPage, .PageList .PageListStatusHidden > a.PageListPage { opacity: .6; }
 .PageList .PageListItemHover { background: color-mix(in srgb, var(--muted) 60%, transparent); border-radius: var(--radius-sm); }
@@ -24,9 +24,9 @@
 	border-radius: var(--radius-md);
 	background: var(--background);
 	color: var(--foreground);
-	font-size: 12px;
+	font-size: .75rem;
 	font-weight: 500;
-	line-height: 18px;
+	line-height: 1.125rem;
 	text-decoration: none;
 	transition: background var(--pw-transition), color var(--pw-transition);
 }
@@ -42,7 +42,7 @@
 .PageList .PageListMoveNote { cursor: move; }
 .PageList .PageListPlaceholder .PageListPlaceholderItem { padding: 0; border: 0; }
 /* open/closed caret on items with children (Uikit pw-page-list.less) */
-body:not(.pw-narrow-width) .PageList .PageListItem > a.PageListPage::before { content: ""; display: inline-block; width: 10px; margin-right: 4px; font: 900 12px/1 "Font Awesome 6 Free"; color: var(--pw-text-muted-alt); }
+body:not(.pw-narrow-width) .PageList .PageListItem > a.PageListPage::before { content: ""; display: inline-block; width: 10px; margin-right: 4px; font: 900 12px/1 "Font Awesome 6 Free"; color: var(--pw-text-muted); }
 body:not(.pw-narrow-width) .PageList .PageListHasChildren:not(.PageListItemOpen) > a.PageListPage::before { content: "\f105"; }
 body:not(.pw-narrow-width) .PageList .PageListItemOpen.PageListHasChildren > a.PageListPage::before { content: "\f107"; }
 /* a branch that would run past the bottom of the screen scrolls like a dropdown menu (thin bar,

@@ -37,7 +37,7 @@ body.AdminThemeBridge pre { overflow: auto; max-width: 100%; }
 :where(body.AdminThemeBridge) :is(.fa, .fas, .far) { font-size: var(--pw-icon); }
 body.AdminThemeBridge .pw-nav-icon { margin-right: 6px; }
 body.AdminThemeBridge :is(h1, h2, h3) > :is(.fa, .fas, .far):first-child { font-size: .75em; margin-right: .35em; vertical-align: .05em; }
-body.AdminThemeBridge .ui-priority-secondary { color: var(--pw-text-muted-alt); }
+body.AdminThemeBridge .ui-priority-secondary { color: var(--pw-text-muted); }
 body.AdminThemeBridge :is(button, .ui-button) .ui-priority-secondary { color: inherit; opacity: .75; }
 /* jQuery UI gives .ui-priority-secondary font-weight: normal; on an icon that switches Font
  * Awesome 6 to its regular style, which lacks most icons. Keep icons at their own weight. */

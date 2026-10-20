@@ -1,9 +1,18 @@
 /* Design tokens. Look: Basecoat UI "vega" (shadcn token names and neutral values, ADR 0011);
- * colours: AdminThemeBoss variant presets. Source of truth is the shadcn set; the older --pw-*
- * names below alias it, so component files read either.
- * A custom primary needs one value (--pw-primary on <html style>); everything else derives. */
+ * colours: AdminThemeBoss variant presets. Source of truth is the shadcn set; the --pw-* names
+ * alias it (the public ones are listed in docs/contract.md 4.0), so component files read either.
+ * A custom primary needs one value (--pw-primary on <html style>); everything else derives.
+ *
+ * Layers, in this order (audit C39):
+ *   1. base values, light: :root and any [data-pw-scheme="light"]
+ *   2. variant primaries: [data-pw-variant=...]
+ *   3. dark values: [data-pw-scheme="dark"]
+ *   4. derived tokens (var() and color-mix() of the above) on :root, [data-pw-scheme] and
+ *      [data-pw-variant]: a custom property is computed where it is declared, so an element that
+ *      sets its own scheme or variant (a preview, a subtree) gets its own derived values. */
 
-:root {
+/* 1. base values (light) ----------------------------------------------------------------------- */
+:root, [data-pw-scheme="light"] {
 	color-scheme: light;
 	/* shadcn tokens, vega neutral */
 	--background: #fff;
@@ -12,9 +21,6 @@
 	--card-foreground: #0a0a0a;
 	--popover: #fff;
 	--popover-foreground: #0a0a0a;
-	--pw-primary: #3584EA;
-	--primary: var(--pw-primary);
-	--primary-foreground: #fff;
 	--secondary: #f5f5f5;
 	--secondary-foreground: #171717;
 	--muted: #f5f5f5;
@@ -24,74 +30,55 @@
 	--destructive: #e7000b;
 	--border: #e5e5e5;
 	--input: #e5e5e5;
-	--ring: var(--primary);
-	--radius: .625rem;
-	--radius-sm: calc(var(--radius) - 4px);
-	--radius-md: calc(var(--radius) - 2px);
-	--radius-lg: var(--radius);
-	--radius-xl: calc(var(--radius) + 4px);
 	--shadow-xs: 0 1px 2px 0 rgb(0 0 0 / .05);
 	--shadow-sm: 0 1px 3px 0 rgb(0 0 0 / .1), 0 1px 2px -1px rgb(0 0 0 / .1);
 	--shadow-md: 0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1);
 	--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1);
-	--ring-50: color-mix(in srgb, var(--ring) 50%, transparent);
 	--success: #15803d;
 	--warning: #b45309;
+	/* status palette (notices, alerts, jQuery UI states): tint, border, text, icon */
+	--pw-status-success-bg: #f0fdf4; --pw-status-success-border: #bbf7d0; --pw-status-success-fg: #14532d; --pw-status-success-icon: #16a34a;
+	--pw-status-warning-bg: #fffbeb; --pw-status-warning-border: #fde68a; --pw-status-warning-fg: #78350f; --pw-status-warning-icon: #d97706;
+	--pw-status-error-bg: #fef2f2; --pw-status-error-border: #fecaca; --pw-status-error-fg: #7f1d1d; --pw-status-error-icon: #dc2626;
 	/* select chevron: a data URI cannot read tokens, so one per scheme, stroke = --muted-foreground */
 	--pw-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+	--pw-input-bg: transparent;
+	/* text on the primary colour: white for the darker presets (blue, pink, black, custom) */
+	--primary-foreground: #fff;
+}
+:root {
+	--pw-primary: #3584EA;
 
-	/* type and metrics */
+	/* type and metrics: font sizes in rem, so a larger browser font size scales the whole
+	 * interface, not only the headings (audit C25); line heights unitless */
 	--pw-font: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-	--pw-font-size: 14px;
+	--pw-font-size: .875rem;
 	--pw-line-height: 1.5;
-	--pw-tiny: 12px;
-	--pw-icon: 14px;
-	--pw-radius: var(--radius-md);
-	--pw-radius-m: var(--radius-lg);
+	--pw-tiny: .75rem;
+	--pw-icon: .875rem;
+	--radius: .625rem;
 	--pw-masthead-h: 56px;
 	--pw-field-pad: 20px;
 	--pw-field-pad-bottom: 23px;
 	--pw-gutter: 6px; /* half the gap between field cards */
 	--pw-transition: 150ms;
-
-	/* aliases (older names) */
-	--pw-bg: var(--background);
-	--pw-surface: var(--card);
-	--pw-surface-2: var(--muted);
-	--pw-line: var(--border);
-	--pw-input-bg: transparent;
-	--pw-input-border: var(--input);
-	--pw-text: var(--foreground);
-	--pw-text-muted: var(--muted-foreground);
-	--pw-text-muted-alt: var(--muted-foreground);
-	--pw-link: var(--foreground);
-	--pw-link-hover: var(--primary);
-	--pw-h1: var(--foreground);
-	--pw-h2: var(--foreground);
-	--pw-on-primary: var(--primary-foreground);
-	--pw-masthead-bg: color-mix(in srgb, var(--background) 92%, transparent);
-	--pw-primary-hover: color-mix(in srgb, var(--primary) 90%, var(--background));
-	--pw-primary-40: color-mix(in srgb, var(--primary) 40%, transparent);
-	--pw-primary-20: color-mix(in srgb, var(--primary) 20%, transparent);
-	--pw-primary-bg: color-mix(in srgb, var(--primary) 8%, var(--background));
-	--pw-muted-bg: var(--muted);
-	--pw-selection-bg: var(--primary);
-	/* alert tints: a light wash of the status colour */
-	--pw-success-bg: color-mix(in srgb, var(--success) 10%, var(--background));
-	--pw-warning-bg: color-mix(in srgb, var(--warning) 12%, var(--background));
-	--pw-danger-bg: color-mix(in srgb, var(--destructive) 10%, var(--background));
-	--pw-shadow-card: var(--shadow-sm);
-	--pw-shadow-dropdown: var(--shadow-md);
+	/* the notices band (10-layout.css, 14-notices.css): one row of a notice and its gaps */
+	--pw-notice-gap: 8px;
+	--pw-notice-row: calc(1.25rem + 22px);
 }
 
-/* colour presets: AdminThemeBoss's primaries */
+/* 2. colour presets: AdminThemeBoss's primaries -------------------------------------------------- */
 [data-pw-variant="blue"] { --pw-primary: #3584EA; }
 [data-pw-variant="vibrant"] { --pw-primary: #00BED7; }
 [data-pw-variant="black"] { --pw-primary: #171717; }
 [data-pw-variant="pink"] { --pw-primary: #f413a9; }
 [data-pw-variant="green"] { --pw-primary: #0aad77; }
+/* white on cyan and green is 2.3 and 2.9 to 1: these two take dark text (8.8 and 6.8; audit C21).
+ * White on Boss blue and pink stays (3.7 and 3.8, enough for 14px medium buttons as UI, below
+ * 4.5 for body text: ADR 0010 keeps Boss's colours) */
+[data-pw-variant="vibrant"], [data-pw-variant="green"] { --primary-foreground: #0a0a0a; }
 
-/* dark scheme: vega dark neutrals, primary kept per variant */
+/* 3. dark scheme: vega dark neutrals, primary kept per variant ----------------------------------- */
 [data-pw-scheme="dark"] {
 	color-scheme: dark;
 	--background: #0a0a0a;
@@ -111,6 +98,9 @@
 	--input: rgb(255 255 255 / .15);
 	--success: #4ade80;
 	--warning: #fbbf24;
+	--pw-status-success-bg: #052e16; --pw-status-success-border: #166534; --pw-status-success-fg: #bbf7d0; --pw-status-success-icon: #4ade80;
+	--pw-status-warning-bg: #451a03; --pw-status-warning-border: #92400e; --pw-status-warning-fg: #fde68a; --pw-status-warning-icon: #fbbf24;
+	--pw-status-error-bg: #450a0a; --pw-status-error-border: #991b1b; --pw-status-error-fg: #fecaca; --pw-status-error-icon: #f87171;
 	--pw-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 	--pw-input-bg: rgb(255 255 255 / .045);
 	--shadow-sm: 0 1px 3px 0 rgb(0 0 0 / .4);
@@ -118,3 +108,48 @@
 	--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / .5), 0 4px 6px -4px rgb(0 0 0 / .5);
 }
 [data-pw-scheme="dark"][data-pw-variant="black"] { --pw-primary: #e5e5e5; --primary-foreground: #171717; }
+
+/* 4. derived tokens ----------------------------------------------------------------------------- */
+:root, [data-pw-scheme], [data-pw-variant] {
+	--primary: var(--pw-primary);
+	/* focus ring: the primary darkened toward the text colour, solid. At half opacity it was 1.5 to
+	 * 2.2 to 1 against the page; as it is now it is at least 3.4 (cyan, light) and 5 or more
+	 * elsewhere (WCAG 2.2 focus appearance; audit C21). --ring-50 keeps its name for components. */
+	--ring: color-mix(in srgb, var(--primary) 80%, var(--foreground));
+	--ring-50: var(--ring);
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+	/* the off track of a switch: 3 to 1 against the card (the input border colour was 1.3) */
+	--pw-switch-off: color-mix(in srgb, var(--muted-foreground) 80%, var(--background));
+
+	/* --pw-* aliases (the public ones: docs/contract.md 4.0) */
+	--pw-radius: var(--radius-md);
+	--pw-radius-m: var(--radius-lg);
+	--pw-bg: var(--background);
+	--pw-surface: var(--card);
+	--pw-surface-2: var(--muted);
+	--pw-line: var(--border);
+	--pw-input-border: var(--input);
+	--pw-text: var(--foreground);
+	--pw-text-muted: var(--muted-foreground);
+	--pw-link: var(--foreground);
+	--pw-link-hover: var(--primary);
+	--pw-h1: var(--foreground);
+	--pw-h2: var(--foreground);
+	--pw-on-primary: var(--primary-foreground);
+	--pw-masthead-bg: color-mix(in srgb, var(--background) 92%, transparent);
+	--pw-primary-hover: color-mix(in srgb, var(--primary) 90%, var(--background));
+	--pw-primary-40: color-mix(in srgb, var(--primary) 40%, transparent);
+	--pw-primary-20: color-mix(in srgb, var(--primary) 20%, transparent);
+	--pw-primary-bg: color-mix(in srgb, var(--primary) 8%, var(--background));
+	--pw-muted-bg: var(--muted);
+	--pw-selection-bg: var(--primary);
+	/* alert tints: the status palette */
+	--pw-success-bg: var(--pw-status-success-bg);
+	--pw-warning-bg: var(--pw-status-warning-bg);
+	--pw-danger-bg: var(--pw-status-error-bg);
+	--pw-shadow-card: var(--shadow-sm);
+	--pw-shadow-dropdown: var(--shadow-md);
+}

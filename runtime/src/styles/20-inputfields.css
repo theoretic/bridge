@@ -34,15 +34,15 @@
 	margin: 0;
 	padding: var(--pw-field-pad) 12px 8px var(--pw-field-pad);
 	font-weight: 500;
-	font-size: 14px;
-	line-height: 20px;
+	font-size: .875rem;
+	line-height: 1.25rem;
 	color: var(--foreground);
 	transition: color var(--pw-transition), background var(--pw-transition);
 }
 .InputfieldHeader.InputfieldStateToggle { cursor: pointer; }
 .InputfieldHeader.InputfieldStateToggle:hover { color: var(--foreground); }
 .InputfieldHeader.InputfieldStateToggle:hover i.toggle-icon { opacity: 1; }
-.InputfieldHeader i.toggle-icon { float: right; opacity: .45; margin-top: 3px; color: var(--muted-foreground); transition: opacity var(--pw-transition); }
+.InputfieldHeader i.toggle-icon { float: right; opacity: .8; margin-top: 3px; color: var(--muted-foreground); transition: opacity var(--pw-transition); }
 .InputfieldHeader .InputfieldHeaderIcon { margin-right: 8px; color: var(--muted-foreground); }
 .InputfieldHeader { -webkit-user-select: none; user-select: none; }
 .InputfieldHeader.InputfieldHeaderHidden { display: none; }
@@ -80,7 +80,7 @@
 /* as specific as upstream InputfieldRepeater.css (.Inputfields .InputfieldRepeater
  * .InputfieldRepeaterItem > .InputfieldHeader), which otherwise wins with its own padding and
  * line-height (audit C10); a long label ends in an ellipsis */
-.InputfieldRepeaterItem > .InputfieldHeader, .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader { padding: 10px var(--pw-field-pad); background: var(--muted); border-radius: var(--radius-xl) var(--radius-xl) 0 0; font-size: 14px; line-height: 20px; color: var(--foreground); text-overflow: ellipsis; }
+.InputfieldRepeaterItem > .InputfieldHeader, .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader { padding: 10px var(--pw-field-pad); background: var(--muted); border-radius: var(--radius-xl) var(--radius-xl) 0 0; font-size: .875rem; line-height: 1.25rem; color: var(--foreground); text-overflow: ellipsis; }
 /* item controls show on hover upstream: also with keyboard focus inside, and always on touch */
 .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit:focus-within > .InputfieldRepeaterItemControls { opacity: 1 !important; }
 @media (hover: none) { .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit > .InputfieldRepeaterItemControls { opacity: 1 !important; } }

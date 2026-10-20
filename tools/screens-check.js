@@ -225,6 +225,41 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	}
 	await kb.close();
 
+	// G (0.9.2): contrast per variant and scheme, from computed colours. Primary button text at
+	// least 4.5 to 1, except Boss blue and pink with white text, which ADR 0010 keeps (3.7, 3.8);
+	// the focus ring at least 3 to 1 against the page
+	const cv = await ctx.newPage();
+	await cv.goto(ADMIN + 'page/edit/?id=' + NATIVE, { waitUntil: 'networkidle' });
+	const contrast = await cv.evaluate(async () => {
+		const canvas = document.createElement('canvas');
+		canvas.width = canvas.height = 1;
+		const g = canvas.getContext('2d', { willReadFrequently: true });
+		// any CSS colour (rgb(), color(srgb ...), color-mix results) to sRGB through a canvas
+		const rgb = (css) => { g.clearRect(0, 0, 1, 1); g.fillStyle = '#000'; g.fillStyle = css; g.fillRect(0, 0, 1, 1); return Array.from(g.getImageData(0, 0, 1, 1).data.slice(0, 3)); };
+		const lum = (c) => { const v = c.map(x => x / 255).map(x => x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+		const ratio = (a, b) => { const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+		const root = document.documentElement;
+		const btn = document.getElementById('submit_save');
+		const rows = [];
+		for(const scheme of ['light', 'dark']) for(const v of ['blue', 'vibrant', 'black', 'pink', 'green']) {
+			root.setAttribute('data-pw-scheme', scheme);
+			root.setAttribute('data-pw-variant', v);
+			// past the buttons' 150ms colour transition
+			await new Promise(r => setTimeout(r, 400));
+			const s = getComputedStyle(btn);
+			const page = getComputedStyle(document.body).backgroundColor;
+			const ring = getComputedStyle(root).getPropertyValue('--ring').trim();
+			const text = ratio(s.color, s.backgroundColor);
+			const focus = ratio(ring, page);
+			const need = (v === 'blue' || v === 'pink') && rgb(s.color).every(x => x > 240) ? 3.5 : 4.5;
+			rows.push({ scheme, v, text: +text.toFixed(2), need, focus: +focus.toFixed(2), ok: text >= need && focus >= 3 });
+		}
+		return rows;
+	});
+	const bad = contrast.filter(r => !r.ok);
+	check('G primary text and focus ring contrast in every variant and scheme', bad.length === 0, JSON.stringify(bad.length ? bad : contrast.map(r => `${r.scheme}/${r.v} ${r.text}/${r.focus}`)));
+	await cv.close();
+
 	// forced colours (Windows high contrast): focus still shows, as an outline
 	if(browserName === 'chromium') {
 		const hc = await ctx.newPage();

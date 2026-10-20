@@ -14,7 +14,7 @@ h2.lister_headline + .pw-pagination, .lister_headline ~ .MarkupPagerNav { margin
 #ProcessListerResults:empty { min-height: 100vh; }
 /* in the modal Lister (Users, Roles in an 80vh window) a screen's height would always scroll it */
 body.modal #ProcessListerResults:empty { min-height: 60vh; }
-#debug h3 { font-size: 14px; }
+#debug h3 { font-size: .875rem; }
 
 /* logo: a dark-scheme variant is shown instead of the light one when both are configured; as
  * specific as .pw-logo-link img (display: block), which hid neither (audit C20) */

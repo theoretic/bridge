@@ -51,6 +51,24 @@ for (const { name, budget, with: parts = [] } of FILES) {
 	if (gz > budget) { console.error(`${name}: over the gzip budget`); failed = true; }
 }
 
+// tokens (00-tokens.css, audit C39): derived values declared where a scheme or variant can be
+// set, and no var() of a token nobody defines (set at runtime by the theme script: listed)
+{
+	const theme = readFileSync(dist + 'theme.css', 'utf8');
+	const fieldsCss = readFileSync(dist + 'fields.css', 'utf8');
+	if (!/:root,\s*\[data-pw-scheme\],\s*\[data-pw-variant\]\s*\{/.test(theme)) {
+		console.error('theme.css: derived tokens are not declared on :root, [data-pw-scheme], [data-pw-variant]');
+		failed = true;
+	}
+	const runtimeSet = new Set(['--pw-range-fill', '--pw-branch-max', '--pw-flyout-max', '--pw-primary']);
+	const all = theme + fieldsCss;
+	const defined = new Set([...all.matchAll(/(--[\w-]+)\s*:/g)].map(m => m[1]));
+	const undefinedUses = [...new Set([...all.matchAll(/var\((--[\w-]+)\s*\)/g)].map(m => m[1]))]
+		.filter(t => !defined.has(t) && !runtimeSet.has(t) && !t.startsWith('--fa-'));
+	console.log(`tokens: ${defined.size} declared, ${undefinedUses.length} used without a declaration or fallback`);
+	if (undefinedUses.length) { console.error('undefined tokens: ' + undefinedUses.join(', ')); failed = true; }
+}
+
 // the classic scripts (scripts/build-classic.mjs): minified, each with a budget about 15 % over
 // its size at 0.9.0, and all of them together; printed in <head>, so they hold up the first paint
 const scriptsDir = fileURLToPath(new URL('../../modules/AdminThemeBridge/scripts/', import.meta.url));

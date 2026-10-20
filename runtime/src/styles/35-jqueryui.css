@@ -48,8 +48,8 @@
 .ui-datepicker .ui-datepicker-header { border: 0; border-radius: 0; background: none; color: var(--foreground); font-weight: 500; }
 .ui-datepicker .ui-datepicker-prev, .ui-datepicker .ui-datepicker-next { top: 2px; border: 1px solid var(--input); border-radius: var(--radius-md); }
 .ui-datepicker .ui-datepicker-prev-hover, .ui-datepicker .ui-datepicker-next-hover { top: 2px; background: var(--accent); border: 1px solid var(--input); }
-.ui-datepicker select.ui-datepicker-month, .ui-datepicker select.ui-datepicker-year { min-height: 28px; padding: 2px 4px; border: 1px solid var(--input); border-radius: var(--radius-sm); background-color: var(--background); color: var(--foreground); font: inherit; font-size: 13px; }
-.ui-datepicker th { color: var(--muted-foreground); font-weight: 400; font-size: 12px; }
+.ui-datepicker select.ui-datepicker-month, .ui-datepicker select.ui-datepicker-year { min-height: 28px; padding: 2px 4px; border: 1px solid var(--input); border-radius: var(--radius-sm); background-color: var(--background); color: var(--foreground); font: inherit; font-size: .8125rem; }
+.ui-datepicker th { color: var(--muted-foreground); font-weight: 400; font-size: .75rem; }
 .ui-datepicker td a.ui-state-default { border: 0; border-radius: var(--radius-md); background: none; color: var(--foreground); text-align: center; }
 .ui-datepicker td a.ui-state-highlight { background: var(--accent); }
 .ui-datepicker td a.ui-state-hover { background: var(--accent); color: var(--accent-foreground); }
@@ -70,7 +70,7 @@
 .ui-autocomplete .ui-menu-item a, .ui-autocomplete .ui-menu-item-wrapper { padding: 6px 8px; border: 0; margin: 0; border-radius: var(--radius-sm); }
 .ui-progressbar { border: 0; background: color-mix(in srgb, var(--primary) 20%, transparent); border-radius: 9999px; overflow: hidden; }
 .ui-progressbar-value { border: 0; background: var(--pw-primary); }
-.ui-tooltip { border: 0; border-radius: var(--radius-md); background: var(--foreground); color: var(--background); box-shadow: none; font-size: 12px; padding: 6px 10px; }
+.ui-tooltip { border: 0; border-radius: var(--radius-md); background: var(--foreground); color: var(--background); box-shadow: none; font-size: .75rem; padding: 6px 10px; }
 
 /* LanguageTabs.css (jQuery UI tab markup) and InputfieldFile.css leftovers */
 .langTabs.ui-tabs, .langTabs .ui-tabs-panel { padding: 0; border: 0; background: none; }

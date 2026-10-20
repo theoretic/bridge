@@ -1,4 +1,4 @@
-/* CKEditor 4, skin moono-lisa (the only one shipped; no dark variant). The skin stylesheet is
+/* CKEditor 4 (4.19.0 in core 3.0.274), skin moono-lisa (the only one shipped; no dark variant). The skin stylesheet is
  * injected after the theme sheets, so every rule here carries an extra `html`. The editing area
  * is an iframe: its colours come from scripts/main.js (editorSchemes), not from here. */
 html .cke_chrome { border-color: var(--input); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-xs); }

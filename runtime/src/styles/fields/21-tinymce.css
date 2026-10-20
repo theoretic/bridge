@@ -1,4 +1,4 @@
-/* TinyMCE 6. Classic editors switch to the shipped oxide-dark skin and get their content colours
+/* TinyMCE 6 (6.8.2 in core 3.0.274). Classic editors switch to the shipped oxide-dark skin and get their content colours
  * from scripts/main.js (editorSchemes). Inline editors render in the page: content_css/wire.css
  * uses light-dark(), which follows color-scheme; only its fixed code and table colours need tokens. */
 .InputfieldTinyMCE .mce-content-body { color: var(--foreground); }

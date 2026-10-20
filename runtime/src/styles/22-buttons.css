@@ -11,9 +11,9 @@
 	background: var(--primary);
 	color: var(--primary-foreground);
 	font: inherit;
-	font-size: 14px;
+	font-size: .875rem;
 	font-weight: 500;
-	line-height: 34px;
+	line-height: 2.125rem;
 	text-transform: none;
 	text-decoration: none;
 	white-space: nowrap;
@@ -34,7 +34,7 @@
 .ui-button.ui-priority-secondary:hover, .pw-button-secondary:hover { background: var(--accent); color: var(--accent-foreground); }
 .ui-button.ui-state-disabled, .pw-button[disabled], .ui-button[disabled] { opacity: .5; cursor: default; pointer-events: none; }
 /* small and text (ghost) variants (image/file buttons, lister actions) */
-.pw-button-small, .ui-button.ui-button-small { padding: 0 12px; font-size: 13px; line-height: 30px; }
+.pw-button-small, .ui-button.ui-button-small { padding: 0 12px; font-size: .8125rem; line-height: 1.875rem; }
 .pw-button-text { background: none; border-color: transparent; color: var(--foreground); box-shadow: none; padding: 0 8px; }
 .pw-button-text:hover { background: var(--accent); color: var(--accent-foreground); box-shadow: none; }
 .pw-head-button-copy { margin: 0; }
@@ -58,7 +58,7 @@
 body.pw-init .pw-button-dropdown { display: none; }
 .pw-button-dropdown-wrap { border-radius: var(--radius-md); box-shadow: var(--shadow-xs); }
 /* a few upstream buttons are links styled as .ui-button inside tables and lists */
-td .ui-button, .PageListActions .ui-button { font-size: 13px; line-height: 30px; padding: 0 12px; }
+td .ui-button, .PageListActions .ui-button { font-size: .8125rem; line-height: 1.875rem; padding: 0 12px; }
 /* save without reload (scripts/page-save.js): busy state */
 body.pw-saving #ProcessPageEdit { cursor: progress; }
 .pw-save-spinner { margin-left: 6px; }

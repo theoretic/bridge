@@ -17,7 +17,7 @@
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-md);
-	font-size: 14px;
+	font-size: .875rem;
 	font-weight: 400;
 	text-transform: none;
 }
@@ -30,7 +30,7 @@
 	border-radius: var(--radius-sm);
 	color: var(--popover-foreground);
 	text-decoration: none;
-	line-height: 20px;
+	line-height: 1.25rem;
 	white-space: nowrap;
 	cursor: default;
 }
@@ -88,7 +88,7 @@
 /* legacy shape: jQuery UI menu resets */
 .pw-dropdown-menu.ui-menu { font-family: inherit; }
 .pw-dropdown-menu.ui-menu .ui-menu-item { margin: 0; padding: 0; border: 0; list-style: none; }
-.pw-dropdown-menu.ui-menu .ui-menu-item a, .pw-dropdown-menu.ui-menu .ui-menu-item-wrapper { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 8px; border: 0; border-radius: var(--radius-sm); font-weight: 400; line-height: 20px; }
+.pw-dropdown-menu.ui-menu .ui-menu-item a, .pw-dropdown-menu.ui-menu .ui-menu-item-wrapper { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 8px; border: 0; border-radius: var(--radius-sm); font-weight: 400; line-height: 1.25rem; }
 .pw-dropdown-menu.ui-menu .ui-menu-item a.pw-has-items { padding-right: 28px; }
 .pw-dropdown-menu .ui-menu-icon { display: none; }
 .pw-dropdown-menu .ui-menu-divider { margin: 4px -4px; border: 0; border-top: 1px solid var(--border); }
