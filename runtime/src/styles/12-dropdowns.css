@@ -62,7 +62,8 @@
 	left: 100%;
 	box-sizing: border-box;
 	min-width: 200px;
-	max-height: calc(100vh - var(--pw-masthead-h) - 40px);
+	/* the room below the flyout's own top (scripts/main.js sets it as the flyout opens) */
+	max-height: var(--pw-flyout-max, calc(100vh - var(--pw-masthead-h) - 40px));
 	overflow-y: auto;
 	scrollbar-width: thin;
 	margin: -5px 0 0 4px;
@@ -73,7 +74,10 @@
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-md);
 }
-.pw-dropdown-menu li:hover > ul:not(:empty), .pw-dropdown-menu li > ul[aria-hidden="false"] { visibility: visible; opacity: 1; z-index: 2; transition-delay: 0s; }
+.pw-dropdown-menu li:hover > ul:not(:empty), .pw-dropdown-menu li:focus-within > ul:not(:empty), .pw-dropdown-menu li > ul[aria-hidden="false"] { visibility: visible; opacity: 1; z-index: 2; transition-delay: 0s; }
+/* no room on the right: the flyout opens to the left of its menu */
+.pw-dropdown-menu li > ul.pw-flyout-left { left: auto; right: 100%; margin: -5px 4px 0 0; }
+.pw-dropdown-menu li > ul.pw-flyout-left ~ a.pw-has-items::before, .pw-dropdown-menu li:has(> ul.pw-flyout-left) > a.pw-has-items::before { right: auto; left: -10px; }
 .pw-dropdown-menu li > ul:empty { display: none; }
 /* hover bridge over the 4px gap between a menu and its flyout */
 .pw-dropdown-menu li > a.pw-has-items::before { content: ""; position: absolute; top: 0; bottom: 0; right: -10px; width: 10px; }

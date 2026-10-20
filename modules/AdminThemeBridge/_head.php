@@ -127,6 +127,15 @@ $config->js('AdminThemeBridge', $bridgeJs);
 	<meta name="robots" content="noindex, nofollow" />
 	<meta name="google" content="notranslate" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="color-scheme" content="light dark">
+	<?php
+	// the canvas colour before the stylesheets arrive: no white flash in the dark scheme, and
+	// "auto" without JavaScript follows the system (audit C36; same values as 00-tokens.css)
+	?>
+	<style data-pw-keep>
+		html[data-pw-scheme=dark] { background: #0a0a0a; }
+		@media (prefers-color-scheme: dark) { html:not([data-pw-scheme=light]) { background: #0a0a0a; } }
+	</style>
 
 	<title><?php echo $adminTheme->getBrowserTitle(); ?></title>
 

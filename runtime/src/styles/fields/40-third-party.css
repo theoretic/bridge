@@ -30,7 +30,7 @@
 table.Matrix td, table.Matrix th { border-color: var(--border); }
 table.Matrix tr:hover td, table.Matrix tr:hover th.MatrixRowNumber, li.InputfieldMatrix table tr.highlight_row { background: var(--accent); }
 li.InputfieldMatrix table tr.highlight_last_blank :not(th) { background: var(--pw-highlight) !important; }
-div.alert p { background: var(--card); color: var(--foreground); }
+li.InputfieldMatrix div.alert p { background: var(--card); color: var(--foreground); }
 
 /* FieldtypeColor (spectrum): the picker frame; its gradients are the colour model and stay */
 .sp-container { background-color: var(--popover); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }

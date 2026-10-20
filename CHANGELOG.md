@@ -1,5 +1,57 @@
 # Changelog
 
+## AdminThemeBridge 0.8.9: audit phase 5, layout and CSS (2026-10-20)
+
+- **Notices never cover the head buttons** (`setupNotices()`, `body.pw-notices-static`): a single message or warning laid over the notice band covered the breadcrumbs, the title and the copied Save when it wrapped (a phone, a long text, debug prefixes). The theme script now measures each row and puts a list that does not fit into the flow. The band's change animates.
+- **Touch opens menus instead of following them**: a tap on a top-bar toggle fired a compatibility `mouseover` (which opened the menu) and then a click that followed the link. On a phone the user menu went straight to the profile, and Logout and the scheme toggle were out of reach. Touch and pen taps now skip the hover: the first tap opens, a second one follows.
+- **The top bar becomes the drawer when it does not fit** (`setupNavFit()`, `body.pw-nav-overflow`): with seven or eight sections or at 200 % zoom, items ran under the search box and the user menu. Below 960px the drawer has `100dvh`, wrapping labels and no stray flyouts.
+- **Flyouts fit the screen**: a submenu's height is the room below its own top and it opens to the left at the right edge. Arrow Down on a toggle opens its menu at the first item, and focus keeps a flyout open. On legacy pages, upstream's floating menus close on scroll, and below 960px upstream no longer turns the drawer's sections into floating menus.
+- **No stacked tabs before the script runs** (`body.pw-init .WireTab`, as AdminThemeUikit's `pw-init.less`), nor button menus as lists.
+- **Focus**:
+  - the Save split button had no focus ring (a later `box-shadow: none` won); it has one again;
+  - "Choose file" shows focus;
+  - under Windows high contrast (forced colours), where shadows are not drawn, every focus shows as an outline and pills and switches get borders.
+- **Specificity**: `body.AdminThemeBridge a` and `.fa` outranked component rules. Their default colour and size now have no specificity (`:where()`), so breadcrumbs, link buttons (`a.ui-button`, `a.uk-button-primary`) and `.fa-lg`/`.fa-2x` keep their own. Links inside descriptions, notes and notices are underlined. With both logos configured the light scheme showed both; it shows one.
+- **Smaller screens and long content**:
+  - table headers wrap and a Lister that is still too wide scrolls inside its results;
+  - dialogs fill a phone's screen (were 262 / 150 px);
+  - head buttons wrap;
+  - long titles break;
+  - the logo is capped at 40vw;
+  - markup tables no longer overflow their card at phone padding (`--pw-field-pad` and `--pw-field-pad-bottom` tokens);
+  - the modal Lister holds 60vh, not 100vh, while its results load.
+- **Repeater item headers** finally get the theme's padding over upstream's more specific rule, end long labels in an ellipsis, and show their controls on keyboard focus and on touch screens.
+- Smaller fixes:
+  - `#hash` targets clear the sticky masthead (`scroll-padding-top`);
+  - dark `<select>` option lists;
+  - stylesheets that arrive in the body (AJAX field markup) move to the same place as head ones, one copy each;
+  - the page tree does not clip a dragged item;
+  - `[hidden]` and `div.alert p` are scoped to upstream markup;
+  - `uk-icon` matches whole names (`link` no longer matches `linkedin`), with no glyph next to Uikit's own SVG;
+  - `uk-width-*@m` classes;
+  - a print stylesheet (light, no masthead or notices);
+  - `<meta name="color-scheme">` and the dark canvas before the stylesheets arrive.
+- Not in this release: the per-component file split (C26, C34) and token-level contrast (Phase 8).
+- Font Awesome subset re-cut by the build: 310 icons (`fa-exclamation-circle`, used by the runtime's notice since 0.8.7, was missing from the subset). The subset file name carries no version yet, so a browser with the old file cached shows a blank icon there until its cache expires; Phase 6 adds content hashes (C31).
+- New checks:
+  - `tools/screens-check.js` F, all six of which fail without the new theme script where they test it:
+    - a notice that wraps goes into the flow;
+    - a touch tap opens the user menu without leaving the page;
+    - an overfull top bar becomes the drawer;
+    - the Save toggle's focus ring;
+    - a focus outline under forced colours (Chromium).
+  - `tests/smoke.php`: the new rules are in `theme.css`, the scripts in `main.js`, the colour-scheme meta.
+- Before and after screenshots of seven screens at 1280 and 375 px (`drafts/screenshots/audit-p5/`, not in the repository). The only differences are intended: breadcrumbs in their own muted colour, and the user icon at its 18px mobile size.
+
+Checked on the atispro sandbox, each in Chromium and Firefox:
+- conformance 162 of 163 identical, 0 differ
+- Gate 2 70/70
+- lister 26/26, with the layout shift at 0.009. Two first cuts shifted it to 0.454, and the gate caught both: `overflow-x` on the empty results, and hiding every tab panel during `pw-init`.
+- page-edit 36/36
+- page-save 48/48. Closing upstream menus on any scroll closed them right after an in-place save; now it takes 40px.
+- screens 26/26 (Firefox 25: the forced-colours case is Chromium only), setup 30/30, pagetree 21/21, repeater 35/35, form-save 19/19, image-select 20/20, image-file 34/34 (upload case skipped)
+- scheme scan 0 findings, dropdown stress 0 violations, smoke passes
+
 ## AdminThemeBridge 0.8.8: audit phase 4, PHP theme correctness (2026-10-20)
 
 - **Site scripts are classified by what they run, not by what they mention** (`isJqueryScript()`, `needsJquery()`). Comments no longer count, and a script that checks for jQuery (`window.jQuery`, `typeof jQuery`) runs without it and is printed. The demo's own `ProcessBridgeDemo.js` ("No jQuery." in a comment) was deferred with the stack, so the AJAX button on the native demo page was dead. SeoNeo's guarded script had the same fate. Verdicts are now kept per file and modification time in one WireCache entry, instead of reading every site script (up to 512 kB) on every request. The new setting "Site scripts that never wait for the legacy stack" (`printScripts`, URL parts) prints a script whatever it contains.

@@ -42,4 +42,7 @@ ul.WireTabs li a.WireTabTip, ul.WireTabs li a[title] { cursor: pointer; }
 /* page editor: the tab row sits in the content head area */
 #PageEditTabs { margin-top: 4px; }
 pw-tabs { display: block; margin: 0 0 16px; }
+/* until the theme script runs, tab panels do not show stacked (audit C2; AdminThemeUikit pw-init.less
+ * hides them all): the first stays, as WireTabs will show it, so nothing moves when they set up */
+body.pw-init .WireTab ~ .WireTab { display: none; }
 pw-tabs > section[hidden] { display: none; }

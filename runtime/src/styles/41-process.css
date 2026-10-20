@@ -12,9 +12,12 @@ h2.lister_headline + .pw-pagination, .lister_headline ~ .MarkupPagerNav { margin
 /* the results arrive by AJAX into an empty div: hold the space, so the footer starts below the
  * fold instead of jumping down when they land (layout shift) */
 #ProcessListerResults:empty { min-height: 100vh; }
+/* in the modal Lister (Users, Roles in an 80vh window) a screen's height would always scroll it */
+body.modal #ProcessListerResults:empty { min-height: 60vh; }
 #debug h3 { font-size: 14px; }
 
-/* logo: a dark-scheme variant is shown instead of the light one when both are configured */
-.pw-logo-dark, [data-pw-scheme="dark"] .pw-logo-light { display: none; }
-[data-pw-scheme="dark"] .pw-logo-dark { display: block; }
+/* logo: a dark-scheme variant is shown instead of the light one when both are configured; as
+ * specific as .pw-logo-link img (display: block), which hid neither (audit C20) */
+.pw-logo-link img.pw-logo-dark, [data-pw-scheme="dark"] .pw-logo-link img.pw-logo-light { display: none; }
+[data-pw-scheme="dark"] .pw-logo-link img.pw-logo-dark { display: block; }
 .pw-scheme-toggle a .fa { width: 1.2em; }

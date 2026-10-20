@@ -180,6 +180,14 @@ if(is_dir($runtimeSrc)) {
 }
 check('no other inline-script runner (lister, page-save, runtime)', !count($runners), implode(', ', $runners));
 check('in-place save steps aside for Enter in a text field', strpos($pageSaveJs, 'if(implicitSubmit(form, e.submitter)) return;') !== false);
+// 0.8.9: layout (behaviour: screens-check F)
+$themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
+foreach(array('pw-notices-static', 'pw-nav-overflow', 'forced-colors', '@media print', 'scroll-padding-top', 'body.pw-init .WireTab', '--pw-flyout-max') as $needle) {
+	check("theme.css has $needle", strpos($themeCss, $needle) !== false);
+}
+check('theme script measures notices and the top bar, and handles touch', strpos($mainJs, 'setupNotices: function()') !== false && strpos($mainJs, 'setupNavFit: function()') !== false && strpos($mainJs, "e.pointerType === 'touch'") !== false);
+$headPhp = (string) @file_get_contents($themeDir . '_head.php');
+check('the head declares both colour schemes', strpos($headPhp, '<meta name="color-scheme" content="light dark">') !== false);
 // 0.8.7: one body observer, ownership by the stack (not by jQuery), placeholders, hand-over
 // (behaviour: native-check placeholder and foreign-jquery, lister-check M, repeater-check B)
 $observers = array();

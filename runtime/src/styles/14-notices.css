@@ -29,12 +29,17 @@ body:not(.modal):not(.ProcessLogin) #notices li { box-shadow: var(--shadow-sm); 
  * away by itself, is laid over the band. The first row keeps its place: the band's top gap becomes
  * the list's top padding (minus the masthead's 1px border), #main keeps what the band had below
  * the row (gap minus the item's own bottom margin). */
-body:not(.modal):not(.ProcessLogin) #notices:is(:has(.pw-notice-group-open), :has(.NoticeError, .pw-notice-error), :has(> li:not(.pw-notice-group-child) ~ li:not(.pw-notice-group-child))) {
+/* and a single row that does not fit the band (a message that wraps on a narrow screen, debug
+ * prefixes, a NoticeDebug <pre>): scripts/main.js measures it and sets body.pw-notices-static
+ * (audit C1); the :has() rules stay for the cases CSS can see without a script */
+body:not(.modal):not(.ProcessLogin) #notices:is(:has(.pw-notice-group-open), :has(.NoticeError, .pw-notice-error), :has(> li:not(.pw-notice-group-child) ~ li:not(.pw-notice-group-child))),
+body.pw-notices-static:not(.modal):not(.ProcessLogin) #notices {
 	position: static;
 	padding-top: calc(var(--pw-notice-gap) - 1px);
 }
 /* (one :has() with a list: :has() may not be nested in :has()) */
-body:not(.modal):not(.ProcessLogin):has(> #notices .pw-notice-group-open, > #notices .NoticeError, > #notices .pw-notice-error, > #notices > li:not(.pw-notice-group-child) ~ li:not(.pw-notice-group-child)) #main {
+body:not(.modal):not(.ProcessLogin):has(> #notices .pw-notice-group-open, > #notices .NoticeError, > #notices .pw-notice-error, > #notices > li:not(.pw-notice-group-child) ~ li:not(.pw-notice-group-child)) #main,
+body.pw-notices-static:not(.modal):not(.ProcessLogin) #main {
 	padding-top: calc(var(--pw-notice-gap) - 6px);
 }
 #notices li {

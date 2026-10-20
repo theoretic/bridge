@@ -17,7 +17,8 @@ table.pw-table th, table.AdminDataTable th {
 	font-size: 14px;
 	text-align: left;
 	text-transform: none;
-	white-space: nowrap;
+	/* headers wrap: nowrap made a Lister with many columns scroll the whole page sideways (C8) */
+	white-space: normal;
 }
 table.pw-table td, table.AdminDataTable td {
 	padding: 10px 12px;
@@ -33,6 +34,8 @@ table.AdminDataList th.headerSortUp, table.AdminDataList th.headerSortDown, tabl
 table.AdminDataList caption { color: var(--pw-text-muted); text-align: left; padding: 8px 0; }
 table.AdminDataList tr.AdminDataListSeparator td { border-top: 2px solid var(--pw-line); }
 .InputfieldContent > table.AdminDataTable { margin-top: 4px; }
+/* what still does not fit scrolls inside the results, not the page */
+#ProcessListerResults:not(:empty) { overflow-x: auto; }
 dl.pw-dl { margin: 0; }
 dl.pw-dl dt { margin: 14px 0 2px; font-size: 15px; font-weight: 600; }
 dl.pw-dl dt a { color: var(--pw-h1); text-decoration: none; }

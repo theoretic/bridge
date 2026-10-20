@@ -151,6 +151,91 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		check('E the page picker opens', false);
 	}
 
+	// F (0.8.9): the shell's layout under stress, on the native page editor
+	// notices: one that wraps on a phone goes into the flow instead of covering the head buttons
+	const phone = await ctx.newPage();
+	await phone.setViewportSize({ width: 375, height: 812 });
+	await phone.goto(ADMIN + 'page/edit/?id=' + NATIVE, { waitUntil: 'networkidle' });
+	await phone.evaluate(() => {
+		let list = document.getElementById('notices');
+		if(!list) {
+			list = document.createElement('ul');
+			list.id = 'notices';
+			list.className = 'pw-notices';
+			document.getElementById('pw-masthead').after(list);
+		}
+		const li = document.createElement('li');
+		li.className = 'NoticeMessage pw-notice-success';
+		li.textContent = 'Saved Page: /bridge-native/ (3 changes): title, summary, and a third field whose label is long enough to wrap on a phone';
+		list.appendChild(li);
+	});
+	await phone.waitForTimeout(300);
+	const band = await phone.evaluate(() => {
+		const btn = document.querySelector('#pw-content-head-buttons button, #pw-content-head-buttons .ui-button') || document.getElementById('pw-content-title');
+		const r = btn.getBoundingClientRect();
+		const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+		return { cls: document.body.classList.contains('pw-notices-static'), covered: !!(hit && hit.closest('#notices')), what: btn.id || btn.tagName };
+	});
+	check('F a notice that wraps goes into the flow (pw-notices-static), not over the head', band.cls && !band.covered, JSON.stringify(band));
+	await phone.close();
+
+	// touch: the first tap on a menu toggle opens the menu, it does not follow the link
+	const touchCtx = await browser.newContext({ viewport: { width: 1024, height: 800 }, hasTouch: true, isMobile: false,
+		storageState: await ctx.storageState() });
+	const tab = await touchCtx.newPage();
+	await tab.goto(ADMIN + 'page/edit/?id=' + NATIVE, { waitUntil: 'networkidle' });
+	const before = tab.url();
+	const toggle = await tab.$('#tools-toggle');
+	if(toggle) {
+		const box = await toggle.boundingBox();
+		await tab.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+		await tab.waitForTimeout(500);
+		const opened = await tab.evaluate(() => { const t = document.getElementById('tools-toggle'); const m = t && t.nextElementSibling; return !!m && m.style.display === 'block'; }).catch(() => false);
+		check('F touch: the first tap opens the user menu and stays on the page', opened && tab.url() === before, tab.url().replace(ADMIN, ''));
+	}
+	await touchCtx.close();
+
+	// the top bar turns into the drawer when its items do not fit
+	const wide = await ctx.newPage();
+	await wide.setViewportSize({ width: 1000, height: 800 });
+	await wide.goto(ADMIN + 'page/edit/?id=' + NATIVE, { waitUntil: 'networkidle' });
+	const fits = await wide.evaluate(() => document.body.classList.contains('pw-nav-overflow'));
+	await wide.evaluate(() => {
+		const list = document.querySelector('.pw-primary-nav');
+		for(let i = 0; i < 8; i++) { const li = document.createElement('li'); li.className = 'pw-nav-item pw-nav-item-top'; li.innerHTML = '<a href="#">Section with a long name ' + i + '</a>'; list.appendChild(li); }
+		window.dispatchEvent(new Event('resize'));
+	});
+	await wide.waitForTimeout(300);
+	const over = await wide.evaluate(() => ({ cls: document.body.classList.contains('pw-nav-overflow'), toggle: getComputedStyle(document.querySelector('.pw-nav-toggle')).display !== 'none' }));
+	check('F a top bar that does not fit becomes the drawer', !fits && over.cls && over.toggle, JSON.stringify({ fits, over }));
+	await wide.close();
+
+	// the Save split button's toggle shows a focus ring when reached by keyboard
+	const kb = await ctx.newPage();
+	await kb.goto(ADMIN + 'page/edit/?id=' + NATIVE, { waitUntil: 'networkidle' });
+	const toggleSel = await kb.evaluate(() => { const t = document.querySelector('#ProcessPageEdit .pw-button-dropdown-wrap .pw-button-dropdown-toggle, .pw-button-dropdown-toggle'); return t ? '#' + t.id : ''; });
+	if(toggleSel && toggleSel !== '#') {
+		await kb.focus(toggleSel);
+		await kb.keyboard.press('Shift+Tab');
+		await kb.keyboard.press('Tab');
+		const shadow = await kb.evaluate(() => ({ id: document.activeElement.id, shadow: getComputedStyle(document.activeElement).boxShadow }));
+		check('F the split button toggle shows a focus ring', shadow.id === toggleSel.slice(1) && shadow.shadow !== 'none', JSON.stringify(shadow));
+	} else {
+		check('F a split button toggle on the editor', false, 'none');
+	}
+	await kb.close();
+
+	// forced colours (Windows high contrast): focus still shows, as an outline
+	if(browserName === 'chromium') {
+		const hc = await ctx.newPage();
+		await hc.emulateMedia({ forcedColors: 'active' });
+		await hc.goto(ADMIN + 'page/edit/?id=' + NATIVE, { waitUntil: 'networkidle' });
+		await hc.focus('#Inputfield_title');
+		const ring = await hc.evaluate(() => { const s = getComputedStyle(document.activeElement); return s.outlineStyle + ' ' + s.outlineWidth; });
+		check('F forced colours: a focused input has an outline', !/^none/.test(ring), ring);
+		await hc.close();
+	}
+
 	check('no page errors', errors.length === 0, errors.join(' | '));
 	await consoleErrors.settle();
 	consoleErrors.check(check);

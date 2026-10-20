@@ -134,10 +134,13 @@ var ProcessWireAdminTheme = {
 		// the original's hide timer, which watches the original and closes the menu after 1s)
 		this.setupHeadButtons();
 		if(this.legacy.loaded && typeof ProcessWireAdmin !== 'undefined') {
+			this.prepareUpstreamNav();
 			ProcessWireAdmin.init();
 			this.setupDropdownPointers();
 		}
 		this.setupNative();
+		this.setupNotices();
+		this.setupNavFit();
 		this.setupNoticeTimeout();
 		this.setupStyleOrder();
 		this.setupRangeFill();
@@ -248,6 +251,29 @@ var ProcessWireAdminTheme = {
 				for(var j = 0; j < added.length; j++) place(added[j]);
 			}
 		}).observe(document.head, { childList: true });
+		// a stylesheet that arrives in the body (AJAX field markup, renderExtraMarkup('body')) would
+		// win ties over the theme sheets by coming later: it goes to the same place (audit C37)
+		// one copy each: content that comes again (a Lister refresh) brings its sheet again
+		var same = function(a, b) {
+			return a.tagName === b.tagName && (a.tagName === 'LINK' ? a.href === b.href : a.textContent === b.textContent);
+		};
+		var lift = function(node) {
+			if(node.hasAttribute('data-pw-keep') || node.closest('svg, template, iframe')) return;
+			var kept = Array.prototype.some.call(document.head.querySelectorAll('style, link[rel~="stylesheet"]'), function(h) { return same(h, node); });
+			if(kept) node.parentNode.removeChild(node);
+			else document.head.insertBefore(node, theme);
+		};
+		this.observe(function(records) {
+			for(var i = 0; i < records.length; i++) {
+				var added = records[i].addedNodes;
+				for(var j = 0; j < added.length; j++) {
+					var node = added[j];
+					if(node.nodeType !== 1 || !node.isConnected || node.parentNode === document.head) continue;
+					var sheets = node.matches('style, link[rel~="stylesheet"]') ? [node] : Array.prototype.slice.call(node.querySelectorAll('style, link[rel~="stylesheet"]'));
+					sheets.forEach(lift);
+				}
+			}
+		});
 	},
 
 	/**
@@ -561,6 +587,125 @@ var ProcessWireAdminTheme = {
 	},
 
 	/**
+	 * Notices laid over the band (14-notices.css) must fit its one row: a message that wraps (a
+	 * narrow screen, a long text, debug prefixes) would cover the breadcrumbs, the title and the
+	 * head buttons (the copied Save). Measured whenever the list changes size or is replaced;
+	 * body.pw-notices-static puts it into the flow (audit C1).
+	 */
+	setupNotices: function() {
+		var body = document.body;
+		var watched = null;
+		var resize = window.ResizeObserver ? new ResizeObserver(function() { check(); }) : null;
+		var row = function() {
+			return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pw-notice-row')) || 42;
+		};
+		var check = function() {
+			var notices = document.getElementById('notices');
+			if(notices !== watched) {
+				if(resize && watched) resize.unobserve(watched);
+				watched = notices;
+				if(resize && notices) resize.observe(notices);
+			}
+			var tall = false;
+			if(notices && !body.classList.contains('modal')) {
+				var items = notices.querySelectorAll(':scope > li');
+				for(var i = 0; i < items.length; i++) {
+					if(items[i].offsetHeight > row() + 1) { tall = true; break; }
+				}
+			}
+			body.classList.toggle('pw-notices-static', tall);
+		};
+		check();
+		// a new list (an in-place save swaps it, a close removes it); size changes come by resize
+		this.observe(function() {
+			if(document.getElementById('notices') !== watched) check();
+		});
+		window.addEventListener('resize', check);
+	},
+
+	/**
+	 * The top bar switches to the drawer (as below 960px) when its items do not fit: seven or eight
+	 * sections, long translated labels, 200 % zoom. Measured with the bar laid out (the class off)
+	 * on load and on resize; body.pw-nav-overflow (90-responsive.css; audit C4).
+	 */
+	setupNavFit: function() {
+		var body = document.body;
+		var nav = document.getElementById('pw-nav');
+		var list = nav ? nav.querySelector('.pw-primary-nav') : null;
+		if(!list) return;
+		var pending = false;
+		var fit = function() {
+			pending = false;
+			if(window.matchMedia && window.matchMedia('(max-width: 959px)').matches) {
+				body.classList.remove('pw-nav-overflow');
+				return;
+			}
+			body.classList.remove('pw-nav-overflow');
+			var over = list.scrollWidth > nav.clientWidth + 1;
+			body.classList.toggle('pw-nav-overflow', over);
+		};
+		var schedule = function() {
+			if(pending) return;
+			pending = true;
+			window.requestAnimationFrame(fit);
+		};
+		fit();
+		window.addEventListener('resize', schedule);
+		// web fonts change the labels' widths once they arrive
+		if(document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
+	},
+
+	/**
+	 * Upstream's dropdowns on legacy pages: below 960px the primary nav is the drawer, whose
+	 * sections are lists, not menus; upstream would take each section's menu out to <body> as a
+	 * floating jQuery UI menu. Its toggles lose pw-dropdown-toggle before ProcessWireAdmin.init().
+	 * Open menus close on scroll: upstream places them once, in document coordinates, while the
+	 * masthead stays (audit C6).
+	 */
+	prepareUpstreamNav: function() {
+		var narrow = window.matchMedia && window.matchMedia('(max-width: 959px)').matches;
+		if(narrow || document.body.classList.contains('pw-nav-overflow')) {
+			var toggles = document.querySelectorAll('.pw-primary-nav > li > a.pw-dropdown-toggle');
+			for(var i = 0; i < toggles.length; i++) toggles[i].classList.remove('pw-dropdown-toggle');
+		}
+		if(this.upstreamScrollClose) return;
+		this.upstreamScrollClose = true;
+		// a menu closes once the page has scrolled 40px since it opened (not on the small scroll
+		// adjustments a save or a focus makes)
+		var timer = null;
+		window.addEventListener('scroll', function() {
+			if(timer) return;
+			timer = setTimeout(function() {
+				timer = null;
+				if(!window.jQuery) return;
+				jQuery('body > ul.pw-dropdown-menu:visible, body > .pw-dropdown-menu.prnav:visible').each(function() {
+					if(this.pwScrollY === undefined) this.pwScrollY = window.scrollY;
+					if(Math.abs(window.scrollY - this.pwScrollY) < 40) return;
+					this.pwScrollY = undefined;
+					jQuery(this).hide();
+					jQuery('.pw-dropdown-toggle.hover, .pw-dropdown-toggle-open').removeClass('hover pw-dropdown-toggle-open');
+				});
+			}, 50);
+		}, { passive: true });
+		if(window.jQuery) jQuery(document).on('pw-show-dropdown', '.pw-dropdown-menu', function() { this.pwScrollY = window.scrollY; });
+	},
+
+	/**
+	 * A flyout (submenu) gets the height left below its own top and opens to the left when there
+	 * is no room on the right (12-dropdowns.css --pw-flyout-max, .pw-flyout-left; audit C5)
+	 *
+	 * @param {HTMLElement} li the item whose <ul> opens
+	 */
+	fitFlyout: function(li) {
+		var ul = li.querySelector(':scope > ul');
+		if(!ul) return;
+		var r = li.getBoundingClientRect();
+		var w = ul.offsetWidth || 200;
+		ul.style.setProperty('--pw-flyout-max', Math.max(160, Math.round(window.innerHeight - r.top - 16)) + 'px');
+		ul.classList.toggle('pw-flyout-left', r.right + w + 8 > window.innerWidth && r.left - w - 8 > 0);
+	},
+
+	/**
 	 * Native handlers for the shell's widgets. Dropdowns and notice groups step aside as soon as
 	 * upstream owns the page (upstream()), because upstream main.js then owns .pw-dropdown-toggle
 	 * and .pw-notice-group-toggle; closing notices and the mobile nav are always the theme's.
@@ -587,10 +732,17 @@ var ProcessWireAdminTheme = {
 			}
 		});
 		// dropdowns (native pages only: with the stack, upstream main.js owns .pw-dropdown-toggle).
-		// Hover opens like upstream; click toggles for touch; .pw-dropdown-toggle-click is click-only.
+		// Hover opens like upstream; click toggles; .pw-dropdown-toggle-click is click-only. On touch
+		// the browser fires a compatibility mouseover before the click: it is ignored, so the first
+		// tap opens the menu and a second one follows the link (upstream main.js does the same with
+		// its touch-device class; audit C3)
 		var hoverTimer = null;
+		var touchUntil = 0;
+		document.addEventListener('pointerdown', function(e) {
+			touchUntil = e.pointerType === 'touch' || e.pointerType === 'pen' ? Date.now() + 1000 : 0;
+		}, true);
 		document.addEventListener('mouseover', function(e) {
-			if(self.upstream()) return;
+			if(self.upstream() || Date.now() < touchUntil) return;
 			var toggle = e.target.closest('.pw-dropdown-toggle:not(.pw-dropdown-toggle-click)');
 			if(toggle) {
 				clearTimeout(hoverTimer);
@@ -598,9 +750,31 @@ var ProcessWireAdminTheme = {
 				if(menu && menu.style.display === 'none') { self.closeDropdowns(); menu.style.display = 'block'; }
 				return;
 			}
+			var item = e.target.closest('.pw-dropdown-menu li');
+			if(item && item.querySelector(':scope > ul')) self.fitFlyout(item);
 			var ajax = e.target.closest('.pw-dropdown-menu a.pw-has-ajax-items');
 			if(ajax) self.loadNavJSON(ajax);
 			if(e.target.closest('.pw-dropdown-menu, .pw-dropdown-toggle')) clearTimeout(hoverTimer);
+		});
+		// keyboard: Arrow Down on a toggle opens its menu at the first item; focus inside a menu keeps
+		// a flyout open (12-dropdowns.css :focus-within)
+		document.addEventListener('keydown', function(e) {
+			if(self.upstream() || e.key !== 'ArrowDown') return;
+			var toggle = e.target.closest && e.target.closest('.pw-dropdown-toggle');
+			if(!toggle) return;
+			var menu = self.dropdownMenu(toggle);
+			if(!menu) return;
+			e.preventDefault();
+			self.closeDropdowns();
+			menu.style.display = 'block';
+			var first = menu.querySelector('a[href], a[data-pw-dropdown-value]');
+			if(first) first.focus();
+		});
+		document.addEventListener('focusin', function(e) {
+			if(self.upstream()) return;
+			var item = e.target.closest && e.target.closest('.pw-dropdown-menu li');
+			if(item && item.querySelector(':scope > ul')) self.fitFlyout(item);
+			if(item && item.querySelector('a.pw-has-ajax-items')) self.loadNavJSON(item.querySelector('a.pw-has-ajax-items'));
 		});
 		document.addEventListener('mouseout', function(e) {
 			if(self.upstream()) return;
@@ -1060,6 +1234,7 @@ var ProcessWireAdminTheme = {
 				if(typeof ProcessWireAdmin !== 'undefined') {
 					// a throw here must not keep pw-legacy-loaded from firing: later() callers wait on it
 					try {
+						ProcessWireAdminTheme.prepareUpstreamNav();
 						ProcessWireAdmin.init();
 						ProcessWireAdminTheme.setupDropdownPointers();
 					} catch(e) {

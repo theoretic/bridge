@@ -1,0 +1,14 @@
+/* Print: light tokens, no fixed layers, no chrome (audit C16) */
+
+@media print {
+	:root, [data-pw-scheme] {
+		color-scheme: light;
+		--pw-bg: #fff; --background: #fff; --card: #fff; --foreground: #0a0a0a; --card-foreground: #0a0a0a;
+		--pw-text: #0a0a0a; --pw-h1: #0a0a0a; --pw-h2: #0a0a0a; --muted-foreground: #525252; --border: #d4d4d4;
+	}
+	.pw-masthead, #notices, .pw-footer, #pw-content-head-buttons, .pw-breadcrumbs, .InputfieldSubmit, .pw-nav-toggle { display: none !important; }
+	.pw-masthead, #notices { position: static !important; }
+	#main { padding-top: 0 !important; }
+	.Inputfields > .Inputfield { box-shadow: none; break-inside: avoid; }
+	body.AdminThemeBridge a { color: inherit; }
+}

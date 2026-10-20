@@ -50,6 +50,7 @@
 	--pw-radius-m: var(--radius-lg);
 	--pw-masthead-h: 56px;
 	--pw-field-pad: 20px;
+	--pw-field-pad-bottom: 23px;
 	--pw-gutter: 6px; /* half the gap between field cards */
 	--pw-transition: 150ms;
 

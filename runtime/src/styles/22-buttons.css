@@ -51,6 +51,11 @@
 	border-left-color: color-mix(in srgb, var(--primary-foreground) 30%, transparent);
 }
 .pw-button-dropdown-wrap .ui-button { box-shadow: none; }
+/* the rule above took the focus ring off both halves of a split button (audit C17) */
+.pw-button-dropdown-wrap .ui-button:focus-visible { position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--ring-50); }
+/* until the theme script runs (body.pw-init, core AdminThemeFramework), as AdminThemeUikit's
+ * pw-init.less: the button menus are not shown as lists (audit C2) */
+body.pw-init .pw-button-dropdown { display: none; }
 .pw-button-dropdown-wrap { border-radius: var(--radius-md); box-shadow: var(--shadow-xs); }
 /* a few upstream buttons are links styled as .ui-button inside tables and lists */
 td .ui-button, .PageListActions .ui-button { font-size: 13px; line-height: 30px; padding: 0 12px; }

@@ -12,7 +12,7 @@
 .pw-masthead .pw-container { display: flex; align-items: center; gap: 20px; min-height: var(--pw-masthead-h); }
 .pw-logo-link { display: inline-flex; align-items: center; gap: 10px; color: var(--foreground); text-decoration: none; }
 .pw-logo-link svg { height: 28px; width: 28px; display: block; }
-.pw-logo-link img { max-height: 40px; width: auto; display: block; }
+.pw-logo-link img { max-height: 40px; max-width: 40vw; width: auto; display: block; }
 .pw-logo-text { color: var(--pw-h1); font-weight: 600; font-size: 15px; letter-spacing: -.01em; }
 .pw-nav { flex: 1; min-width: 0; }
 .pw-primary-nav, .pw-user-nav { list-style: none; margin: 0; padding: 0; }

@@ -8,9 +8,10 @@
 /* the top padding is the notices band (14-notices.css): one notice row and its gaps, kept free
  * whether or not notices show, so they never shift the page */
 :root { --pw-notice-gap: 8px; --pw-notice-row: 42px; }
-#main { padding-top: calc(var(--pw-notice-row) + 2 * var(--pw-notice-gap)); padding-bottom: 60px; }
+#main { padding-top: calc(var(--pw-notice-row) + 2 * var(--pw-notice-gap)); padding-bottom: 60px; transition: padding-top 150ms ease; }
+@media (prefers-reduced-motion: reduce) { #main { transition: none; } }
 #pw-content-head { display: flow-root; margin-bottom: 20px; }
-#pw-content-head-buttons { float: right; display: flex; align-items: center; gap: 10px; margin-left: 20px; }
+#pw-content-head-buttons { float: right; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px; margin-left: 20px; max-width: 100%; }
 #pw-content-title { margin: 6px 0 0; }
 #pw-content-body > p:first-child { margin-top: 0; }
 

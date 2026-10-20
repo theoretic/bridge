@@ -15,6 +15,10 @@ dialog.pw-dialog::backdrop { background: rgb(0 0 0 / .5); }
 dialog.pw-dialog-small { width: 40vw; height: 50vh; }
 dialog.pw-dialog-large { width: 85vw; height: 88vh; max-width: none; }
 dialog.pw-dialog-full { width: 96vw; height: 94vh; max-width: none; }
+/* phones: every size fills the screen but a margin (70vw / 40vw would be 262 / 150 px, C9) */
+@media (max-width: 767px) {
+	dialog.pw-dialog, dialog.pw-dialog-small, dialog.pw-dialog-large, dialog.pw-dialog-full { width: calc(100vw - 16px); height: calc(100vh - 16px); height: calc(100dvh - 16px); max-width: none; max-height: none; }
+}
 .pw-dialog-bar, .ui-dialog .ui-dialog-titlebar {
 	display: flex;
 	align-items: center;

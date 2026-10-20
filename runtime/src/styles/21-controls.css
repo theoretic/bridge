@@ -144,6 +144,8 @@ ul.InputfieldFileList > li { list-style: none; }
 .InputfieldContent .InputMask.ui-button:hover { border-color: var(--input); color: var(--accent-foreground); background: var(--accent); box-shadow: var(--shadow-xs); }
 .Inputfield .InputfieldContent .InputMask .ui-button-text { display: inline-flex; align-items: center; gap: 6px; padding: 0; line-height: 34px; }
 .InputfieldContent .InputMask input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 100px; }
+/* the file input is transparent: its focus shows on the mask (audit C23) */
+.InputfieldContent .InputMask.ui-button:focus-within { box-shadow: 0 0 0 3px var(--ring-50); }
 .InputfieldFileValidExtensions, .InputfieldImageValidExtensions { margin-left: 8px; color: var(--pw-text-muted); font-size: 13px; }
 
 /* language tabs on fields. With LanguageTabs jQueryUI=false (init.php) LanguageTabs.js only
@@ -185,3 +187,14 @@ ul.InputfieldFileList > li { list-style: none; }
 .langTabs > ul :is(li.pw-empty, li.langTabEmpty):not(.uk-active, .ui-tabs-active) a { color: color-mix(in srgb, var(--muted-foreground) 65%, transparent); }
 /* icon + text links inside fields (Add New, Create New, Add Filter): keep a gap */
 .InputfieldContent a > :is(.fa, .fas, .far):first-child { margin-right: .3em; }
+
+/* the option list of a dark <select>: Chromium on Windows paints it from the control (C27) */
+.InputfieldContent select option, .pw-select option { background: var(--popover); color: var(--popover-foreground); }
+
+/* Windows high contrast (forced colours): box-shadow rings are not drawn, so every focus shows
+ * as an outline; switches and pills get their borders back (audit C22) */
+@media (forced-colors: active) {
+	body.AdminThemeBridge :focus-visible, .InputfieldContent :is(input, select, textarea):focus { outline: 2px solid Highlight !important; outline-offset: 1px; }
+	.InputfieldToggle .InputfieldToggleGroup label, .pw-checkbox, .InputfieldContent input[type=checkbox], .InputfieldContent input[type=radio] { forced-color-adjust: auto; border: 1px solid CanvasText; }
+	.asmList .asmListItem, .selectize-input .item, .ui-button, .pw-button { border: 1px solid ButtonText; }
+}

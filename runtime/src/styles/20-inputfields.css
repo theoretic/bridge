@@ -48,7 +48,7 @@
 .InputfieldHeader.InputfieldHeaderHidden { display: none; }
 .InputfieldStateCollapsed > .InputfieldHeader.InputfieldHeaderHidden { display: block; }
 .InputfieldHeaderHidden > .InputfieldContent, .InputfieldHeaderHidden + .InputfieldContent { padding-top: calc(var(--pw-field-pad) + 3px); }
-.InputfieldContent { padding: 1px var(--pw-field-pad) 23px; }
+.InputfieldContent { padding: 1px var(--pw-field-pad) var(--pw-field-pad-bottom); }
 .InputfieldContent > *:first-child { margin-top: 0; }
 .InputfieldContent > *:last-child { margin-bottom: 0; }
 
@@ -77,10 +77,16 @@
 .InputfieldFieldset > .InputfieldContent, .InputfieldItemList > .InputfieldContent { padding-bottom: 10px; }
 .InputfieldFieldset > .InputfieldHeader { border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
 .InputfieldFieldset.InputfieldStateCollapsed > .InputfieldHeader { background: none; }
-.InputfieldRepeaterItem > .InputfieldHeader { padding: 10px var(--pw-field-pad); background: var(--muted); border-radius: var(--radius-xl) var(--radius-xl) 0 0; font-size: 14px; color: var(--foreground); }
+/* as specific as upstream InputfieldRepeater.css (.Inputfields .InputfieldRepeater
+ * .InputfieldRepeaterItem > .InputfieldHeader), which otherwise wins with its own padding and
+ * line-height (audit C10); a long label ends in an ellipsis */
+.InputfieldRepeaterItem > .InputfieldHeader, .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader { padding: 10px var(--pw-field-pad); background: var(--muted); border-radius: var(--radius-xl) var(--radius-xl) 0 0; font-size: 14px; line-height: 20px; color: var(--foreground); text-overflow: ellipsis; }
+/* item controls show on hover upstream: also with keyboard focus inside, and always on touch */
+.Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit:focus-within > .InputfieldRepeaterItemControls { opacity: 1 !important; }
+@media (hover: none) { .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit > .InputfieldRepeaterItemControls { opacity: 1 !important; } }
 .InputfieldRepeaterItem.InputfieldStateCollapsed > .InputfieldHeader { border-radius: var(--radius-xl); }
 .InputfieldRepeaterItem > .InputfieldContent { padding-top: 12px; }
-.Inputfields > .InputfieldMarkup > .InputfieldContent > .pw-table, .Inputfields > .InputfieldMarkup > .InputfieldContent > .AdminDataTable { margin: 0 calc(var(--pw-field-pad) * -1) -23px; width: calc(100% + var(--pw-field-pad) * 2); max-width: none; }
+.Inputfields > .InputfieldMarkup > .InputfieldContent > .pw-table, .Inputfields > .InputfieldMarkup > .InputfieldContent > .AdminDataTable { margin: 0 calc(var(--pw-field-pad) * -1) calc(var(--pw-field-pad-bottom) * -1); width: calc(100% + var(--pw-field-pad) * 2); max-width: none; }
 
 /* submit / button rows: no card */
 .Inputfields > .InputfieldSubmit, .Inputfields > .InputfieldButton {
@@ -94,7 +100,9 @@
 
 /* parity with Uikit's pw-inputfields*.less (structural rules upstream markup relies on) */
 .Inputfields, .Inputfields *, .Inputfields *::before, .Inputfields *::after { box-sizing: border-box; }
-[hidden] { display: none !important; }
+/* upstream's [hidden] rule, where upstream markup is (jQuery .show() on a [hidden] element elsewhere
+ * keeps working: audit C28) */
+:is(.Inputfields, #pw-content-body, #pw-masthead, .pw-dropdown-menu) [hidden] { display: none !important; }
 .Inputfields > .InputfieldMarkup.InputfieldHeaderHidden { outline: 0; box-shadow: none; background: none; }
 .Inputfields > .InputfieldSubmit, .Inputfields > .InputfieldButton { width: auto; }
 .InputfieldRenderValueMode .InputfieldSubmit, .InputfieldRenderValueMode .InputfieldButton { display: none; }
