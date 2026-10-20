@@ -10,10 +10,57 @@
  *   scripts see exactly what they expect.
  *
  * Public API (also for components): ProcessWireAdminTheme.legacy.load() -> Promise,
- * ProcessWireAdminTheme.legacy.loaded, ProcessWireAdminTheme.legacy.initElement(el).
+ * ProcessWireAdminTheme.legacy.loaded, ProcessWireAdminTheme.legacy.initElement(el),
+ * ProcessWireAdminTheme.runScripts(rootOrScripts, {legacy}) -> Promise.
  */
 
 var ProcessWireAdminTheme = {
+
+	/**
+	 * Run the inline scripts of markup that arrived after page load, as upstream's jQuery html()
+	 * does: each script becomes a live copy with all its attributes, in document order (one in the
+	 * page is replaced, one in a parsed document is appended to the body). Data scripts
+	 * (application/json, text/x-template, ld+json...) stay inert; a src already on the page is not
+	 * loaded twice. With {legacy: true} they run once the legacy stack is there: content the theme
+	 * marked data-bridge-legacy expects jQuery. The one runner for the theme's classic scripts and
+	 * the runtime (util/scripts.ts), replacing four that differed (audit B22).
+	 *
+	 * @param {Element|Element[]} rootOrScripts A container (its scripts run) or a list of scripts
+	 * @param {{legacy?: boolean}} [options]
+	 * @returns {Promise}
+	 */
+	runScripts: function(rootOrScripts, options) {
+		var self = this;
+		var scripts;
+		if(Array.isArray(rootOrScripts)) scripts = rootOrScripts;
+		else if(rootOrScripts && rootOrScripts.tagName === 'SCRIPT') scripts = [rootOrScripts];
+		else scripts = rootOrScripts ? Array.prototype.slice.call(rootOrScripts.querySelectorAll('script')) : [];
+		var run = function() {
+			var loaded = Array.prototype.map.call(document.querySelectorAll('script[src]'), function(s) { return s.getAttribute('src'); });
+			scripts.forEach(function(old) {
+				var type = (old.getAttribute('type') || '').trim().toLowerCase();
+				if(type && !/^(text|application)\/(java|ecma)script$|^module$/.test(type)) return;
+				// in this page (replaced where it is) or detached / in a parsed document (appended)
+				var here = old.isConnected && old.ownerDocument === document;
+				var src = old.getAttribute('src');
+				if(src && loaded.filter(function(u) { return u === src; }).length > (here ? 1 : 0)) return;
+				var live = document.createElement('script');
+				Array.prototype.forEach.call(old.attributes, function(a) { live.setAttribute(a.name, a.value); });
+				if(src) live.async = false;
+				else live.text = old.text || old.textContent || '';
+				if(here) old.parentNode.replaceChild(live, old);
+				else document.body.appendChild(live);
+			});
+		};
+		if(!scripts.length) return Promise.resolve();
+		if(options && options.legacy && !self.legacy.loaded) {
+			return self.legacy.load().then(run, function(err) {
+				if(window.console) console.error('Bridge: inline scripts not run, the legacy stack did not load', err);
+			});
+		}
+		run();
+		return Promise.resolve();
+	},
 
 	init: function() {
 		var cfg = this.config();
@@ -1087,6 +1134,38 @@ var ProcessWireAdminTheme = {
 		}
 	}
 };
+
+/**
+ * Synchronous stand-ins for the runtime's globals on pages without jQuery: Inputfields (the
+ * facade), Bridge and AdminDataTable arrive with the runtime, an import() that does not hold up
+ * DOMContentLoaded, while inline code calls them at once or at DOMContentLoaded (the field
+ * editor's ?focus= runs Inputfields.find(), tables print AdminDataTable.initTable()). Each stand-in
+ * records calls along any property path (Bridge.Inputfields.init(el), Bridge.dialog.close()) and
+ * returns undefined; the runtime replays them on the real object, in order, when it installs it
+ * (runtime/src/util/stubs.ts). On a legacy page upstream defines Inputfields and AdminDataTable
+ * itself, so only what is still undefined gets one (audit B4).
+ */
+(function(w) {
+	if(w.jQuery) return;
+	var make = function(queue, path) {
+		return new Proxy(function() {}, {
+			get: function(target, key) {
+				if(path.length === 0 && key === 'pwStub') return true;
+				if(path.length === 0 && key === 'pwQueue') return queue;
+				// never thenable, never converted: a stand-in is not a Promise or a primitive
+				if(typeof key === 'symbol' || key === 'then' || key === 'toJSON') return undefined;
+				return make(queue, path.concat(String(key)));
+			},
+			apply: function(target, thisArg, args) {
+				queue.push({ path: path, args: Array.prototype.slice.call(args) });
+				return undefined;
+			}
+		});
+	};
+	['Inputfields', 'Bridge', 'AdminDataTable'].forEach(function(name) {
+		if(typeof w[name] === 'undefined') w[name] = make([], []);
+	});
+})(window);
 
 /**
  * ProcessWire.alert / confirm / prompt on pages without the legacy stack: upstream defines them

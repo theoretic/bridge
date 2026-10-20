@@ -169,6 +169,37 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	check('K head Save dropdown opens after swap', kInfo.open, JSON.stringify(kInfo));
 	await page.click('#pw-dropdown-toggle-submit_save_copy');
 
+	// L: Enter in a text field of a multi-button form saves nothing (upstream's and the runtime's
+	// Enter guard; page-save.js runs first and must step aside), on a legacy and a native editor.
+	// With one button upstream lets Enter submit, so the case adds a second one (as an unpublished
+	// page's Publish / Save unpublished pair would be)
+	for(const id of [1264, process.env.NATIVE_ID].filter(Boolean)) {
+		await open(id);
+		const t0 = await val('#Inputfield_title');
+		await page.evaluate(() => {
+			const b = document.createElement('button');
+			b.type = 'submit';
+			b.name = 'bridge_check_second';
+			b.textContent = 'Second';
+			document.getElementById('submit_save').after(b);
+			window.__pwMark = 'm' + Math.random();
+			window.__pwSaved = null;
+			document.addEventListener('pw-page-saved', (e) => { window.__pwSaved = e.detail; }, { once: true });
+		});
+		const mark = await page.evaluate(() => window.__pwMark);
+		await page.fill('#Inputfield_title', t0 + ' L');
+		await page.focus('#Inputfield_title');
+		await page.keyboard.press('Enter');
+		await page.waitForTimeout(1500);
+		const st = await page.evaluate(() => ({ mark: window.__pwMark, saved: window.__pwSaved, focus: document.activeElement ? document.activeElement.tagName + '#' + document.activeElement.id : '' })).catch(() => ({ mark: null }));
+		check('L Enter in the title saves nothing (page ' + id + ')', st.mark === mark && !st.saved, JSON.stringify(st));
+		check('L the focus moved to a save button (page ' + id + ')', /^BUTTON#/.test(st.focus || ''), st.focus);
+		await open(id);
+		const t1 = await val('#Inputfield_title');
+		check('L title unchanged (page ' + id + ')', t1 === t0, t1);
+		if(t1 !== t0) { await page.fill('#Inputfield_title', t0); await save('#submit_save'); }
+	}
+
 	// J: classic paths
 	await open(1264);
 	r = await save('#submit_save', { shift: true });

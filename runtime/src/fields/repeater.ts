@@ -26,7 +26,8 @@
 import { makeSortable } from '../util/sortable';
 import { getCookie, setCookie } from '../util/cookie';
 import { choose } from '../util/choose';
-import { legacyLoaded, loadLegacy } from '../legacy';
+import { legacyLoaded } from '../legacy';
+import { runScripts } from '../util/scripts';
 import { open as openField, close as closeField, isCollapsed } from '../inputfields/collapse';
 
 const DEPTH = 50;
@@ -276,17 +277,9 @@ async function getHtml(url: string): Promise<Document> {
 }
 
 /** inline scripts of new content run (upstream runScripts); legacy content once the stack is there */
-async function runScripts(root: HTMLElement): Promise<void> {
+function runFieldScripts(root: HTMLElement): Promise<void> {
 	const scripts = Array.from(root.querySelectorAll<HTMLScriptElement>('.Inputfield script'));
-	if (!scripts.length) return;
-	if (!legacyLoaded() && root.querySelector('[data-bridge-legacy]')) await loadLegacy();
-	scripts.forEach(old => {
-		if (!old.isConnected) return;
-		const s = document.createElement('script');
-		Array.from(old.attributes).forEach(a => s.setAttribute(a.name, a.value));
-		s.text = old.text;
-		old.replaceWith(s);
-	});
+	return runScripts(scripts, { legacy: !!root.querySelector('[data-bridge-legacy]') });
 }
 
 function initContent(root: HTMLElement, source: string): void {
@@ -330,7 +323,7 @@ async function loadItem(item: HTMLElement): Promise<void> {
 		if (spinner) { spinner.classList.remove('fa-spin', 'fa-spinner'); spinner.classList.add(ic); }
 		updateAccordion(item);
 		toggleFamily(item, true);
-		if (fields) await runScripts(fields);
+		if (fields) await runFieldScripts(fields);
 	} catch (err) {
 		item.classList.remove('InputfieldRepeaterItemLoading');
 		if (content) content.style.display = '';
@@ -422,7 +415,7 @@ async function addItem(link: HTMLElement): Promise<void> {
 		updateAccordion(item);
 		item.querySelectorAll<HTMLElement>('.InputfieldRepeater').forEach(r => initRepeater(r));
 		repeater.classList.add('InputfieldStateChanged');
-		await runScripts(item);
+		await runFieldScripts(item);
 	} catch (err) {
 		if (spinner) { spinner.classList.remove(...on); spinner.classList.add(...off); }
 		console.error('Bridge repeater: add failed', err);

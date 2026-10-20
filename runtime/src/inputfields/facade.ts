@@ -9,8 +9,10 @@
  * #wrap_Inputfield_title).
  */
 
-import { open, close, toggle, isCollapsed, runScripts } from './collapse';
+import { open, close, toggle, isCollapsed } from './collapse';
 import { isHidden } from './dependencies';
+import { installGlobal } from '../util/stubs';
+import { runScripts } from '../util/scripts';
 
 type Target = string | Element | ArrayLike<Element> | null | undefined;
 
@@ -159,8 +161,9 @@ export const InputfieldsFacade = {
 					const mine = li.querySelector(':scope > .InputfieldContent');
 					if (!content || !mine) return;
 					mine.innerHTML = content.innerHTML;
-					runScripts(Array.from(mine.querySelectorAll('script')));
-					li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'reload' } }));
+					return runScripts(mine, { legacy: !!li.querySelector('[data-bridge-legacy]') }).then(() => {
+						li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'reload' } }));
+					});
 				})
 				.catch(err => console.error('Bridge: reload failed for', url, err));
 		});
@@ -168,9 +171,9 @@ export const InputfieldsFacade = {
 };
 
 export function installFacade(): void {
-	const w = window as unknown as { Inputfields?: unknown; jQuery?: unknown };
-	if (typeof w.jQuery !== 'undefined' || typeof w.Inputfields !== 'undefined') return;
-	w.Inputfields = InputfieldsFacade;
-	// after the theme's tabs have been set up (they run at DOMContentLoaded too)
+	if (typeof (window as unknown as { jQuery?: unknown }).jQuery !== 'undefined') return;
+	// over the theme's stand-in too; what inline code called on it runs after the theme's tabs
+	// have been set up (they run at DOMContentLoaded too)
+	if (!installGlobal('Inputfields', InputfieldsFacade, true)) return;
 	if (window.location.hash) window.setTimeout(() => InputfieldsFacade.hashAction(window.location.hash), 0);
 }

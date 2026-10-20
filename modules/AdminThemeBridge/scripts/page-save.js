@@ -62,6 +62,10 @@
 		var id = form && form.getAttribute ? form.getAttribute('id') : '';
 		if(id !== 'ProcessPageEdit' && !RULES[id]) return;
 		if(bypass) { bypass = false; return; }
+		// Enter in a text field (implicit submission: the submitter is the default button, the
+		// focus stays in the field) is upstream's and the runtime's Enter guard to block in a form
+		// with several buttons; this listener runs first (capture, <head>), so it steps aside (B5)
+		if(implicitSubmit(form, e.submitter)) return;
 		var rule = RULES[id] || null;
 		var isSave = e.submitter && (rule ? rule.submitters.indexOf(e.submitter.name) > -1 : SUBMITTERS.indexOf(e.submitter.id) > -1);
 		if(isSave && Date.now() < shiftUntil) {
@@ -77,6 +81,14 @@
 		if(busy) return;
 		save(form, e.submitter, rule);
 	}, true);
+
+	var NOT_ENTRY = ['submit', 'button', 'image', 'reset', 'hidden', 'checkbox', 'radio', 'file'];
+	function implicitSubmit(form, submitter) {
+		var active = document.activeElement;
+		if(!active || active === submitter || !form.contains(active) || !active.matches('input, select')) return false;
+		if(active.tagName === 'INPUT' && NOT_ENTRY.indexOf(active.type) > -1) return false;
+		return form.querySelectorAll('button[type=submit], input[type=submit]').length > 1;
+	}
 
 	function eligibleForm(form, submitter, rule) {
 		if(!submitter || rule.submitters.indexOf(submitter.name) < 0 || submitter.value === 'exit') return false;
@@ -287,16 +299,13 @@
 		} }));
 	}
 
-	// scripts parsed by DOMParser never run: replace each with a fresh element, in document order
+	// scripts parsed by DOMParser never run: the theme's shared runner makes live copies, in order
+	// (synchronous: no legacy wait, the editor's own stack state does not change on a save). Inline
+	// ones only: they carry the per-render set-up; a src one ran with the page, again would bind twice
 	function runScripts(root) {
 		var $ = window.jQuery;
 		var before = $ ? submitConfirmHandlers() : [];
-		Array.prototype.forEach.call(root.querySelectorAll('script'), function(old) {
-			if(old.src) return; // page scripts are already loaded; only inline ones carry per-render setup
-			var s = document.createElement('script');
-			s.text = old.text;
-			old.parentNode.replaceChild(s, old);
-		});
+		window.ProcessWireAdminTheme.runScripts(Array.prototype.slice.call(root.querySelectorAll('script:not([src])')));
 		// initPageEditForm() binds a document-delegated upload confirm on every run: keep the first
 		if($ && before.length) submitConfirmHandlers().forEach(function(h) {
 			if(before.indexOf(h) < 0) jQuery(document).off('click', 'button[type=submit]', h.handler);

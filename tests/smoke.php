@@ -162,6 +162,24 @@ check('Lister reads ProcessListerScript by id, not by offset', strpos($listerJs,
 check('legacy loader skips a script that fails to load', strpos($mainJs, 'urls.reduce(') === false && strpos($mainJs, 'console.warn(err.message)') !== false);
 $pageSaveJs = (string) @file_get_contents($themeDir . 'scripts/page-save.js');
 check('in-place save never re-posts a form it sent', !preg_match('/if\(!res\.redirected\) \{[^}]*classic\(/s', $pageSaveJs));
+// 0.8.6: one inline-script runner, synchronous stand-ins (behaviour: setup-check ?focus=, lister, repeater)
+check('theme script has the shared script runner', strpos($mainJs, 'runScripts: function(rootOrScripts, options)') !== false);
+check('theme script defines stand-ins for Inputfields, Bridge, AdminDataTable', strpos($mainJs, "['Inputfields', 'Bridge', 'AdminDataTable'].forEach(") !== false && strpos($mainJs, "key === 'pwStub'") !== false);
+// a runner copies a script's text into a new element and puts that in the page; loaders (src) don't
+$runnerRe = '/\.text = [^;]+;\s*[\w.]*(appendChild|replaceChild|replaceWith)\(/';
+$runners = array();
+foreach(array('scripts/lister.js', 'scripts/page-save.js') as $f) {
+	if(preg_match($runnerRe, (string) @file_get_contents($themeDir . $f))) $runners[] = $f;
+}
+$runtimeSrc = dirname(__DIR__) . '/runtime/src/';
+if(is_dir($runtimeSrc)) {
+	foreach(new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($runtimeSrc, \FilesystemIterator::SKIP_DOTS)) as $file) {
+		if(substr($file->getFilename(), -3) !== '.ts' || $file->getFilename() === 'scripts.ts') continue;
+		if(preg_match($runnerRe, (string) file_get_contents($file->getPathname()))) $runners[] = $file->getFilename();
+	}
+}
+check('no other inline-script runner (lister, page-save, runtime)', !count($runners), implode(', ', $runners));
+check('in-place save steps aside for Enter in a text field', strpos($pageSaveJs, 'if(implicitSubmit(form, e.submitter)) return;') !== false);
 if($modules->isInstalled('AdminThemeBridge')) {
 	// native status is per exact class (ADR 0015): a component's subclass may add jQuery scripts
 	if($modules->isInstalled('InputfieldBridgeText')) {

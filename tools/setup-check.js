@@ -114,6 +114,13 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	} else {
 		check('B icon field is native', false, 'no InputfieldIcon wrapper');
 	}
+	// ?focus= prints `jQuery(document).ready(... Inputfields.find('#field_label') ...)`, rewritten to
+	// run at DOMContentLoaded, before the runtime's facade exists: the theme's stand-in records it
+	const errs0 = errors.length;
+	await open('setup/field/edit/?id=1&focus=label');
+	check('B ?focus=label: no page error, the label field focused', await waitFor(() => document.activeElement && document.activeElement.id === 'field_label', null, 5000) && errors.length === errs0,
+		errors.slice(errs0).join(' | ') || await page.evaluate(() => document.activeElement ? document.activeElement.id : ''));
+	check('B the stand-in gave way to the facade', await page.evaluate(() => !!(window.Inputfields && window.Inputfields.native && !window.Inputfields.pwStub && window.Bridge && !window.Bridge.pwStub)));
 	await open('setup/field/');
 	await open('setup/field/edit/?id=1#find-columnWidth');
 	check('B #find-columnWidth opens the Input tab at the width', await waitFor(() => { const w = document.getElementById('wrap_columnWidth'); return !!w && w.offsetParent !== null; }, null, 5000));

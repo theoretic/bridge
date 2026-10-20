@@ -11,6 +11,7 @@ import { defineTabs } from './elements/pw-tabs';
 import { defineDialog, setupModalLinks, sharedDialog, DialogOptions } from './elements/pw-dialog';
 import type { LightboxItem } from './util/lightbox';
 import { legacyLoaded, loadLegacy, onLegacyLoaded } from './legacy';
+import { replay } from './util/stubs';
 import { load as loadComponent, loadFrom as loadComponentsFrom, loadProcess, loaded as loadedComponents } from './components';
 
 export const version = '1.0.0';
@@ -68,9 +69,15 @@ declare global {
 	}
 }
 
+// over the theme's stand-in: calls recorded before the runtime arrived run once it is set up
+const stub: unknown = window.Bridge;
 window.Bridge = Bridge;
-if (document.readyState === 'loading') {
-	document.addEventListener('DOMContentLoaded', () => Bridge.init(), { once: true });
-} else {
+const start = (): void => {
 	Bridge.init();
+	replay(stub, Bridge, 'Bridge');
+};
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', start, { once: true });
+} else {
+	start();
 }

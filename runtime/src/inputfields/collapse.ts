@@ -13,7 +13,8 @@
  * collapsed9 = "never collapse" (no toggle). Everything else toggles on header click.
  */
 
-import { legacyLoaded, loadLegacy } from '../legacy';
+import { legacyLoaded } from '../legacy';
+import { runScripts } from '../util/scripts';
 
 const HEADER = '.InputfieldHeader, .ui-widget-header';
 
@@ -107,26 +108,12 @@ async function loadAjax(li: HTMLElement, placeholder: HTMLElement): Promise<void
 		placeholder.replaceWith(tpl.content);
 		// inline scripts run, as with upstream's jQuery html(); content that needs the legacy stack
 		// (marked by the theme) runs them once the stack is there
-		if (scripts.length) {
-			if (!legacyLoaded() && li.querySelector('[data-bridge-legacy]')) await loadLegacy();
-			runScripts(scripts);
-		}
+		if (scripts.length) await runScripts(scripts, { legacy: !!li.querySelector('[data-bridge-legacy]') });
 		li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'InputfieldAjaxLoad' } }));
 		li.dispatchEvent(new CustomEvent('opened', { bubbles: true }));
 	} catch (err) {
 		li.classList.remove('InputfieldAjaxLoading');
 		console.error('Bridge: ajax load failed for', url, err);
-	}
-}
-
-/** Scripts inserted from a template never run: replace each with a live copy, in order */
-export function runScripts(scripts: HTMLScriptElement[]): void {
-	for (const old of scripts) {
-		if (!old.isConnected) continue;
-		const live = document.createElement('script');
-		for (const attr of Array.from(old.attributes)) live.setAttribute(attr.name, attr.value);
-		live.text = old.text;
-		old.replaceWith(live);
 	}
 }
 

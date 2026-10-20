@@ -37,7 +37,7 @@
 	function runScript(code) {
 		var s = document.createElement('script');
 		s.text = code;
-		document.body.appendChild(s);
+		window.ProcessWireAdminTheme.runScripts([s]);
 	}
 	function bridge() { return window.Bridge || null; }
 
@@ -314,7 +314,11 @@
 			var parsed = new DOMParser().parseFromString('<div>' + data + '</div>', 'text/html');
 			var part = parsed.getElementById('ProcessListerScript');
 			if(part) runListerScript(part.textContent);
-			$$('.Inputfield script', parsed).forEach(function(s) { runScript(s.text || s.textContent || ''); });
+			// inline scripts run as with upstream's .html(data): every one in fresh results (column
+			// and extension markup too), the field scripts of refreshed rows
+			var theme = window.ProcessWireAdminTheme;
+			if(refreshAll) theme.runScripts(results, { legacy: !!results.querySelector('[data-bridge-legacy]') });
+			else theme.runScripts($$('.Inputfield script', parsed));
 		},
 
 		_refreshRow: function(pageID, message) {

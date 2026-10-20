@@ -136,8 +136,9 @@ export function setupLanguageTabEvents(): void {
 		if (legacyLoaded() && !(field && field.querySelector('.langTabs[data-pw-native]'))) return;
 		const toggle = target.closest<HTMLElement>('.langTabsToggle');
 		if (toggle) {
+			// no stopPropagation: it would not stop the header's collapse (another document listener,
+			// registered first); collapse.ts skips clicks inside .langTabsToggle itself
 			e.preventDefault();
-			e.stopPropagation(); // the header would collapse the field
 			toggleAll(toggle);
 			return;
 		}

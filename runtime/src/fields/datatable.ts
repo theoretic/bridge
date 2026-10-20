@@ -16,6 +16,7 @@
  */
 
 import { legacyLoaded } from '../legacy';
+import { installGlobal } from '../util/stubs';
 
 const done = new WeakSet<HTMLTableElement>();
 const mobile = (): boolean => window.innerWidth <= 767;
@@ -140,14 +141,14 @@ export function init(table?: HTMLElement): void {
 		ready = true;
 		let timer = 0;
 		window.addEventListener('resize', () => { window.clearTimeout(timer); timer = window.setTimeout(resize, 500); });
-		const w = window as unknown as { AdminDataTable?: unknown; jQuery?: unknown };
-		if (typeof w.jQuery === 'undefined' && typeof w.AdminDataTable === 'undefined') {
-			w.AdminDataTable = {
+		if (typeof (window as unknown as { jQuery?: unknown }).jQuery === 'undefined') {
+			// over the theme's stand-in too, replaying the tables' inline initTable() calls
+			installGlobal('AdminDataTable', {
 				native: true,
 				init: () => document.querySelectorAll<HTMLTableElement>('table.AdminDataTable').forEach(initTable),
 				initTable: (t: HTMLTableElement | { 0?: HTMLTableElement }) => { const el = (t as { 0?: HTMLTableElement })[0] || t; if (el instanceof HTMLTableElement) initTable(el); },
 				resize,
-			};
+			});
 		}
 	}
 	if (table instanceof HTMLTableElement) initTable(table);

@@ -96,6 +96,8 @@ A Process is legacy unless it is a `BridgeComponent` or a core Process the theme
 | `WireTabs(target, options)` | native WireTabs (`scripts/wire-tabs.js`, 4.4) |
 | `pageEdit.init()` | native page editor (`scripts/page-edit.js`, 4.4) |
 | `setupStyleOrder()` | a stylesheet or `<style>` added to `<head>` after the theme sheets is moved in front of `link[data-pw-theme]`, so module styles always precede `theme.css` and `fields.css` |
+| `runScripts(rootOrScripts, {legacy})` | runs the inline scripts of markup inserted from HTML (innerHTML, a template, a parsed document), as upstream's jQuery `html()` does: each becomes a live copy with all its attributes, in document order; a script of this page is replaced where it is, one of a parsed document is appended to `<body>`; data types (`application/json`, `text/x-template`, `ld+json`...) stay inert; a `src` already on the page is not loaded again. With `legacy: true` they run after `legacy.load()`. Promise (synchronous without `legacy` or once the stack is there). The one runner of the theme scripts and the runtime (0.8.6) |
+| `Inputfields`, `Bridge`, `AdminDataTable` stand-ins (globals, pages without jQuery) | defined by the theme script where the global is still undefined, so inline code that runs before the runtime (the field editor's `?focus=`, a table's `AdminDataTable.initTable()`) works: a call along any property path (`Inputfields.find(x)`, `Bridge.dialog.close()`) is recorded and returns `undefined`; whoever installs the real object (runtime entry, Inputfields facade, AdminDataTable) replays the calls on it in order. `pwStub` is `true` on a stand-in; code that needs a return value waits for `pw-runtime-ready` (0.8.6) |
 
 Native widgets (dropdowns, notice close, head-button clone) are handled without jQuery and step aside the moment `window.jQuery` exists. The mobile nav toggle (`.pw-nav-toggle`, `body.pw-nav-open`) and the scheme toggle work with or without jQuery.
 
@@ -160,7 +162,7 @@ Layout: `.Inputfields` is a wrapping flex row; column widths are the server's in
 
 ### 4.3 Save without reload (scripts/page-save.js, ADR 0013)
 
-On `ProcessPageEdit` outside modal windows, a plain Save / Publish / Save + Keep Unpublished is posted with fetch and the editor is swapped in place; other save paths, Shift+click and the setting `pageSaveInPlace = 0` keep the classic submit. Events on `document`:
+On `ProcessPageEdit` outside modal windows, a plain Save / Publish / Save + Keep Unpublished is posted with fetch and the editor is swapped in place; other save paths, Shift+click and the setting `pageSaveInPlace = 0` keep the classic submit. Enter in a text field of a form with two or more submit buttons is left to the Enter guard (upstream's, or the runtime's, 4.2), which blocks it: no save (0.8.6). Events on `document`:
 
 | Event | When | `detail` |
 |---|---|---|
