@@ -62,3 +62,11 @@ PLAN.md had Phase 3 replace the core Process modules with same-named, clean-shee
 - The runtime grows by a chunk per screen, loaded only on that screen, like the field widgets.
 - Upstream changes to a Process script's DOM or events must be tracked: each native screen
   lists the upstream script it stands in for, with the core version it was checked against.
+
+## Addendum (0.9.1)
+
+Native Processes, their stand-in scripts and whether their edit form saves in place come from
+the same map as the native Inputfields (ADR 0015 addendum): `kind: process`, `scripts`,
+`scriptsAlways`, `saveInPlace`. `processScripts($class, $legacy)` reads it, a hook on
+`nativeMap()` can add a Process (with scripts of its own module), `nativeOverrides` can switch one
+to legacy.

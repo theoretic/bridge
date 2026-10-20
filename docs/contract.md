@@ -80,6 +80,18 @@ Scripts of site and third-party modules print as registered, except those writte
 
 A Process is legacy unless it is a `BridgeComponent` (its own class, not a subclass: 0.8.8) or a core Process the theme stands in for, by exact class (ADR 0016; `isNativeProcess()`, the list in 4.4).
 
+What is native is one map (0.9.1, ADR 0015 and 0016 addenda): `AdminThemeBridge::nativeMap()`, class => `kind` (`wrapper`, `type`, `field`, `process`) and, for Processes, `scripts` and `saveInPlace`, all by exact class, wrappers included (a subclass of `InputfieldMarkup` or `InputfieldFieldset` is legacy). A module adds its own classes with a hook:
+
+```php
+$wire->addHookAfter('AdminThemeBridge::nativeMap', function(HookEvent $e) {
+	$map = $e->return;
+	$map['InputfieldMyMarkup'] = array('kind' => 'wrapper');
+	$e->return = $map;
+});
+```
+
+`isNativeInputfield()` and `isNativeProcess()` are hookable too. A site switches a class either way in the theme settings, "Native or legacy, per class" (`nativeOverrides`: `ClassName=native` or `ClassName=legacy`, one per line), which wins over the map and over `BridgeComponent`.
+
 Other reasons (0.8.8): a site or module script that calls jQuery (comments do not count, a script that checks `window.jQuery` / `typeof jQuery` works without it) is deferred with the stack; when a Process adds such a script while it builds the screen, it is a reason (`Script:dir/file.js`), unless it comes from a field module directory one of whose Inputfields is legacy on the page (that Inputfield's reason covers it). An inline `<script>` calling jQuery inside native markup (`InputfieldMarkup` output) is a reason (`Inline:InputfieldMarkup`). The setting "Site scripts that never wait for the legacy stack" (`printScripts`, URL parts) prints a script whatever it contains.
 
 ## 4. Client side

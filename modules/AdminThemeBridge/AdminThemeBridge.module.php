@@ -25,7 +25,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.9.0',
+			'version' => '0.9.1',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -43,124 +43,108 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	const repairInterval = 600;
 
 	/**
-	 * Core Inputfield classes that ship no JavaScript and need nothing from the legacy stack
+	 * The native map (ADR 0015, 0016; audit A19): every class the theme runs without the legacy
+	 * stack, by exact class name, never by inheritance (a subclass may add jQuery scripts of its
+	 * own). One place instead of seven lists; read through nativeMap(), which hooks can extend,
+	 * and the nativeOverrides setting, which wins over everything.
 	 *
-	 * Wrappers (InputfieldWrapper, InputfieldForm, InputfieldFieldset) are native by type: their
-	 * markup is the theme's (setMarkup) and their behaviour (collapse, showIf) is the shell's.
+	 * kind:
+	 *  - wrapper: structure; markup is the theme's (setMarkup), behaviour (collapse, showIf) the shell's
+	 *  - type: a core Inputfield that ships no JavaScript
+	 *  - field: a core Inputfield whose script the runtime replaces (milestones 2.3 to 3.9)
+	 *  - process: a core Process the theme's scripts stand in for
+	 * pageWidget: the Page field (InputfieldPage) stays native with this widget (its own script, add
+	 *   new and dependent selects, is the runtime's)
+	 * scripts: a Process's stand-ins, printed after the theme script on a page without the stack
+	 * scriptsAlways: printed with the stack too (the image window answers an opener without jQuery)
+	 * saveInPlace: its edit form saves without a reload (scripts/page-save.js, milestone 3.8)
 	 *
-	 * @var array
+	 * @var array class => entry
 	 *
 	 */
-	protected $nativeTypes = array(
-		'InputfieldSubmit',
-		'InputfieldButton',
-		'InputfieldHidden',
-		'InputfieldMarkup',
+	protected $nativeBase = array(
+		// structure (core 3.0.274's InputfieldWrapper family)
+		'InputfieldWrapper' => array('kind' => 'wrapper'),
+		'InputfieldForm' => array('kind' => 'wrapper'),
+		'InputfieldFieldset' => array('kind' => 'wrapper'),
+		'InputfieldFieldsetOpen' => array('kind' => 'wrapper'),
+		'InputfieldFieldsetClose' => array('kind' => 'wrapper'),
+		'InputfieldFieldsetTabOpen' => array('kind' => 'wrapper'),
+		'InputfieldMarkup' => array('kind' => 'wrapper'),
+		// no script of their own
+		'InputfieldSubmit' => array('kind' => 'type'),
+		'InputfieldButton' => array('kind' => 'type'),
+		'InputfieldHidden' => array('kind' => 'type'),
+		// 2.3: what they need from inputfields.js (change tracking, leave warning, Enter guard,
+		// invalid-open, showIf/requiredIf, collapse, columns, the Text counter) is the runtime's
+		'InputfieldText' => array('kind' => 'field'),
+		'InputfieldTextarea' => array('kind' => 'field'),
+		'InputfieldCheckbox' => array('kind' => 'field'),
+		'InputfieldRadios' => array('kind' => 'field', 'pageWidget' => true),
+		'InputfieldSelect' => array('kind' => 'field', 'pageWidget' => true),
+		'InputfieldInteger' => array('kind' => 'field'),
+		'InputfieldFloat' => array('kind' => 'field'),
+		'InputfieldURL' => array('kind' => 'field'),
+		'InputfieldEmail' => array('kind' => 'field'),
+		'InputfieldName' => array('kind' => 'field'),
+		// 2.4: Toggle, Checkboxes and the selection widgets, their scripts replaced; language tabs
+		'InputfieldToggle' => array('kind' => 'field'),
+		'InputfieldCheckboxes' => array('kind' => 'field', 'pageWidget' => true),
+		'InputfieldSelectMultiple' => array('kind' => 'field', 'pageWidget' => true),
+		'InputfieldAsmSelect' => array('kind' => 'field', 'pageWidget' => true),
+		'InputfieldPageAutocomplete' => array('kind' => 'field', 'pageWidget' => true),
+		'InputfieldPageListSelect' => array('kind' => 'field', 'pageWidget' => true),
+		'InputfieldPageListSelectMultiple' => array('kind' => 'field', 'pageWidget' => true),
+		'InputfieldDatetime' => array('kind' => 'field'),
+		'InputfieldTextTags' => array('kind' => 'field', 'pageWidget' => true),
+		'InputfieldSelector' => array('kind' => 'field'),
+		// 3.1 to 3.6
+		'InputfieldPageTitle' => array('kind' => 'field'),
+		'InputfieldPageName' => array('kind' => 'field'),
+		'InputfieldFile' => array('kind' => 'field'),
+		'InputfieldImage' => array('kind' => 'field'),
+		'InputfieldRepeater' => array('kind' => 'field'),
+		'InputfieldPageTable' => array('kind' => 'field'),
+		'InputfieldIcon' => array('kind' => 'field'),
+		'InputfieldPassword' => array('kind' => 'field'),
+		// Processes (ADR 0016): what a screen renders keeps its own reasons (fields, scripts other
+		// modules add)
+		'ProcessPageEdit' => array('kind' => 'process', 'scripts' => array('scripts/wire-tabs.js', 'scripts/page-edit.js'), 'saveInPlace' => true),
+		'ProcessPageList' => array('kind' => 'process'),
+		'ProcessPageLister' => array('kind' => 'process', 'scripts' => array('scripts/wire-tabs.js', 'scripts/lister.js')),
+		// 3.6: setup and access; users, roles and permissions are ProcessPageType lists (a Lister)
+		// with ProcessPageEdit as their editor
+		'ProcessModule' => array('kind' => 'process', 'scripts' => array('scripts/wire-tabs.js', 'scripts/setup.js'), 'saveInPlace' => true),
+		'ProcessField' => array('kind' => 'process', 'scripts' => array('scripts/wire-tabs.js', 'scripts/setup.js'), 'saveInPlace' => true),
+		'ProcessTemplate' => array('kind' => 'process', 'scripts' => array('scripts/wire-tabs.js', 'scripts/setup.js'), 'saveInPlace' => true),
+		'ProcessUser' => array('kind' => 'process', 'scripts' => array('scripts/wire-tabs.js', 'scripts/page-edit.js', 'scripts/lister.js', 'scripts/setup.js'), 'saveInPlace' => true),
+		'ProcessRole' => array('kind' => 'process', 'scripts' => array('scripts/wire-tabs.js', 'scripts/page-edit.js', 'scripts/lister.js', 'scripts/setup.js'), 'saveInPlace' => true),
+		'ProcessPermission' => array('kind' => 'process', 'scripts' => array('scripts/wire-tabs.js', 'scripts/page-edit.js', 'scripts/lister.js', 'scripts/setup.js'), 'saveInPlace' => true),
+		// 3.7: the remaining core screens; Recent, Clone and Trash have no scripts of their own
+		'ProcessPageAdd' => array('kind' => 'process', 'scripts' => array('scripts/screens.js')),
+		'ProcessProfile' => array('kind' => 'process', 'scripts' => array('scripts/screens.js'), 'saveInPlace' => true),
+		'ProcessLogger' => array('kind' => 'process', 'scripts' => array('scripts/screens.js')),
+		'ProcessRecentPages' => array('kind' => 'process'),
+		'ProcessPageClone' => array('kind' => 'process'),
+		'ProcessPageTrash' => array('kind' => 'process'),
+		'ProcessPageEditLink' => array('kind' => 'process', 'scripts' => array('scripts/wire-tabs.js', 'scripts/link.js')),
+		// 3.9: image select, Crop and Variations
+		'ProcessPageEditImageSelect' => array('kind' => 'process', 'scripts' => array('scripts/image-select.js'), 'scriptsAlways' => true),
 	);
 
 	/**
-	 * Core field types native in the runtime (ADR 0015). Milestone 2.3: the scriptless ones; what
-	 * they need from inputfields.js (change tracking, leave warning, Enter guard, invalid-open,
-	 * showIf/requiredIf, collapse, columns, the Text counter) is the runtime's. Milestone 2.4:
-	 * Toggle and Checkboxes, whose scripts the runtime replaces, and language tabs (multi-language
-	 * fields). Milestone 3.1: PageTitle and PageName; 3.2: File and Image; 3.3: Repeater
-	 * and PageTable (ADR 0016). Exact class
-	 * names: subclasses (Password, CKEditor, third-party image fields, ...) add scripts and stay
-	 * legacy.
+	 * nativeMap() after hooks, for the request
 	 *
-	 * @var array
-	 *
+	 * @var array|null
 	 */
-	protected $nativeFieldTypes = array(
-		'InputfieldText',
-		'InputfieldTextarea',
-		'InputfieldCheckbox',
-		'InputfieldRadios',
-		'InputfieldSelect',
-		'InputfieldInteger',
-		'InputfieldFloat',
-		'InputfieldURL',
-		'InputfieldEmail',
-		'InputfieldName',
-		'InputfieldToggle',
-		'InputfieldCheckboxes',
-		'InputfieldSelectMultiple',
-		'InputfieldAsmSelect',
-		'InputfieldPageAutocomplete',
-		'InputfieldPageListSelect',
-		'InputfieldPageListSelectMultiple',
-		'InputfieldDatetime',
-		'InputfieldTextTags',
-		'InputfieldSelector',
-		'InputfieldPageTitle',
-		'InputfieldPageName',
-		'InputfieldFile',
-		'InputfieldImage',
-		'InputfieldRepeater',
-		'InputfieldPageTable',
-		'InputfieldIcon',
-		'InputfieldPassword',
-	);
+	protected $nativeMapCache = null;
 
 	/**
-	 * Core Process modules native in the runtime (ADR 0016), by exact class: the theme's scripts
-	 * stand in for theirs (scripts/wire-tabs.js, scripts/page-edit.js). What a screen renders keeps
-	 * its own reasons: fields, an embedded page tree, scripts other modules add.
+	 * The nativeOverrides setting, parsed
 	 *
-	 * @var array
-	 *
+	 * @var array|null class => 'native'|'legacy'
 	 */
-	protected $nativeProcesses = array(
-		'ProcessPageEdit',
-		'ProcessPageList',
-		'ProcessPageLister',
-		// the setup and access screens (milestone 3.6): scripts/setup.js
-		'ProcessModule',
-		'ProcessField',
-		'ProcessTemplate',
-		'ProcessUser',
-		'ProcessRole',
-		'ProcessPermission',
-		// the remaining core screens (milestone 3.7): scripts/screens.js, scripts/link.js; Recent,
-		// Clone and Trash have no scripts of their own
-		'ProcessPageAdd',
-		'ProcessProfile',
-		'ProcessLogger',
-		'ProcessRecentPages',
-		'ProcessPageClone',
-		'ProcessPageTrash',
-		'ProcessPageEditLink',
-		// image select, Crop and Variations (milestone 3.9): scripts/image-select.js
-		'ProcessPageEditImageSelect',
-	);
-
-	/**
-	 * Native setup Processes that are ProcessPageType lists: their list is a Lister, their editor
-	 * ProcessPageEdit (scripts/lister.js and scripts/page-edit.js come along)
-	 *
-	 * @var array
-	 *
-	 */
-	protected $nativePageTypes = array('ProcessUser', 'ProcessRole', 'ProcessPermission');
-
-	/**
-	 * Inner widgets an InputfieldPage may use and stay native (milestone 2.4): the Page field's own
-	 * script (add new, dependent selects) is the runtime's; it is native when its widget is.
-	 *
-	 * @var array
-	 *
-	 */
-	protected $nativePageWidgets = array(
-		'InputfieldSelect',
-		'InputfieldRadios',
-		'InputfieldCheckboxes',
-		'InputfieldSelectMultiple',
-		'InputfieldAsmSelect',
-		'InputfieldPageAutocomplete',
-		'InputfieldPageListSelect',
-		'InputfieldPageListSelectMultiple',
-		'InputfieldTextTags',
-	);
+	protected $nativeOverridesCache = null;
 
 	/**
 	 * Set once something on the page needs the legacy stack (auto mode)
@@ -250,6 +234,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->set('extendedBreadcrumbs', 1);
 		$this->set('pageSaveInPlace', 1);
 		$this->set('printScripts', '');
+		$this->set('nativeOverrides', '');
 		$this->setClasses(array(
 			'input' => 'pw-input',
 			'input-small' => 'pw-input pw-input-small',
@@ -674,7 +659,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public function hookInputfieldReady(HookEvent $event) {
 		/** @var Inputfield $inputfield */
 		$inputfield = $event->object;
-		if($inputfield instanceof InputfieldWrapper && !$inputfield instanceof InputfieldMarkup) return;
+		// the core structure is the theme's; a third-party wrapper subclass is marked like any field
+		if($this->isNativeWrapper($inputfield) && $inputfield->className() !== 'InputfieldMarkup') return;
 		$this->markInputfield($inputfield, false);
 	}
 
@@ -875,17 +861,83 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	}
 
 	/**
-	 * Is this Process fine without the legacy stack (its own client part)? A component, or a core
-	 * Process the theme stands in for, by exact class (ADR 0016)
+	 * The native map (see $nativeBase): hook after to add, change or remove entries, e.g.
+	 * `$wire->addHookAfter('AdminThemeBridge::nativeMap', function($e) { $map = $e->return;
+	 * $map['InputfieldMyMarkup'] = array('kind' => 'wrapper'); $e->return = $map; });`
+	 *
+	 * @return array class => entry
+	 *
+	 */
+	public function ___nativeMap() {
+		return $this->nativeBase;
+	}
+
+	/**
+	 * nativeMap(), once per request
+	 *
+	 * @return array
+	 *
+	 */
+	public function getNativeMap() {
+		if($this->nativeMapCache === null) {
+			$map = $this->nativeMap();
+			$this->nativeMapCache = is_array($map) ? $map : $this->nativeBase;
+		}
+		return $this->nativeMapCache;
+	}
+
+	/**
+	 * The nativeOverrides setting: one `ClassName=native` or `ClassName=legacy` per line; other
+	 * lines are ignored (see nativeOverrideErrors())
+	 *
+	 * @return array class => 'native'|'legacy'
+	 *
+	 */
+	public function set($key, $value) {
+		if($key === 'nativeOverrides') $this->nativeOverridesCache = null;
+		return parent::set($key, $value);
+	}
+
+	public function getNativeOverrides() {
+		if($this->nativeOverridesCache !== null) return $this->nativeOverridesCache;
+		$this->nativeOverridesCache = array();
+		foreach(preg_split('/\r?\n/', (string) $this->get('nativeOverrides')) as $line) {
+			if(preg_match('/^\s*([A-Z][A-Za-z0-9_]*)\s*=\s*(native|legacy)\s*$/', $line, $m)) $this->nativeOverridesCache[$m[1]] = $m[2];
+		}
+		return $this->nativeOverridesCache;
+	}
+
+	/**
+	 * Lines of the nativeOverrides setting that are not `ClassName=native|legacy`
+	 *
+	 * @return array
+	 *
+	 */
+	public function nativeOverrideErrors() {
+		$bad = array();
+		foreach(preg_split('/\r?\n/', (string) $this->get('nativeOverrides')) as $line) {
+			if(trim($line) === '' || strpos(ltrim($line), '#') === 0) continue;
+			if(!preg_match('/^\s*[A-Z][A-Za-z0-9_]*\s*=\s*(native|legacy)\s*$/', $line)) $bad[] = trim($line);
+		}
+		return $bad;
+	}
+
+	/**
+	 * Is this Process fine without the legacy stack (its own client part)? The override setting
+	 * first, then a component (its own class, not a subclass: ADR 0015), then the native map by
+	 * exact class (ADR 0016). Hookable.
 	 *
 	 * @param Process $process
 	 * @return bool
 	 *
 	 */
-	public function isNativeProcess(Process $process) {
-		// as for Inputfields (ADR 0015): a component counts for its own class, not its subclasses
+	public function ___isNativeProcess(Process $process) {
+		$class = $process->className();
+		$overrides = $this->getNativeOverrides();
+		if(isset($overrides[$class])) return $overrides[$class] === 'native';
 		if($process instanceof BridgeComponent) return $this->componentClass($process) === get_class($process);
-		return in_array($process->className(), $this->nativeProcesses, true);
+		$map = $this->getNativeMap();
+		return isset($map[$class]) && $map[$class]['kind'] === 'process';
 	}
 
 	/**
@@ -910,21 +962,23 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public function nativeProcessScripts() {
 		$process = $this->wire()->process;
 		if(!$process instanceof Process) return array();
-		// the image window's script also on a legacy window: it answers an opener without jQuery
-		if($process->className() === 'ProcessPageEditImageSelect') return array('scripts/image-select.js');
-		if($this->useLegacyStack()) return array();
-		if($process->className() === 'ProcessPageEdit') return array('scripts/wire-tabs.js', 'scripts/page-edit.js');
-		$class = $process->className();
-		if($class === 'ProcessPageLister') return array('scripts/wire-tabs.js', 'scripts/lister.js');
-		if(in_array($class, $this->nativePageTypes, true)) {
-			return array('scripts/wire-tabs.js', 'scripts/page-edit.js', 'scripts/lister.js', 'scripts/setup.js');
-		}
-		if(in_array($class, array('ProcessModule', 'ProcessField', 'ProcessTemplate'), true)) {
-			return array('scripts/wire-tabs.js', 'scripts/setup.js');
-		}
-		if(in_array($class, array('ProcessPageAdd', 'ProcessProfile', 'ProcessLogger'), true)) return array('scripts/screens.js');
-		if($class === 'ProcessPageEditLink') return array('scripts/wire-tabs.js', 'scripts/link.js');
-		return array();
+		return $this->processScripts($process->className(), $this->useLegacyStack());
+	}
+
+	/**
+	 * A Process class's stand-in scripts from the native map (nativeProcessScripts())
+	 *
+	 * @param string $class
+	 * @param bool $legacy Is the stack on the page? (then only scriptsAlways entries print theirs)
+	 * @return array Paths relative to the theme directory
+	 *
+	 */
+	public function processScripts($class, $legacy = false) {
+		$map = $this->getNativeMap();
+		$entry = isset($map[$class]) && $map[$class]['kind'] === 'process' ? $map[$class] : null;
+		if(!$entry || empty($entry['scripts'])) return array();
+		if($legacy && empty($entry['scriptsAlways'])) return array();
+		return array_values((array) $entry['scripts']);
 	}
 
 	/**
@@ -940,10 +994,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public function saveInPlaceProcess($process) {
 		if(!$process instanceof Process) return false;
 		if($process instanceof ProcessPageEdit) return true;
-		return in_array($process->className(), array(
-			'ProcessField', 'ProcessTemplate', 'ProcessModule', 'ProcessProfile',
-			'ProcessUser', 'ProcessRole', 'ProcessPermission',
-		), true);
+		$map = $this->getNativeMap();
+		$class = $process->className();
+		return isset($map[$class]) && !empty($map[$class]['saveInPlace']);
 	}
 
 	/**
@@ -1007,24 +1060,45 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	}
 
 	/**
-	 * Is this Inputfield fine without the legacy stack?
+	 * Is this Inputfield fine without the legacy stack? The override setting first, then the
+	 * native map by exact class (wrappers included: a subclass of InputfieldMarkup or
+	 * InputfieldFieldset may add scripts like any other; audit A19), the Page field by its widget,
+	 * a component by its own class. Hookable.
 	 *
 	 * @param Inputfield $inputfield
 	 * @return bool
 	 *
 	 */
-	public function isNativeInputfield(Inputfield $inputfield) {
-		if($inputfield instanceof InputfieldWrapper) return true;
-		if(in_array($inputfield->className(), $this->nativeTypes, true)) return true;
-		if(in_array($inputfield->className(), $this->nativeFieldTypes, true)) return true;
-		if($inputfield->className() === 'InputfieldPage') {
+	public function ___isNativeInputfield(Inputfield $inputfield) {
+		$class = $inputfield->className();
+		$overrides = $this->getNativeOverrides();
+		if(isset($overrides[$class])) return $overrides[$class] === 'native';
+		$map = $this->getNativeMap();
+		if(isset($map[$class]) && $map[$class]['kind'] !== 'process') return true;
+		if($class === 'InputfieldPage') {
 			$widget = ltrim((string) $inputfield->getSetting('inputfield'), '_');
-			return in_array($widget === '' ? 'InputfieldSelect' : $widget, $this->nativePageWidgets, true);
+			if($widget === '') $widget = 'InputfieldSelect';
+			if(isset($overrides[$widget])) return $overrides[$widget] === 'native';
+			return isset($map[$widget]) && !empty($map[$widget]['pageWidget']);
 		}
 		// a component counts for its own class only: a subclass may add jQuery scripts of its own
 		// (ADR 0015: native by exact class, never by inheritance)
 		if($inputfield instanceof BridgeComponent) return $this->componentClass($inputfield) === get_class($inputfield);
 		return false;
+	}
+
+	/**
+	 * Is this one of the structural wrappers of the native map (InputfieldWrapper, Form, Fieldset,
+	 * FieldsetOpen/Close/TabOpen, Markup), by exact class?
+	 *
+	 * @param Inputfield $inputfield
+	 * @return bool
+	 *
+	 */
+	public function isNativeWrapper(Inputfield $inputfield) {
+		$map = $this->getNativeMap();
+		$class = $inputfield->className();
+		return isset($map[$class]) && $map[$class]['kind'] === 'wrapper';
 	}
 
 	/**
@@ -1503,6 +1577,19 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$f->attr('rows', 3);
 		$f->attr('value', (string) $this->get('printScripts'));
 		$f->collapsed = Inputfield::collapsedBlank;
+		$inputfields->add($f);
+
+		/** @var InputfieldTextarea $f */
+		$f = $modules->get('InputfieldTextarea');
+		$f->attr('name', 'nativeOverrides');
+		$f->label = $this->_('Native or legacy, per class');
+		$f->description = $this->_('One "ClassName=native" or "ClassName=legacy" per line, for an Inputfield or Process class: "native" runs it without the legacy stack (it must need neither jQuery nor inputfields.js), "legacy" always loads the stack where it renders. Wins over the theme\'s own list and over BridgeComponent.');
+		$f->notes = $this->_('Example: InputfieldSeoNeoPreview=native');
+		$f->attr('rows', 3);
+		$f->attr('value', (string) $this->get('nativeOverrides'));
+		$bad = $this->nativeOverrideErrors();
+		if(count($bad)) $f->error(sprintf($this->_('Ignored (not ClassName=native|legacy): %s'), implode(', ', $bad)));
+		$f->collapsed = count($bad) ? Inputfield::collapsedNo : Inputfield::collapsedBlank;
 		$inputfields->add($f);
 
 		/** @var InputfieldInteger $f */

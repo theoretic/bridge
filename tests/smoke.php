@@ -315,6 +315,45 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	check('a field module script without a legacy Inputfield of its module needs the stack', $needed && in_array('Script:FieldtypeSmoke/smoke.js', $reasons, true), implode(',', $reasons));
 	list($needed) = $settle(array('/x/FieldtypeSmoke/' => true));
 	check('with a legacy Inputfield of its module it adds no reason of its own', !$needed);
+	// 0.9.1 (A19): one native map, wrappers by exact class, hookable, overridden per class
+	check('InputfieldFieldsetOpen and InputfieldFieldsetTabOpen are native', $bridge->isNativeInputfield($modules->get('InputfieldFieldsetOpen')) && $bridge->isNativeInputfield($modules->get('InputfieldFieldsetTabOpen')));
+	if(!class_exists('ProcessWire\\BridgeSmokeSubMarkup', false)) {
+		eval('namespace ProcessWire; class BridgeSmokeSubMarkup extends InputfieldMarkup {}');
+	}
+	$subMarkup = $modules->wire(new BridgeSmokeSubMarkup());
+	check('a subclass of InputfieldMarkup is not native (exact class)', !$bridge->isNativeInputfield($subMarkup));
+	$probe = $modules->wire(new AdminThemeBridge());
+	$probe->addHookAfter('nativeMap', function(HookEvent $e) { $map = $e->return; $map['BridgeSmokeSubMarkup'] = array('kind' => 'wrapper'); $e->return = $map; });
+	check('a nativeMap hook makes a class native', $probe->isNativeInputfield($subMarkup) && $probe->isNativeWrapper($subMarkup));
+	$probe = $modules->wire(new AdminThemeBridge());
+	$probe->set('nativeOverrides', "InputfieldText=legacy\nBridgeSmokeSubMarkup = native\nnot a rule");
+	check('nativeOverrides wins over the map, both ways', !$probe->isNativeInputfield($modules->get('InputfieldText')) && $probe->isNativeInputfield($subMarkup));
+	check('nativeOverrides reports lines it ignores', $probe->nativeOverrideErrors() === array('not a rule'), json_encode($probe->nativeOverrideErrors()));
+	$probe->set('nativeOverrides', 'ProcessPageEdit=legacy');
+	$ppeProbe = $modules->getModule('ProcessPageEdit', array('noInit' => true, 'noPermissionCheck' => true));
+	check('nativeOverrides applies to Processes', !$probe->isNativeProcess($ppeProbe));
+	// the stand-in scripts per Process, as the 0.9.0 if-chain had them
+	$table = array(
+		'ProcessPageEdit' => 'wire-tabs,page-edit', 'ProcessPageLister' => 'wire-tabs,lister',
+		'ProcessUser' => 'wire-tabs,page-edit,lister,setup', 'ProcessRole' => 'wire-tabs,page-edit,lister,setup', 'ProcessPermission' => 'wire-tabs,page-edit,lister,setup',
+		'ProcessModule' => 'wire-tabs,setup', 'ProcessField' => 'wire-tabs,setup', 'ProcessTemplate' => 'wire-tabs,setup',
+		'ProcessPageAdd' => 'screens', 'ProcessProfile' => 'screens', 'ProcessLogger' => 'screens',
+		'ProcessPageEditLink' => 'wire-tabs,link', 'ProcessPageEditImageSelect' => 'image-select',
+		'ProcessPageList' => '', 'ProcessRecentPages' => '', 'ProcessPageClone' => '', 'ProcessPageTrash' => '', 'ProcessHome' => '',
+	);
+	$wrong = array();
+	foreach($table as $class => $want) {
+		$got = implode(',', array_map(function($f) { return basename($f, '.js'); }, $bridge->processScripts($class)));
+		if($got !== $want) $wrong[] = "$class: $got";
+	}
+	check('stand-in scripts per Process match the 0.9.0 table', !count($wrong), implode('; ', $wrong));
+	check('with the stack only the image window keeps its script', $bridge->processScripts('ProcessPageEdit', true) === array() && $bridge->processScripts('ProcessPageEditImageSelect', true) === array('scripts/image-select.js'));
+	$saveInPlace = array();
+	foreach(array('ProcessField', 'ProcessTemplate', 'ProcessModule', 'ProcessProfile', 'ProcessUser', 'ProcessRole', 'ProcessPermission', 'ProcessPageList', 'ProcessPageLister') as $class) {
+		$p = $modules->getModule($class, array('noInit' => true, 'noPermissionCheck' => true));
+		if($p) $saveInPlace[$class] = $bridge->saveInPlaceProcess($p);
+	}
+	check('save in place for the same screens as before', array_keys(array_filter($saveInPlace)) === array('ProcessField', 'ProcessTemplate', 'ProcessModule', 'ProcessProfile', 'ProcessUser', 'ProcessRole', 'ProcessPermission'), json_encode($saveInPlace));
 	// A6: AdminThemeBoss's never-saved settings are its defaults (both on)
 	check('bossForcesUikit() reads Boss defaults', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "!array_key_exists(\$key, \$boss)") !== false);
 	// A20: both sides guard the interface declaration

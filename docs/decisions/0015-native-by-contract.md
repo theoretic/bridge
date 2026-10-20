@@ -71,3 +71,20 @@ and the inline `initPageEditForm()` call. A jQuery-free page editor is Phase 3 w
 - Server-side markup stays upstream's; Basecoat markup arrives only where Bridge owns the
   element (client components, Phase 3 screens).
 - ADR 0004 still holds for Phase 3 Process modules, which must replace upstream.
+
+## Addendum (0.9.1): one map, hookable, overridable
+
+The native classes were seven hand-kept lists plus an if-chain, and wrappers were native by
+`instanceof InputfieldWrapper`, against the rule above: `InputfieldSeoNeoPreview extends
+InputfieldMarkup` counted as native by inheritance. Now:
+
+- One map, `AdminThemeBridge::$nativeBase`: class => `kind` (`wrapper`, `type`, `field`,
+  `process`), `pageWidget`, `scripts`, `scriptsAlways`, `saveInPlace`. Wrappers by exact class
+  too: `InputfieldWrapper`, `InputfieldForm`, `InputfieldFieldset`, `InputfieldFieldsetOpen`,
+  `InputfieldFieldsetClose`, `InputfieldFieldsetTabOpen`, `InputfieldMarkup`. A subclass of any
+  of them is legacy.
+- Hookable: `___nativeMap()` (add, change or remove entries), `___isNativeInputfield()`,
+  `___isNativeProcess()`.
+- The setting "Native or legacy, per class" (`nativeOverrides`, `ClassName=native|legacy` per
+  line) wins over the map, the Page field's widget and `BridgeComponent`. `legacyStack=always`
+  is unchanged.

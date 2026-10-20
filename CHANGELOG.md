@@ -1,5 +1,34 @@
 # Changelog
 
+## AdminThemeBridge 0.9.1: audit phase 7, one hookable native map (2026-10-20)
+
+- **One map of what is native** (`$nativeBase`, `nativeMap()`; audit A19). Seven hand-kept lists and an if-chain are now one table, class => `kind` plus Process details:
+  - kinds: `wrapper`, `type`, `field`, `process`;
+  - `pageWidget`: Page field widgets;
+  - `scripts`: a Process's stand-in scripts;
+  - `scriptsAlways`: those scripts print with the stack too;
+  - `saveInPlace`: the edit form saves without a reload.
+  `isNativeInputfield()`, `isNativeProcess()`, `nativeProcessScripts()` (through the new `processScripts($class, $legacy)`) and `saveInPlaceProcess()` read it.
+- **Wrappers by exact class** (ADR 0015 addendum): `InputfieldWrapper`, `Form`, `Fieldset`, `FieldsetOpen`, `FieldsetClose`, `FieldsetTabOpen` and `Markup` are native. Every `instanceof InputfieldWrapper` used to count, so a third-party subclass that adds scripts (`InputfieldSeoNeoPreview extends InputfieldMarkup`, seven sites) was native by inheritance. A subclass is now legacy unless the map or an override says otherwise.
+- **Hookable**: `___nativeMap()` (a module adds its classes, see `docs/contract.md` §3), `___isNativeInputfield()`, `___isNativeProcess()`.
+- **Per-class override in the settings**: "Native or legacy, per class" (`nativeOverrides`, one `ClassName=native` or `ClassName=legacy` per line) wins over the map, the Page field's widget and `BridgeComponent`. Lines that do not parse are shown as an error on the field. `legacyStack=always` is unchanged.
+- ADR 0015 and 0016 addenda, `docs/contract.md` §3.
+- New checks (`tests/smoke.php`):
+  - `FieldsetOpen` and `FieldsetTabOpen` are native, a subclass of `InputfieldMarkup` is not;
+  - a `nativeMap` hook makes a class native;
+  - an override wins both ways, for Inputfields and Processes, and reports the lines it ignores;
+  - the stand-in scripts per Process equal the 0.9.0 if-chain, with the stack too;
+  - the save-in-place screens are unchanged.
+
+- `conformance/run.php`: the script-warning check asks the page's own `legacy` flag whether a screen is native. The printed list it read before never holds the stack's scripts (they are theme assets for the comparison). The counts are unchanged: nothing is deferred on a legacy screen.
+- Gate 1 on all nine sandboxes (`conformance/RESULTS-2026-10-20.md`): 0 differ and 0 failed everywhere. The script warnings point at Fluency (`fluency.js`, deferred on 62 and 69 native screens of testfly and txm, so its translation buttons are missing there) and at three module config screens; both are open, see the results file.
+
+Checked on the atispro sandbox, each in Chromium and Firefox:
+- conformance 162 of 163 identical, 0 differ
+- Gate 2 70/70
+- lister 26/26, page-edit 36/36, page-save 48/48, screens 26/26 (Firefox 25), setup 30/30, pagetree 21/21, repeater 35/35, form-save 19/19, image-select 20/20, image-file 34/34 (upload case skipped)
+- scheme scan 0 findings, dropdown stress 0 violations, smoke passes
+
 ## AdminThemeBridge 0.9.0: audit phase 6, built classic scripts, asset loading (2026-10-20)
 
 - **The theme's classic scripts are built** (`runtime/scripts/build-classic.mjs`, audit B20, C32). Their sources moved to `runtime/src/classic/`; their history up to 0.8.9 stays under the old path (`git log -- modules/AdminThemeBridge/scripts/main.js`), which now holds the built file. `npm run build` minifies them with esbuild into `modules/AdminThemeBridge/scripts/` under the same names, so `_head.php`, the sandboxes' junctions and `nativeProcessScripts()` keep their paths. Each file stays a plain classic script (no bundle wrapper), so its top-level globals stay globals. Source maps go to `runtime/.maps/` (not committed). Together they drop from about 75 kB to 38 kB gzip (`main.js` 20.4 to 10.1 kB). `npm run watch:classic` rebuilds on change.

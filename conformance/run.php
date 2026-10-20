@@ -280,6 +280,9 @@ function digest($status, $html, $url) {
 	// Bridge in auto mode hands the legacy stack to the client instead of printing it on a native
 	// page (ProcessWire.config.AdminThemeBridge.legacyScripts); those scripts are available on
 	// demand, so they count as registered for the comparison
+	// the page's own verdict (ProcessWire.config.AdminThemeBridge.legacy): the stack's scripts are
+	// theme assets (isThemeAsset), so the printed list cannot tell
+	$d['legacy'] = (bool) preg_match('~"AdminThemeBridge":\{[^{}]*?"legacy":true~', $html);
 	if(preg_match('~"legacyScripts":(\[[^\]]*\])~', $html, $m)) {
 		$deferred = json_decode($m[1], true);
 		if(is_array($deferred)) foreach($deferred as $src) {
@@ -374,7 +377,7 @@ function digest($status, $html, $url) {
 function scriptWarnings(array $bridge) {
 	$warn = array();
 	$wire = '/wire/';
-	$native = !preg_grep('~/wire/modules/Jquery/JqueryCore/~', $bridge['printed'] ?? array());
+	$native = empty($bridge['legacy']);
 	foreach($bridge['deferred'] ?? array() as $src) {
 		if(strpos($src, $wire) !== false) continue;
 		if($native) $warn[] = "deferred site script on a native screen (runs only if the stack loads): $src";
