@@ -25,7 +25,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.9.2',
+			'version' => '0.9.3',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -169,6 +169,47 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 *
 	 */
 	protected $scriptsBeforeProcess = null;
+
+	/**
+	 * Site scripts added on every admin page that call jQuery only for certain fields: printed
+	 * where none of those fields render (they run without it there), a legacy reason where one
+	 * does. Read through scriptNeeds(), which hooks can extend; the printScripts setting still
+	 * prints a script everywhere.
+	 *
+	 * Key: a part of the script URL. Value: where it needs jQuery, 'languages' (a multi-language
+	 * Inputfield, useLanguages) or an Inputfield class name (exact class).
+	 *
+	 * @var array URL part => condition
+	 *
+	 */
+	protected $scriptNeedsBase = array(
+		// Fluency: translation buttons on multi-language fields, set up on window load (so it cannot
+		// wait for a stack loaded later); each translation ends in `$(field).trigger('change')`.
+		// Its admin menu tweak (the Fluency item opens in a modal) is vanilla.
+		'/Fluency/assets/bundle/scripts/fluency.js' => 'languages',
+	);
+
+	/**
+	 * scriptNeeds() after hooks, for the request
+	 *
+	 * @var array|null
+	 */
+	protected $scriptNeedsCache = null;
+
+	/**
+	 * Conditions of scriptNeeds() met on this request: 'languages' and the classes of the
+	 * Inputfields rendered
+	 *
+	 * @var array condition => true
+	 */
+	protected $renderedNeeds = array();
+
+	/**
+	 * scriptNeeds() keys already settled (their script was registered when the condition was met)
+	 *
+	 * @var array URL part => true
+	 */
+	protected $settledNeeds = array();
 
 	/**
 	 * Field module directories whose jQuery script the Process added (needScriptsAddedByProcess):
@@ -673,6 +714,10 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 */
 	protected function markInputfield(Inputfield $inputfield, $record) {
 		$class = $inputfield->className();
+		if($record) {
+			$this->renderedNeeds[$class] = true;
+			if($inputfield->getSetting('useLanguages')) $this->renderedNeeds['languages'] = true;
+		}
 		if($this->isNativeInputfield($inputfield)) {
 			$tag = '';
 			if($inputfield instanceof BridgeComponent) {
@@ -739,12 +784,41 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$controller = $event->object;
 		$process = $controller->getProcess();
 		if(!$process) return;
-		$this->needScriptsAddedByProcess($process);
-		if($this->isNativeProcess($process)) {
-			if(is_string($event->return)) $event->return = $this->nativeInlineScripts($event->return);
-			return;
+		if($this->recordProcess($process) && is_string($event->return)) {
+			$event->return = $this->nativeInlineScripts($event->return);
 		}
+	}
+
+	/**
+	 * The Process's legacy reasons: the scripts it added (needScriptsAddedByProcess()), and itself
+	 * unless it is native
+	 *
+	 * @param Process $process
+	 * @return bool Is the Process native?
+	 *
+	 */
+	protected function recordProcess(Process $process) {
+		$this->needScriptsAddedByProcess($process);
+		if($this->isNativeProcess($process)) return true;
 		$this->needLegacy('Process:' . $process->className());
+		return false;
+	}
+
+	/**
+	 * Called by default.php once the Process is done: a Process that threw (wire/core/admin.php
+	 * catches it and shows the error) never reached hookProcessExecute(). It keeps the reasons it
+	 * would have had, so its own script (ProcessHannaCode.js, added when it initialised) is not
+	 * left deferred on a screen that is not native.
+	 *
+	 */
+	public function settleProcess() {
+		if($this->scriptsBeforeProcess === null) return;
+		$process = $this->wire()->process;
+		if($process instanceof Process) {
+			$this->recordProcess($process);
+		} else {
+			$this->scriptsBeforeProcess = null;
+		}
 	}
 
 	/**
@@ -766,6 +840,11 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * Process), and so does the Process's own script (added when it initialises): a native
 	 * Process (a component such as ProcessBridgeDemo) answers for it.
 	 *
+	 * A module's config screen (ProcessModule, `edit?name=X`) is the exception: a jQuery script
+	 * from X's own directory is that screen's, whenever it was added. Modules add it at init or
+	 * ready when they see `?name=X` (AdminOnSteroids' aos_config.min.js, GeneralSettings'
+	 * Settings.js), before the Process starts.
+	 *
 	 * @param Process $process
 	 *
 	 */
@@ -775,22 +854,57 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$before = $this->scriptsBeforeProcess;
 		$this->scriptsBeforeProcess = null;
 		$own = $config->urls($process->className());
+		$configured = $this->moduleConfigUrl($process);
 		foreach($config->scripts->urls() as $url) {
 			$url = (string) $url;
-			if(in_array($url, $before, true) || strpos($url, $config->urls->wire) === 0) continue;
+			if(strpos($url, $config->urls->wire) === 0) continue;
+			$forConfig = $configured !== '' && strpos($url, $configured) === 0;
+			if(!$forConfig && in_array($url, $before, true)) continue;
 			if($own && strpos($url, $own) === 0) continue;
 			if(!$this->isJqueryScript($url)) continue;
 			$path = preg_replace('/[?#].*$/', '', $url);
 			$dir = $this->siteModuleDir($path);
-			$reason = 'Script:' . basename(dirname($path)) . '/' . basename($path);
+			$reason = $this->scriptReason($path);
 			// a field module's script (added as its Inputfield renders) has the Inputfield's reason,
 			// if one of its Inputfields was legacy; settled in useLegacyStack()
-			if($dir !== '' && $this->isFieldModuleDir($dir)) {
+			if(!$forConfig && $dir !== '' && $this->isFieldModuleDir($dir)) {
 				$this->pendingScriptReasons[$dir] = $reason;
 				continue;
 			}
 			$this->needLegacy($reason);
 		}
+	}
+
+	/**
+	 * On a module's config screen (ProcessModule `edit?name=X`), the URL of X's directory
+	 *
+	 * @param Process $process
+	 * @return string URL, or '' on any other screen (or for a module directly in site/modules/)
+	 *
+	 */
+	public function moduleConfigUrl(Process $process) {
+		if($process->className() !== 'ProcessModule') return '';
+		$input = $this->wire()->input;
+		if($input->urlSegment1 !== 'edit') return '';
+		$name = $this->wire()->sanitizer->name((string) $input->get('name'));
+		if($name === '' || !$this->wire()->modules->isInstalled($name)) return '';
+		$config = $this->wire()->config;
+		$url = (string) $config->urls($name);
+		if($url === '' || $url === $config->urls->siteModules || strpos($url, $config->urls->wire) === 0) return '';
+		return $url;
+	}
+
+	/**
+	 * The legacy reason for a script: `Script:<dir>/<file>`, dir being its module's directory under
+	 * site/modules (Fluency/fluency.js, not scripts/fluency.js), else the script's own directory
+	 *
+	 * @param string $path Root-relative URL path, no query
+	 * @return string
+	 *
+	 */
+	protected function scriptReason($path) {
+		$dir = $this->siteModuleDir($path);
+		return 'Script:' . ($dir !== '' ? basename(rtrim($dir, '/')) : basename(dirname($path))) . '/' . basename($path);
 	}
 
 	/**
@@ -1137,6 +1251,61 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			unset($this->pendingScriptReasons[$dir]);
 			if(empty($this->legacyInputfieldDirs[$dir])) $this->needLegacy($reason);
 		}
+		if(!count($this->renderedNeeds)) return;
+		// a scriptNeeds() script whose fields render here
+		foreach($this->getScriptNeeds() as $part => $when) {
+			if(isset($this->settledNeeds[$part]) || empty($this->renderedNeeds[$when])) continue;
+			foreach($this->wire()->config->scripts->urls() as $url) {
+				$url = (string) $url;
+				$path = preg_replace('/[?#].*$/', '', $url);
+				if(strpos($path, $part) === false) continue;
+				$this->settledNeeds[$part] = true;
+				if($this->isJqueryScript($url)) $this->needLegacy($this->scriptReason($path));
+				break;
+			}
+		}
+	}
+
+	/**
+	 * The scriptNeeds map (see $scriptNeedsBase): hook after to add, change or remove entries, e.g.
+	 * `$wire->addHookAfter('AdminThemeBridge::scriptNeeds', function($e) { $map = $e->return;
+	 * $map['/MyModule/my-admin.js'] = 'InputfieldMyField'; $e->return = $map; });`
+	 *
+	 * @return array URL part => 'languages' or an Inputfield class name
+	 *
+	 */
+	public function ___scriptNeeds() {
+		return $this->scriptNeedsBase;
+	}
+
+	/**
+	 * scriptNeeds(), once per request
+	 *
+	 * @return array
+	 *
+	 */
+	public function getScriptNeeds() {
+		if($this->scriptNeedsCache === null) {
+			$map = $this->scriptNeeds();
+			$this->scriptNeedsCache = is_array($map) ? $map : $this->scriptNeedsBase;
+		}
+		return $this->scriptNeedsCache;
+	}
+
+	/**
+	 * Is this script in the scriptNeeds() map? (Printed on a page without the stack: where its
+	 * fields render, it made the page legacy.)
+	 *
+	 * @param string $url
+	 * @return bool
+	 *
+	 */
+	public function isScriptNeedsScript($url) {
+		$path = preg_replace('/[?#].*$/', '', (string) $url);
+		foreach($this->getScriptNeeds() as $part => $when) {
+			if($part !== '' && strpos($path, $part) !== false) return true;
+		}
+		return false;
 	}
 
 	/**
@@ -1178,8 +1347,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * jQuery call or the $ alias), for local root-relative .js URLs only; the theme's own scripts
 	 * never count. Comments do not count ("No jQuery."), and a script that checks for jQuery
 	 * (`window.jQuery`, `typeof jQuery`) works without it and is printed (audit A3). URLs that
-	 * contain one of the lines of the printScripts setting are always printed. Verdicts are kept
-	 * per file and modification time in one WireCache entry (A14).
+	 * contain one of the lines of the printScripts setting are always printed, and so are the
+	 * scriptNeeds() scripts on a page without the stack (getScriptUrls()). Verdicts are kept per
+	 * file and modification time in one WireCache entry (A14).
 	 *
 	 * @param string $url
 	 * @return bool
@@ -1268,7 +1438,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$print = array();
 		$deferred = array();
 		foreach($all as $url) {
-			if($this->isLegacyScript($url) || $this->isJqueryScript($url)) {
+			if($this->isLegacyScript($url) || ($this->isJqueryScript($url) && !$this->isScriptNeedsScript($url))) {
 				$deferred[] = $url;
 			} else {
 				$print[] = $url;

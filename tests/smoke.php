@@ -315,6 +315,85 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	check('a field module script without a legacy Inputfield of its module needs the stack', $needed && in_array('Script:FieldtypeSmoke/smoke.js', $reasons, true), implode(',', $reasons));
 	list($needed) = $settle(array('/x/FieldtypeSmoke/' => true));
 	check('with a legacy Inputfield of its module it adds no reason of its own', !$needed);
+	// 0.9.2: scriptNeeds, a site script that needs jQuery only on certain fields (Fluency)
+	check('Fluency\'s fluency.js is in the scriptNeeds map', $bridge->isScriptNeedsScript($config->urls->siteModules . 'Fluency/assets/bundle/scripts/fluency.js?x=1') && !$bridge->isScriptNeedsScript($config->urls->siteModules . 'Fluency/assets/bundle/scripts/fluency_module_config.js'));
+	$needsFile = $config->paths->cache . 'bridge-smoke-needs.js';
+	$needsUrl = $config->urls->cache . 'bridge-smoke-needs.js';
+	file_put_contents($needsFile, "window.addEventListener('load', function() { document.querySelectorAll('.hasLangTabs input').forEach(function(f) { f.addEventListener('input', function() { \$(f).trigger('change'); }); }); });");
+	$config->scripts->add($needsUrl);
+	$needsProbe = function($rendered) use($modules) {
+		$probe = $modules->wire(new AdminThemeBridge());
+		$probe->addHookAfter('scriptNeeds', function(HookEvent $e) { $map = $e->return; $map['/bridge-smoke-needs.js'] = 'languages'; $e->return = $map; });
+		$mark = new \ReflectionMethod($probe, 'markInputfield');
+		$mark->setAccessible(true);
+		foreach($rendered as $inputfield) $mark->invoke($probe, $inputfield, true);
+		return $probe;
+	};
+	$text = $modules->get('InputfieldText');
+	$langText = $modules->get('InputfieldText');
+	$langText->set('useLanguages', true);
+	$probe = $needsProbe(array($text));
+	$split = $probe->getScriptUrls(array($needsUrl));
+	check('a scriptNeeds script is printed where its fields do not render', !$probe->useLegacyStack() && $split['print'] === array($needsUrl), json_encode($split) . json_encode($probe->getLegacyReasons()));
+	$probe = $needsProbe(array($text, $langText));
+	check('a multi-language field makes it a legacy reason', $probe->useLegacyStack() && array_key_exists('Script:cache/bridge-smoke-needs.js', $probe->getLegacyReasons()), json_encode($probe->getLegacyReasons()));
+	$config->scripts->remove($needsUrl);
+	@unlink($needsFile);
+	// 0.9.2: a jQuery script a module adds for its own config screen (at init or ready, before the
+	// Process starts) is that screen's reason; a Process that threw keeps its own reason
+	$input = $wire->input;
+	$processModule = $modules->getModule('ProcessModule', array('noInit' => true, 'noPermissionCheck' => true));
+	$configModule = '';
+	$configScript = '';
+	foreach($modules->getInstalled() as $name => $installed) {
+		$dir = $config->paths($name);
+		if(!$dir || strpos($dir, $config->paths->siteModules) !== 0 || $dir === $config->paths->siteModules) continue;
+		foreach((array) glob($dir . '*.js') as $js) {
+			if(!AdminThemeBridge::needsJquery((string) file_get_contents($js))) continue;
+			$configModule = $name;
+			$configScript = $config->urls($name) . basename($js);
+			break 2;
+		}
+	}
+	$configProbe = function($name, $process) use($modules, $wire, $input, $config) {
+		$probe = $modules->wire(new AdminThemeBridge());
+		$r = new \ReflectionProperty($probe, 'scriptsBeforeProcess');
+		$r->setAccessible(true);
+		// as hookProcessExecuteBefore() has it: every script so far, versioned
+		$before = array();
+		foreach($config->scripts->urls() as $url) $before[] = (string) $url;
+		$r->setValue($probe, $before);
+		$input->setUrlSegment(1, 'edit');
+		$input->get->name = $name;
+		$wire->wire('process', $process);
+		$probe->settleProcess();
+		$input->setUrlSegment(1, '');
+		$input->get->name = null;
+		return $probe;
+	};
+	if($configModule === '') {
+		warn('no installed site module with a jQuery script here: config-screen checks skipped');
+	} else {
+		$config->scripts->add($configScript);
+		$input->setUrlSegment(1, 'edit');
+		$input->get->name = $configModule;
+		$url = $bridge->moduleConfigUrl($processModule);
+		$input->setUrlSegment(1, '');
+		$input->get->name = null;
+		check("moduleConfigUrl() is the module's directory on its config screen, and only there", $url === $config->urls($configModule) && $bridge->moduleConfigUrl($processModule) === '', (string) $url);
+		$reason = 'Script:' . basename(dirname($configScript)) . '/' . basename($configScript);
+		$probe = $configProbe($configModule, $processModule);
+		check("a module's jQuery script added before ProcessModule is a reason on its config screen ($configModule)", array_key_exists($reason, $probe->getLegacyReasons()), json_encode($probe->getLegacyReasons()));
+		$probe = $configProbe('ProcessPageEdit', $processModule);
+		check('on another module\'s config screen it stays deferred', !$probe->useLegacyStack(), json_encode($probe->getLegacyReasons()));
+		$config->scripts->remove($configScript);
+	}
+	$probe = $configProbe('', $modules->getModule('ProcessPageSearch', array('noInit' => true, 'noPermissionCheck' => true)));
+	check('a Process that threw keeps its reason (settleProcess)', array_key_exists('Process:ProcessPageSearch', $probe->getLegacyReasons()), json_encode($probe->getLegacyReasons()));
+	$probe = $modules->wire(new AdminThemeBridge());
+	$probe->settleProcess();
+	check('settleProcess() adds nothing after a Process that finished', !$probe->useLegacyStack());
+	$wire->wire('process', null);
 	// 0.9.1 (A19): one native map, wrappers by exact class, hookable, overridden per class
 	check('InputfieldFieldsetOpen and InputfieldFieldsetTabOpen are native', $bridge->isNativeInputfield($modules->get('InputfieldFieldsetOpen')) && $bridge->isNativeInputfield($modules->get('InputfieldFieldsetTabOpen')));
 	if(!class_exists('ProcessWire\\BridgeSmokeSubMarkup', false)) {

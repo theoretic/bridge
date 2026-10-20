@@ -12,6 +12,8 @@ if(!defined("PROCESSWIRE")) die();
 /** @var string $content */
 
 if(!isset($content)) $content = '';
+// a Process that threw keeps its legacy reasons (before anything asks useLegacyStack())
+$adminTheme->settleProcess();
 $layout = $adminTheme->isModal ? 'modal' : '';
 
 $adminTheme->includeFile('_main.php', array(

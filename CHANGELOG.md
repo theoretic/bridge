@@ -1,5 +1,36 @@
 # Changelog
 
+## AdminThemeBridge 0.9.3: script warnings, Fluency and config screens (2026-10-21)
+
+Fixes the script warnings that Gate 1 has counted since 0.8.8 (`conformance/RESULTS-2026-10-20.md`). A warning is a site script deferred with the legacy stack on a screen that stayed native, where it never runs.
+- **Fluency** (`fluency.js`, deferred on 62 testfly and 69 txm screens, page editors among them, so its translation buttons were missing). It is vanilla apart from `$(field).trigger('change')` after each translation, and it sets itself up on window load, too early for a stack loaded later. The new hookable map `scriptNeeds()` lists such scripts as URL part => where they need jQuery: `'languages'` (a multi-language Inputfield) or an Inputfield class.
+  - Where none of those fields render, the script is printed and runs without the stack (Fluency's admin menu item opens in a modal again).
+  - Where one renders, it is a legacy reason (`Script:Fluency/fluency.js`), and the editor saves the classic way like every `Script:` page.
+  - On multi-language sites with Fluency, page editors therefore load the stack: 70 of testfly's 125 screens are legacy. `printScripts` still prints a script everywhere.
+- **A module's config screen** (ProcessModule `edit?name=X`): a jQuery script from X's own directory is a reason, whenever it was added. AdminOnSteroids (`aos_config.min.js`) and GeneralSettings (`Settings.js`) add theirs at ready and init when they see `?name=X`. That is before ProcessController::execute, so the "scripts the Process added" rule left them deferred by design. The field-module rule (A4) does not apply to them. New `moduleConfigUrl()`.
+- **A Process that throws** keeps its reasons. ProcessHannaCode on testfly throws, under Uikit too (`TextformatterHannaCode::extractDefaultCodeAttrs` is missing). Core catches the exception and shows the error, so hookProcessExecute() never ran: no `Process:` reason, and `ProcessHannaCode.js` stayed deferred. `default.php` now calls `settleProcess()`, which records what the after hook would have recorded.
+- `Script:` reasons name the module's directory under site/modules (`Script:Fluency/fluency.js`, `Script:AdminOnSteroids/aos_config.min.js`). Before, they named the script's own subdirectory (`scripts/`).
+- `docs/contract.md` §3: the three rules and a `scriptNeeds` hook example.
+- New checks (`tests/smoke.php`):
+  - Fluency is in the map;
+  - a map script is printed without its fields and is a reason with a multi-language field;
+  - `moduleConfigUrl()` gives the module's directory on its own config screen only;
+  - a module's jQuery script added before ProcessModule is a reason there and stays deferred on another module's screen;
+  - a Process that threw keeps its `Process:` reason, and `settleProcess()` adds nothing after one that finished.
+- Gate 1 on the five affected sandboxes: script warnings
+  - testfly 63 to 0;
+  - txm 69 to 0;
+  - ofsla and paraavis 1 to 0;
+  - davinci 116 to 113, only RockMigrations' admin-wide script, deferred on purpose.
+
+  0 differ and 0 failed on each. Checked in the browser on testfly: on a page editor with a multi-language title, the stack loads and "Translate to all languages" shows. On the page tree, there is no jQuery, `fluency.js` is printed, and it runs without errors.
+
+Checked on the atispro sandbox, each in Chromium and Firefox:
+- conformance 162 of 163 identical, 0 differ, 0 script warnings
+- Gate 2 70/70
+- lister 26/26, page-edit 36/36, page-save 48/48, screens 27/27 (Firefox 26), setup 30/30, pagetree 21/21, repeater 35/35, form-save 19/19, image-select 20/20, image-file 34/34
+- scheme scan 0 findings, dropdown stress 0 violations, smoke passes
+
 ## AdminThemeBridge 0.9.2: audit phase 8, tokens and contrast (2026-10-21)
 
 Last phase of the 2026-10-20 audit.
