@@ -32,6 +32,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			// FilenameArray::urls() is 3.0.227, ModulesInfo::moduleInfoCache() 3.0.218
 			'requires' => 'ProcessWire>=3.0.227, PHP>=8.1',
 			'icon' => 'cubes',
+			'href' => 'https://github.com/theoretic/bridge',
 		);
 	}
 
