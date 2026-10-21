@@ -141,6 +141,12 @@ chunks for one more release (a tab left open across a deploy still loads them).
 Supported browsers: Chrome and Edge 111+, Safari 16.2+, Firefox 121+ (the CSS uses
 `color-mix()` and `:has()`).
 
+The ProcessWire modules directory installs from
+[theoretic/AdminThemeBridge](https://github.com/theoretic/AdminThemeBridge), a module-only
+repository generated from `modules/AdminThemeBridge/` with its history (the directory needs the
+module file at a repository's root). Publish a release there with
+`bash tools/release-module.sh` after committing it here.
+
 ### Font Awesome subsets
 
 Core's Font Awesome 6 fonts carry every icon (about 300 kB); an admin screen shows a few dozen.
