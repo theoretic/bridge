@@ -1,7 +1,7 @@
 # Bridge
 
-A ProcessWire admin built from native web components that still runs every existing
-Inputfield and Process module. Based on [ProcessWire](https://processwire.com); not a fork.
+A [ProcessWire](https://processwire.com) admin built from native web components that still runs
+every existing Inputfield and Process module.
 
 The name says what it is: a bridge between the jQuery-era admin and the modern web stack.
 "Bridge" is a working name. Status: beta, AdminThemeBridge 0.9.3; the component contract is
@@ -36,6 +36,13 @@ expect. Design decisions are recorded in [docs/decisions/](docs/decisions/), cha
 Lighthouse 12 (desktop preset), logged in, cold cache, median of 3 runs, average of four screens
 (page tree, page editor, Lister, Modules) on the same copy of a real site
 ([tools/bench/](tools/bench/)):
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/benchmark-dark.png">
+  <img alt="Lighthouse results of Bridge 0.9.3, Uikit (original and 2025 look), AdminThemeBoss, Reno and Default: score, LCP, JavaScript, CSS, requests, jQuery, fonts" src="docs/images/benchmark-light.png" width="880">
+</picture>
+
+The same for Bridge, Uikit and AdminThemeBoss as text:
 
 | | Bridge 0.9.3 | Uikit | AdminThemeBoss |
 |---|---:|---:|---:|
