@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased: a UIkit layer for modules written for AdminThemeUikit (ADR 0017)
+## AdminThemeBridge 0.9.5: a UIkit layer for modules, fixes from the first user reports (2026-10-22)
+
+Fixes for the first reports from users of the beta, reproduced on a clean sandbox site with the reported modules.
+- **Nested navigation flyouts** (level 3 and deeper, e.g. Pages > Tree > a page with children) were drawn inside their parent list: the parent flyout scrolls, and a scroll box clips an absolute child. A flyout inside a flyout is now `position: fixed`, placed beside its item by `fitFlyout()` and placed again when its AJAX items arrive or its parent scrolls; on legacy pages too, where jQuery UI places the submenus. `tools/pagetree-check.js` J.
+- **Add New in the content head did nothing** on Setup > Templates and the other list screens whose Add New is a button inside a link with no id. A button inside a link is now copied with its link, as AdminThemeUikit does; a copied button without an id clicks its original by reference. `tools/setup-check.js` C.
+- **Debug Mode Tools** (`$config->debug`): core's `debug.inc` ends in a jQuery script that threw on every page without the legacy stack, so the whole panel stayed open below the footer and its link reopened the page in a dialog. `_footer.php` prints the panel without that script, and `scripts/debug-tools.js` opens it in a large dialog and folds its sections, on every page; an in-place save puts the saved page's request into it. If upstream changes the script, the panel is printed as before.
+- **TracyDebugger's bar on a phone** no longer runs off the left edge: Bridge hides the labels Tracy marks `[hidden]`, which Tracy's own `.tracy-label` rule overrode. Screen x tool matrix in `conformance/RESULTS-2026-10-22-debug-tools.md`.
+- **The View tab's menu** on a page editor without the legacy stack showed open below the form: upstream prints it after the form and names it from the toggle (`data-pw-dropdown`). The native dropdown code follows that name, places the menu under the tab inside the window, and `page-edit.js` hides it at load and after an in-place save. `tools/page-edit-check.js` G.
+
+### A UIkit layer for modules written for AdminThemeUikit (ADR 0017)
 
 Reported by the author of ProcessShowcase: modules that use UIkit looked broken, because AdminThemeUikit prints UIkit on every page and Bridge did not. Its UIkit page said "The active admin theme has not loaded UIkit".
 - **The layer, on demand.** Pages that use UIkit get core's `uikit.min.js` and `uikit-icons.min.js`, plus `assets/dist/uikit.css` (32 kB gzip): UIkit 3.25's stylesheet without its Base component, its palette on the theme's tokens (both schemes), in `@layer uikit` so every unlayered sheet wins over it. Pages that do not use it load nothing more. UIkit's inverse rules (`.uk-light`, primary and secondary sections, tiles, cards) come after the theme's compat rules, unlayered; a small sheet (`src/styles/uikit-layer.css`) keeps button variants and media sizing.
