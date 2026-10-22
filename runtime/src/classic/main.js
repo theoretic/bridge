@@ -1186,6 +1186,18 @@ var ProcessWireAdminTheme = {
 		var copies = [];
 		for(var i = 0; i < buttons.length; i++) {
 			var source = buttons[i];
+			// a button inside a link (Add New on the Templates, Fields and Users lists, no id): the
+			// link is copied with it, as AdminThemeUikit does, and the copy navigates like the original
+			var link = source.parentElement && source.parentElement.tagName === 'A' ? source.parentElement : null;
+			if(link) {
+				var linkCopy = jq ? jq(link).clone(true)[0] : link.cloneNode(true);
+				if(linkCopy.id) linkCopy.id += '_copy';
+				var inner = linkCopy.querySelector('button');
+				inner.removeAttribute('id');
+				inner.classList.add('pw-head-button', 'pw-head-button-copy');
+				copies.push(linkCopy);
+				continue;
+			}
 			var copy = jq ? jq(source).clone(true)[0] : source.cloneNode(true);
 			copy.setAttribute('data-from-id', source.id);
 			copy.id = source.id ? source.id + '_copy' : '';
@@ -1194,10 +1206,14 @@ var ProcessWireAdminTheme = {
 				toggles[source.id.replace('pw-dropdown-toggle-', '')] = copy;
 				continue;
 			}
+			// by id, so an original that an in-place save replaced is found; an original without
+			// an id is clicked by reference
+			copy.pwHeadSource = source;
 			copy.addEventListener('click', function(e) {
 				e.preventDefault();
 				e.stopImmediatePropagation();
-				var original = document.getElementById(this.getAttribute('data-from-id'));
+				var from = this.getAttribute('data-from-id');
+				var original = from ? document.getElementById(from) : this.pwHeadSource;
 				if(original) original.click();
 			});
 			if(copy.classList.contains('pw-button-dropdown-main')) {

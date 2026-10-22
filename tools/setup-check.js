@@ -1,6 +1,6 @@
 // Native setup screens check (tools/setup-check.js, milestone 3.6, ADR 0016): drives the Modules,
 // Fields, Templates, Users and Roles screens in a real browser engine and verifies that they work
-// without jQuery: tabs, the modules section filter, the field editor's column width slider, icon
+// without jQuery: tabs, the head copy of Add New, the modules section filter, the field editor's column width slider, icon
 // picker and #find- hash, the template editor's field list (rows, a sort and a column width saved
 // by saveProperty, the edit and "create a new field" dialogs), the password strength and confirm,
 // the role's permission tree, the AJAX submenu labels. Puts back what it changes (field order
@@ -126,8 +126,17 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	await open('setup/field/edit/?id=1#find-columnWidth');
 	check('B #find-columnWidth opens the Input tab at the width', await waitFor(() => { const w = document.getElementById('wrap_columnWidth'); return !!w && w.offsetParent !== null; }, null, 5000));
 
-	// C: template editor (fixture template)
+	// C: the head copy of Add New (a button inside a link) opens the add form
 	await open('setup/template/');
+	const headAdd = page.locator('#pw-content-head-buttons a > button.pw-head-button-copy').first();
+	if(await headAdd.count()) {
+		await Promise.all([page.waitForURL(/setup\/template\/add/, { timeout: 10000 }).catch(() => {}), headAdd.click()]);
+		check('C the head copy of Add New opens the add form', /setup\/template\/add/.test(page.url()), page.url());
+		await open('setup/template/');
+	} else {
+		check('C the head copy of Add New opens the add form', false, 'no head copy inside a link');
+	}
+	// C: template editor (fixture template)
 	const tplHref = await page.evaluate(() => { const a = [...document.querySelectorAll('a')].find(x => x.textContent.trim() === 'bridge_native'); return a ? a.getAttribute('href') : ''; });
 	const tplPath = 'setup/template/' + tplHref.replace(/^.*?(edit\?id=\d+).*$/, '$1');
 	await open(tplPath);
