@@ -1,5 +1,11 @@
 # Changelog
 
+## AdminThemeBridge 0.9.4: notices after a save at the bottom of a long page (2026-10-22)
+
+An in-place save from the Save button at the bottom of a long editor showed its notices at the top of the page, out of view, and the page moved: the scroll was put back by its old position while notices in the flow and fields that set themselves up later grew the page above the button.
+- Notices that arrive while their place is scrolled away are fixed just below the sticky masthead (`#notices.pw-notices-fixed`). They stay until closed or timed out, or until the page is scrolled back to the top, where they go back to their place. New `setupNoticeFloat()` and `floatNotices()` in `scripts/main.js`.
+- After an in-place save the clicked Save button (or its copy in the head) stays where it was in the window, and is held there for a second while late layout settles, until the user scrolls. At the top of the page the scroll stays at the top and the notices show in their place.
+
 ## AdminThemeBridge 0.9.3: script warnings, Fluency and config screens (2026-10-21)
 
 Fixes the script warnings that Gate 1 has counted since 0.8.8 (`conformance/RESULTS-2026-10-20.md`). A warning is a site script deferred with the legacy stack on a screen that stayed native, where it never runs.
