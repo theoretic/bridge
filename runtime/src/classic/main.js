@@ -140,6 +140,7 @@ var ProcessWireAdminTheme = {
 		}
 		this.setupNative();
 		this.setupNotices();
+		this.setupNoticeFloat();
 		this.setupNavFit();
 		this.setupNoticeTimeout();
 		this.setupStyleOrder();
@@ -621,6 +622,44 @@ var ProcessWireAdminTheme = {
 			if(document.getElementById('notices') !== watched) check();
 		});
 		window.addEventListener('resize', check);
+	},
+
+	/**
+	 * Notices that arrive while their place at the top is scrolled out of view (a Save at the
+	 * bottom of a long editor, saved in place; a client-side warning) would go unseen: the list is
+	 * fixed just below the sticky masthead (#notices.pw-notices-fixed, 14-notices.css) until it is
+	 * closed or removed, or the page is scrolled back to the top, where it goes back to its place.
+	 * Checked when a list appears or gets another item, never on scroll alone; scripts/page-save.js
+	 * calls floatNotices() at once after a swap, before it puts the scroll back.
+	 */
+	floatNotices: function() {},
+
+	setupNoticeFloat: function() {
+		var body = document.body;
+		if(body.classList.contains('modal') || body.classList.contains('ProcessLogin')) return;
+		var watched = null;
+		var count = 0;
+		var unfix = function() {
+			if(window.scrollY > 0) return;
+			window.removeEventListener('scroll', unfix);
+			if(watched) watched.classList.remove('pw-notices-fixed');
+		};
+		var check = function() {
+			var notices = document.getElementById('notices');
+			var items = notices ? notices.querySelectorAll(':scope > li').length : 0;
+			var fresh = notices !== watched || items > count;
+			watched = notices;
+			count = items;
+			if(!fresh || !notices || !items || notices.classList.contains('pw-notices-fixed')) return;
+			var masthead = document.getElementById('pw-masthead');
+			var top = masthead ? masthead.getBoundingClientRect().bottom : 0;
+			if(notices.getBoundingClientRect().top >= top) return;
+			notices.classList.add('pw-notices-fixed');
+			window.addEventListener('scroll', unfix, { passive: true });
+		};
+		check();
+		this.floatNotices = check;
+		this.observe(check);
 	},
 
 	/**

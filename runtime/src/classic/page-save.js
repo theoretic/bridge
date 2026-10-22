@@ -184,7 +184,7 @@
 			return location.assign(res.url);
 		}
 		try {
-			swap(form, html, url);
+			swap(form, html, url, submitter);
 			document.body.classList.remove('pw-saving'); // the swapped-in buttons are fresh and enabled
 		} catch(err) {
 			if(window.console) console.error('Bridge page save, swap failed:', err);
@@ -212,7 +212,7 @@
 			return;
 		}
 		try {
-			swapForm(form, doc, url);
+			swapForm(form, doc, url, submitter);
 			document.body.classList.remove('pw-saving');
 		} catch(err) {
 			if(window.console) console.error('Bridge form save, swap failed:', err);
@@ -232,11 +232,11 @@
 		if(doc.title) document.title = doc.title;
 	}
 
-	function swapForm(form, doc, url) {
+	function swapForm(form, doc, url, submitter) {
 		var formId = form.getAttribute('id');
 		var body = document.getElementById('pw-content-body');
 		var newBody = doc.getElementById('pw-content-body');
-		var state = captureState(form);
+		var state = captureState(form, submitter);
 		// menus the theme moved to <body> for this screen's buttons
 		Array.prototype.forEach.call(document.querySelectorAll('body > ul.pw-button-dropdown'), function(ul) { ul.parentNode.removeChild(ul); });
 		while(body.firstChild) body.removeChild(body.firstChild);
@@ -257,13 +257,13 @@
 		} }));
 	}
 
-	function swap(form, html, url) {
+	function swap(form, html, url, submitter) {
 		var doc = new DOMParser().parseFromString(html, 'text/html');
 		var newForm = doc.getElementById('ProcessPageEdit');
 		var newBody = doc.getElementById('pw-content-body');
 		var body = document.getElementById('pw-content-body');
 		if(!newForm || !newBody || !body) throw new Error('no page editor in the response');
-		var state = captureState(form);
+		var state = captureState(form, submitter);
 		teardown(form);
 
 		// the form element stays (handlers bound to .InputfieldForm survive); attributes and children are new
@@ -336,7 +336,7 @@
 		});
 	}
 
-	function captureState(form) {
+	function captureState(form, submitter) {
 		var tab = form.querySelector('#PageEditTabs a.on') || form.querySelector('#PageEditTabs li.pw-active > a')
 			|| document.querySelector('#pw-content-body ul.WireTabs a.on');
 		var open = [];
@@ -345,9 +345,60 @@
 		return {
 			tab: tab ? tab.id : '',
 			scroll: window.scrollY,
+			anchor: scrollAnchor(form, submitter),
 			open: open,
 			focus: active && active.id && form.contains(active) ? active.id : ''
 		};
+	}
+
+	// the save button that was clicked (the one at the bottom, or its copy in the head when that is
+	// the one on screen) and where it is in the window: the scroll is put back by it, not by
+	// scrollY, so what changes above it in the new screen (notices, fields that set themselves up
+	// later) does not move it
+	function scrollAnchor(form, submitter) {
+		if(!submitter) return null;
+		var formId = form.getAttribute('id');
+		var shown = function(el) {
+			var r = el && el.getBoundingClientRect();
+			return r && r.height > 0 && r.bottom > 0 && r.top < window.innerHeight;
+		};
+		var copy = submitter.id ? document.getElementById(submitter.id + '_copy') : null;
+		var el = !shown(submitter) && shown(copy) ? copy : submitter;
+		if(!el.getBoundingClientRect().height) return null;
+		var id = el.id;
+		var name = el.getAttribute('name');
+		return {
+			top: el.getBoundingClientRect().top,
+			find: function() {
+				if(id) return document.getElementById(id);
+				return name && formId ? document.querySelector('#' + formId + ' [name="' + name + '"]') : null;
+			}
+		};
+	}
+
+	// scroll by the anchor; true when it was found
+	function toAnchor(anchor) {
+		var el = anchor.find();
+		if(!el || !el.getBoundingClientRect().height) return false;
+		var delta = el.getBoundingClientRect().top - anchor.top;
+		if(Math.abs(delta) >= 1) window.scrollBy(0, delta);
+		return true;
+	}
+
+	// fields that set themselves up after the swap (legacy Inputfields, editors, images) change the
+	// height above the button for a while: keep it in place for a second, until the user scrolls
+	function holdAnchor(anchor) {
+		var until = Date.now() + 1000;
+		var stop = function() {
+			until = 0;
+			['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach(function(t) { window.removeEventListener(t, stop, true); });
+		};
+		['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach(function(t) { window.addEventListener(t, stop, true); });
+		var step = function() {
+			if(Date.now() > until || !toAnchor(anchor)) return stop();
+			requestAnimationFrame(step);
+		};
+		requestAnimationFrame(step);
 	}
 
 	function restoreState(form, state) {
@@ -363,7 +414,15 @@
 			if(Inputfields.native) Inputfields.open(el);
 			else if($ && Inputfields.toggle) Inputfields.toggle($(el), true, 0);
 		});
+		// at the top the notices show in their place; scrolled down, they are fixed below the
+		// masthead (scripts/main.js floatNotices) and the clicked button stays where it was
+		var theme = window.ProcessWireAdminTheme;
 		window.scrollTo(0, state.scroll);
+		if(state.scroll > 0 && state.anchor && toAnchor(state.anchor)) {
+			if(theme && theme.floatNotices) theme.floatNotices();
+			toAnchor(state.anchor);
+			holdAnchor(state.anchor);
+		}
 		if(state.focus) {
 			var f = document.getElementById(state.focus);
 			if(f && f.focus) try { f.focus({ preventScroll: true }); } catch(e) {}
