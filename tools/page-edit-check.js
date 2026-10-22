@@ -1,9 +1,9 @@
 // Native page editor check (tools/page-edit-check.js, milestone 3.1, ADR 0016): drives the page
 // editor of the native fixture pages in a real browser engine and verifies that it runs without
 // jQuery: native WireTabs (scripts/wire-tabs.js), the editor's own behaviours
-// (scripts/page-edit.js), page name and title (runtime fields/pagename.ts), in-place save, and
-// the Children tab's page tree (native since milestone 3.4). Also checks that a legacy
-// editor still runs upstream's initPageEditForm(). Restores what it changes.
+// (scripts/page-edit.js), the View tab's menu, page name and title (runtime fields/pagename.ts),
+// in-place save, and the Children tab's page tree (native since milestone 3.4). Also checks that
+// a legacy editor still runs upstream's initPageEditForm(). Restores what it changes.
 // Needs a Playwright install with its browsers (any project's node_modules/playwright-core).
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
@@ -11,13 +11,15 @@
 //     <playwright-core dir> <firefox|chromium|webkit>
 // Admin URL: the atispro sandbox (http://localhost:8089, user "bridge"), or ADMIN=<admin url>. Pages from
 // tools/sandbox-fixture.php: /bridge-native/ (NATIVE_ID, default 1517) and /bridge-native-parent/
-// (PARENT_ID, default 1518); a legacy editor: 1264 (LEGACY_ID).
+// (PARENT_ID, default 1518); a legacy editor: 1264 (LEGACY_ID); a native editor with a View tab: the
+// home page (VIEW_ID, default 1).
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
 const ADMIN = process.env.ADMIN || 'http://localhost:8089/fv9673g5vdfigh/';
 const NATIVE = process.env.NATIVE_ID || '1517';
 const PARENT = process.env.PARENT_ID || '1518';
 const LEGACY = process.env.LEGACY_ID || '1264';
+const VIEW = process.env.VIEW_ID || '1';
 const results = [];
 const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info === undefined ? '' : String(info).slice(0, 400) }); };
 
@@ -146,6 +148,34 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	});
 	check('F changed template hides the dropdowns, revert shows them', tplInfo && tplInfo.off.every(v => !v) && tplInfo.on.every(Boolean), JSON.stringify(tplInfo));
 	await page.click('#_ProcessPageEditContent');
+
+	// G: the View tab's menu on a native editor of a viewable page (the fixture pages have no
+	// template file): printed after the form and named by the toggle's data-pw-dropdown, hidden
+	// until the toggle opens it under the tab; a click after the hover keeps it open (and does
+	// not follow the link); leaving closes it
+	await open(VIEW);
+	const view = () => page.evaluate(() => {
+		const m = document.getElementById('_ProcessPageEditViewDropdown'), a = document.getElementById('_ProcessPageEditView');
+		if(!m || !a) return null;
+		const r = m.getBoundingClientRect(), t = a.getBoundingClientRect();
+		return { shown: getComputedStyle(m).display !== 'none', under: Math.abs(r.left - t.left) < 2 && r.top >= t.bottom && r.top - t.bottom < 12 };
+	});
+	let v = await view();
+	check('G View menu hidden at load', v && !v.shown, JSON.stringify(v));
+	if(v) {
+		await page.hover('#_ProcessPageEditViewDropdownToggle');
+		await page.waitForTimeout(200);
+		v = await view();
+		check('G hover opens it under the View tab', v.shown && v.under, JSON.stringify(v));
+		const viewUrl = page.url();
+		await page.click('#_ProcessPageEditViewDropdownToggle');
+		await page.waitForTimeout(200);
+		check('G a click after the hover keeps it open, stays on the page', (await view()).shown && page.url() === viewUrl);
+		await page.mouse.move(1000, 850);
+		await page.waitForTimeout(700);
+		check('G leaving closes it', !(await view()).shown);
+	}
+	await open(NATIVE);
 
 	// H: Delete tab hides the other buttons; delete needs its confirm box
 	await page.click('#_ProcessPageEditDelete');

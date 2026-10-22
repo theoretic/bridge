@@ -72,17 +72,18 @@ for (const { name, budget, with: parts = [] } of FILES) {
 }
 
 // the classic scripts (scripts/build-classic.mjs): minified, each with a budget about 15 % over
-// its size at 0.9.0, and all of them together; printed in <head>, so they hold up the first paint
+// its size at 0.9.0, and all of them together; printed in <head>, so they hold up the first paint.
+// debug-tools.js is not in the total: _footer.php prints it, and only for superusers in debug mode
 const scriptsDir = fileURLToPath(new URL('../../modules/AdminThemeBridge/scripts/', import.meta.url));
 const CLASSIC = {
 	'main.js': 11.5, 'setup.js': 7, 'image-select.js': 6, 'lister.js': 4.5, 'page-save.js': 3.75,
-	'screens.js': 3.25, 'link.js': 3, 'wire-tabs.js': 2, 'page-edit.js': 1.75, 'uikit-layer.js': 2.5,
+	'screens.js': 3.25, 'link.js': 3, 'wire-tabs.js': 2, 'page-edit.js': 1.75, 'uikit-layer.js': 2.5, 'debug-tools.js': 1,
 };
 let classicTotal = 0;
 for (const f of existsSync(scriptsDir) ? readdirSync(scriptsDir).filter(f => f.endsWith('.js')).sort() : []) {
 	const js = readFileSync(scriptsDir + f, 'utf8');
 	const gz = gzipSync(js, { level: 9 }).length;
-	classicTotal += gz;
+	if(f !== 'debug-tools.js') classicTotal += gz;
 	const budget = (CLASSIC[f] || 2) * 1024;
 	const minified = js.split('\n').length <= 3;
 	console.log(`scripts/${f}: ${js.length} B raw, ${gz} B gzip (budget ${budget})` + (minified ? '' : ', NOT MINIFIED'));

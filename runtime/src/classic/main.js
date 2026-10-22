@@ -789,6 +789,7 @@ var ProcessWireAdminTheme = {
 		// its touch-device class; audit C3)
 		var hoverTimer = null;
 		var touchUntil = 0;
+		var hovered = null; // a menu the pointer opened: the click that follows keeps it open
 		document.addEventListener('pointerdown', function(e) {
 			touchUntil = e.pointerType === 'touch' || e.pointerType === 'pen' ? Date.now() + 1000 : 0;
 		}, true);
@@ -798,7 +799,7 @@ var ProcessWireAdminTheme = {
 			if(toggle) {
 				clearTimeout(hoverTimer);
 				var menu = self.dropdownMenu(toggle);
-				if(menu && menu.style.display === 'none') { self.closeDropdowns(); menu.style.display = 'block'; }
+				if(menu && menu.style.display === 'none') { self.openDropdown(toggle, menu); hovered = menu; }
 				return;
 			}
 			var item = e.target.closest('.pw-dropdown-menu li');
@@ -816,8 +817,7 @@ var ProcessWireAdminTheme = {
 			var menu = self.dropdownMenu(toggle);
 			if(!menu) return;
 			e.preventDefault();
-			self.closeDropdowns();
-			menu.style.display = 'block';
+			self.openDropdown(toggle, menu);
 			var first = menu.querySelector('a[href], a[data-pw-dropdown-value]');
 			if(first) first.focus();
 		});
@@ -850,8 +850,10 @@ var ProcessWireAdminTheme = {
 				if(menu && menu.style.display !== 'none' && toggle.tagName === 'A' && !toggle.classList.contains('pw-dropdown-toggle-click')) return;
 				e.preventDefault();
 				var open = menu && menu.style.display !== 'none';
+				if(open && hovered === menu) { hovered = null; return; }
+				hovered = null;
 				self.closeDropdowns();
-				if(menu && !open) menu.style.display = 'block';
+				if(menu && !open) self.openDropdown(toggle, menu);
 				return;
 			}
 			if(!e.target.closest('.pw-dropdown-menu')) self.closeDropdowns();
@@ -915,10 +917,36 @@ var ProcessWireAdminTheme = {
 	},
 
 	dropdownMenu: function(toggle) {
+		// data-pw-dropdown names the menu by a selector (the page editor's View tab: its menu is
+		// printed after the form, hidden by scripts/page-edit.js)
+		var target = toggle.getAttribute('data-pw-dropdown');
+		if(target) {
+			try { return document.querySelector(target); } catch(e) { return null; }
+		}
 		var next = toggle.nextElementSibling;
 		if(next && next.classList.contains('pw-dropdown-menu')) return next;
 		var wrap = toggle.closest('.pw-dropdown');
 		return wrap ? wrap.querySelector('.pw-dropdown-menu') : null;
+	},
+
+	/**
+	 * Open a toggle's menu, the others closed. A menu away from its toggle (data-pw-dropdown) is
+	 * put under the toggle's link, its left edge with the link's and kept inside the window; it
+	 * stays absolute, so it scrolls with the page (the same arithmetic as fitFlyout())
+	 */
+	openDropdown: function(toggle, menu) {
+		this.closeDropdowns();
+		menu.style.display = 'block';
+		var wrap = toggle.closest('.pw-dropdown');
+		if(menu === toggle.nextElementSibling || (wrap && wrap.contains(menu))) return;
+		var r = (toggle.closest('a, button') || toggle).getBoundingClientRect();
+		var cs = getComputedStyle(menu);
+		menu.style.left = '0px';
+		menu.style.top = '0px';
+		var o = menu.getBoundingClientRect();
+		var x = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8));
+		menu.style.left = Math.round(x - o.left) + 'px';
+		menu.style.top = Math.round(r.bottom - o.top + parseFloat(cs.marginTop)) + 'px';
 	},
 
 	closeDropdowns: function() {

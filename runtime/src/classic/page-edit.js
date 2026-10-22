@@ -128,6 +128,8 @@
 			var menu = document.getElementById('_ProcessPageEditViewDropdown');
 			var toggle = document.getElementById('_ProcessPageEditViewDropdownToggle');
 			if(!link) return;
+			// printed open after the form; main.js opens it under the tab (data-pw-dropdown)
+			if(menu && !menu.style.display) menu.style.display = 'none';
 			if(toggle) toggle.style.color = getComputedStyle(link).color;
 			link.addEventListener('click', function(e) {
 				if(toggle && toggle.contains(e.target)) return;
