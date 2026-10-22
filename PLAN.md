@@ -336,7 +336,7 @@ ListerPro waits for section 9.
 
 ### UIkit layer (inserted 2026-10-22)
 
-Report by ProcessShowcase's author: modules that use UIkit look broken under Bridge. Decision in `docs/decisions/0017-uikit-compatibility-layer.md`: UIkit's own stylesheet minus Base, on the tokens, in a cascade layer, and core's UIkit script, both loaded only where a page uses UIkit (markup, scripts, assets or a module's request), like the legacy stack. The acceptance test is ProcessShowcase on `Z:/home/bridge-sandbox.osp`.
+Report by ProcessShowcase's author: modules that use UIkit look broken under Bridge. Decision in `docs/decisions/0017-uikit-compatibility-layer.md`: UIkit's own stylesheet minus Base, on the tokens, in a cascade layer, and core's UIkit script, both loaded only where a page uses UIkit (markup, scripts, assets or a module's request), like the legacy stack. The acceptance test is ProcessShowcase on a clean local sandbox site.
 
 **Status 2026-10-22: done (unreleased).**
 - ProcessShowcase's pages and its UIkit page render in both schemes. Before and after screenshots, in both themes, are in the session notes (`uikit-shots/`).

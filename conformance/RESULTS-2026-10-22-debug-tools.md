@@ -4,7 +4,7 @@ Report: "debug tools are not visible on some pages", without saying which tools.
 core's Debug Mode Tools (`wire/templates-admin/debug.inc`, superusers with `$config->debug`) and
 TracyDebugger 5.0.72 (Tracy 2.12.x on PHP 8.5).
 
-Setup: the clean sandbox `Z:/home/bridge-sandbox.osp` (core 3.0.274 dev, debug on, TracyDebugger
+Setup: a clean sandbox site (core 3.0.274 dev, debug on, TracyDebugger
 and ProcessShowcase), served by `php -S` with `tools/router.php`. User `admin` on Bridge 0.9.4,
 user `uikit` on AdminThemeUikit for comparison. Headless Chromium (Playwright 1.62), 1280x900,
 light and dark schemes, and a 375 px phone. For each screen the probe recorded JS errors, whether
