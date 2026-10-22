@@ -90,8 +90,10 @@ for (const f of existsSync(scriptsDir) ? readdirSync(scriptsDir).filter(f => f.e
 	if (!minified) { console.error(`scripts/${f}: not built (run scripts/build-classic.mjs)`); failed = true; }
 	if (gz > budget) { console.error(`scripts/${f}: over the gzip budget`); failed = true; }
 }
-console.log(`classic scripts: ${classicTotal} B gzip (budget ${40 * 1024})`);
-if (classicTotal > 40 * 1024) { console.error('classic scripts: over the total gzip budget'); failed = true; }
+// total raised from 40 to 42 KiB after the UIkit layer (owner's decision, 2026-10-22)
+const CLASSIC_TOTAL = 42 * 1024;
+console.log(`classic scripts: ${classicTotal} B gzip (budget ${CLASSIC_TOTAL})`);
+if (classicTotal > CLASSIC_TOTAL) { console.error('classic scripts: over the total gzip budget'); failed = true; }
 
 // the UIkit layer (ADR 0017): everything in one cascade layer, so unlayered sheets win; every
 // selector in it names a UIkit class or attribute or is UIkit's Base outside this theme's pages

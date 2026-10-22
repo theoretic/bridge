@@ -9,6 +9,7 @@ Reported by the author of ProcessShowcase: modules that use UIkit looked broken,
 - **AdminThemeUikit's scheme classes.** `<body>` carries `light-theme` or `dark-theme` in step with the scheme. On the layer's pages the tokens and AdminThemeUikit's custom properties also follow the class, so a preview iframe that sets it (ProcessShowcase's) gets the scheme.
 - A module's stock `uikit.css` is replaced by the layer, and a module's UIkit script is no longer dropped as another theme's asset.
 - Build: `runtime/scripts/build-uikit.mjs` (with `BRIDGE_WIRE`, in `npm run build`), `postcss` as a dev dependency; `check-css.mjs` checks the layer's budget and that every selector in it names UIkit.
+- Classic scripts budget: the total for the scripts printed in `<head>` raised from 40 to 42 KiB gzip (40.5 kB used), owner's decision. `scripts/debug-tools.js` is no longer counted in it: `_footer.php` prints it, and only for superusers in debug mode.
 - New checks (`tests/smoke.php`): the script test, the markup scan (covered classes, attributes, attribute values, titled tooltips), core's UIkit script is neither another theme's asset nor legacy, and a warning when core's UIkit differs from the layer's.
 - ProcessShowcase (bridge-sandbox): every page renders its UIkit parts in both schemes, and its UIkit page compares the admin theme with stock UIkit.
 
