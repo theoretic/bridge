@@ -108,6 +108,23 @@ $wire->addHookAfter('AdminThemeBridge::scriptNeeds', function(HookEvent $e) {
 });
 ```
 
+### 3.1 UIkit layer (ADR 0017, from 0.9.5)
+
+Modules written for AdminThemeUikit that use UIkit get it, on the pages that need it: core's `uikit.min.js` and `uikit-icons.min.js` (AdminThemeUikit's directory; Bridge ships no copy) and `assets/dist/uikit.css`, UIkit's stylesheet without its Base component, on the theme's tokens, in `@layer uikit` (every unlayered stylesheet wins over it). Setting `uikit`: `auto` (default), `always`, `never`. In `auto` mode these are reasons:
+- `Markup:<name>`: the rendered content has a UIkit attribute (`uk-grid`, `data-uk-modal`, ...) or a `uk-*` class that `95-uikit-compat.css` does not style (`assets/dist/uikit-covered.json`). `uk-tooltip` does not count: the theme script turns its text into the element's `title` (the browser's tooltip).
+- `Script:<path>`: a site module script names the `UIkit` global (comments aside; a script that tests `typeof UIkit` or `window.UIkit` first does not count).
+- `Asset:<path>`: a module added a UIkit script (kept, no second copy) or a stock UIkit stylesheet (removed: the layer replaces it).
+- `Module:<name>`: the module asked, before the page renders:
+
+```php
+$adminTheme = $this->wire()->adminTheme;
+if($adminTheme && method_exists($adminTheme, 'needUikit')) $adminTheme->needUikit('MyModule');
+```
+
+`AdminThemeBridge::uikitReasons(array $reasons)` is hookable (add or remove reasons). The client gets `ProcessWire.config.AdminThemeBridge.uikit`: `loaded`, `mode`, `reasons`, and the URLs to load it from (`css`, `scripts`, `covered`). Where the page did not print it, `window.UIkit` is a stand-in until first use (4.1).
+
+`<body>` carries AdminThemeUikit's scheme class, `light-theme` or `dark-theme`, in step with `html[data-pw-scheme]`; inside the layer's pages the tokens also follow the class on any element.
+
 ## 4. Client side
 
 ### 4.1 Theme script `ProcessWireAdminTheme` (scripts/main.js, classic)
@@ -128,6 +145,7 @@ The theme's classic scripts (`scripts/*.js`) are built: their sources are `runti
 | `scheme.setting()` / `scheme.cycle()` / `scheme.apply()` | colour scheme: `localStorage.pwScheme` (user) over `config.colorScheme` (setting), `auto` follows `prefers-color-scheme`; `a[data-pw-scheme-toggle]` cycles auto, light, dark; a change of the effective scheme dispatches `pw-scheme-change` on `document` (`detail.scheme`: `light` or `dark`; `detail.source`: `toggle` for the user menu, `system` for an OS switch under auto) |
 | `editors` | rich-text editing areas in the scheme's colours (ADR 0014): CKEditor 4 iframes get a token stylesheet (live), TinyMCE 6 gets `oxide-dark` and `content_style` at init and is re-created on `pw-scheme-change` (on an OS switch only once no editor has focus: re-creating loses caret and undo history) |
 | `InputfieldSubmitDropdown` (global, pages without jQuery) | native stand-in for upstream `InputfieldSubmit/dropdown.js`: same `init(selector, template, required)` call and markup contract (`ul#<id>_dropdown`, `a[data-pw-dropdown-value]`, `data-pw-dropdown-input`, `data-pw-dropdown-submit`), items in a native click dropdown; upstream's script replaces it when the legacy stack loads |
+| `uikit.loaded` / `uikit.load()` / `uikit.scan(el)` | the UIkit layer (3.1; `scripts/uikit-layer.js`, printed before every module script): `load()` puts the layer's stylesheet in front of the theme sheets and runs core's UIkit scripts in order, Promise of `window.UIkit`, dispatches `pw-uikit-loaded` on `document`; `scan(el)` loads it when `el` has a UIkit attribute or an uncovered `uk-*` class, and the body observer calls it for every arrival until the layer is there. Until then `window.UIkit` is a stand-in (`pwStandIn` is `true`): any property read or call loads the layer and replays the call; a call returns a stand-in for its result, so chains (`UIkit.modal('#x').show()`) and `await` work, a synchronous return value does not |
 | `setupRangeFill()` | keeps `--pw-range-fill` (filled share of the track, `0%`..`100%`) on every `input[type=range]`, updated on any edit in its Inputfield, on `reloaded` and after an in-place save; a component styling a range track can use it |
 | `setupTreeFit()` | sets `--pw-branch-max` on the deepest open page-tree branch (`.PageListRoot .PageList` without an open `.PageList` inside): the space from its top to the bottom of the screen, between about six rows and the screen below the masthead; `30-pagelist.css` caps the branch with it |
 | `setupNoticeTimeout()` | notices from a page save (`pw-page-saved`, or `ProcessPageEdit` loaded with `?s=1`) are removed after 10 s with the close fade; pointer over `#notices` or focus inside pauses the countdown, leaving resumes it with the time left; notices containing `.NoticeError` / `.pw-notice-error` stay; other screens are untouched |
@@ -196,7 +214,7 @@ On such pages `ProcessWire.alert/confirm/prompt` are plain browser dialogs until
 
 `window.Inputfields` on such pages is a facade (`Inputfields.native === true`): `inputfield`, `open`, `close`, `toggle`, `isCollapsed`, `hidden`, `focus`, `find`, `changed`, `name`, `label`; targets are elements, jQuery-like lists, selectors or field names. Upstream `inputfields.js` replaces it when the stack loads.
 
-Events (bubbling `CustomEvent`) on `li.Inputfield`: `opened`, `closed`, `reloaded` (`detail.source`), `showIf` (`detail.visible`), `changed`. On `document`: `pw-runtime-ready`, `pw-legacy-loaded`, `pw-component-loaded` (`detail.url`, `detail.module`), `pw-component-failed` (`detail.url`, `detail.error`; also a warning notice, 0.8.7), `pw-modal-opened`, `pw-modal-closed`, `pw-wiretabs-change` (4.4).
+Events (bubbling `CustomEvent`) on `li.Inputfield`: `opened`, `closed`, `reloaded` (`detail.source`), `showIf` (`detail.visible`), `changed`. On `document`: `pw-runtime-ready`, `pw-legacy-loaded`, `pw-uikit-loaded` (3.1), `pw-component-loaded` (`detail.url`, `detail.module`), `pw-component-failed` (`detail.url`, `detail.error`; also a warning notice, 0.8.7), `pw-modal-opened`, `pw-modal-closed`, `pw-wiretabs-change` (4.4).
 
 AJAX-loaded field content (milestone 3.1): its inline scripts run after insertion, as with upstream's jQuery `html()`; content marked `data-bridge-legacy` runs them once the stack is loaded. A WireTab whose content is AJAX-collapsed (`collapsed10`) loads when its tab opens (`pw-wiretabs-change`), as upstream `inputfields.js` does on `wiretabclick`.
 

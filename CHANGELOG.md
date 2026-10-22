@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased: a UIkit layer for modules written for AdminThemeUikit (ADR 0017)
+
+Reported by the author of ProcessShowcase: modules that use UIkit looked broken, because AdminThemeUikit prints UIkit on every page and Bridge did not. Its UIkit page said "The active admin theme has not loaded UIkit".
+- **The layer, on demand.** Pages that use UIkit get core's `uikit.min.js` and `uikit-icons.min.js`, plus `assets/dist/uikit.css` (32 kB gzip): UIkit 3.25's stylesheet without its Base component, its palette on the theme's tokens (both schemes), in `@layer uikit` so every unlayered sheet wins over it. Pages that do not use it load nothing more. UIkit's inverse rules (`.uk-light`, primary and secondary sections, tiles, cards) come after the theme's compat rules, unlayered; a small sheet (`src/styles/uikit-layer.css`) keeps button variants and media sizing.
+- **When.** Setting `uikit` (auto, always, never). In auto mode the reasons are UIkit attributes and `uk-*` classes that `95-uikit-compat.css` does not cover in the rendered content, site scripts that name `UIkit`, UIkit assets a module added, and `$adminTheme->needUikit('Module')`. `uikitReasons()` is hookable. Core's own screens need it nowhere. Tooltips are no reason: `uk-tooltip` text becomes the element's `title` (core's module list, Fluency's translate icons).
+- **Later content and late calls.** `scripts/uikit-layer.js` (before every module script): AJAX content with UIkit markup loads the layer, and `window.UIkit` is a stand-in that loads it on first use and replays the call (`UIkit.notification()`, `UIkit.modal.confirm().then()`).
+- **AdminThemeUikit's scheme classes.** `<body>` carries `light-theme` or `dark-theme` in step with the scheme. On the layer's pages the tokens and AdminThemeUikit's custom properties also follow the class, so a preview iframe that sets it (ProcessShowcase's) gets the scheme.
+- A module's stock `uikit.css` is replaced by the layer, and a module's UIkit script is no longer dropped as another theme's asset.
+- Build: `runtime/scripts/build-uikit.mjs` (with `BRIDGE_WIRE`, in `npm run build`), `postcss` as a dev dependency; `check-css.mjs` checks the layer's budget and that every selector in it names UIkit.
+- New checks (`tests/smoke.php`): the script test, the markup scan (covered classes, attributes, attribute values, titled tooltips), core's UIkit script is neither another theme's asset nor legacy, and a warning when core's UIkit differs from the layer's.
+- ProcessShowcase (bridge-sandbox): every page renders its UIkit parts in both schemes, and its UIkit page compares the admin theme with stock UIkit.
+
 ## AdminThemeBridge 0.9.4: notices after a save at the bottom of a long page (2026-10-22)
 
 An in-place save from the Save button at the bottom of a long editor showed its notices at the top of the page, out of view, and the page moved: the scroll was put back by its old position while notices in the flow and fields that set themselves up later grew the page above the button.

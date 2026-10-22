@@ -49,6 +49,8 @@ if($iconVersion && version_compare($iconVersion, '6.0.0', '>=')) {
 } else {
 	$styles->append($wireUrl . "templates-admin/styles/font-awesome/css/font-awesome.min.css?v=$version");
 }
+// what asks for UIkit (ADR 0017): module UIkit scripts and stylesheets, scripts naming UIkit
+$adminTheme->settleUikitAssets();
 // assets of other admin themes: AdminThemeBoss (a Uikit add-on) appends its full Uikit build on
 // every admin request whatever theme is current; drop anything from another AdminTheme module
 foreach(array($styles, $scripts) as $list) {
@@ -90,6 +92,14 @@ foreach($ordered as $i => $url) {
 	if($adminTheme->isLegacyScript($url)) $lastJquery = $i;
 }
 array_splice($ordered, $lastJquery + 1, 0, $legacyShared);
+// the UIkit layer (ADR 0017), right after the shared scripts and before every module script: the
+// stand-in (scripts/uikit-layer.js: window.UIkit until UIkit loads, AdminThemeUikit's scheme
+// classes) and, where the page needs it, core's UIkit (a module's own copy counts: no second one)
+$useUikit = $adminTheme->useUikit();
+$uikitScripts = $adminTheme->uikitScripts($ordered);
+$uikitCss = $themeUrl . "assets/dist/uikit.css?v=" . $themeAssetVersion('assets/dist/uikit.css');
+$uikitLayer = array($themeUrl . "scripts/uikit-layer.js?v=" . $themeAssetVersion('scripts/uikit-layer.js'));
+array_splice($ordered, $lastJquery + 1 + count($legacyShared), 0, $useUikit ? array_merge($uikitLayer, $uikitScripts) : $uikitLayer);
 
 $split = $adminTheme->getScriptUrls($ordered);
 $adminTheme->saveScriptVerdicts();
@@ -111,6 +121,15 @@ $bridgeJs['colorScheme'] = $adminTheme->getColorScheme();
 $bridgeJs['variant'] = $adminTheme->getVariant();
 $bridgeJs['legacyReasons'] = $adminTheme->getLegacyReasons();
 $bridgeJs['pageSave'] = $pageSave;
+// the UIkit layer (ADR 0017): printed, or the URLs the theme script loads it from on demand
+$bridgeJs['uikit'] = array(
+	'loaded' => $useUikit,
+	'mode' => (string) $adminTheme->get('uikit'),
+	'reasons' => $adminTheme->getUikitReasons(),
+	'css' => $uikitCss,
+	'scripts' => $useUikit ? array() : $uikitScripts,
+	'covered' => $themeUrl . "assets/dist/uikit-covered.json?v=" . $themeAssetVersion('assets/dist/uikit-covered.json'),
+);
 // translated labels for the runtime's own dialogs (util/choose.ts, elements/pw-dialog.ts)
 $bridgeJs['labels'] = array(
 	'ok' => $adminTheme->_('OK'),
@@ -168,6 +187,8 @@ foreach($styles->urls() as $file) {
 	if($adminTheme->isOtherThemeAsset($file)) continue;
 	echo "\n\t<link type='text/css' href='$file' rel='stylesheet' />";
 }
+// the UIkit layer is one cascade layer (@layer uikit): every unlayered stylesheet wins over it
+if($useUikit) echo "\n\t<link type='text/css' href='$uikitCss' rel='stylesheet' data-pw-uikit />";
 echo "\n\t<link type='text/css' href='$themeCss' rel='stylesheet' data-pw-theme />";
 echo "\n\t<link type='text/css' href='$fieldsCss' rel='stylesheet' data-pw-fields />";
 if($adminTheme->maxWidth) {

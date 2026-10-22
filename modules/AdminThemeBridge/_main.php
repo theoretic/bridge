@@ -17,6 +17,8 @@ if(!defined("PROCESSWIRE")) die();
 /** @var string $content */
 
 $adminTheme->renderExtraMarkup('x'); // forces the extra markup cache, as upstream does
+// UIkit markup in the page (ADR 0017), before the head decides what to print
+$adminTheme->scanUikitMarkup($content);
 $headline = $adminTheme->getHeadline();
 $headlinePos = strpos($content, "$headline</h1>");
 if($headlinePos && $headlinePos > 500) $headline = '';

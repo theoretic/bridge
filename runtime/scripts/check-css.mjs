@@ -17,6 +17,8 @@ const FILES = [
 	// with the widgets split off, the entry is a stub re-exporting a shared chunk: the runtime is
 	// the entry plus every chunk it imports statically
 	{ name: 'runtime.js', budget: 12 * 1024, with: [] },
+	// the UIkit layer (ADR 0017): stock UIkit minus Base, on tokens; only on pages that need UIkit
+	{ name: 'uikit.css', budget: 40 * 1024 },
 ];
 
 const dist = fileURLToPath(new URL('../../modules/AdminThemeBridge/assets/dist/', import.meta.url));
@@ -74,7 +76,7 @@ for (const { name, budget, with: parts = [] } of FILES) {
 const scriptsDir = fileURLToPath(new URL('../../modules/AdminThemeBridge/scripts/', import.meta.url));
 const CLASSIC = {
 	'main.js': 11.5, 'setup.js': 7, 'image-select.js': 6, 'lister.js': 4.5, 'page-save.js': 3.75,
-	'screens.js': 3.25, 'link.js': 3, 'wire-tabs.js': 2, 'page-edit.js': 1.75,
+	'screens.js': 3.25, 'link.js': 3, 'wire-tabs.js': 2, 'page-edit.js': 1.75, 'uikit-layer.js': 2.5,
 };
 let classicTotal = 0;
 for (const f of existsSync(scriptsDir) ? readdirSync(scriptsDir).filter(f => f.endsWith('.js')).sort() : []) {
@@ -89,6 +91,24 @@ for (const f of existsSync(scriptsDir) ? readdirSync(scriptsDir).filter(f => f.e
 }
 console.log(`classic scripts: ${classicTotal} B gzip (budget ${40 * 1024})`);
 if (classicTotal > 40 * 1024) { console.error('classic scripts: over the total gzip budget'); failed = true; }
+
+// the UIkit layer (ADR 0017): everything in one cascade layer, so unlayered sheets win; every
+// selector in it names a UIkit class or attribute or is UIkit's Base outside this theme's pages
+// (:where(html.pw) > body:where(:not(.AdminThemeBridge))): nothing can restyle the theme's markup
+{
+	const uikit = readFileSync(dist + 'uikit.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+	if (uikit.indexOf('@layer uikit{') < 0) { console.error('uikit.css: no @layer uikit'); failed = true; }
+	const bare = [];
+	for (const m of uikit.matchAll(/(?:^|[{}])([^{}@]+)\{/g)) {
+		const list = m[1].trim();
+		if (!list || /^(from|to|\d+%)/.test(list)) continue;
+		for (const sel of list.split(/,(?![^(]*\))/)) {
+			if (!/\.uk-|\[(?:data-)?uk-|\[class\*=['"]?uk-|^:root$|^:where\(html\.pw|^\[data-pw-(scheme|variant)\]$|^\.(dark|light)-theme|^:root:not\(\[data-pw-scheme\]\):has\(>\s*body\.(dark|light)-theme\)|^\[data-pw-variant=black\] \.dark-theme/.test(sel.trim())) bare.push(sel.trim());
+		}
+	}
+	console.log(`uikit.css: ${bare.length} selectors without a UIkit class or attribute`);
+	if (bare.length) { console.error('uikit.css: ' + bare.slice(0, 10).join(' | ')); failed = true; }
+}
 
 // Font Awesome (scripts/fa-subset.mjs): fa.css replaces core's all.min.css (21 kB gzip) and adds
 // explicit ranges; the subsets are what a screen in common use fetches

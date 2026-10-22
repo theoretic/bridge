@@ -1,0 +1,17 @@
+/* The theme's rules for the UIkit layer (ADR 0017): appended to assets/dist/uikit.css by
+ * runtime/scripts/build-uikit.mjs, unlayered, after the layer and before UIkit's inverse rules.
+ * Printed only where the layer is. Every selector names a UIkit class (check-css.mjs). */
+
+/* UIkit's Base sizes media to their container; the layer drops Base on the theme's pages, so
+ * media inside UIkit components get it back here (:where: any rule of the theme still wins) */
+:where([class*="uk-"] > img), :where([class*="uk-"] > video), :where([class*="uk-"] > canvas) { max-width: 100%; height: auto; box-sizing: border-box; }
+
+/* 95-uikit-compat.css gives .uk-button the theme's look; the variants it does not name keep their
+ * meaning (UIkit's secondary is a dark button: here the theme's secondary) and sentence case */
+.uk-button { text-transform: none; }
+.uk-button.uk-button-secondary { border-color: transparent; background: var(--secondary); color: var(--secondary-foreground); }
+.uk-button.uk-button-secondary:hover { background: var(--accent); }
+.uk-button.uk-button-danger { border-color: var(--destructive); background: var(--destructive); color: #fff; }
+.uk-button.uk-button-danger:hover { background: color-mix(in srgb, var(--destructive) 88%, #000); }
+.uk-button.uk-button-default:hover { background: var(--accent); }
+.uk-button:disabled, .uk-button.uk-disabled { opacity: .5; cursor: default; box-shadow: none; }

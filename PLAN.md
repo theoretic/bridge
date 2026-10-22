@@ -334,6 +334,19 @@ Gate 3:
 
 ListerPro waits for section 9.
 
+### UIkit layer (inserted 2026-10-22)
+
+Report by ProcessShowcase's author: modules that use UIkit look broken under Bridge. Decision in `docs/decisions/0017-uikit-compatibility-layer.md`: UIkit's own stylesheet minus Base, on the tokens, in a cascade layer, and core's UIkit script, both loaded only where a page uses UIkit (markup, scripts, assets or a module's request), like the legacy stack. The acceptance test is ProcessShowcase on `Z:/home/bridge-sandbox.osp`.
+
+**Status 2026-10-22: done (unreleased).**
+- ProcessShowcase's pages and its UIkit page render in both schemes. Before and after screenshots, in both themes, are in the session notes (`uikit-shots/`).
+- On the sandbox no core screen loads the layer.
+- Smoke test green.
+- Open:
+  - RTL;
+  - layer coverage tuning: classes worth adding to `95-uikit-compat.css` so common pages skip the layer, such as `uk-margin-large-top` and `uk-button-group`;
+  - a conformance pass on the sandboxes with UIkit-using modules (Fluency, PageTableNext, AgentTools) to confirm none starts loading the layer unexpectedly.
+
 ### Phase 4 — distribution and politics
 
 Bootstrap from phase 0 becomes the installer path; docs; upstream PRs (`wireDir`, a formal Inputfield component interface, an admin-fired event replacing direct `jQuery(document).on(...)`); CLA signed; module-directory listing for the theme; a name check (trademark search) before any public announcement.

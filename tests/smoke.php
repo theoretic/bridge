@@ -200,6 +200,10 @@ foreach(glob($themeDir . 'scripts/*.js') as $f) {
 }
 check('every theme script is the minified build of its source', !count($unbuilt) && count(glob($themeDir . 'scripts/*.js')) === count(glob($classicDir . '*.js')), implode(', ', $unbuilt));
 check('the head preloads the runtime module', strpos($headPhp, "rel='modulepreload'") !== false);
+// 0.9.5: the UIkit layer (ADR 0017; behaviour: Showcase's UIkit page, lazy load and stand-in)
+$uikitCss = (string) @file_get_contents($themeDir . 'assets/dist/uikit.css');
+check('the UIkit layer is built, in one cascade layer, with its covered-class list', strpos($uikitCss, '@layer uikit{') !== false && is_file($themeDir . 'assets/dist/uikit-covered.json'));
+check('the UIkit stand-in is printed before every module script', strpos($headPhp, '$uikitLayer = array($themeUrl . "scripts/uikit-layer.js') !== false);
 $faCssFile = glob($themeDir . 'assets/fonts/fa-*/fa.css');
 $faCssText = $faCssFile ? (string) file_get_contents($faCssFile[0]) : '';
 check('Font Awesome subsets carry a content hash', $faCssText === '' || (bool) preg_match('/url\(fa-solid-900-subset\.[0-9a-f]{8}\.woff2\)/', $faCssText));
@@ -316,6 +320,27 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	list($needed) = $settle(array('/x/FieldtypeSmoke/' => true));
 	check('with a legacy Inputfield of its module it adds no reason of its own', !$needed);
 	// 0.9.2: scriptNeeds, a site script that needs jQuery only on certain fields (Fluency)
+	// 0.9.5: the UIkit layer (ADR 0017)
+	if(method_exists($bridge, 'needsUikit')) {
+		check('a script that calls UIkit asks for the UIkit layer', AdminThemeBridge::needsUikit("UIkit.notification('Saved');"));
+		check('a script that checks for UIkit first does not', !AdminThemeBridge::needsUikit("if(typeof UIkit !== 'undefined') UIkit.notification('x');"));
+		check('a comment mentioning UIkit does not', !AdminThemeBridge::needsUikit("// works without UIkit\ndocument.body.hidden = false;"));
+		$uikitScan = function($html) use($modules) {
+			$probe = $modules->wire(new AdminThemeBridge());
+			$probe->scanUikitMarkup($html);
+			return array_keys($probe->getUikitReasons());
+		};
+		check('uk-* classes the theme covers need no UIkit layer', $uikitScan('<div class="uk-flex uk-margin-small-top"><input class="uk-input"></div>') === array());
+		check('an uncovered uk-* class or a UIkit attribute does', $uikitScan('<div class="uk-section-primary"></div><div uk-grid></div>') === array('Markup:uk-section-primary', 'Markup:uk-grid'));
+		check('a uk-* word in an attribute value is no attribute', $uikitScan('<a title="see the uk-grid docs" class="uk-flex">x</a>') === array());
+		check('a tooltip needs no layer (core module list, Fluency)', $uikitScan("<span title='x' data-uk-tooltip='delay:1000'>t</span><i uk-tooltip='Translate'></i>") === array());
+		$uikitJs = $config->urls->wire . 'modules/AdminTheme/AdminThemeUikit/uikit/dist/js/uikit.min.js';
+		check("core's UIkit script is neither another theme's asset nor legacy", !$bridge->isOtherThemeAsset($uikitJs) && !$bridge->isLegacyScript($uikitJs));
+		check('the stand-in is no UIkit script', !AdminThemeBridge::isUikitScript($bridge->url() . 'scripts/uikit-layer.js?v=1'));
+		$coreUikit = $bridge->coreUikitVersion();
+		$layerUikit = preg_match('/UIkit (\d+\.\d+\.\d+)/', $uikitCss, $m) ? $m[1] : '';
+		if($coreUikit !== $layerUikit) warn('the UIkit layer was built from another UIkit than core ships', "layer $layerUikit, core $coreUikit: rebuild with BRIDGE_WIRE (runtime/scripts/build-uikit.mjs)");
+	}
 	check('Fluency\'s fluency.js is in the scriptNeeds map', $bridge->isScriptNeedsScript($config->urls->siteModules . 'Fluency/assets/bundle/scripts/fluency.js?x=1') && !$bridge->isScriptNeedsScript($config->urls->siteModules . 'Fluency/assets/bundle/scripts/fluency_module_config.js'));
 	$needsFile = $config->paths->cache . 'bridge-smoke-needs.js';
 	$needsUrl = $config->urls->cache . 'bridge-smoke-needs.js';
