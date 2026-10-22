@@ -2,7 +2,8 @@
 // (ProcessPageList, "actions" mode) in a real browser engine and verifies that it works without
 // jQuery: open and close with the remembered state, hover actions, Edit as a link and a long press
 // into the native dialog, pagination and More, extra actions over AJAX (hide, unhide), moving a
-// page (drag, saved order), pageListRefresh. Restores what it changes.
+// page (drag, saved order), pageListRefresh, the top nav's nested tree flyouts. Restores what it
+// changes.
 // Needs a Playwright install with its browsers (any project's node_modules/playwright-core).
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
@@ -178,6 +179,29 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 
 	await open('page/');
 	await closeTree();
+	// J: the top nav's tree flyouts. The branch's flyout sits inside the Tree flyout, which
+	// scrolls: it must open beside its item (position: fixed), not inside the scrolling list
+	const treeNav = '.pw-primary-nav a.pw-has-ajax-items[data-json*="page/list/navJSON"]';
+	const branchNav = treeNav + ' + ul a.pw-has-ajax-items[data-json$="parent_id=' + TREE + '"]';
+	await page.hover('.pw-primary-nav > li > a.pw-dropdown-toggle[href$="/page/"]');
+	await page.waitForTimeout(300);
+	await page.hover(treeNav);
+	if(await waitFor((s) => !!document.querySelector(s), branchNav, 10000)) {
+		await page.hover(branchNav);
+		await waitFor((s) => { const a = document.querySelector(s); return !!a && a.nextElementSibling.children.length > 0; }, branchNav, 10000);
+		await page.waitForTimeout(400);
+		const fly = await page.evaluate((s) => {
+			const a = document.querySelector(s), ul = a.nextElementSibling, outer = a.closest('ul');
+			const r = ul.getBoundingClientRect(), o = outer.getBoundingClientRect(), li = a.parentElement.getBoundingClientRect();
+			return { pos: getComputedStyle(ul).position, vis: getComputedStyle(ul).visibility, left: Math.round(r.left), outerRight: Math.round(o.right),
+				top: Math.round(r.top), itemTop: Math.round(li.top), outerScrollbarX: getComputedStyle(outer).overflowX !== 'hidden' && outer.scrollWidth > outer.clientWidth };
+		}, branchNav);
+		check('J a flyout inside a flyout opens beside its item, outside its parent', fly.pos === 'fixed' && fly.vis === 'visible'
+			&& fly.left >= fly.outerRight - 2 && Math.abs(fly.top - fly.itemTop) <= 8 && !fly.outerScrollbarX, JSON.stringify(fly));
+	} else {
+		check('J a flyout inside a flyout opens beside its item, outside its parent', false, 'no Tree flyout item for TREE_ID ' + TREE);
+	}
+
 	check('no page errors', errors.length === 0, errors.join(' | '));
 	await consoleErrors.settle();
 	consoleErrors.check(check);

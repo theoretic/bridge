@@ -65,6 +65,9 @@
 	/* the room below the flyout's own top (scripts/main.js sets it as the flyout opens) */
 	max-height: var(--pw-flyout-max, calc(100vh - var(--pw-masthead-h) - 40px));
 	overflow-y: auto;
+	/* the hover bridges of its own items (a.pw-has-items::before) would add a horizontal
+	 * scrollbar; the 300 ms hide grace above covers their 4px gap */
+	overflow-x: hidden;
 	scrollbar-width: thin;
 	margin: -5px 0 0 4px;
 	padding: 4px;
@@ -74,6 +77,11 @@
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-md);
 }
+/* a flyout inside a flyout (page tree level 3 and deeper): its parent flyout scrolls, and a scroll
+ * box clips an absolute child and draws it inside the list. Fixed escapes the clip; scripts/main.js
+ * (fitFlyout) places it beside its item. On legacy pages jQuery UI places it (by offset, so fixed
+ * works) and its own .ui-menu .ui-menu { position: absolute } needs the longer selector */
+.pw-dropdown-menu li > ul li > ul, .pw-dropdown-menu.ui-menu .ui-menu .ui-menu { position: fixed; }
 .pw-dropdown-menu li:hover > ul:not(:empty), .pw-dropdown-menu li:focus-within > ul:not(:empty), .pw-dropdown-menu li > ul[aria-hidden="false"] { visibility: visible; opacity: 1; z-index: 2; transition-delay: 0s; }
 /* no room on the right: the flyout opens to the left of its menu */
 .pw-dropdown-menu li > ul.pw-flyout-left { left: auto; right: 100%; margin: -5px 4px 0 0; }

@@ -731,7 +731,10 @@ var ProcessWireAdminTheme = {
 
 	/**
 	 * A flyout (submenu) gets the height left below its own top and opens to the left when there
-	 * is no room on the right (12-dropdowns.css --pw-flyout-max, .pw-flyout-left; audit C5)
+	 * is no room on the right (12-dropdowns.css --pw-flyout-max, .pw-flyout-left; audit C5).
+	 * A flyout inside a flyout is position: fixed (its parent scrolls and would clip it), so it
+	 * gets its coordinates here, measured against its containing block (the masthead's
+	 * backdrop-filter makes that the masthead, not the viewport).
 	 *
 	 * @param {HTMLElement} li the item whose <ul> opens
 	 */
@@ -740,8 +743,17 @@ var ProcessWireAdminTheme = {
 		if(!ul) return;
 		var r = li.getBoundingClientRect();
 		var w = ul.offsetWidth || 200;
+		var left = r.right + w + 8 > window.innerWidth && r.left - w - 8 > 0;
 		ul.style.setProperty('--pw-flyout-max', Math.max(160, Math.round(window.innerHeight - r.top - 16)) + 'px');
-		ul.classList.toggle('pw-flyout-left', r.right + w + 8 > window.innerWidth && r.left - w - 8 > 0);
+		ul.classList.toggle('pw-flyout-left', left);
+		var cs = getComputedStyle(ul);
+		if(cs.position !== 'fixed') return;
+		ul.style.left = '0px';
+		ul.style.top = '0px';
+		var o = ul.getBoundingClientRect(); // the containing block's origin plus the margins
+		var x = left ? r.left - parseFloat(cs.marginRight) - w : r.right + parseFloat(cs.marginLeft);
+		ul.style.left = Math.round(x - o.left) + 'px';
+		ul.style.top = Math.round(r.top - o.top + parseFloat(cs.marginTop)) + 'px';
 	},
 
 	/**
@@ -815,6 +827,12 @@ var ProcessWireAdminTheme = {
 			if(item && item.querySelector(':scope > ul')) self.fitFlyout(item);
 			if(item && item.querySelector('a.pw-has-ajax-items')) self.loadNavJSON(item.querySelector('a.pw-has-ajax-items'));
 		});
+		// a flyout that scrolls takes its open fixed flyouts along
+		document.addEventListener('scroll', function(e) {
+			if(self.upstream() || !e.target.closest || !e.target.closest('.pw-dropdown-menu')) return;
+			var open = e.target.querySelectorAll('li:hover, li:focus-within');
+			for(var i = 0; i < open.length; i++) self.fitFlyout(open[i]);
+		}, true);
 		document.addEventListener('mouseout', function(e) {
 			if(self.upstream()) return;
 			if(!e.target.closest('.pw-dropdown-menu, .pw-dropdown-toggle')) return;
@@ -862,6 +880,7 @@ var ProcessWireAdminTheme = {
 	 * a.pw-has-ajax-items[data-json] from the Process's navJSON endpoint, once
 	 */
 	loadNavJSON: function(a) {
+		var self = this;
 		if(a.classList.contains('pw-ajax-items-loaded')) return;
 		a.classList.add('pw-ajax-items-loaded');
 		var ul = a.nextElementSibling;
@@ -889,6 +908,8 @@ var ProcessWireAdminTheme = {
 				});
 				ul.innerHTML = html;
 				ul.classList.add('navJSON');
+				// placed while still empty: place it again now that it has its size
+				if(a.parentNode.matches(':hover, :focus-within')) self.fitFlyout(a.parentNode);
 			})
 			.catch(function() { a.classList.remove('pw-ajax-items-loaded'); });
 	},
