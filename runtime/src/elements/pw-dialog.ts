@@ -250,11 +250,12 @@ function hrefOf(el: HTMLElement): string {
 
 /**
  * A pw-panel link's URL as upstream panel.js loads it (modal=panel, pw_panel=1, or 2 with
- * pw-panel-links), the hash kept at the end
+ * pw-panel-links), the hash kept at the end. None for an in-page panel (data-panel-id, href
+ * '#id': the core's Debug Mode Tools, opened by scripts/debug-tools.js)
  */
 function panelUrl(el: HTMLElement): string {
 	const href = el.getAttribute('data-href') || el.getAttribute('href') || '';
-	if (!href || href === '#') return '';
+	if (!href || href[0] === '#') return '';
 	const [path, hash] = href.split('#');
 	const sep = path.includes('?') ? '&' : '?';
 	return `${path}${sep}modal=panel&pw_panel=${el.classList.contains('pw-panel-links') ? 2 : 1}${hash ? '#' + hash : ''}`;

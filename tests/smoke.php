@@ -451,6 +451,14 @@ if($modules->isInstalled('AdminThemeBridge')) {
 		$src = is_file($wire . $file) ? (string) file_get_contents($wire . $file) : '';
 		foreach($list as $needle) check("core still prints the string the theme rewrites ($file)", $src !== '' && strpos($src, $needle) !== false, $needle);
 	}
+	// Debug Mode Tools: _footer.php drops debug.inc's jQuery script by this pattern and marks the
+	// panel for scripts/debug-tools.js (link with data-panel-id='debug', sections in .container)
+	$debugPattern = '~<script\b[^>]*>\s*\$\(document\)\.ready\(function\(\)\s*\{\s*var \$debug\b.*?</script>~s';
+	$debugInc = (string) @file_get_contents($wire . 'templates-admin/debug.inc');
+	check('_footer.php strips debug.inc\'s script by the tested pattern', strpos((string) file_get_contents($themeDir . '_footer.php'), "'$debugPattern'") !== false);
+	check('core\'s debug.inc still has the script, the panel div and the panel link', preg_match_all($debugPattern, $debugInc) === 1
+		&& substr_count($debugInc, '<div id="debug">') === 1 && strpos($debugInc, "data-panel-id='debug'") !== false && strpos($debugInc, '<div class="container">') !== false);
+	check('scripts/debug-tools.js is built', is_file($themeDir . 'scripts/debug-tools.js') && strpos((string) file_get_contents($themeDir . 'scripts/debug-tools.js'), '#debug.pw-debug') !== false);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

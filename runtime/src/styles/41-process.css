@@ -5,7 +5,6 @@
 .InputfieldSelector .selector-list > li { padding: 6px 0; border-bottom: 1px solid var(--pw-line); }
 .InputfieldSelector .selector-row, .InputfieldSelector .selector-row:last-child { border-color: var(--pw-line); }
 .InputfieldSelector .selector-add { margin-top: 8px; }
-#debug { margin-top: 16px; font-size: var(--pw-tiny); }
 /* Lister: results headline and pager on one line */
 h2.lister_headline { font-size: 1.25rem; margin: 24px 0 10px; }
 h2.lister_headline + .pw-pagination, .lister_headline ~ .MarkupPagerNav { margin-top: 24px; }
@@ -14,7 +13,27 @@ h2.lister_headline + .pw-pagination, .lister_headline ~ .MarkupPagerNav { margin
 #ProcessListerResults:empty { min-height: 100vh; }
 /* in the modal Lister (Users, Roles in an 80vh window) a screen's height would always scroll it */
 body.modal #ProcessListerResults:empty { min-height: 60vh; }
+/* Debug Mode Tools (core debug.inc). Without upstream's jQuery script (#debug.pw-debug, _footer.php)
+ * the panel waits for its link, which opens it in a dialog, and its sections fold as upstream's
+ * accordion did (scripts/debug-tools.js) */
+#debug { margin-top: 16px; font-size: var(--pw-tiny); }
 #debug h3 { font-size: .875rem; }
+#debug.pw-debug { display: none; }
+.pw-dialog-content > #debug.pw-debug { display: block; margin: 0; }
+#debug.pw-debug .container > h3 { margin: 0; border-bottom: 1px solid var(--pw-line); }
+#debug.pw-debug .container > h3 > a { display: flex; align-items: center; gap: 10px; padding: 10px 2px; color: var(--foreground); text-decoration: none; }
+#debug.pw-debug .container > h3 > a::before { content: ""; flex: none; width: 6px; height: 6px; margin-left: 2px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(-45deg); transition: transform .15s; }
+#debug.pw-debug .pw-debug-open > h3 > a::before { transform: rotate(45deg); }
+#debug.pw-debug .container > h3 + * { display: none; }
+#debug.pw-debug .pw-debug-open > h3 + * { display: block; overflow-x: auto; padding: 6px 0 14px; }
+#debug.pw-debug table { width: 100%; border-collapse: collapse; }
+#debug.pw-debug :is(th, td) { padding: 4px 8px; border-bottom: 1px solid var(--pw-line); text-align: left; vertical-align: top; }
+#debug.pw-debug pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+#debug.pw-debug .ui-priority-secondary { color: var(--muted-foreground); font-weight: 400; }
+/* TracyDebugger's bar hides the labels that do not fit the window with the hidden attribute,
+ * which its own .tracy-label { display: inline-block } overrides (Tracy 2.10, 2.12); UIkit's
+ * global [hidden] rule covered that, so on a phone the bar ran off the left edge */
+#tracy-debug-bar .tracy-label[hidden] { display: none; }
 
 /* logo: a dark-scheme variant is shown instead of the light one when both are configured; as
  * specific as .pw-logo-link img (display: block), which hid neither (audit C20) */

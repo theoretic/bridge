@@ -25,7 +25,20 @@ if(!defined("PROCESSWIRE")) die();
 		</p>
 		<?php
 		if($adminTheme->isSuperuser && $config->debug) {
+			// upstream's panel without its inline script, a jQuery $(document).ready() that threw where
+			// the legacy stack is not loaded and left the whole panel open below the footer;
+			// scripts/debug-tools.js opens it in a dialog and folds its sections on every page
+			// (#debug.pw-debug). Should upstream change that script, the panel stays as it is
+			ob_start();
 			include($config->paths->wire . 'templates-admin/debug.inc');
+			$debugTools = (string) ob_get_clean();
+			$debugNative = preg_replace('~<script\b[^>]*>\s*\$\(document\)\.ready\(function\(\)\s*\{\s*var \$debug\b.*?</script>~s', '', $debugTools, 1, $debugStripped);
+			if($debugStripped && is_string($debugNative)) {
+				$debugScript = 'scripts/debug-tools.js';
+				$debugTools = str_replace('<div id="debug">', '<div id="debug" class="pw-debug">', $debugNative) .
+					"<script src='" . $adminTheme->url() . $debugScript . '?v=' . (is_file(__DIR__ . "/$debugScript") ? filemtime(__DIR__ . "/$debugScript") : $adminTheme->version) . "'></script>";
+			}
+			echo $debugTools;
 		}
 		?>
 	</div>

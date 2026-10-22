@@ -230,6 +230,10 @@
 		var masthead = document.getElementById('pw-masthead');
 		if(newNotices && masthead) masthead.insertAdjacentElement('afterend', newNotices);
 		if(doc.title) document.title = doc.title;
+		// Debug Mode Tools (scripts/debug-tools.js): the saved page's request, wherever the panel is
+		var debug = document.getElementById('debug');
+		var newDebug = doc.getElementById('debug');
+		if(debug && newDebug) debug.innerHTML = newDebug.innerHTML;
 	}
 
 	function swapForm(form, doc, url, submitter) {

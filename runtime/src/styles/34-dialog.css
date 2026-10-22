@@ -40,6 +40,8 @@ dialog.pw-dialog[open] { display: flex; flex-direction: column; }
 .pw-dialog-buttons:empty { display: none; }
 .pw-dialog-buttons .ui-button { margin: 0; }
 dialog.pw-dialog-busy .pw-dialog-frame { opacity: .5; }
+/* an in-page element instead of a window (Debug Mode Tools, scripts/debug-tools.js) */
+.pw-dialog-content { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 16px 16px; }
 
 .ui-dialog {
 	padding: 0;
