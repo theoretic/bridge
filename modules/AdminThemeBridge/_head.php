@@ -136,6 +136,15 @@ $bridgeJs['labels'] = array(
 	'cancel' => $adminTheme->_('Cancel'),
 	'close' => $adminTheme->_('Close'),
 );
+// core's ProcessWire.alert/confirm/prompt (templates-admin/scripts/main.js) take the UIkit route
+// whenever window.UIkit exists, the layer's stand-in included, and read AdminThemeUikit's labels
+// there without checking for them: without these every dialog throws
+$uikitJs = $config->js('AdminThemeUikit');
+if(!is_array($uikitJs)) $uikitJs = array();
+if(empty($uikitJs['labels'])) {
+	$uikitJs['labels'] = array('ok' => $bridgeJs['labels']['ok'], 'cancel' => $bridgeJs['labels']['cancel']);
+	$config->js('AdminThemeUikit', $uikitJs);
+}
 $bridgeJs['runtimeUrl'] = $themeUrl . "assets/dist/runtime.js?v=" . $themeAssetVersion('assets/dist/runtime.js');
 $process = $this->wire()->process;
 $bridgeJs['process'] = $process instanceof BridgeComponent ? $adminTheme->componentInfo($process) : null;
