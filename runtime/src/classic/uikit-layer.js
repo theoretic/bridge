@@ -26,7 +26,9 @@
 	};
 	// the theme script dispatches pw-scheme-change whenever the effective scheme changes
 	doc.addEventListener('pw-scheme-change', schemeClass);
-	if(doc.body) schemeClass();
+	// not while parsing: output echoed before <!DOCTYPE> makes the parser open <body> early, and a
+	// class set on it then keeps the server's <body class> (AdminThemeBridge ...) from being merged
+	if(doc.readyState !== 'loading') schemeClass();
 	else doc.addEventListener('DOMContentLoaded', schemeClass, { once: true });
 
 	var api = {
