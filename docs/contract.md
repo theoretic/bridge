@@ -121,7 +121,7 @@ $adminTheme = $this->wire()->adminTheme;
 if($adminTheme && method_exists($adminTheme, 'needUikit')) $adminTheme->needUikit('MyModule');
 ```
 
-`AdminThemeBridge::uikitReasons(array $reasons)` is hookable (add or remove reasons). The client gets `ProcessWire.config.AdminThemeBridge.uikit`: `loaded`, `mode`, `reasons`, and the URLs to load it from (`css`, `scripts`, `covered`). Where the page did not print it, `window.UIkit` is a stand-in until first use (4.1).
+`AdminThemeBridge::uikitReasons(array $reasons)` is hookable (add or remove reasons). The client gets `ProcessWire.config.AdminThemeBridge.uikit`: `loaded`, `mode`, `reasons`, and the URLs to load it from (`css`, `scripts`, `covered`). Where the page did not print it, `window.UIkit` is a stand-in until first use (4.1). Since 0.9.6 every page also gets `ProcessWire.config.AdminThemeUikit.labels` (`ok`, `cancel`) unless a module set it: core's `ProcessWire.alert`, `confirm` and `prompt` read it whenever `window.UIkit` exists, so they open a UIkit modal through the layer.
 
 `<body>` carries AdminThemeUikit's scheme class, `light-theme` or `dark-theme`, in step with `html[data-pw-scheme]`; inside the layer's pages the tokens also follow the class on any element.
 

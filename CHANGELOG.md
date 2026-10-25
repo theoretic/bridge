@@ -1,5 +1,11 @@
 # Changelog
 
+## AdminThemeBridge 0.9.6: core dialogs and stray output before the page (2026-10-25)
+
+Found while checking AgentTools (Setup > Agent Tools > Migrations) on a clean sandbox site.
+- **Core dialogs threw** on every page with the legacy stack since 0.9.5. Core's `ProcessWire.alert`, `confirm` and `prompt` (`templates-admin/scripts/main.js`) take their UIkit branch whenever `window.UIkit` exists, and the UIkit layer's stand-in is always there; that branch reads `ProcessWire.config.AdminThemeUikit.labels` without checking, and only AdminThemeUikit sets it. AgentTools' "Apply pending migrations" button did nothing. `_head.php` now sets those labels from the theme's own translated OK and Cancel, unless something set them already.
+- **Text echoed before `<!DOCTYPE>`** by a module (AgentTools' site-map step after applying migrations, ryancramerdesign/AgentTools#16) left the admin unstyled: the parser opens `<body>` at the first text, `uikit-layer.js` in `<head>` set its scheme class on that body, and the parser then no longer merged the server's `<body class>`, so every `body.AdminThemeBridge` rule was lost. The scheme class now waits until the document is parsed. The stray text still shows, as under AdminThemeUikit.
+
 ## AdminThemeBridge 0.9.5: a UIkit layer for modules, fixes from the first user reports (2026-10-22)
 
 Fixes for the first reports from users of the beta, reproduced on a clean sandbox site with the reported modules.
