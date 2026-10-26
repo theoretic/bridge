@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.9.7: notes below a toggle's buttons (2026-10-26)
+
+- **InputfieldToggle and InputfieldRadios** float their button group and wrap it in core's clearfix classes (`pw-clearfix`, `ui-helper-clearfix`). Bridge defined neither: jQuery UI's rule is in the deferred legacy stylesheet and AdminThemeUikit's in its own, so on a page without the legacy stack the field's notes flowed up beside the buttons (AgentTools' config, "Read-only mode"). `02-base.css` now defines both.
+
 ## AdminThemeBridge 0.9.6: core dialogs and stray output before the page (2026-10-25)
 
 Found while checking AgentTools (Setup > Agent Tools > Migrations) on a clean sandbox site.
