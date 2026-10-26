@@ -72,6 +72,11 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await name.fill('');
 		await name.pressSequentially(sibling + '-free-xyz');
 		check('A a free name is not', await waitFor(() => !document.getElementById('Inputfield__pw_page_name').classList.contains('ui-state-error-text'), null, 8000));
+		// without X-Requested-With the core renders ./exists as a whole admin page, .taken included
+		check('A the status is the AJAX fragment, not an admin page', await page.evaluate(() => {
+			const s = document.getElementById('ProcessPageAddStatus');
+			return !!s && !s.querySelector('h1, header, nav, form, script');
+		}));
 	} else {
 		check('A the fixture parent has a child to collide with', false, `sibling ${sibling}, name input ${await name.count()}`);
 	}

@@ -136,10 +136,14 @@ export const InputfieldsFacade = {
 	 * ?field=name&reloadInputfieldAjax=name), swap its content in, then `reloaded`. New fields
 	 * inside are initialised by the runtime's content observer.
 	 */
-	reload(target: Target, extraData?: { queryString?: string }): void {
+	reload(target: Target, extraData?: { queryString?: string } | ((this: HTMLElement, e: Event) => void)): void {
+		// upstream's second argument is a callback, run once on 'reloaded'
+		const callback = typeof extraData === 'function' ? extraData : null;
+		if (callback) extraData = undefined;
 		resolve(target).forEach(li => {
 			const form = li.closest('form');
 			if (!li.id || !form) return;
+			if (callback) li.addEventListener('reloaded', callback, { once: true });
 			let name = li.id.replace('wrap_Inputfield_', '');
 			let url = form.getAttribute('action') || '';
 			let fnsx = '';
@@ -151,7 +155,7 @@ export const InputfieldsFacade = {
 			}
 			url += (url.indexOf('?') > -1 ? '&' : '?') + 'field=' + name + '&reloadInputfieldAjax=' + name;
 			if (fnsx) url += '&fnsx=' + fnsx;
-			if (extraData && extraData.queryString) url += '&' + extraData.queryString;
+			if (extraData && typeof extraData === 'object' && extraData.queryString) url += '&' + extraData.queryString;
 			fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
 				.then(r => r.text())
 				.then(html => {

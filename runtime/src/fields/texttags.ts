@@ -194,6 +194,7 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 	};
 
 	let timer = 0;
+	let seq = 0;
 	const lookup = (): void => {
 		if (!o.tagsUrl) return;
 		const q = text.value.trim();
@@ -202,10 +203,16 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 		timer = window.setTimeout(async () => {
 			const li = original.closest('.Inputfield');
 			if (li) li.classList.add('InputfieldAjaxLoading');
+			const mine = ++seq;
+			let found: Tag[] = [];
 			try {
-				const res = await fetch((o.tagsUrl as string).replace('{q}', encodeURIComponent(q)), { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+				const url = new URL((o.tagsUrl as string).replace('{q}', encodeURIComponent(q)), location.href);
+				// the header only on this site, as jQuery adds it: on another host it asks a CORS
+				// preflight that a tags service answering plain GETs may refuse
+				const headers: Record<string, string> = url.origin === location.origin ? { 'X-Requested-With': 'XMLHttpRequest' } : {};
+				const res = await fetch(url.href, { credentials: 'same-origin', headers });
 				const data = await res.json() as Array<unknown>;
-				remote = data.map(item => {
+				found = data.map(item => {
 					if (item && typeof item === 'object') {
 						const it = item as { value: unknown; label?: string };
 						const value = typeof it.value === 'number' && isPageField ? '_' + it.value : String(it.value);
@@ -215,8 +222,11 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 					return isPageField && /^\d+$/.test(s) ? { value: '_' + s, label: s } : { value: s, label: s };
 				});
 			} catch (e) {
-				remote = [];
+				found = [];
 			}
+			// an answer to an older query never replaces a newer one
+			if (mine !== seq) return;
+			remote = found;
 			if (li) li.classList.remove('InputfieldAjaxLoading');
 			renderDropdown();
 		}, 300);

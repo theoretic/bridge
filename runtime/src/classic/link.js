@@ -96,6 +96,7 @@
 			input.setAttribute('data-start', cfg.selectStartLabel || 'Choose');
 			input.setAttribute('data-select', cfg.selectStartLabel || 'Select');
 			if(p[1]) input.setAttribute('data-root', p[1]);
+			if(cfg.langID) input.setAttribute('data-lang', cfg.langID);
 			input.addEventListener('pageSelected', function(e) {
 				var data = e.detail || {};
 				if(data.url && data.url.length) {

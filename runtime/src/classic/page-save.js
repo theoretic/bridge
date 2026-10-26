@@ -150,6 +150,10 @@
 		var data = formData(form, submitter);
 		busy = true;
 		setBusy(form, submitter, true);
+		// the submit listener above stops the event before inputfields/forms.ts marks the form: a
+		// redirect elsewhere after the save would otherwise ask about unsaved changes
+		var confirmForm = form.classList.contains('InputfieldFormConfirm');
+		if(confirmForm) form.classList.add('InputfieldFormSubmitted');
 		fetch(form.getAttribute('action') || location.href, { method: 'POST', body: data, credentials: 'same-origin' })
 			.then(function(res) { return res.text().then(function(html) { return { res: res, html: html }; }); })
 			.then(function(r) { if(rule) doneForm(form, submitter, rule, r.res, r.html); else done(form, submitter, r.res, r.html); })
@@ -159,7 +163,8 @@
 				if(window.console) console.error('Bridge page save:', err);
 				busy = false;
 				setBusy(form, submitter, false);
-				var msg = 'The save got no answer from the server. Check the page and save again if needed.';
+				if(confirmForm) form.classList.remove('InputfieldFormSubmitted');
+				var msg ='The save got no answer from the server. Check the page and save again if needed.';
 				if(window.ProcessWire && typeof ProcessWire.alert === 'function') ProcessWire.alert(msg); else window.alert(msg);
 			});
 	}

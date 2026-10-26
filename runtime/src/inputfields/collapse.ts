@@ -99,6 +99,9 @@ async function loadAjax(li: HTMLElement, placeholder: HTMLElement): Promise<void
 	try {
 		const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
 		const html = await res.text();
+		// an error (a status, or admin.php's JSON message) is never put in the field, as upstream's
+		// $.get(..., 'html') success callback never sees one
+		if (!res.ok || html.trim().indexOf('{') === 0) throw new Error('HTTP ' + res.status + ' ' + html.trim().slice(0, 200));
 		const tpl = document.createElement('template');
 		tpl.innerHTML = html;
 		li.classList.remove('InputfieldAjaxLoading', 'InputfieldStateCollapsed');

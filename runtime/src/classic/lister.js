@@ -210,10 +210,17 @@
 			data.append('render_results', '1');
 			data.append('filters', refreshAll ? (ProcessLister.filters ? ProcessLister.filters.value : '') : 'ignore');
 			var columns = $('#lister_columns');
-			if(columns) Array.prototype.forEach.call(columns.selectedOptions, function(o) { data.append('columns[]', o.value); });
+			// minimal mode (?minimal=1) renders it as a hidden input with value 'ignore'
+			if(columns && columns.tagName === 'SELECT') Array.prototype.forEach.call(columns.selectedOptions, function(o) { data.append('columns[]', o.value); });
+			else if(columns) data.append('columns', columns.value);
 			var sort = $('#lister_sort');
 			data.append('sort', sort ? sort.value : '');
-			for(var key in ProcessLister.extraSubmitData) data.append(key, ProcessLister.extraSubmitData[key]);
+			// arrays as key[]=a&key[]=b, as jQuery's $.param sends them
+			for(var key in ProcessLister.extraSubmitData) {
+				var extra = ProcessLister.extraSubmitData[key];
+				if(Array.isArray(extra)) extra.forEach(function(v) { data.append(key + '[]', v); });
+				else data.append(key, extra);
+			}
 			ProcessLister.extraSubmitData = {};
 			if(ProcessLister.resetTotal) { data.append('reset_total', '1'); ProcessLister.resetTotal = false; }
 			if(rowIDs.length) { data.append('row_page_id', rowIDs.join(',')); ProcessLister.resetTotal = false; }

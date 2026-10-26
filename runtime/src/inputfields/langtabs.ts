@@ -14,6 +14,7 @@
  */
 
 import { legacyLoaded } from '../legacy';
+import { getCookie, setCookie } from '../util/cookie';
 
 type Config = { activeTab?: number; liActiveClass?: string; labelOpen?: string; labelClose?: string; requestId?: string };
 
@@ -76,10 +77,9 @@ function setup(tabs: HTMLElement): void {
 
 /** Open the language remembered by a double click earlier in this request (langTabsDC cookie) */
 function restoreRemembered(root: ParentNode): void {
-	const match = document.cookie.match(/(?:^|;\s*)langTabsDC=([^;]*)/);
+	const value = getCookie('langTabsDC');
 	const requestId = cfg().requestId;
-	if (!match || !requestId) return;
-	const value = decodeURIComponent(match[1]);
+	if (typeof value !== 'string' || !requestId) return;
 	if (value.indexOf('-' + requestId) < 1) return;
 	const langId = value.split('-')[0];
 	root.querySelectorAll<HTMLElement>('a.langTab' + CSS.escape(langId)).forEach(activate);
@@ -151,7 +151,8 @@ export function setupLanguageTabEvents(): void {
 			const scope = link.closest('form') || document;
 			if (lang) scope.querySelectorAll<HTMLElement>('a.langTab' + CSS.escape(lang)).forEach(activate);
 			const requestId = cfg().requestId;
-			if (lang && requestId) document.cookie = 'langTabsDC=' + encodeURIComponent(lang + '-' + requestId) + '; path=/; SameSite=Lax';
+			// upstream's jQuery.cookie format (no path, secure on https), so the two read each other's
+			if (lang && requestId) setCookie('langTabsDC', lang + '-' + requestId);
 		} else {
 			activate(link);
 		}

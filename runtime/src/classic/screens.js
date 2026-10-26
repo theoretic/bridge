@@ -128,7 +128,7 @@
 				var name = nameInput.value;
 				if(name === last || !parentId || !name.length) return;
 				last = name;
-				fetch(ajaxURL + 'exists?parent_id=' + encodeURIComponent(parentId) + '&name=' + encodeURIComponent(name), { credentials: 'same-origin' })
+				fetch(ajaxURL + 'exists?parent_id=' + encodeURIComponent(parentId) + '&name=' + encodeURIComponent(name), { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
 					.then(function(res) { return res.text(); })
 					.then(function(html) {
 						status.innerHTML = ' ' + html;
@@ -180,14 +180,33 @@
 			}, 1000);
 		}
 		on($('form#ProcessProfile'), 'submit', function(e) {
-			if(!$('.InputfieldStateChanged.InputfieldPassRequired')) return;
-			var pass = $('#_old_pass');
-			if(!pass || pass.value.length) return;
+			var pass = missingOldPass();
+			if(!pass) return;
 			e.preventDefault();
 			var wrap = pass.closest('.InputfieldPassword') || pass.closest('.Inputfield');
 			if(wrap && window.Inputfields && Inputfields.open) Inputfields.open('#' + wrap.id);
 			setTimeout(function() { pass.focus(); }, 400);
 		});
+		// scripts/page-save.js posts the profile in place from a capture listener on document, so the
+		// submit never reaches the form: cancelling its pw-form-save hands it back as a classic
+		// submit, which the listener above stops. Bound once (init runs again after each save)
+		if(!profileSaveGuard) {
+			profileSaveGuard = true;
+			document.addEventListener('pw-form-save', function(e) {
+				// getAttribute: the form's input named "id" shadows form.id
+				var form = e.detail && e.detail.form;
+				if(form && form.getAttribute('id') === 'ProcessProfile' && missingOldPass()) e.preventDefault();
+			}, handover.bind());
+		}
+	}
+
+	var profileSaveGuard = false;
+
+	// a field that needs the current password changed, and the current password is empty
+	function missingOldPass() {
+		if(!$('.InputfieldStateChanged.InputfieldPassRequired')) return null;
+		var pass = $('#_old_pass');
+		return pass && !pass.value.length ? pass : null;
 	}
 
 	/* Logs -------------------------------------------------------------------------------- */

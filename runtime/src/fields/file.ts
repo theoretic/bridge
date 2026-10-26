@@ -93,7 +93,7 @@ function setupDocument(): void {
 			state.abort.abort();
 			if (state.unsort) state.unsort();
 			inputfield.querySelectorAll('.InputfieldFileInit').forEach(el => el.classList.remove('InputfieldFileInit'));
-			inputfield.removeAttribute('data-pw-file');
+			inputfield.querySelectorAll('[data-pw-file]').forEach(el => el.removeAttribute('data-pw-file'));
 		});
 		fields.clear();
 	});
@@ -251,9 +251,12 @@ export function init(inputfield: HTMLElement): void {
 	setupDocument();
 	initFileTags(inputfield, inputfield);
 	const content = inputfield.querySelector<HTMLElement>(':scope > .InputfieldContent');
-	if (!content || inputfield.hasAttribute('data-pw-file')) return;
-	inputfield.setAttribute('data-pw-file', '');
+	if (!content) return;
+	// collapsed with AJAX: set up once its content is loaded (the loader announces 'reloaded')
+	if (content.querySelector(':scope > .renderInputfieldAjax')) return;
 	let list = content.querySelector<HTMLElement>('.InputfieldFileList');
+	// marked on the list, as image.ts marks its grid: content a reload put in is set up again
+	if (list && list.hasAttribute('data-pw-file')) return;
 	if (!list) {
 		list = document.createElement('ul');
 		list.className = 'InputfieldFileList InputfieldFileListBlank';
@@ -261,8 +264,15 @@ export function init(inputfield: HTMLElement): void {
 		if (placeholder) placeholder.replaceWith(list);
 		else content.insertBefore(list, content.firstChild);
 	}
+	list.setAttribute('data-pw-file', '');
 	// fields an in-place save replaced
 	fields.forEach((st, f) => { if (!f.isConnected) { st.abort.abort(); if (st.unsort) st.unsort(); fields.delete(f); } });
+	const old = fields.get(inputfield);
+	if (old) {
+		old.abort.abort();
+		if (old.unsort) old.unsort();
+		content.classList.remove('InputfieldFileInit');
+	}
 	const state: FieldState = { abort: new AbortController(), unsort: null };
 	fields.set(inputfield, state);
 	updateCount(inputfield);

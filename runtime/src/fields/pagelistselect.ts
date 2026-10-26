@@ -48,6 +48,8 @@ function setup(input: HTMLInputElement, multiple: boolean): void {
 		selected: attr('data-selected', 'Selected'), unselect: attr('data-unselect', 'Unselect'), more: attr('data-more', 'More'),
 	};
 	const labelName = attr('data-labelName');
+	// the link dialog's language (upstream's langID option): labels and paths in that language
+	const langID = parseInt(attr('data-lang', '0'), 10) || 0;
 	const showPath = parseInt(attr('data-showPath', '0'), 10) > 0;
 	const allowUnselect = !multiple && parseInt(attr('data-allowUnselect', '0'), 10) > 0;
 	const ol = multiple ? document.getElementById(input.id + '_items') : null;
@@ -60,6 +62,7 @@ function setup(input: HTMLInputElement, multiple: boolean): void {
 		let u = adminUrl() + 'page/list/?id=' + id + '&render=JSON&start=' + start + '&mode=select';
 		if (typeof limit === 'number') u += '&limit=' + limit;
 		if (labelName) u += '&labelName=' + encodeURIComponent(labelName);
+		if (langID) u += '&lang=' + langID;
 		return u;
 	};
 	const getJSON = async (u: string): Promise<ListData> => {

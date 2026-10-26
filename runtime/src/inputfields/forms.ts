@@ -131,6 +131,23 @@ export function setupFormEvents(): void {
 		if (form.classList.contains('InputfieldFormConfirm')) form.classList.add('InputfieldFormSubmitted');
 	}, true);
 
+	// files dragged in: a collapsed field that takes uploads opens for them, and a drop anywhere
+	// else never loads the file in the browser (upstream's inputfields.js); the fields' own drop
+	// zones stop the event before it gets here
+	const draggingFiles = (e: DragEvent): boolean => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') > -1;
+	document.addEventListener('dragenter', e => {
+		if (legacyLoaded() || !draggingFiles(e)) return;
+		const li = (e.target as Element)?.closest?.<HTMLElement>('.InputfieldHasUpload.InputfieldStateCollapsed');
+		if (li) openInputfield(li);
+	});
+	const keepFile = (e: DragEvent): void => {
+		if (legacyLoaded() || !draggingFiles(e) || !document.querySelector('input[type=file]')) return;
+		if ((e.target as Element)?.matches?.('input[type=file]')) return;
+		e.preventDefault();
+	};
+	document.addEventListener('dragover', keepFile);
+	document.addEventListener('drop', keepFile);
+
 	// invalid controls: 'invalid' does not bubble, so listen in the capture phase
 	document.addEventListener('invalid', e => {
 		if (legacyLoaded()) return;

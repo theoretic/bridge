@@ -157,9 +157,22 @@ export class PwDialog extends HTMLElement {
 		if (this.closeOnLoad) {
 			this.closeOnLoad = false;
 			if (!doc.querySelector(opts.errors || '.NoticeError, .ui-state-error')) {
+				// the window's messages ("Saved …") go to SystemNotifications, as upstream's modal.js
+				const notifications = (window as unknown as { Notifications?: { message?: (text: string) => void } }).Notifications;
+				const messages = Array.from(doc.querySelectorAll('.NoticeMessage')).map(el => (el.textContent || '').trim()).filter(Boolean);
+				if (notifications && notifications.message && messages.length) {
+					window.setTimeout(() => messages.forEach(text => notifications.message!(text)), 500);
+				}
 				this.close(false);
 				return;
 			}
+		}
+		// a panel window (pw_panel=1, upstream's panel.js inside it): its links open in this window
+		if (/[?&]pw_panel=1(?:&|#|$)/.test(doc.location.href)) {
+			doc.addEventListener('mouseover', e => {
+				const a = (e.target as Element)?.closest?.('a');
+				if (a && !a.getAttribute('target')) a.setAttribute('target', '_parent');
+			});
 		}
 		if (this.titleEl && !opts.title) this.titleEl.textContent = doc.title || '';
 		if (opts.onLoad) opts.onLoad(doc, this);

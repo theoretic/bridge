@@ -29,8 +29,7 @@ type PickerOptions = Regional & {
 	yearRange: string; [key: string]: unknown;
 };
 
-function regionalFromIntl(): Regional {
-	const lang = document.documentElement.lang || navigator.language || 'en';
+function regionalFromIntl(lang = document.documentElement.lang || navigator.language || 'en'): Regional {
 	const month = (m: number, style: 'long' | 'short'): string =>
 		new Intl.DateTimeFormat(lang, { month: style, timeZone: 'UTC' }).format(new Date(Date.UTC(2021, m, 1)));
 	// 2021-01-03 was a Sunday
@@ -206,16 +205,21 @@ function setupPicker(input: HTMLInputElement): void {
 	const ampm = parseInt(input.getAttribute('data-ampm') || '0', 10) > 0 && /[hHtT]/.test(timeFormat) && !/HH|H/.test(timeFormat);
 	let attrOptions: Record<string, unknown> = {};
 	try { attrOptions = JSON.parse(input.getAttribute('data-datepicker') || '{}'); } catch (e) { /* defaults */ }
+	const overrides = Object.assign({}, config('InputfieldDatetimeDatepickerDefaults'), attrOptions, config('InputfieldDatetimeDatepickerOptions'));
 	const o: PickerOptions = Object.assign(regionalFromIntl(), {
 		changeMonth: true, changeYear: true, showButtonPanel: false, showOtherMonths: false, yearRange: '',
-	}, config('InputfieldDatetimeDatepickerDefaults'), attrOptions, config('InputfieldDatetimeDatepickerOptions')) as PickerOptions;
+	}, overrides) as PickerOptions;
+	// the value is read back by PHP's date parser, which knows English names only (upstream's
+	// picker writes English unless a jQuery UI i18n file is loaded): the calendar shows the admin's
+	// language, the input gets English names, or the names the site's options set
+	const valueNames: Regional = Object.assign(regionalFromIntl('en'), overrides);
 	if (input.getAttribute('data-yearrange')) o.yearRange = input.getAttribute('data-yearrange') as string;
 
 	const ts = parseInt(input.getAttribute('data-ts') || '0', 10);
 	// the parser stops after the date tokens, so a trailing time does not disturb it
 	const valueDate = (): Date | null => {
 		const text = input.value.trim();
-		return text ? parseDate(dateFormat, text, o) : null;
+		return text ? parseDate(dateFormat, text, valueNames) || parseDate(dateFormat, text, o) : null;
 	};
 	const valueTime = (): Time => {
 		const m = input.value.match(/(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[ap]\.?m?\.?)?)\s*$/i);
@@ -238,7 +242,7 @@ function setupPicker(input: HTMLInputElement): void {
 
 	const write = (): void => {
 		if (!selected) return;
-		input.value = formatDate(dateFormat, selected, o) + (timeFormat ? ' ' + formatTime(timeFormat, time) : '');
+		input.value = formatDate(dateFormat, selected, valueNames) +(timeFormat ? ' ' + formatTime(timeFormat, time) : '');
 		input.dispatchEvent(new Event('input', { bubbles: true }));
 		input.dispatchEvent(new Event('change', { bubbles: true }));
 	};

@@ -38,20 +38,33 @@ var ProcessWireAdminTheme = {
 		else scripts = rootOrScripts ? Array.prototype.slice.call(rootOrScripts.querySelectorAll('script')) : [];
 		var run = function() {
 			var loaded = Array.prototype.map.call(document.querySelectorAll('script[src]'), function(s) { return s.getAttribute('src'); });
-			scripts.forEach(function(old) {
-				var type = (old.getAttribute('type') || '').trim().toLowerCase();
-				if(type && !/^(text|application)\/(java|ecma)script$|^module$/.test(type)) return;
-				// in this page (replaced where it is) or detached / in a parsed document (appended)
-				var here = old.isConnected && old.ownerDocument === document;
-				var src = old.getAttribute('src');
-				if(src && loaded.filter(function(u) { return u === src; }).length > (here ? 1 : 0)) return;
-				var live = document.createElement('script');
-				Array.prototype.forEach.call(old.attributes, function(a) { live.setAttribute(a.name, a.value); });
-				if(src) live.async = false;
-				else live.text = old.text || old.textContent || '';
-				if(here) old.parentNode.replaceChild(live, old);
-				else document.body.appendChild(live);
-			});
+			var i = 0;
+			// in order, and an external script loads before the ones after it run (upstream's
+			// jQuery evaluated it synchronously); up to the first one this runs synchronously
+			var next = function() {
+				while(i < scripts.length) {
+					var old = scripts[i++];
+					var type = (old.getAttribute('type') || '').trim().toLowerCase();
+					if(type && !/^(text|application)\/(java|ecma)script$|^module$/.test(type)) continue;
+					// in this page (replaced where it is) or detached / in a parsed document (appended)
+					var here = old.isConnected && old.ownerDocument === document;
+					var src = old.getAttribute('src');
+					if(src && loaded.filter(function(u) { return u === src; }).length > (here ? 1 : 0)) continue;
+					var live = document.createElement('script');
+					Array.prototype.forEach.call(old.attributes, function(a) { live.setAttribute(a.name, a.value); });
+					var wait = null;
+					if(src) {
+						live.async = false;
+						wait = new Promise(function(resolve) { live.onload = live.onerror = function() { resolve(); }; });
+					} else {
+						live.text = old.text || old.textContent || '';
+					}
+					if(here) old.parentNode.replaceChild(live, old);
+					else document.body.appendChild(live);
+					if(wait) return wait.then(next);
+				}
+			};
+			return Promise.resolve(next());
 		};
 		if(!scripts.length) return Promise.resolve();
 		if(options && options.legacy && !self.legacy.loaded) {
@@ -59,8 +72,7 @@ var ProcessWireAdminTheme = {
 				if(window.console) console.error('Bridge: inline scripts not run, the legacy stack did not load', err);
 			});
 		}
-		run();
-		return Promise.resolve();
+		return run();
 	},
 
 	/**
