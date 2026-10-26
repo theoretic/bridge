@@ -15,8 +15,9 @@ const FILES = [
 	{ name: 'fields.css', budget: 6 * 1024 },
 	// the component runtime: Inputfield behaviours without jQuery grow here in Phase 2 (ADR 0015);
 	// with the widgets split off, the entry is a stub re-exporting a shared chunk: the runtime is
-	// the entry plus every chunk it imports statically
-	{ name: 'runtime.js', budget: 12 * 1024, with: [] },
+	// the entry plus every chunk it imports statically; raised from 12 kB to 14000 B by the owner on
+	// 2026-10-26
+	{ name: 'runtime.js', budget: 14000, with: [] },
 	// the UIkit layer (ADR 0017): stock UIkit minus Base, on tokens; only on pages that need UIkit
 	{ name: 'uikit.css', budget: 40 * 1024 },
 ];
