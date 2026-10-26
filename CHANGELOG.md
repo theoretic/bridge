@@ -1,5 +1,22 @@
 # Changelog
 
+## AdminThemeBridge 0.9.8: the ports keep upstream's request contract (2026-10-26)
+
+Found on a client site: typing a title on Add Page put a whole admin page under the name field. The name check fetched `./exists` without `X-Requested-With`, which jQuery's `$.get` adds, so `admin.php` answered with the full layout. Every port was then checked against the core script it replaces (06d11c1):
+- **Add Page**: the name check sends the header and gets the status fragment again. `tools/screens-check.js` A checks that the status is the fragment.
+- **Lister in minimal mode** (ProcessTemplate's "pages using this template", the selector's "(show)" window) loaded no results: `#lister_columns` is a hidden input there. Array values in `extraSubmitData` go as `key[]`, as `$.param` sends them.
+- **Profile**: the current-password guard never ran under the in-place save, which stops the submit first (the server still refused the change). It now cancels `pw-form-save`.
+- **In-place save**: a redirect elsewhere after a save no longer asks about unsaved changes.
+- **Datetime**: on a translated admin the picker wrote month and day names in that language, which PHP's date parser cannot read, so the date was lost on save. The value gets English names; the calendar keeps the admin's language.
+- **File fields collapsed with AJAX** got a stray empty list and no AJAX upload, sorting or drop after opening; a reloaded file field lost its sorting. Both are set up again.
+- **Link dialog** on multi-language sites: the page picker passes the language, so a link inserted from another language's tab gets that language's path.
+- **A file dropped outside a field** no longer opens in the browser, and a collapsed upload field opens when files are dragged over it.
+- **TextTags**: a tags URL on another host no longer gets `X-Requested-With` (a CORS preflight a plain tags service may refuse), and an older answer never replaces a newer one.
+- **Fields loaded with AJAX**: an error answer is not put in the field; an external script in the loaded markup runs before the scripts after it.
+- **Smaller**: `Inputfields.reload(field, callback)` runs its callback; the `langTabsDC` cookie has jQuery.cookie's format (no path, secure on https); links in a `.pw-panel` window open in the main window; messages of a dialog that closes itself after saving go to SystemNotifications.
+
+The runtime's gzip budget (`runtime.js` and its index chunk) was raised from 12 kB to 14000 B by the owner (b528b04).
+
 ## AdminThemeBridge 0.9.7: notes below a toggle's buttons (2026-10-26)
 
 - **InputfieldToggle and InputfieldRadios** float their button group and wrap it in core's clearfix classes (`pw-clearfix`, `ui-helper-clearfix`). Bridge defined neither: jQuery UI's rule is in the deferred legacy stylesheet and AdminThemeUikit's in its own, so on a page without the legacy stack the field's notes flowed up beside the buttons (AgentTools' config, "Read-only mode"). `02-base.css` now defines both.
