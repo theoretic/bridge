@@ -44,3 +44,6 @@ body.AdminThemeBridge :is(button, .ui-button) .ui-priority-secondary { color: in
 .ui-priority-secondary:is(.fa, .fas, .fa-solid) { font-weight: 900; }
 .ui-priority-secondary:is(.far, .fa-regular) { font-weight: 400; }
 body.AdminThemeBridge .detail, body.AdminThemeBridge .notes, body.AdminThemeBridge small { color: var(--pw-text-muted); }
+/* core's clearfix classes (InputfieldToggle and InputfieldRadios wrap their floated group in
+ * both): jQuery UI's lives in the deferred legacy stylesheet, AdminThemeUikit's in its own */
+.pw-clearfix::after, .ui-helper-clearfix::after { content: ""; display: table; clear: both; }
