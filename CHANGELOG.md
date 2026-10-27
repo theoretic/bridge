@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.11.3: the menu toggle next to the logo (2026-10-27)
+
+- **The menu toggle sits next to the logo** on small screens and whenever the top bar folds into the drawer, instead of at the right beside the display controls; the controls, user menu and search stay on the right.
+
 ## AdminThemeBridge 0.11.2: the rest of the audit plan (2026-10-27)
 
 The items the 2026-10-27 audit plan listed that earlier releases left open.

@@ -641,6 +641,8 @@ if(isset($bridge) && $bridge) {
 	check('the head applies scheme and scale before paint, from the user key', strpos($headSrc, "c.prefsKey || 'pwPrefs.last'") !== false && strpos($headSrc, 'd.style.fontSize') !== false);
 	$mainJs = (string) file_get_contents($themeDir . 'scripts/main.js');
 	check('the theme script keeps prefs, scale and a rem-aware length reader', strpos($mainJs, 'pwPrefs.last') !== false && strpos($mainJs, 'data-pw-scale') !== false && strpos($mainJs, 'cssLength') !== false);
+	// the drawer's menu toggle sits next to the logo; the right-hand controls take the free space
+	check('the menu toggle sits next to the logo', !preg_match('/\.pw-nav-toggle\{[^}]*margin-left:auto/', $themeCss) && strpos($themeCss, 'body.pw-nav-overflow .pw-masthead-right{margin-left:auto}') !== false);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

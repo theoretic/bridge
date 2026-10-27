@@ -7,7 +7,7 @@
 @media (max-width: 959px) {
 	.pw-container, #notices { padding: 0 20px; }
 	.pw-masthead .pw-container { gap: 12px; }
-	.pw-nav-toggle { display: inline-block; margin-left: auto; }
+	.pw-nav-toggle { display: inline-block; }
 	.pw-nav {
 		display: none;
 		position: fixed;
@@ -35,7 +35,8 @@
 	.pw-primary-nav .pw-dropdown-menu li > ul { display: none; }
 	.pw-primary-nav .pw-dropdown-menu li a:hover { background: var(--accent); color: var(--accent-foreground); }
 	.pw-primary-nav .pw-dropdown-menu a.pw-has-items::after, .pw-primary-nav .pw-dropdown-menu li:hover > ul { display: none; }
-	.pw-masthead-right { margin-left: 0; }
+	/* the toggle sits next to the logo, the controls stay right */
+	.pw-masthead-right { margin-left: auto; }
 	#ProcessPageSearchQuery { width: 120px; }
 }
 @media (max-width: 767px) {
@@ -55,7 +56,8 @@
 /* the drawer also when the top bar does not fit its items (seven or eight sections, 200 % zoom):
  * scripts/main.js sets body.pw-nav-overflow from the bar's own width (audit C4); the same rules
  * as below 960px */
-body.pw-nav-overflow .pw-nav-toggle { display: inline-block; margin-left: auto; }
+body.pw-nav-overflow .pw-nav-toggle { display: inline-block; }
+body.pw-nav-overflow .pw-masthead-right { margin-left: auto; }
 body.pw-nav-overflow .pw-nav {
 	display: none;
 	position: fixed;
