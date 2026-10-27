@@ -185,7 +185,7 @@ function scan(opts) {
 		if(fixture && scheme === 'light') {
 			try {
 				await open('page/edit/?id=' + fixture);
-				await page.evaluate(() => { localStorage.setItem('pwScheme', 'light'); ProcessWireAdminTheme.scheme.cycle(); });
+				await page.evaluate(() => { ProcessWireAdminTheme.prefs.set('scheme', 'light'); ProcessWireAdminTheme.scheme.cycle(); });
 				await page.waitForTimeout(2500);
 				const now = await page.evaluate(() => document.documentElement.getAttribute('data-pw-scheme'));
 				for(const frame of page.frames()) {

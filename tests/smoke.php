@@ -624,5 +624,30 @@ if(isset($bridge) && $bridge) {
 	check('the runtime labels include the part-failed notice', isset($bridge->runtimeLabels()['partFailed']));
 }
 
+// 0.11.0: interface scale, display controls, per-user display settings
+if(isset($bridge) && $bridge) {
+	$themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
+	$noMedia = (string) preg_replace('/@media[^{]*\{/', '{', $themeCss);
+	preg_match_all('/(?<![\w-])(padding|margin|gap|width|height|top|left|right|bottom|font-size|border-radius)[\w-]*:[^;{}]*?\b([2-9]|\d{2,})px/', $noMedia, $pxLeft);
+	check('built CSS sizes in rem (px only for hairlines, borders, media queries)', !count($pxLeft[0]), implode(' | ', array_slice($pxLeft[0], 0, 5)));
+	check('the token the theme script measures with is in rem', strpos($themeCss, '--pw-masthead-h:') !== false && !preg_match('/--pw-masthead-h:\s*\d+px/', $themeCss));
+	$controls = $bridge->renderViewControls();
+	check('display controls: smaller, larger, scheme', strpos($controls, "data-pw-scale='-1'") !== false && strpos($controls, "data-pw-scale='1'") !== false && strpos($controls, 'data-pw-scheme-toggle') !== false);
+	check('the scheme toggle left the user menu', strpos($themeSource, "<li class='pw-scheme-toggle'>") === false);
+	check('a guest has no display settings key', $bridge->prefsKey() === '');
+	$guest = $wire->user;
+	$su = $wire->users->get('name=bridge');
+	if($su && $su->id) {
+		$wire->users->setCurrentUser($su);
+		$key = $bridge->prefsKey();
+		$wire->users->setCurrentUser($guest);
+		check('a user\'s settings key is derived, not the id', (bool) preg_match('/^pwPrefs\.[0-9a-f]{20}$/', $key) && strpos($key, (string) $su->id) === false, $key);
+	}
+	$headSrc = (string) file_get_contents($themeDir . '_head.php');
+	check('the head applies scheme and scale before paint, from the user key', strpos($headSrc, "c.prefsKey || 'pwPrefs.last'") !== false && strpos($headSrc, 'd.style.fontSize') !== false);
+	$mainJs = (string) file_get_contents($themeDir . 'scripts/main.js');
+	check('the theme script keeps prefs, scale and a rem-aware length reader', strpos($mainJs, 'pwPrefs.last') !== false && strpos($mainJs, 'data-pw-scale') !== false && strpos($mainJs, 'cssLength') !== false);
+}
+
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

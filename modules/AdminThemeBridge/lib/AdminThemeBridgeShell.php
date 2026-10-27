@@ -218,6 +218,9 @@ trait AdminThemeBridgeShell {
 			case 'search': return __('Search', __FILE__);
 			case 'home': return __('Home', __FILE__);
 			case 'pagination': return __('Pagination', __FILE__);
+			case 'display': return __('Display', __FILE__); // the group of scale and scheme buttons
+			case 'smaller': return __('Smaller', __FILE__);
+			case 'larger': return __('Larger', __FILE__);
 			case 'basedOn': return __('based on ProcessWire %s', __FILE__); // %s is the core version
 			case 'coloursFrom': return __('colours from %s', __FILE__); // %s is a link to AdminThemeBoss
 		}
@@ -316,18 +319,6 @@ trait AdminThemeBridgeShell {
 			}
 			$out .= "<li><a$attrs>$icon$title</a></li>";
 		}
-		// colour scheme toggle; scripts/main.js cycles auto, light, dark and updates icon and label
-		$labels = array(
-			'auto' => __('Scheme: auto', __FILE__),
-			'light' => __('Scheme: light', __FILE__),
-			'dark' => __('Scheme: dark', __FILE__),
-		);
-		$attrs = '';
-		foreach($labels as $key => $label) $attrs .= " data-label-$key='" . $sanitizer->entities($label) . "'";
-		// the label of the configured scheme (scripts/main.js puts the user's own in its place; audit SU6)
-		$scheme = $this->getColorScheme();
-		$out .= "<li class='pw-scheme-toggle'><a href='#' role='button' data-pw-scheme-toggle$attrs>" .
-			"<i class='fa fa-fw fa-adjust' aria-hidden='true'></i><span class='pw-scheme-label'>" . $sanitizer->entities1($labels[$scheme] ?? $labels['auto']) . "</span></a></li>";
 		$name = $sanitizer->entities1($user->name);
 		// the name links to the profile when the user may edit it (touch: a second tap follows it);
 		// otherwise it only opens the menu, a button (audit SU2)
@@ -338,6 +329,55 @@ trait AdminThemeBridgeShell {
 			$this->renderNavIcon('user') . $name . "</a>" .
 			"<ul class='pw-dropdown-menu' data-my='right top' data-at='right bottom' style='display:none'>$out</ul>" .
 			"</li></ul>";
+	}
+
+	/**
+	 * Display controls left of the user menu (0.11.0): interface scale (smaller, larger) and the
+	 * colour scheme (auto, light, dark). scripts/main.js keeps both per user in this browser
+	 * (prefs, under prefsKey()) and updates icons, names and the disabled ends.
+	 *
+	 * @return string
+	 *
+	 */
+	public function renderViewControls() {
+		$sanitizer = $this->wire()->sanitizer;
+		$button = function($attrs, $icon, $label) use($sanitizer) {
+			$label = $sanitizer->entities1($label);
+			return "<button type='button' class='pw-view-button'$attrs title='$label' aria-label='$label'>" .
+				"<i class='fa fa-fw fa-$icon' aria-hidden='true'></i></button>";
+		};
+		$labels = array(
+			'auto' => __('Scheme: auto', __FILE__),
+			'light' => __('Scheme: light', __FILE__),
+			'dark' => __('Scheme: dark', __FILE__),
+		);
+		$attrs = ' data-pw-scheme-toggle';
+		foreach($labels as $key => $label) $attrs .= " data-label-$key='" . $sanitizer->entities($label) . "'";
+		// the configured scheme until scripts/main.js puts the user's own in its place (audit SU6)
+		$scheme = $this->getColorScheme();
+		$icons = array('auto' => 'adjust', 'light' => 'sun-o', 'dark' => 'moon-o');
+		return "<div class='pw-view-controls' role='group' aria-label='" . $sanitizer->entities1($this->shellLabel('display')) . "'>" .
+			$button(" data-pw-scale='-1'", 'search-minus', $this->shellLabel('smaller')) .
+			$button(" data-pw-scale='1'", 'search-plus', $this->shellLabel('larger')) .
+			$button($attrs, $icons[$scheme] ?? 'adjust', $labels[$scheme] ?? $labels['auto']) .
+			"</div>";
+	}
+
+	/**
+	 * localStorage key of this user's display settings in this browser (scripts/main.js prefs):
+	 * derived from the user id with the site's secret salt, so it names no user and differs
+	 * between sites. Empty for a guest (the login screen uses the last user's settings).
+	 *
+	 * @return string
+	 *
+	 */
+	public function prefsKey() {
+		$user = $this->wire()->user;
+		if(!$user || !$user->isLoggedin()) return '';
+		$config = $this->wire()->config;
+		$salt = (string) $config->userAuthSalt;
+		if($salt === '') $salt = $config->paths->root . $config->dbName;
+		return 'pwPrefs.' . substr(hash_hmac('sha256', 'AdminThemeBridge.prefs.' . $user->id, $salt), 0, 20);
 	}
 
 	/**

@@ -39,4 +39,3 @@ body.modal #ProcessListerResults:empty { min-height: 60vh; }
  * specific as .pw-logo-link img (display: block), which hid neither (audit C20) */
 .pw-logo-link img.pw-logo-dark, [data-pw-scheme="dark"] .pw-logo-link img.pw-logo-light { display: none; }
 [data-pw-scheme="dark"] .pw-logo-link img.pw-logo-dark { display: block; }
-.pw-scheme-toggle a .fa { width: 1.2em; }

@@ -39,6 +39,12 @@
 .pw-primary-nav > li > a, .pw-user-nav > li > a { position: relative; }
 .pw-primary-nav > li > a::after, .pw-user-nav > li > a::after { content: ""; position: absolute; left: 0; right: 0; top: calc((32px - var(--pw-masthead-h)) / 2); bottom: calc((32px - var(--pw-masthead-h)) / 2); }
 .pw-masthead-right { display: flex; align-items: center; gap: 8px; }
+/* scale and colour scheme, left of the user menu: icon buttons the size of the nav links */
+.pw-view-controls { display: flex; align-items: center; gap: 2px; }
+.pw-view-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); font: inherit; cursor: pointer; transition: color var(--pw-transition), background var(--pw-transition); }
+.pw-view-button:hover:not(:disabled) { color: var(--accent-foreground); background: var(--accent); }
+.pw-view-button:disabled { opacity: .4; cursor: default; }
+.pw-view-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
 /* search (upstream ProcessPageSearch form) */
 #ProcessPageSearchForm { position: relative; display: flex; align-items: center; }

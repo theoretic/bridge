@@ -27,6 +27,7 @@ $homeUrl = $adminTheme->isLoggedIn ? $config->urls->admin : $config->urls->root;
 		</nav>
 		<div class='pw-masthead-right'>
 			<?php
+			echo $adminTheme->renderViewControls();
 			echo $adminTheme->renderUserNav();
 			if($adminTheme->isEditor) {
 				/** @var ProcessPageSearch $search */

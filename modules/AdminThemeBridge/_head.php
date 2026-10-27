@@ -174,14 +174,22 @@ $config->js('AdminThemeBridge', $bridgeJs);
 
 	<script>
 		<?php echo $adminTheme->getHeadJS(); ?>
-		// colour scheme before first paint: the user's choice (localStorage) over the setting;
-		// auto follows the operating system. scripts/main.js keeps it in sync afterwards.
+		// colour scheme and scale before first paint: the user's choice in this browser (localStorage,
+		// under the user's key; the last user's on the login screen) over the setting; auto follows
+		// the operating system. scripts/main.js (prefs, scheme, scale) keeps both in sync afterwards.
 		(function(d) {
-			var s = null;
-			try { s = localStorage.getItem('pwScheme'); } catch(e) {}
-			if(s !== 'light' && s !== 'dark' && s !== 'auto') s = (ProcessWire.config.AdminThemeBridge || {}).colorScheme || 'auto';
+			var c = ProcessWire.config.AdminThemeBridge || {}, p = null;
+			try {
+				p = JSON.parse(localStorage.getItem(c.prefsKey || 'pwPrefs.last') || 'null');
+				if(!p) p = { scheme: localStorage.getItem('pwScheme') };
+			} catch(e) {}
+			p = p || {};
+			var s = p.scheme;
+			if(s !== 'light' && s !== 'dark' && s !== 'auto') s = c.colorScheme || 'auto';
 			if(s === 'auto') s = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 			d.setAttribute('data-pw-scheme', s);
+			var z = parseFloat(p.scale);
+			if(z >= 0.75 && z <= 1.5 && z !== 1) d.style.fontSize = (z * 100) + '%';
 		})(document.documentElement);
 	</script>
 <?php

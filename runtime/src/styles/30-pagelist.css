@@ -58,3 +58,5 @@ body:not(.pw-narrow-width) .PageList .PageListItemOpen.PageListHasChildren > a.P
 .PageListRoot .PageList.pw-branch-scrolls { direction: rtl; padding-left: 18px; }
 .PageList .PageList.pw-branch-scrolls { margin-left: calc(2em - 18px); }
 .PageListRoot .PageList.pw-branch-scrolls > * { direction: ltr; }
+/* upstream sizes the tree icons in px (ProcessPageList.css): in rem they follow the scale */
+.PageList :is(i.icon, i.fa, .PageListStatusI) { font-size: 14px; }

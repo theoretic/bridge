@@ -1,5 +1,16 @@
 # Changelog
 
+## AdminThemeBridge 0.11.0: interface scale, display controls, settings per user (2026-10-27)
+
+Asked for by the owner after the audit.
+
+- **Interface scale**: two buttons left of the user menu make the whole admin smaller or larger, in steps from 75 % to 150 %. The scale is the root font size, and the theme's CSS now sizes everything in rem: text, spacing, controls, the masthead, dialogs, tables, the page tree (its icons too). A build step converts the sources' px (`runtime/vite.config.ts`); hairlines, border widths and media queries stay in px. The buttons turn off at either end; on phones (480 px and less) they give way to pinch zoom. Stylesheets of core and other modules that size in px keep their size.
+- **The colour scheme switch** moved out of the user menu, next to the scale buttons, as an icon button that names the current scheme.
+- **Scale and scheme are kept per user, in each browser**: in `localStorage` under a key the server derives from the user id with the site's secret salt (`AdminThemeBridge::prefsKey()`, an HMAC), so two users of one browser keep their own settings and nothing in the key names the user. They apply before first paint, to dialog windows too, and a change shows at once in other tabs and open dialogs. The login screen uses the last user's settings in that browser. The old browser-wide scheme (`pwScheme`) is taken over once.
+- For module authors (`docs/contract.md` 4.0): the length tokens are rem; `ProcessWireAdminTheme.cssLength()` reads one in px; `pw-scale-change` fires on a scale change.
+
+theme.css stays within its gzip budget (15,159 of 15,360 B): rem values compress as well as px.
+
 ## AdminThemeBridge 0.10.1: the module split by job, shared helpers (2026-10-27)
 
 Fifth release from the 2026-10-27 audit: architecture. No change in behaviour, apart from the page tree fix below.

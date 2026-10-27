@@ -112,4 +112,6 @@ $config->js('AdminThemeBridge', array(
 	// signed-in users only, as the footer (audit B9)
 	'version' => $adminTheme->isLoggedIn ? $adminTheme->version : '',
 	'legacyStack' => $adminTheme->legacyStack,
+	// the user's display settings in this browser (scripts/main.js prefs; empty for a guest)
+	'prefsKey' => $adminTheme->prefsKey(),
 ));

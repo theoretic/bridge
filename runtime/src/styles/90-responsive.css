@@ -92,3 +92,5 @@ body.pw-nav-overflow .pw-primary-nav .pw-dropdown-menu a.pw-has-items::after, bo
 	.PageList .PageListActions li a, .PageListerActions a { padding: 6px 10px; }
 	.InputfieldRepeaterItemControls > i, .InputfieldHeader i.toggle-icon { padding: 8px; margin: -8px 0; }
 }
+/* phones zoom by pinching: the scale buttons give way to the menu there */
+@media (max-width: 480px) { .pw-view-button[data-pw-scale] { display: none; } }

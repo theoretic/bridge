@@ -160,6 +160,7 @@ var ProcessWireAdminTheme = {
 		this.setupTreeFit();
 		this.setupSearch();
 		this.scheme.init();
+		this.scale.init();
 		this.editors.init();
 		this.legacy.observe();
 		this.loadRuntime();
@@ -168,10 +169,113 @@ var ProcessWireAdminTheme = {
 	},
 
 	/**
-	 * Colour scheme. The effective choice is the user's (localStorage pwScheme: auto, light,
-	 * dark) or else the theme setting (ProcessWire.config.AdminThemeBridge.colorScheme); auto
-	 * follows prefers-color-scheme. The inline snippet in _head.php applies it before first paint;
-	 * this keeps it in sync and drives the toggle in the user menu (a[data-pw-scheme-toggle]).
+	 * A length token in px: tokens are built in rem (vite.config.ts), so the scale applies to them
+	 *
+	 * @param {string} name Custom property, e.g. '--pw-masthead-h'
+	 * @param {number} fallback
+	 * @returns {number}
+	 */
+	cssLength: function(name, fallback) {
+		var root = getComputedStyle(document.documentElement);
+		var value = root.getPropertyValue(name).trim();
+		var n = parseFloat(value);
+		if(/rem$/.test(value)) n *= parseFloat(root.fontSize) || 16;
+		return n || fallback;
+	},
+
+	/**
+	 * The user's display settings in this browser: colour scheme and scale. localStorage, under
+	 * a key the server derives from the user (ProcessWire.config.AdminThemeBridge.prefsKey), so
+	 * two users of one browser keep their own; each user's devices keep theirs. The last one
+	 * written is also kept as pwPrefs.last, for the login screen (no user yet). The inline snippet
+	 * in _head.php applies both before first paint with the same rules; a change in another tab
+	 * or in a dialog's window arrives here as a storage event.
+	 */
+	prefs: {
+		key: function() {
+			return ProcessWireAdminTheme.config().prefsKey || 'pwPrefs.last';
+		},
+		read: function() {
+			var o = null;
+			try { o = JSON.parse(window.localStorage.getItem(this.key()) || 'null'); } catch(e) {}
+			if(!o || typeof o !== 'object') {
+				o = {};
+				// 0.10.x and earlier: one scheme for the whole browser
+				try { var old = window.localStorage.getItem('pwScheme'); if(old) o.scheme = old; } catch(e) {}
+			}
+			return o;
+		},
+		set: function(name, value) {
+			var o = this.read();
+			o[name] = value;
+			try {
+				var s = JSON.stringify(o);
+				window.localStorage.setItem(this.key(), s);
+				window.localStorage.setItem('pwPrefs.last', s);
+				window.localStorage.removeItem('pwScheme');
+			} catch(e) {}
+		}
+	},
+
+	/**
+	 * Interface scale: the root font size, in steps; everything the theme sizes in rem follows.
+	 * Buttons [data-pw-scale="-1"] and [data-pw-scale="1"] beside the user menu.
+	 */
+	scale: {
+		steps: [0.75, 0.875, 1, 1.125, 1.25, 1.375, 1.5],
+
+		get: function() {
+			var v = parseFloat(ProcessWireAdminTheme.prefs.read().scale);
+			return this.steps.indexOf(v) > -1 ? v : 1;
+		},
+
+		apply: function() {
+			var v = this.get();
+			var root = document.documentElement;
+			var before = root.style.fontSize;
+			root.style.fontSize = v === 1 ? '' : (v * 100) + '%';
+			var buttons = document.querySelectorAll('[data-pw-scale]');
+			for(var i = 0; i < buttons.length; i++) {
+				var dir = parseInt(buttons[i].getAttribute('data-pw-scale'), 10);
+				var end = dir < 0 ? v <= this.steps[0] : v >= this.steps[this.steps.length - 1];
+				buttons[i].disabled = end;
+			}
+			if(before !== root.style.fontSize) {
+				// what measured the layout measures again (nav fit, notices, page tree, tables)
+				window.dispatchEvent(new Event('resize'));
+				document.dispatchEvent(new CustomEvent('pw-scale-change', { detail: { scale: v } }));
+			}
+		},
+
+		step: function(dir) {
+			var n = this.steps.indexOf(this.get()) + dir;
+			if(n < 0 || n >= this.steps.length) return;
+			ProcessWireAdminTheme.prefs.set('scale', this.steps[n]);
+			this.apply();
+		},
+
+		init: function() {
+			var self = this;
+			this.apply();
+			document.addEventListener('click', function(e) {
+				var button = e.target.closest && e.target.closest('[data-pw-scale]');
+				if(!button) return;
+				e.preventDefault();
+				self.step(parseInt(button.getAttribute('data-pw-scale'), 10) || 0);
+			});
+			window.addEventListener('storage', function(e) {
+				if(e.key !== ProcessWireAdminTheme.prefs.key()) return;
+				self.apply();
+				ProcessWireAdminTheme.scheme.apply('toggle');
+			});
+		}
+	},
+
+	/**
+	 * Colour scheme. The effective choice is the user's (prefs.scheme: auto, light, dark) or else
+	 * the theme setting (ProcessWire.config.AdminThemeBridge.colorScheme); auto follows
+	 * prefers-color-scheme. The inline snippet in _head.php applies it before first paint; this
+	 * keeps it in sync and drives the toggle beside the user menu ([data-pw-scheme-toggle]).
 	 */
 	scheme: {
 		order: ['auto', 'light', 'dark'],
@@ -179,8 +283,7 @@ var ProcessWireAdminTheme = {
 		media: null,
 
 		setting: function() {
-			var stored = null;
-			try { stored = window.localStorage.getItem('pwScheme'); } catch(e) {}
+			var stored = ProcessWireAdminTheme.prefs.read().scheme;
 			if(this.order.indexOf(stored) > -1) return stored;
 			var cfg = ProcessWireAdminTheme.config().colorScheme;
 			return this.order.indexOf(cfg) > -1 ? cfg : 'auto';
@@ -208,14 +311,18 @@ var ProcessWireAdminTheme = {
 			for(var i = 0; i < links.length; i++) {
 				var icon = links[i].querySelector('.fa');
 				if(icon) icon.className = 'fa fa-fw fa-' + this.icons[setting];
+				var text = links[i].getAttribute('data-label-' + setting) || setting;
 				var label = links[i].querySelector('.pw-scheme-label');
-				if(label) label.textContent = links[i].getAttribute('data-label-' + setting) || setting;
+				if(label) label.textContent = text;
+				// an icon-only button: its name and tooltip say the scheme
+				links[i].setAttribute('aria-label', text);
+				links[i].title = text;
 			}
 		},
 
 		cycle: function() {
 			var next = this.order[(this.order.indexOf(this.setting()) + 1) % this.order.length];
-			try { window.localStorage.setItem('pwScheme', next); } catch(e) {}
+			ProcessWireAdminTheme.prefs.set('scheme', next);
 			this.apply('toggle');
 		},
 
@@ -342,7 +449,7 @@ var ProcessWireAdminTheme = {
 		var fit = function() {
 			pending = false;
 			var lists = document.querySelectorAll('.PageListRoot .PageList');
-			var masthead = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pw-masthead-h')) || 56;
+			var masthead = ProcessWireAdminTheme.cssLength('--pw-masthead-h', 56);
 			var vh = window.innerHeight;
 			// reads, then writes, then reads, then writes: two layouts per fit, not two per branch
 			// (audit P4)
@@ -620,7 +727,7 @@ var ProcessWireAdminTheme = {
 		var watched = null;
 		var resize = window.ResizeObserver ? new ResizeObserver(function() { check(); }) : null;
 		var row = function() {
-			return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pw-notice-row')) || 42;
+			return ProcessWireAdminTheme.cssLength('--pw-notice-row', 42);
 		};
 		var check = function() {
 			var notices = document.getElementById('notices');
