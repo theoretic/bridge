@@ -13,6 +13,9 @@
  *   input with ProcessWire.config.InputfieldPageTitle.replacements, until that input is changed.
  */
 
+import { changed } from '../util/events';
+import { on } from '../legacy';
+
 type NameConfig = { replacements?: Record<string, string>; charset?: string; whitelist?: string };
 
 function pwConfig<T>(key: string): T {
@@ -65,8 +68,8 @@ function initName(wrap: HTMLElement): void {
 	wrap.querySelectorAll<HTMLInputElement>('input[type=text]').forEach(input => {
 		if (input.hasAttribute('data-pw-name')) return;
 		input.setAttribute('data-pw-name', '');
-		input.addEventListener('keyup', () => updatePreview(input, sanitize(input.value)));
-		input.addEventListener('blur', () => commitName(input));
+		on(input, 'keyup', () => updatePreview(input, sanitize(input.value)));
+		on(input, 'blur', () => commitName(input));
 		updatePreview(input, sanitize(input.value));
 	});
 }
@@ -83,14 +86,15 @@ function initAddTitle(): void {
 		if (!name || name.classList.contains('InputfieldPageNameNoUpdate')) return;
 		name.value = title.value;
 		commitName(name);
+		changed(name, 'input');
 	};
 	document.querySelectorAll<HTMLInputElement>('.InputfieldPageTitle:not(.InputfieldPageTitleCustom) input[type=text]').forEach(title => {
-		title.addEventListener('keyup', onTitle);
-		title.addEventListener('change', onTitle);
+		on(title, 'keyup', onTitle);
+		on(title, 'change', onTitle);
 	});
 	document.querySelectorAll<HTMLInputElement>('.InputfieldPageName input').forEach(name => {
 		name.setAttribute('data-prev', name.value);
-		name.addEventListener('change', () => {
+		on(name, 'change', () => {
 			if (name.value !== name.getAttribute('data-prev')) name.classList.add('InputfieldPageNameNoUpdate');
 		});
 	});
@@ -132,15 +136,16 @@ function initCustomTitle(wrap: HTMLElement): void {
 		if (nameInput.classList.contains('InputfieldPageTitleDone')) return;
 		nameInput.value = toName(titleInput.value, true);
 		nameInput.dispatchEvent(new Event('blur'));
+		changed(nameInput, 'input');
 	};
-	titleInput.addEventListener('keyup', onTitle);
-	titleInput.addEventListener('change', onTitle);
+	on(titleInput, 'keyup', onTitle);
+	on(titleInput, 'change', onTitle);
 	nameInput.setAttribute('data-prev', nameInput.value);
-	nameInput.addEventListener('change', () => {
+	on(nameInput, 'change', () => {
 		const val = nameInput.value.length ? toName(nameInput.value, false) : '';
 		if (val.length && val !== nameInput.getAttribute('data-prev')) nameInput.classList.add('InputfieldPageTitleDone');
 	});
-	nameInput.addEventListener('keyup', () => {
+	on(nameInput, 'keyup', () => {
 		if (nameInput.value.length) nameInput.value = toName(nameInput.value, false);
 	});
 }

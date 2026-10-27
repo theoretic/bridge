@@ -15,6 +15,8 @@
  * Character classes use the browser's Unicode property escapes in place of XRegExp.
  */
 
+import { on } from '../legacy';
+
 const CHARSETS: Array<[number, number]> = [
 	[0x20, 0x20], [0x30, 0x39], [0x41, 0x5A], [0x61, 0x7A], [0x21, 0x2F], [0x3A, 0x40], [0x5B, 0x60], [0x7B, 0x7E],
 	[0x80, 0xFF], [0x100, 0x17F], [0x180, 0x24F], [0x250, 0x2AF], [0x2B0, 0x2FF], [0x300, 0x36F], [0x370, 0x3FF],
@@ -99,7 +101,7 @@ export function init(wrap: HTMLElement): void {
 	const requirements = (scoresWrap && scoresWrap.getAttribute('data-requirements') || '').split(' ').filter(Boolean);
 	const minlength = parseInt(input.getAttribute('data-minlength') || '0', 10) || 0;
 	const opts = { banned: [] as string[], banMode: input.getAttribute('data-banMode') || 'loose', factor: parseFloat(input.getAttribute('data-factor') || '1'), minimumChars: minlength };
-	const on = (cls: string): HTMLElement | null => scores.find(s => s.classList.contains(cls)) || null;
+	const score = (cls: string): HTMLElement | null => scores.find(s => s.classList.contains(cls)) || null;
 
 	if (old) {
 		input.disabled = true;
@@ -108,7 +110,7 @@ export function init(wrap: HTMLElement): void {
 			input.disabled = false;
 			['keyup', 'input', 'change', 'blur'].forEach(t => old.removeEventListener(t, unlock));
 		};
-		['keyup', 'input', 'change', 'blur'].forEach(t => old.addEventListener(t, unlock));
+		['keyup', 'input', 'change', 'blur'].forEach(t => on(old, t, unlock));
 	}
 	if (confirm) confirm.disabled = true;
 
@@ -131,15 +133,15 @@ export function init(wrap: HTMLElement): void {
 		}
 		if (len === 0) { scores.forEach(s => s.classList.remove('on')); return; }
 		let cur: HTMLElement | null;
-		if (old && old.value === val) cur = on('pass-same');
-		else if (good < requirements.length) cur = on('pass-fail');
-		else if (len < minlength) cur = on('pass-short');
-		else if (!r.valid) cur = on('pass-common');
-		else if (r.complexity === 0) cur = on('pass-invalid');
-		else if (r.complexity < 50) cur = on('pass-weak');
-		else if (r.complexity < 70) cur = on('pass-medium');
-		else if (r.complexity < 100) cur = on('pass-good');
-		else cur = on('pass-excellent');
+		if (old && old.value === val) cur = score('pass-same');
+		else if (good < requirements.length) cur = score('pass-fail');
+		else if (len < minlength) cur = score('pass-short');
+		else if (!r.valid) cur = score('pass-common');
+		else if (r.complexity === 0) cur = score('pass-invalid');
+		else if (r.complexity < 50) cur = score('pass-weak');
+		else if (r.complexity < 70) cur = score('pass-medium');
+		else if (r.complexity < 100) cur = score('pass-good');
+		else cur = score('pass-excellent');
 		if (cur && !cur.classList.contains('on')) { scores.forEach(s => s.classList.remove('on')); cur.classList.add('on'); }
 		const bad = !cur || ['pass-fail', 'pass-short', 'pass-common', 'pass-invalid', 'pass-same'].some(c => (cur as HTMLElement).classList.contains(c));
 		if (confirm) {
@@ -157,10 +159,10 @@ export function init(wrap: HTMLElement): void {
 		}
 		if (confirm && confirm.value.length) confirm.dispatchEvent(new Event('change', { bubbles: true }));
 	};
-	['keyup', 'focus', 'input', 'mouseup'].forEach(t => input.addEventListener(t, evaluate));
+	['keyup', 'focus', 'input', 'mouseup'].forEach(t => on(input, t, evaluate));
 	void loadBanlist().then(list => { opts.banned = list; if (input.value) evaluate(); });
 
-	input.addEventListener('change', () => {
+	on(input, 'change', () => {
 		if (input.value.length) {
 			input.required = true;
 			if (confirm) confirm.required = true;
@@ -187,8 +189,8 @@ export function init(wrap: HTMLElement): void {
 			} else cur = confirms.querySelector(':scope > .confirm-no');
 			if (cur) { Array.from(confirms.children).forEach(c => c.classList.remove('on')); cur.classList.add('on'); }
 		};
-		confirm.addEventListener('keyup', check);
-		confirm.addEventListener('change', check);
+		on(confirm, 'keyup', check);
+		on(confirm, 'change', check);
 	}
 
 	const mask = wrap.querySelector<HTMLElement>('.pass-mask');
@@ -196,13 +198,13 @@ export function init(wrap: HTMLElement): void {
 		const show = mask.querySelector<HTMLElement>('.pass-mask-show');
 		const hide = mask.querySelector<HTMLElement>('.pass-mask-hide');
 		if (hide) hide.style.display = 'none';
-		if (show) show.addEventListener('click', e => {
+		if (show) on(show, 'click', e => {
 			e.preventDefault();
 			show.style.display = 'none';
 			if (hide) hide.style.display = '';
 			wrap.querySelectorAll<HTMLInputElement>('input[type=password]').forEach(i => { i.type = 'text'; i.classList.add('pass-unmask'); });
 		});
-		if (hide) hide.addEventListener('click', e => {
+		if (hide) on(hide, 'click', e => {
 			e.preventDefault();
 			hide.style.display = 'none';
 			if (show) show.style.display = '';

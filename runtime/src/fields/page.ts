@@ -11,6 +11,9 @@
  * The inner widget (Select, Radios, Checkboxes, asmSelect, ...) is initialised by its own entry.
  */
 
+import { setValue } from '../util/events';
+import { on } from '../legacy';
+
 type Match = { id: number; name: string; [key: string]: unknown };
 
 function adminUrl(): string {
@@ -104,7 +107,7 @@ function initSelector(input: HTMLInputElement): void {
 		}
 		if (!source) continue;
 		const from = source;
-		from.addEventListener('change', () => { void reloadOptions(from, target, selector, formatName, labelField, part, true); });
+		on(from, 'change', () => { void reloadOptions(from, target, selector, formatName, labelField, part, true); });
 		const hasChoices = Array.from(target.options).some(o => o.value !== '');
 		if (valueOf(from) && !target.value && !hasChoices) {
 			window.setTimeout(() => { void reloadOptions(from, target, selector, formatName, labelField, part, false); }, 100);
@@ -115,7 +118,7 @@ function initSelector(input: HTMLInputElement): void {
 export function init(wrap: HTMLElement): void {
 	if (wrap.hasAttribute('data-pw-page')) return;
 	wrap.setAttribute('data-pw-page', '');
-	wrap.addEventListener('click', e => {
+	on(wrap, 'click', e => {
 		const a = (e.target as HTMLElement).closest('p.InputfieldPageAddButton a');
 		if (!a || !wrap.contains(a)) return;
 		e.preventDefault();
@@ -124,7 +127,7 @@ export function init(wrap: HTMLElement): void {
 		const shown = items.offsetParent !== null || getComputedStyle(items).display !== 'none';
 		if (shown) {
 			items.style.display = 'none';
-			items.querySelectorAll<HTMLInputElement>('input, textarea, select').forEach(i => { i.value = ''; });
+			items.querySelectorAll<HTMLInputElement>('input, textarea, select').forEach(i => setValue(i, ''));
 		} else {
 			items.style.display = 'block';
 		}

@@ -17,6 +17,7 @@
 
 import { attachAutocomplete, Suggestion } from '../util/autocomplete';
 import { makeSortable } from '../util/sortable';
+import { on } from '../legacy';
 
 type Page = { page_id: number; label: string };
 
@@ -123,14 +124,14 @@ function setup(data: HTMLInputElement): void {
 	const addAllowed = (): boolean => !!document.getElementById(addItemsId);
 
 	setIconPosition(icon, 'left');
-	if (icon) icon.addEventListener('click', () => input.focus());
+	if (icon) on(icon, 'click', () => input.focus());
 
 	if (noList) {
 		input.setAttribute('data-selectedLabel', input.value);
 		const remove = box.querySelector<HTMLElement>('.InputfieldPageAutocompleteRemove');
 		setIconPosition(remove, 'right');
 		if (remove) {
-			remove.addEventListener('click', () => {
+			on(remove, 'click', () => {
 				data.value = '';
 				data.dispatchEvent(new Event('change', { bubbles: true }));
 				input.value = '';
@@ -140,10 +141,10 @@ function setup(data: HTMLInputElement): void {
 				input.focus();
 			});
 			const sync = (): void => { remove.style.display = input.value.length ? '' : 'none'; };
-			input.addEventListener('change', sync);
+			on(input, 'change', sync);
 			sync();
 		}
-		input.addEventListener('focus', () => {
+		on(input, 'focus', () => {
 			if (!data.value.length || hasDisableChar(data.value) || input.classList.contains('added_item')) return;
 			input.placeholder = input.getAttribute('data-selectedLabel') || '';
 			input.value = '';
@@ -186,7 +187,7 @@ function setup(data: HTMLInputElement): void {
 		},
 	});
 
-	input.addEventListener('blur', () => {
+	on(input, 'blur', () => {
 		setIcon('');
 		if (note) note.style.display = 'none';
 		if (noList) {
@@ -202,8 +203,8 @@ function setup(data: HTMLInputElement): void {
 			}
 		}
 	});
-	input.addEventListener('keyup', () => setIcon(''));
-	input.addEventListener('keydown', e => {
+	on(input, 'keyup', () => setIcon(''));
+	on(input, 'keydown', e => {
 		if (e.key === 'Enter') {
 			e.preventDefault(); // never submit the form from the search box
 			if (!addAllowed()) return;
@@ -260,15 +261,15 @@ function setup(data: HTMLInputElement): void {
 			},
 		});
 		ol.classList.add('InputfieldPageAutocompleteSortable');
-		ol.addEventListener('mouseover', e => {
+		on(ol, 'mouseover', e => {
 			const li = (e.target as HTMLElement).closest('li');
 			if (li && li.parentElement === ol) { li.classList.remove('ui-state-default'); li.classList.add('ui-state-hover'); }
 		});
-		ol.addEventListener('mouseout', e => {
+		on(ol, 'mouseout', e => {
 			const li = (e.target as HTMLElement).closest('li');
 			if (li && li.parentElement === ol) { li.classList.remove('ui-state-hover'); li.classList.add('ui-state-default'); }
 		});
-		ol.addEventListener('click', e => {
+		on(ol, 'click', e => {
 			const remove = (e.target as HTMLElement).closest('a.itemRemove');
 			if (!remove || !ol.contains(remove)) return;
 			e.preventDefault();

@@ -25,7 +25,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.9.8',
+			'version' => '0.9.9',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -40,9 +40,12 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	const legacyAuto = 'auto';
 	const uikitNever = 'never';
 
-	// WireCache name and lifetime (seconds) of the last module info cache rebuild (ready())
+	// WireCache name of the module info cache rebuild state (ready()): the time of the last try and
+	// the number of tries; the wait after a try doubles from repairInterval (seconds), and after
+	// repairAttempts tries the theme stops and tells superusers (audit B7)
 	const repairFlag = 'AdminThemeBridge.moduleCacheRepair';
 	const repairInterval = 600;
+	const repairAttempts = 5;
 
 	/**
 	 * The native map (ADR 0015, 0016; audit A19): every class the theme runs without the legacy
@@ -230,7 +233,14 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	protected $legacyInputfieldDirs = array();
 
 	/**
-	 * isJqueryScript() verdicts: 'file|mtime' => bool, kept in WireCache across requests
+	 * isFieldModuleDir() answers for this request
+	 *
+	 * @var array dir => bool
+	 */
+	protected $fieldModuleDirs = array();
+
+	/**
+	 * isJqueryScript() verdicts: 'file|mtime|size' => bool, kept in WireCache across requests
 	 *
 	 * @var array|null
 	 */
@@ -496,16 +506,46 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 */
 	public function repairModuleCache() {
 		if(!$this->moduleCacheIsStale()) return false;
-		// set before the rebuild: a rebuild that dies (a module running out of memory in it) must
-		// not run again on the next request
-		$this->wire()->cache->save(self::repairFlag, time(), self::repairInterval);
-		$modules = $this->wire()->modules;
-		// refresh() compares this snapshot of module file times first and returns when it matches;
-		// an empty one forces the rebuild, as refresh() itself does (deleteCache() leaves the
-		// modules table row in place)
-		$modules->saveCache('moduleFileSnapshot', array());
-		$modules->refresh();
+		$cache = $this->wire()->cache;
+		$database = $this->wire()->database;
+		// one rebuild at a time: two superuser requests at once would both run it
+		$lock = $database->quote(self::repairFlag);
+		try {
+			$got = (int) $database->query("SELECT GET_LOCK($lock, 0)")->fetchColumn();
+		} catch(\Throwable $e) {
+			$got = 1; // no named locks on this server: the try counter still bounds the rebuilds
+		}
+		if(!$got) return false;
+		try {
+			// counted before the rebuild: a rebuild that dies (a module running out of memory in it,
+			// not catchable) must not run again on the next request, nor forever
+			$state = $this->repairState();
+			$cache->save(self::repairFlag, array('time' => time(), 'attempts' => $state['attempts'] + 1), 86400 * 30);
+			$modules = $this->wire()->modules;
+			// refresh() compares this snapshot of module file times first and returns when it matches;
+			// an empty one forces the rebuild, as refresh() itself does (deleteCache() leaves the
+			// modules table row in place)
+			$modules->saveCache('moduleFileSnapshot', array());
+			$modules->refresh();
+			if(!$this->moduleCacheIsStale()) $cache->delete(self::repairFlag);
+		} finally {
+			try { $database->query("SELECT RELEASE_LOCK($lock)"); } catch(\Throwable $e) { /* released with the connection */ }
+		}
 		return true;
+	}
+
+	/**
+	 * State of the module info cache rebuild: time of the last try and number of tries
+	 *
+	 * @return array ['time' => int, 'attempts' => int]
+	 *
+	 */
+	public function repairState() {
+		$state = $this->wire()->cache->get(self::repairFlag);
+		// 0.9.8 and earlier saved the time alone
+		if(is_numeric($state)) $state = array('time' => (int) $state, 'attempts' => 1);
+		if(!is_array($state)) $state = array();
+		return array('time' => (int) ($state['time'] ?? 0), 'attempts' => (int) ($state['attempts'] ?? 0));
 	}
 
 	/**
@@ -582,6 +622,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// tables print `AdminDataTable.initTable($('#id'))`: without jQuery the runtime's
 		// AdminDataTable (milestone 3.5) takes the element instead
 		$this->addHookAfter('MarkupAdminDataTable::render', $this, 'hookDataTableRender');
+		// every core data table sorts by its headers, also those core made unsortable (0.9.9)
+		$this->addHookBefore('MarkupAdminDataTable::render', $this, 'hookDataTableRenderBefore');
 		// inline jQuery code in a native markup field (a module's config screen, notes): A5
 		$this->addHookAfter('InputfieldMarkup::render', $this, 'hookMarkupRender');
 		$this->addHookAfter('InputfieldMarkup::renderValue', $this, 'hookMarkupRender');
@@ -615,6 +657,11 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// per interval, and say so once per interval otherwise
 		$cache = $this->wire()->cache;
 		if(!$this->canRepairModuleCache()) {
+			$user = $this->wire()->user;
+			$page = $this->wire()->page;
+			if($this->repairState()['attempts'] >= self::repairAttempts && $user && $user->isSuperuser() && $page && $page->template && $page->template->name === 'admin') {
+				$this->warning(sprintf($this->_('AdminThemeBridge: rebuilding the module info cache failed %d times. Open Modules > Refresh; if the theme still loads on every page, see the Bridge install notes.'), self::repairAttempts));
+			}
 			if(!$cache->get(self::repairFlag . '.noted')) {
 				$cache->save(self::repairFlag . '.noted', time(), self::repairInterval);
 				$this->log('Loaded at boot: module info cache is stale; a superuser opening the admin rebuilds it (or Modules > Refresh)');
@@ -631,7 +678,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	/**
 	 * May this request rebuild the module info cache (see moduleCacheIsStale())?
 	 *
-	 * Only an admin request by a superuser, and not again within repairInterval of the last try.
+	 * Only an admin request by a superuser, at most repairAttempts times, waiting repairInterval
+	 * after the first try and twice as long after each further one.
 	 *
 	 * @return bool
 	 *
@@ -641,7 +689,10 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$user = $this->wire()->user;
 		if(!$page || !$page->template || $page->template->name !== 'admin') return false;
 		if(!$user || !$user->isSuperuser()) return false;
-		return !$this->wire()->cache->get(self::repairFlag);
+		$state = $this->repairState();
+		if($state['attempts'] >= self::repairAttempts) return false;
+		$wait = $state['attempts'] ? self::repairInterval * pow(2, $state['attempts'] - 1) : 0;
+		return time() - $state['time'] >= $wait;
 	}
 
 	/**
@@ -890,7 +941,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$config = $this->wire()->config;
 		$before = $this->scriptsBeforeProcess;
 		$this->scriptsBeforeProcess = null;
-		$own = $config->urls($process->className());
+		$own = (string) $config->urls($process->className());
+		// a Process placed directly in site/modules/ owns no directory of its own (audit B5)
+		if($own === $config->urls->siteModules || $own === $config->urls->modules) $own = '';
 		$configured = $this->moduleConfigUrl($process);
 		foreach($config->scripts->urls() as $url) {
 			$url = (string) $url;
@@ -968,11 +1021,16 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 *
 	 */
 	protected function isFieldModuleDir($dir) {
-		static $cache = array();
-		if(!isset($cache[$dir])) {
-			$cache[$dir] = count((array) glob($dir . '{Inputfield,Fieldtype}*.module{,.php}', GLOB_BRACE)) > 0;
+		if(!isset($this->fieldModuleDirs[$dir])) {
+			// two patterns, no GLOB_BRACE (not defined on musl builds); glob() may return false (B4)
+			$found = false;
+			foreach(array('Inputfield*.module*', 'Fieldtype*.module*') as $pattern) {
+				$files = glob($dir . $pattern);
+				if(is_array($files) && count($files)) { $found = true; break; }
+			}
+			$this->fieldModuleDirs[$dir] = $found;
 		}
-		return $cache[$dir];
+		return $this->fieldModuleDirs[$dir];
 	}
 
 	/**
@@ -983,32 +1041,36 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * window's `$(document).ready(function() { setupProcessSave(...) })` (3.9). With jQuery on the
 	 * page they run as before.
 	 *
+	 * Only the inside of `<script>` elements is rewritten: the same text in a field's value (a code
+	 * sample in a textarea) would otherwise be changed in the form and saved that way.
+	 *
 	 * @param string $out
 	 * @return string
 	 *
 	 */
-	protected function nativeInlineScripts($out) {
+	public function nativeInlineScripts($out) {
 		if(strpos($out, 'ready(function() {') === false && strpos($out, 'iFrameResize(') === false) return $out;
+		if(stripos($out, '<script') === false) return $out;
 		$ready = "(window.jQuery ? jQuery : function(f) { document.readyState === 'loading' ? " .
 			"document.addEventListener('DOMContentLoaded', f) : f(); })(function() { ";
-		$out = str_replace(
-			array(
-				'$(document).ready(function() { ProcessTemplateInitFields(); });',
-				'jQuery(document).ready(function() { ',
-				'$(document).ready(function() { ',
-				"\$('#ProcessTemplatePageLister').iFrameResize({ });",
-			),
-			array(
-				$ready . 'ProcessTemplateInitFields(); });',
-				$ready,
-				$ready,
-				"window.jQuery && jQuery.fn.iFrameResize ? jQuery('#ProcessTemplatePageLister').iFrameResize({ }) : " .
-					"window.ProcessWireAdminTheme && ProcessWireAdminTheme.iframeHeight && " .
-					"ProcessWireAdminTheme.iframeHeight(document.getElementById('ProcessTemplatePageLister'));",
-			),
-			$out
+		$from = array(
+			'$(document).ready(function() { ProcessTemplateInitFields(); });',
+			'jQuery(document).ready(function() { ',
+			'$(document).ready(function() { ',
+			"\$('#ProcessTemplatePageLister').iFrameResize({ });",
 		);
-		return $out;
+		$to = array(
+			$ready . 'ProcessTemplateInitFields(); });',
+			$ready,
+			$ready,
+			"window.jQuery && jQuery.fn.iFrameResize ? jQuery('#ProcessTemplatePageLister').iFrameResize({ }) : " .
+				"window.ProcessWireAdminTheme && ProcessWireAdminTheme.iframeHeight && " .
+				"ProcessWireAdminTheme.iframeHeight(document.getElementById('ProcessTemplatePageLister'));",
+		);
+		$result = preg_replace_callback('~(<script\b[^>]*>)(.*?)(</script>)~is', function($m) use($from, $to) {
+			return $m[1] . str_replace($from, $to, $m[2]) . $m[3];
+		}, $out);
+		return is_string($result) ? $result : $out;
 	}
 
 	/**
@@ -1178,6 +1240,110 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		if(!is_string($out) || strpos($out, "AdminDataTable.initTable($('#") === false) return;
 		$event->return = preg_replace('~AdminDataTable\.initTable\(\$\(\'#([^\']+)\'\)\)~',
 			'AdminDataTable.initTable(window.jQuery ? jQuery(\'#$1\') : document.getElementById(\'$1\'))', $out);
+	}
+
+	/**
+	 * Labels for the runtime's own dialogs and tables (ProcessWire.config.AdminThemeBridge.labels,
+	 * runtime/src/util/labels.ts), translated in this file's textdomain
+	 *
+	 * @return array
+	 *
+	 */
+	public function runtimeLabels() {
+		return array(
+			'ok' => $this->_('OK'),
+			'cancel' => $this->_('Cancel'),
+			'close' => $this->_('Close'),
+			'sortsPage' => $this->_('Sorts the rows on this page'),
+		);
+	}
+
+	/**
+	 * Hook before MarkupAdminDataTable::render: a table sortableDataTable() accepts sorts by its
+	 * headers, also when its maker called setSortable(false); a column whose header has no text (a
+	 * checkbox or icon column) does not sort (`th.sorter-false`, honoured by both sorters)
+	 *
+	 * @param HookEvent $event
+	 *
+	 */
+	public function hookDataTableRenderBefore(HookEvent $event) {
+		$table = $event->object;
+		if(!$table instanceof MarkupAdminDataTable || $table->sortable) return;
+		if(!$this->sortableDataTable($table, $this->dataTableMaker())) return;
+		$table->setSortable(true);
+		foreach(array_values((array) $table->headerRow) as $n => $th) {
+			$label = is_array($th) ? (string) reset($th) : (string) $th;
+			$text = preg_replace('/[\s\x{00A0}]+/u', '', strip_tags(html_entity_decode($label, ENT_QUOTES, 'UTF-8')));
+			if($text === '' || $text === null) $table->setColNotSortable($n);
+		}
+	}
+
+	/**
+	 * File of the code that rendered the data table being hooked (first frame outside wire/core,
+	 * which only runs the hook, and outside this module)
+	 *
+	 * @return string
+	 *
+	 */
+	protected function dataTableMaker() {
+		$core = $this->wire()->config->paths->core;
+		foreach(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 16) as $frame) {
+			if(empty($frame['file']) || $frame['file'] === __FILE__ || $this->isUnder($frame['file'], $core)) continue;
+			return $frame['file'];
+		}
+		return '';
+	}
+
+	/**
+	 * Is a file under a directory? Also through a link (`__FILE__` and backtraces give the
+	 * resolved path, $config->paths the linked one: local sites have wire/ as a junction), and
+	 * without regard to case on Windows.
+	 *
+	 * @param string $file
+	 * @param string $dir
+	 * @return bool
+	 *
+	 */
+	public function isUnder($file, $dir) {
+		if($file === '' || $dir === '') return false;
+		$norm = function($path) {
+			$path = rtrim(str_replace('\\', '/', $path), '/') . '/';
+			return DIRECTORY_SEPARATOR === '\\' ? strtolower($path) : $path;
+		};
+		$file = $norm($file);
+		$real = realpath($dir);
+		foreach(array_unique(array($dir, $real === false ? $dir : $real)) as $d) {
+			if(strpos($file, $norm($d)) === 0) return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Should a data table that its maker made unsortable sort by its headers under this theme?
+	 *
+	 * Hook after to opt a module's table in or out. By default: tables made by core modules
+	 * (wire/modules) with a header row and at least two rows, except
+	 *
+	 * - the Lister's (`ProcessListerTable`): it sorts on the server by its own header links;
+	 * - InputfieldCheckboxes' table mode (`pw-no-select`): the order of its rows is posted;
+	 * - Sessions (ProcessSessionDB): the list is replaced every few seconds.
+	 *
+	 * A third-party table keeps its maker's choice (its row order may be its value).
+	 *
+	 * @param MarkupAdminDataTable $table
+	 * @param string $maker File that rendered the table ('' when not known)
+	 * @return bool
+	 *
+	 */
+	public function ___sortableDataTable(MarkupAdminDataTable $table, $maker = '') {
+		if(count((array) $table->headerRow) === 0 || count((array) $table->rows) < 2) return false;
+		$classes = ' ' . $table->settings('class') . ' ' . $table->class . ' ';
+		foreach(array('ProcessListerTable', 'pw-no-select') as $class) {
+			if(strpos($classes, " $class ") !== false) return false;
+		}
+		$process = $this->wire()->process;
+		if($process instanceof Process && wireInstanceOf($process, 'ProcessSessionDB')) return false;
+		return $this->isUnder($maker, $this->wire()->config->paths->modules);
 	}
 
 	/**
@@ -1371,7 +1537,10 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public function isLegacyScript($url) {
 		// core's UIkit (AdminThemeUikit's directory) needs no jQuery: the UIkit layer prints it
 		if(self::isUikitScript($url)) return false;
-		$wireUrl = $this->wire()->config->urls->wire;
+		$config = $this->wire()->config;
+		$wireUrl = $config->urls->wire;
+		// a module that builds `root . 'wire/...'` points at the same core (tools/router.php serves it)
+		if(strpos($url, $wireUrl) !== 0) $wireUrl = $config->urls->root . 'wire/';
 		if(strpos($url, $wireUrl) !== 0) return false;
 		$rel = substr($url, strlen($wireUrl));
 		return strpos($rel, 'modules/') === 0 || strpos($rel, 'templates-admin/scripts/') === 0;
@@ -1400,11 +1569,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		if(strpos($path, '/') !== 0 || strpos($path, '//') === 0 || substr($path, -3) !== '.js') return false;
 		if(strpos($path, $this->url()) === 0) return false;
 		foreach($this->printScriptsList() as $needle) if(strpos($path, $needle) !== false) return false;
-		$root = $config->urls->root;
-		if(strpos($path, $root) !== 0) return false;
-		$file = $config->paths->root . substr($path, strlen($root));
-		if(!is_file($file)) return false;
-		$key = $file . '|' . filemtime($file);
+		$file = $this->urlToFile($path);
+		if($file === '') return false;
+		$key = $file . '|' . filemtime($file) . '|' . filesize($file);
 		if($this->jqueryVerdicts === null) {
 			$this->jqueryVerdicts = (array) $this->wire()->cache->get(self::jqueryVerdictsCache);
 		}
@@ -1413,6 +1580,39 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			$this->jqueryVerdictsChanged = true;
 		}
 		return (bool) $this->jqueryVerdicts[$key];
+	}
+
+	/**
+	 * The file a local root-relative URL serves, or '' (audit B6)
+	 *
+	 * Through the most specific of $config->urls / $config->paths that the URL starts with, not as
+	 * root + path: a layout from bootstrap/ may serve site modules, templates or assets from
+	 * elsewhere than under the root (Bootstrap.php `urls`), and a module may build `root . 'wire/'`
+	 * URLs for a core that lives in vendor/.
+	 *
+	 * @param string $url
+	 * @return string
+	 *
+	 */
+	public function urlToFile($url) {
+		$config = $this->wire()->config;
+		$path = rawurldecode((string) preg_replace('/[?#].*$/', '', (string) $url));
+		if(strpos($path, '/') !== 0 || strpos($path, '//') === 0 || strpos($path, '..') !== false) return '';
+		$pairs = array();
+		foreach(array('siteModules', 'modules', 'adminTemplates', 'templates', 'assets', 'site', 'wire', 'root') as $key) {
+			$u = (string) $config->urls->get($key);
+			$p = (string) $config->paths->get($key);
+			if($u !== '' && $p !== '' && strpos($u, '/') === 0) $pairs[$u] = $p;
+		}
+		$alias = $config->urls->root . 'wire/';
+		if(!isset($pairs[$alias])) $pairs[$alias] = $config->paths->wire;
+		uksort($pairs, function($a, $b) { return strlen($b) - strlen($a); });
+		foreach($pairs as $u => $p) {
+			if(strpos($path, $u) !== 0) continue;
+			$file = $p . substr($path, strlen($u));
+			if(is_file($file)) return $file;
+		}
+		return '';
 	}
 
 	/**
@@ -1632,11 +1832,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$path = preg_replace('/[?#].*$/', '', (string) $url);
 		if(strpos($path, '/') !== 0 || strpos($path, '//') === 0 || substr($path, -3) !== '.js') return false;
 		if(strpos($path, $this->url()) === 0 || strpos($path, $config->urls->wire) === 0) return false;
-		$root = $config->urls->root;
-		if(strpos($path, $root) !== 0) return false;
-		$file = $config->paths->root . substr($path, strlen($root));
-		if(!is_file($file)) return false;
-		$key = $file . '|' . filemtime($file);
+		$file = $this->urlToFile($path);
+		if($file === '') return false;
+		$key = $file . '|' . filemtime($file) . '|' . filesize($file);
 		if($this->uikitVerdicts === null) {
 			$this->uikitVerdicts = (array) $this->wire()->cache->get(self::uikitVerdictsCache);
 		}

@@ -18,6 +18,7 @@
  */
 
 import { makeSortable } from '../util/sortable';
+import { on } from '../legacy';
 
 export type Opts = {
 	delimiter?: string; closeAfterSelect?: boolean; createOnBlur?: boolean; maxItems?: number;
@@ -232,7 +233,7 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 		}, 300);
 	};
 
-	box.addEventListener('mousedown', e => {
+	on(box, 'mousedown', e => {
 		const t = e.target as HTMLElement;
 		if (t.closest('a.remove')) return;
 		if (t !== text) {
@@ -240,23 +241,23 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 			text.focus();
 		}
 	});
-	box.addEventListener('click', e => {
+	on(box, 'click', e => {
 		const removeLink = (e.target as HTMLElement).closest('a.remove');
 		if (!removeLink) return;
 		e.preventDefault();
 		const item = removeLink.closest('.item');
 		if (item) remove(item.getAttribute('data-value') || '');
 	});
-	dropdown.addEventListener('mousedown', e => {
+	on(dropdown, 'mousedown', e => {
 		e.preventDefault(); // keep the focus in the typing input
 		const opt = (e.target as HTMLElement).closest<HTMLElement>('[data-selectable]');
 		if (opt) add(opt.getAttribute('data-value') || '', opt.classList.contains('create') ? undefined : opt.textContent || undefined);
 	});
-	text.addEventListener('focus', () => {
+	on(text, 'focus', () => {
 		box.classList.add('focus', 'input-active');
 		renderDropdown();
 	});
-	text.addEventListener('blur', () => {
+	on(text, 'blur', () => {
 		box.classList.remove('focus', 'input-active', 'dropdown-active');
 		dropdown.style.display = 'none';
 		const q = text.value.trim();
@@ -264,7 +265,7 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 		else if (!isSelect && q && allowCreate) add(q); // a free-tag input keeps what was typed
 		text.value = '';
 	});
-	text.addEventListener('input', () => {
+	on(text, 'input', () => {
 		grow();
 		const v = text.value;
 		if (!isSelect && delimiter.trim() && v.indexOf(delimiter) > -1) {
@@ -279,7 +280,7 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 		renderDropdown();
 		lookup();
 	});
-	text.addEventListener('keydown', e => {
+	on(text, 'keydown', e => {
 		const opts = content.querySelectorAll<HTMLElement>('[data-selectable]');
 		const open = dropdown.style.display !== 'none';
 		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {

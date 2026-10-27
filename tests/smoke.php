@@ -463,7 +463,7 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	// A20: both sides guard the interface declaration
 	check('the interface file is guarded', strpos((string) file_get_contents($themeDir . 'BridgeComponent.php'), "if(!interface_exists('ProcessWire\\\\BridgeComponent', false))") !== false);
 	// A21: the inline-script rewrites match strings that still occur in core
-	$wire = $config->paths->wire;
+	$wireDir = $config->paths->wire;
 	$needles = array(
 		'modules/Process/ProcessTemplate/ProcessTemplate.module' => array('$(document).ready(function() { ProcessTemplateInitFields(); });', "\$('#ProcessTemplatePageLister').iFrameResize({ });"),
 		'modules/Process/ProcessField/ProcessField.module' => array('"jQuery(document).ready(function() { " . '),
@@ -473,17 +473,75 @@ if($modules->isInstalled('AdminThemeBridge')) {
 		'modules/Process/ProcessPageEditImageSelect/ProcessPageEditImageSelect.module' => array('$(document).ready(function() { setupProcessSave('),
 	);
 	foreach($needles as $file => $list) {
-		$src = is_file($wire . $file) ? (string) file_get_contents($wire . $file) : '';
+		$src = is_file($wireDir . $file) ? (string) file_get_contents($wireDir . $file) : '';
 		foreach($list as $needle) check("core still prints the string the theme rewrites ($file)", $src !== '' && strpos($src, $needle) !== false, $needle);
 	}
 	// Debug Mode Tools: _footer.php drops debug.inc's jQuery script by this pattern and marks the
 	// panel for scripts/debug-tools.js (link with data-panel-id='debug', sections in .container)
 	$debugPattern = '~<script\b[^>]*>\s*\$\(document\)\.ready\(function\(\)\s*\{\s*var \$debug\b.*?</script>~s';
-	$debugInc = (string) @file_get_contents($wire . 'templates-admin/debug.inc');
+	$debugInc = (string) @file_get_contents($wireDir . 'templates-admin/debug.inc');
 	check('_footer.php strips debug.inc\'s script by the tested pattern', strpos((string) file_get_contents($themeDir . '_footer.php'), "'$debugPattern'") !== false);
 	check('core\'s debug.inc still has the script, the panel div and the panel link', preg_match_all($debugPattern, $debugInc) === 1
 		&& substr_count($debugInc, '<div id="debug">') === 1 && strpos($debugInc, "data-panel-id='debug'") !== false && strpos($debugInc, '<div class="container">') !== false);
 	check('scripts/debug-tools.js is built', is_file($themeDir . 'scripts/debug-tools.js') && strpos((string) file_get_contents($themeDir . 'scripts/debug-tools.js'), '#debug.pw-debug') !== false);
+}
+
+// 0.9.9 (audit 2026-10-27)
+if(isset($bridge) && $bridge) {
+	// B1: the jQuery-ready rewrite touches scripts only, never a field's value
+	$value = "<textarea name='body'>\$(document).ready(function() { alert(1); });</textarea>";
+	$script = "<script>\$(document).ready(function() { ProcessTemplateInitFields(); });</script>";
+	$rewritten = $bridge->nativeInlineScripts($value . $script);
+	check('inline rewrite leaves a field value alone', strpos($rewritten, $value) === 0, $rewritten);
+	check('inline rewrite still rewrites the script', strpos($rewritten, "<script>(window.jQuery ? jQuery : function(f)") !== false, $rewritten);
+
+	// every core data table sorts (sortableDataTable(), hookDataTableRenderBefore())
+	$makeTable = function(array $head, $rows, $class = '') use($modules) {
+		/** @var MarkupAdminDataTable $t */
+		$t = $modules->get('MarkupAdminDataTable');
+		$t->setEncodeEntities(false);
+		$t->setSortable(false);
+		if($class !== '') $t->addClass($class);
+		if(count($head)) $t->headerRow($head);
+		for($i = 0; $i < $rows; $i++) $t->row(array("r$i", 'x', 'y'));
+		return $t;
+	};
+	$coreMaker = $config->paths->modules . 'Process/ProcessField/ProcessField.module';
+	$siteMaker = $config->paths->siteModules . 'SomeModule/SomeModule.module';
+	check('a core table with a header and two rows sorts', $bridge->sortableDataTable($makeTable(array('A', 'B', 'C'), 2), $coreMaker) === true);
+	check('the Lister\'s table does not (server sort)', !$bridge->sortableDataTable($makeTable(array('A', 'B', 'C'), 2, 'ProcessListerTable'), $coreMaker));
+	check('a checkboxes table does not (posted order)', !$bridge->sortableDataTable($makeTable(array('A', 'B', 'C'), 2, 'pw-no-select'), $coreMaker));
+	check('a table without a header does not', !$bridge->sortableDataTable($makeTable(array(), 2), $coreMaker));
+	check('a table with one row does not', !$bridge->sortableDataTable($makeTable(array('A', 'B', 'C'), 1), $coreMaker));
+	check('a third-party table keeps its maker\'s choice', !$bridge->sortableDataTable($makeTable(array('A', 'B', 'C'), 2), $siteMaker));
+	check('a core table through the resolved wire/ path (junction) sorts', $bridge->isUnder((string) realpath($coreMaker), $config->paths->modules));
+	$optIn = $bridge->addHookAfter('sortableDataTable', function(HookEvent $e) { $e->return = true; });
+	$table = $makeTable(array('Name', '&nbsp;', "<i class='fa fa-trash'></i>"), 2);
+	$bridge->hookDataTableRenderBefore(new HookEvent(array('object' => $table)));
+	$html = $table->render();
+	$bridge->removeHook($optIn);
+	check('an opted-in table renders sortable', strpos($html, 'AdminDataTableSortable') !== false, $html);
+	check('its columns without header text do not sort', substr_count($html, 'sorter-false') === 2, $html);
+	check('the runtime labels include the paged-table hint', isset($bridge->runtimeLabels()['sortsPage']));
+
+	// B6: script URLs resolve through urls/paths pairs, also root . 'wire/' for a core elsewhere
+	$siteJs = glob($config->paths->siteModules . '*/*.js');
+	if(is_array($siteJs) && count($siteJs)) {
+		$jsUrl = $config->urls->siteModules . substr($siteJs[0], strlen($config->paths->siteModules));
+		check('urlToFile maps a site module script', $bridge->urlToFile($jsUrl . '?v=1') === $siteJs[0], $jsUrl);
+	}
+	$aliasUrl = $config->urls->root . 'wire/templates-admin/scripts/main.js';
+	check('urlToFile maps root/wire/ to the core', $bridge->urlToFile($aliasUrl) === $config->paths->wire . 'templates-admin/scripts/main.js', $bridge->urlToFile($aliasUrl));
+	check('isLegacyScript counts root/wire/ URLs', $bridge->isLegacyScript($aliasUrl));
+	check('urlToFile refuses ..', $bridge->urlToFile($config->urls->siteModules . '../config.php') === '');
+	$moduleSrc = (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php');
+	check('no GLOB_BRACE flag (undefined on musl)', strpos($moduleSrc, ', GLOB_BRACE') === false);
+	// B7: bounded, locked cache repair
+	$state = $bridge->repairState();
+	check('repair state has time and attempts', isset($state['time'], $state['attempts']), json_encode($state));
+	check('the repair takes a named lock and stops after repairAttempts', strpos($moduleSrc, 'GET_LOCK(') !== false && AdminThemeBridge::repairAttempts > 0);
+	// B8: the shared scripts once
+	check('_head.php drops a registered copy of the shared scripts', strpos((string) file_get_contents($themeDir . '_head.php'), '$sharedPaths') !== false);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

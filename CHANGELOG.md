@@ -1,5 +1,26 @@
 # Changelog
 
+## AdminThemeBridge 0.9.9: every data table sorts, and the first audit fixes (2026-10-27)
+
+From a full audit of the module, the runtime and the tools (bugs, UI, performance, architecture). This release has the table work and the fixes that could lose data or break a page; the rest follows in the next releases.
+
+**Data tables**
+- **Every core data table sorts by its headers without a reload**, also the ones core made unsortable: a log's entries, Sessions aside, a field's overrides, template and field tags, a page's redirects, Lister bookmarks, the page search without the Lister. A before-hook on `MarkupAdminDataTable::render` opts them in; `___sortableDataTable()` decides and can be hooked. Left out: the Lister (it sorts on the server by its own header links), InputfieldCheckboxes' table mode (its row order is posted), Sessions (replaced every few seconds), tables without a header or with one row, and third-party tables (their row order may be their value). A header without text (a checkbox or icon column) does not sort.
+- **Headers show the order** (an arrow, dim until sorted), take the keyboard (Tab, Enter or Space) and say it to assistive technology (`aria-sort`, `aria-disabled`).
+- **Sorting is right for more columns**: numbers, ISO dates (the log viewer's detail line) and text with numeric parts; `data-text` and the hidden keys core prints (`.sort-date`, `.pw-table-sort-value`) win over the visible text; empty cells go last both ways; rows keep their order on ties; colspan and several bodies are handled.
+- **A paged table** (a log with more than 100 entries, Roles beyond 100) sorts the rows of its page and says so in the header's title. A table the log pager swaps in by AJAX is set up too.
+- `AdminDataTable.sort(table, column, dir)` and `Bridge.tables.sort()`.
+
+**Fixes**
+- **A field value that contained `$(document).ready(function() { ` was changed on save** on every native screen: the rewrite of core's inline jQuery calls ran over the whole output, not only its scripts.
+- An upload error message is escaped before it is shown.
+- Values the runtime changes in code now send a bubbling `change` (`input` for the page name the title fills), so change tracking, the leave warning and `showIf` see them: repeater depth, sort and delete, file sort, page table sort, delete and orphan boxes, "Add new" clearing on page fields, the shift-click range in tables.
+- A legacy field loaded by AJAX before the legacy stack arrives is no longer set up natively first and by upstream again after. The selector builder, datetime, page, page name, password, icon, tags and autocomplete widgets stop listening when upstream takes over (two rows per "Add", two calendars).
+- Script URLs are mapped to files through the matching `$config->urls`/`$config->paths` pair, so jQuery scripts are recognised in layouts from `bootstrap/` and under `root/wire/` URLs. Verdicts are keyed by size too.
+- The module-cache repair stops after five tries, waits twice as long after each, takes a database lock (two superuser requests no longer both rebuild), and tells superusers when it gives up.
+- A Process placed directly in `site/modules/` no longer hides every other site script from the legacy check; field module directories are detected without `GLOB_BRACE`; `inputfields.js` and `main.js` are printed once even when a module registered them.
+- The runtime's dialog labels are translated in the module's textdomain.
+
 ## AdminThemeBridge 0.9.8: the ports keep upstream's request contract (2026-10-26)
 
 Found on a client site: typing a title on Add Page put a whole admin page under the name field. The name check fetched `./exists` without `X-Requested-With`, which jQuery's `$.get` adds, so `admin.php` answered with the full layout. Every port was then checked against the core script it replaces (06d11c1):

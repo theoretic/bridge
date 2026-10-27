@@ -286,6 +286,63 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	});
 	check('F Access submenus show labels, not their markup', labels.length > 0 && !/<span|PageListStatus/.test(labels), labels.slice(0, 200));
 
+	// G: data tables sort by their headers (datatable.ts; 0.9.9 also those core made unsortable)
+	await open('setup/logs/');
+	await noJquery('G Logs');
+	const sortState = () => page.evaluate(() => {
+		const t = document.querySelector('table.AdminDataTable.tablesorter');
+		if(!t) return null;
+		const th = t.tHead.rows[0].cells[0];
+		return { cls: th.className, aria: th.getAttribute('aria-sort'), tab: th.tabIndex, first: t.tBodies[0].rows[0].cells[0].textContent.trim(), last: [...t.tBodies[0].rows].pop().cells[0].textContent.trim() };
+	});
+	await waitFor(() => !!document.querySelector('table.AdminDataTable.tablesorter'));
+	const s0 = await sortState();
+	check('G logs table set up for sorting, headers focusable', s0 && /tablesorter-headerUnSorted/.test(s0.cls) && s0.aria === 'none' && s0.tab === 0, JSON.stringify(s0));
+	await page.locator('table.AdminDataTable.tablesorter thead th').first().click();
+	const s1 = await sortState();
+	check('G a header click sorts ascending', s1 && /tablesorter-headerAsc/.test(s1.cls) && s1.aria === 'ascending' && s1.first.localeCompare(s1.last, undefined, { numeric: true, sensitivity: 'base' }) <= 0, JSON.stringify(s1));
+	await page.locator('table.AdminDataTable.tablesorter thead th').first().click();
+	const s2 = await sortState();
+	check('G a second click reverses', s2 && s2.aria === 'descending' && s2.first === s1.last, JSON.stringify(s2));
+	await page.locator('table.AdminDataTable.tablesorter thead th').first().focus();
+	await page.keyboard.press('Enter');
+	const s3 = await sortState();
+	check('G Enter on a focused header sorts', s3 && s3.aria === 'ascending', JSON.stringify(s3));
+	check('G the sorted header shows an arrow', await page.evaluate(() => getComputedStyle(document.querySelector('table.tablesorter th.tablesorter-headerAsc'), '::after').content === '"↑"'));
+	// a log core renders unsortable, with 100 entries a page: sortable, says it sorts this page, and
+	// a table the pager swaps in by AJAX is set up too
+	const bigLog = await page.evaluate(() => {
+		const rows = [...document.querySelectorAll('table.AdminDataTable tbody tr')];
+		const row = rows.find(r => parseInt((r.cells[2] || {}).textContent, 10) > 100);
+		const a = row ? row.querySelector('a') : null;
+		return a ? a.href : '';
+	});
+	if(bigLog) {
+		await page.goto(bigLog, { waitUntil: 'networkidle' });
+		await waitFor(() => !!document.querySelector('#ProcessLogEntries table.tablesorter'));
+		const paged = await page.evaluate(() => { const t = document.querySelector('#ProcessLogEntries table.tablesorter'); return t ? t.className + ' | ' + t.tHead.rows[0].cells[0].title : ''; });
+		check('G a paged log sorts and says it sorts this page', /pw-table-paged/.test(paged) && /\|\s*\S/.test(paged), paged);
+		const before = await page.evaluate(() => { const t = document.querySelector('#ProcessLogEntries table'); if(t) t.dataset.g = '1'; return !!t; });
+		await page.locator('#ProcessLogEntries .MarkupPagerNav a').last().click();
+		const swapped = await waitFor(() => { const t = document.querySelector('#ProcessLogEntries table'); return !!t && t.dataset.g !== '1' && t.classList.contains('tablesorter'); }, null, 8000);
+		check('G a table the log pager swaps in is set up', swapped && !!before);
+	} else {
+		check('G a log with more than 100 entries exists (sandbox)', false, 'none found');
+	}
+	// the field editor: the overrides table (core: unsortable) sorts, its icon column does not;
+	// the checkbox tables (posted order) and the Lister stay as they are
+	await open('setup/field/edit?id=1');
+	const fieldTables = await page.evaluate(() => [...document.querySelectorAll('table.AdminDataTable')].map(t => ({
+		wrap: (t.closest('.Inputfield') || {}).id || '', sortable: t.classList.contains('tablesorter'),
+		off: t.querySelectorAll('thead th.sorter-false').length,
+	})));
+	const overrides = fieldTables.find(t => /overrides/.test(t.wrap));
+	if(overrides) check('G field overrides table sorts, its icon column does not', overrides.sortable && overrides.off === 1, JSON.stringify(overrides));
+	check('G checkbox tables do not sort', fieldTables.filter(t => /send_templates|allowContexts/.test(t.wrap)).every(t => !t.sortable), JSON.stringify(fieldTables));
+	await open('page/lister/');
+	await waitFor(() => !!document.querySelector('table.ProcessListerTable'));
+	check('G the Lister\'s table is not sorted in the browser', await page.evaluate(() => { const t = document.querySelector('table.ProcessListerTable'); return !!t && !t.classList.contains('AdminDataTableSortable') && !t.classList.contains('tablesorter'); }));
+
 	check('no page errors', errors.length === 0, errors.join(' | '));
 	await consoleErrors.settle();
 	consoleErrors.check(check);

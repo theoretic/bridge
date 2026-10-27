@@ -23,3 +23,5 @@
 {admin}login/
 # every admin page that runs a Process (module-provided screens included)
 {admin-process-pages}
+# a log view: a table core renders unsortable, sortable under Bridge since 0.9.9
+{admin}setup/logs/view/modules/

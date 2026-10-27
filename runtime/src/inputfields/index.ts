@@ -13,7 +13,7 @@ import { initToggles, setupToggleEvents } from './toggle';
 import { initCheckboxes, setupCheckboxEvents } from './checkboxes';
 import { initLanguageTabs, setupLanguageTabEvents } from './langtabs';
 import { initWidgets } from '../fields/registry';
-import { legacyLoaded } from '../legacy';
+import { legacyLoaded, legacyPending } from '../legacy';
 
 let eventsReady = false;
 
@@ -36,7 +36,8 @@ export const Inputfields = {
 	 * Initialise behaviours under root (document by default). Safe to call again for new content.
 	 */
 	init(root: ParentNode = document): void {
-		if (legacyLoaded()) return;
+		// content the stack is loading for is upstream's to set up (audit R1)
+		if (legacyLoaded() || (root instanceof Element && root.closest('.Inputfield[data-bridge-legacy]') && legacyPending(root))) return;
 		remember(root);
 		initCollapse(root);
 		initDependencies(root, () => recalcColumns(root));

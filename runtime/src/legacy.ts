@@ -34,3 +34,37 @@ export function onLegacyLoaded(fn: () => void): void {
 	}
 	document.addEventListener('pw-legacy-loaded', fn, { once: true });
 }
+
+let handoverCtl: AbortController | null = null;
+
+/**
+ * A signal aborted when the legacy stack takes over ('pw-legacy-handover', scripts/main.js):
+ * upstream's scripts then bind the same controls, so a native widget's listeners must end there
+ * or every event is handled twice (audit R2)
+ */
+export function handover(): AbortSignal {
+	if (!handoverCtl) {
+		const ctl = new AbortController();
+		handoverCtl = ctl;
+		document.addEventListener('pw-legacy-handover', () => ctl.abort(), { once: true });
+	}
+	return handoverCtl.signal;
+}
+
+/** addEventListener with the handover signal */
+export function on<K extends keyof HTMLElementEventMap>(target: EventTarget, type: K, fn: (e: HTMLElementEventMap[K]) => void): void;
+export function on(target: EventTarget, type: string, fn: (e: Event) => void): void;
+export function on(target: EventTarget, type: string, fn: (e: Event) => void): void {
+	target.addEventListener(type, fn, { signal: handover() });
+}
+
+/**
+ * Is this content legacy markup the theme script loads the stack for (scripts/main.js
+ * legacy.legacyTarget())? Until the stack is there legacyLoaded() is still false, so without this
+ * the runtime would set such content up natively first and upstream again after it (audit R1).
+ */
+export function legacyPending(el: Node): boolean {
+	const legacy = (window as unknown as { ProcessWireAdminTheme?: { legacy?: { loaded?: boolean; legacyTarget?: (n: Node) => Element | null } } }).ProcessWireAdminTheme?.legacy;
+	if (!legacy || legacy.loaded || typeof legacy.legacyTarget !== 'function' || el === document) return false;
+	return !!legacy.legacyTarget(el);
+}

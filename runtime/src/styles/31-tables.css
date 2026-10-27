@@ -29,8 +29,15 @@ table.pw-table td, table.AdminDataTable td {
 table.pw-table tbody tr:hover > td, table.AdminDataTable tbody tr:hover > td { background: color-mix(in srgb, var(--muted) 50%, transparent); }
 table.AdminDataList a { color: var(--pw-link); }
 table.AdminDataList tr td:first-child a { color: var(--foreground); font-weight: 500; }
-table.AdminDataTableSortable th:hover { color: var(--foreground); cursor: pointer; }
-table.AdminDataList th.headerSortUp, table.AdminDataList th.headerSortDown, table.AdminDataList th.tablesorter-headerAsc, table.AdminDataList th.tablesorter-headerDesc { color: var(--pw-h1); background: none; }
+/* sortable headers (datatable.ts, upstream tablesorter): an arrow, dim until the column is sorted */
+.tablesorter-header { cursor: pointer; }
+.tablesorter-header:hover { color: var(--foreground); }
+.tablesorter-header:not(.sorter-false)::after { content: "\2195"; margin-left: 4px; opacity: .35; }
+.tablesorter-header.tablesorter-headerAsc::after { content: "\2191"; opacity: 1; }
+.tablesorter-header.tablesorter-headerDesc::after { content: "\2193"; opacity: 1; }
+.tablesorter-header.sorter-false { cursor: default; }
+.tablesorter-header:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ring-50); }
+table.AdminDataList th:is(.headerSortUp, .headerSortDown, .tablesorter-headerAsc, .tablesorter-headerDesc) { color: var(--pw-h1); background: none; }
 table.AdminDataList caption { color: var(--pw-text-muted); text-align: left; padding: 8px 0; }
 table.AdminDataList tr.AdminDataListSeparator td { border-top: 2px solid var(--pw-line); }
 .InputfieldContent > table.AdminDataTable { margin-top: 4px; }

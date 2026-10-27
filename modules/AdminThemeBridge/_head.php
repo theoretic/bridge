@@ -84,7 +84,13 @@ $legacyShared = array(
 	$wireUrl . "templates-admin/scripts/main.$ext?v=$version",
 );
 $ordered = array();
+$sharedPaths = array();
+foreach(array('inputfields', 'main') as $name) foreach(array('js', 'min.js') as $e) {
+	$sharedPaths[] = $wireUrl . "templates-admin/scripts/$name.$e";
+}
 foreach($scripts->urls() as $url) {
+	// a module that registered either shared script itself does not get it twice (audit B8)
+	if(in_array(preg_replace('/[?#].*$/', '', (string) $url), $sharedPaths, true)) continue;
 	$ordered[] = $url;
 }
 $lastJquery = -1;
@@ -130,12 +136,8 @@ $bridgeJs['uikit'] = array(
 	'scripts' => $useUikit ? array() : $uikitScripts,
 	'covered' => $themeUrl . "assets/dist/uikit-covered.json?v=" . $themeAssetVersion('assets/dist/uikit-covered.json'),
 );
-// translated labels for the runtime's own dialogs (util/choose.ts, elements/pw-dialog.ts)
-$bridgeJs['labels'] = array(
-	'ok' => $adminTheme->_('OK'),
-	'cancel' => $adminTheme->_('Cancel'),
-	'close' => $adminTheme->_('Close'),
-);
+// translated labels for the runtime's own dialogs and tables (util/labels.ts)
+$bridgeJs['labels'] = $adminTheme->runtimeLabels();
 // core's ProcessWire.alert/confirm/prompt (templates-admin/scripts/main.js) take the UIkit route
 // whenever window.UIkit exists, the layer's stand-in included, and read AdminThemeUikit's labels
 // there without checking for them: without these every dialog throws

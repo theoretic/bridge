@@ -31,6 +31,9 @@ const chunkDir = dist + 'chunks/';
 if (existsSync(chunkDir)) {
 	for (const f of readdirSync(chunkDir).filter(f => f.endsWith('.js'))) {
 		if (runtimeImports.includes('chunks/' + f)) continue;
+		// the previous build's runtime chunk, kept one release (prune-chunks.mjs): checked as part of
+		// runtime.js when it was current, not a widget
+		if (f.startsWith('index-')) continue;
 		FILES.push({ name: 'chunks/' + f, budget: 8 * 1024 });
 	}
 }

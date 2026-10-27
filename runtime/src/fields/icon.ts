@@ -6,6 +6,8 @@
  * (again: clears it), Enter takes the first match.
  */
 
+import { on } from '../legacy';
+
 type PW = { config?: { adminIcons?: { version?: string | number } }; icon?: (name: string, extra?: string) => string };
 
 function pw(): PW {
@@ -32,7 +34,7 @@ export function init(wrap: HTMLElement): void {
 	select.setAttribute('data-pw-icon', '');
 	const search = wrap.querySelector<HTMLInputElement>('.InputfieldIconSearch');
 	const all = wrap.querySelector<HTMLElement>('.InputfieldIconAll');
-	select.addEventListener('change', () => {
+	on(select, 'change', () => {
 		const val = select.value;
 		if (val.length) {
 			const header = wrap.querySelector<HTMLElement>('.InputfieldHeader > i:first-child');
@@ -48,19 +50,19 @@ export function init(wrap: HTMLElement): void {
 	});
 	if (!search || !all) return;
 	all.style.display = 'none';
-	search.addEventListener('keydown', e => {
+	on(search, 'keydown', e => {
 		if (e.key !== 'Enter') return;
 		e.preventDefault();
 		const first = Array.from(all.querySelectorAll<HTMLElement>('i')).find(i => i.style.display !== 'none');
 		if (first) first.click();
 	});
-	search.addEventListener('input', () => {
+	on(search, 'input', () => {
 		const term = search.value.toLowerCase().replace(/^fa-/, '').trim();
 		if (term.length < 3) { all.style.display = 'none'; return; }
 		if (!all.classList.contains('initialized')) {
 			all.classList.add('initialized');
 			all.insertAdjacentHTML('beforeend', Array.from(select.options).filter(o => o.value).map(o => iconHtml(o.value, 'InputfieldIconItem')).join(''));
-			all.addEventListener('click', e => {
+			on(all, 'click', e => {
 				const i = (e.target as HTMLElement).closest('i');
 				if (!i) return;
 				if (i.classList.contains('on')) {

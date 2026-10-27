@@ -95,7 +95,7 @@ export function setupUpload(inputfield: HTMLElement, content: HTMLElement, grid:
 
 	const error = (message: string, name?: string): void => {
 		if (!errors) return;
-		errors.insertAdjacentHTML('beforeend', `<li><i class='fa fa-fw fa-warning'></i> ${name ? '<b>' + esc(name) + ':</b> ' : ''}${message}</li>`);
+		errors.insertAdjacentHTML('beforeend', `<li><i class='fa fa-fw fa-warning'></i> ${name ? '<b>' + esc(name) + ':</b> ' : ''}${esc(message)}</li>`);
 	};
 
 	const place = (results: UploadResult[], row: HTMLElement): void => {

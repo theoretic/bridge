@@ -10,7 +10,7 @@ import { Inputfields } from './inputfields/index';
 import { defineTabs } from './elements/pw-tabs';
 import { defineDialog, setupModalLinks, sharedDialog, DialogOptions } from './elements/pw-dialog';
 import type { LightboxItem } from './util/lightbox';
-import { legacyLoaded, loadLegacy, onLegacyLoaded } from './legacy';
+import { legacyLoaded, legacyPending, loadLegacy, onLegacyLoaded } from './legacy';
 import { replay } from './util/stubs';
 import { load as loadComponent, loadFrom as loadComponentsFrom, loadProcess, loaded as loadedComponents } from './components';
 
@@ -28,6 +28,10 @@ export const Bridge = {
 	legacy: { loaded: legacyLoaded, load: loadLegacy },
 	// on demand: the image field and the Lister load it with their own chunks
 	lightbox: (items: LightboxItem[], index?: number): Promise<void> => import('./util/lightbox').then(m => m.openLightbox(items, index)),
+	// sort a data table by a column (0-based), as a header click does; the table chunk loads on demand
+	tables: {
+		sort: (table: HTMLTableElement, column: number, dir: 'asc' | 'desc' = 'asc'): Promise<void> => import('./fields/datatable').then(m => m.sort(table, column, dir)),
+	},
 	init(): void {
 		defineTabs();
 		defineDialog();
@@ -51,6 +55,10 @@ export const Bridge = {
  * added one; Inputfields.init() once per distinct parent, without parents inside another. The
  * records come from the theme script's one body observer (ProcessWireAdminTheme.observe, B18).
  */
+// what needs Inputfields.init(): fields, and data tables swapped in on their own (the log viewer's
+// pager, Sessions)
+const INITIALISE = '.Inputfield, table.AdminDataTable';
+
 export function contentAdded(records: MutationRecord[]): void {
 	const added: HTMLElement[] = [];
 	for (const record of records) {
@@ -64,7 +72,7 @@ export function contentAdded(records: MutationRecord[]): void {
 	const native = !legacyLoaded();
 	for (const el of top) {
 		void loadComponentsFrom(el);
-		if (!native || !(el.matches('.Inputfield') || el.querySelector('.Inputfield'))) continue;
+		if (!native || legacyPending(el) || !(el.matches(INITIALISE) || el.querySelector(INITIALISE))) continue;
 		const root = el.parentNode || el;
 		if (roots.indexOf(root) < 0) roots.push(root);
 	}

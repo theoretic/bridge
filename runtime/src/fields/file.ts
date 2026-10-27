@@ -23,6 +23,7 @@ import { makeSortable } from '../util/sortable';
 import { setupTags, Opts as TagOpts } from './texttags';
 import { uploadAllowed, uploadTarget, rejectReason, send, toElement, initItem, filesOf, UploadResult } from './upload';
 import { legacyLoaded } from '../legacy';
+import { setValue } from '../util/events';
 
 type FieldState = { abort: AbortController; unsort: (() => void) | null };
 const fields = new Map<HTMLElement, FieldState>();
@@ -107,8 +108,7 @@ function sortable(inputfield: HTMLElement, list: HTMLElement): () => void {
 		start: item => { const info = item.querySelector('.InputfieldFileInfo'); if (info) info.classList.add('ui-state-highlight'); },
 		stop: item => {
 			Array.from(list.children).forEach((li, n) => {
-				const sort = li.querySelector<HTMLInputElement>('.InputfieldFileSort');
-				if (sort) sort.value = String(n);
+				setValue(li.querySelector<HTMLInputElement>('.InputfieldFileSort'), String(n));
 			});
 			const info = item.querySelector('.InputfieldFileInfo');
 			if (info) info.classList.remove('ui-state-highlight');

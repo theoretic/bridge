@@ -18,6 +18,8 @@
  * ...Options when given, else from Intl for the page language. Not ported: numberOfMonths > 1.
  */
 
+import { on } from '../legacy';
+
 type Regional = {
 	monthNames: string[]; monthNamesShort: string[]; dayNames: string[]; dayNamesShort: string[];
 	dayNamesMin: string[]; firstDay: number; prevText: string; nextText: string;
@@ -343,10 +345,10 @@ function setupPicker(input: HTMLInputElement): void {
 		if (closeOpen === close) closeOpen = null;
 	};
 
-	box.addEventListener('mousedown', e => {
+	on(box, 'mousedown', e => {
 		if (!(e.target as HTMLElement).closest('select')) e.preventDefault(); // keep the input focused
 	});
-	box.addEventListener('click', e => {
+	on(box, 'click', e => {
 		const t = e.target as HTMLElement;
 		if (t.closest('.ui-datepicker-prev, .ui-datepicker-next')) {
 			e.preventDefault();
@@ -376,7 +378,7 @@ function setupPicker(input: HTMLInputElement): void {
 		}
 		if (t.closest('.ui-datepicker-close')) close();
 	});
-	box.addEventListener('change', e => {
+	on(box, 'change', e => {
 		const t = e.target as HTMLSelectElement;
 		if (t.classList.contains('ui-datepicker-month')) view = new Date(view.getFullYear(), parseInt(t.value, 10), 1);
 		else if (t.classList.contains('ui-datepicker-year')) view = new Date(parseInt(t.value, 10), view.getMonth(), 1);
@@ -394,24 +396,24 @@ function setupPicker(input: HTMLInputElement): void {
 	if (inline) {
 		render();
 	} else if (onFocus) {
-		input.addEventListener('focus', open);
-		input.addEventListener('click', open);
+		on(input, 'focus', open);
+		on(input, 'click', open);
 	} else {
 		trigger = document.createElement('a');
 		trigger.className = 'pw-ui-datepicker-trigger';
 		trigger.href = '#';
 		trigger.innerHTML = "<i class='fa fa-calendar'></i>";
 		input.insertAdjacentElement('afterend', trigger);
-		trigger.addEventListener('mousedown', e => e.preventDefault());
-		trigger.addEventListener('click', e => {
+		on(trigger, 'mousedown', e => e.preventDefault());
+		on(trigger, 'click', e => {
 			e.preventDefault();
 			if (isOpen()) close();
 			else { input.focus(); open(); }
 		});
 	}
-	input.addEventListener('blur', () => window.setTimeout(() => { if (document.activeElement && box.contains(document.activeElement)) return; close(); }, 150));
-	input.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
-	input.addEventListener('change', () => {
+	on(input, 'blur', () => window.setTimeout(() => { if (document.activeElement && box.contains(document.activeElement)) return; close(); }, 150));
+	on(input, 'keydown', e => { if (e.key === 'Escape') close(); });
+	on(input, 'change', () => {
 		const d = valueDate();
 		if (d) {
 			selected = d;
@@ -419,7 +421,7 @@ function setupPicker(input: HTMLInputElement): void {
 			if (isOpen()) render();
 		}
 	});
-	document.addEventListener('mousedown', e => {
+	on(document, 'mousedown', e => {
 		if (!isOpen() || inline) return;
 		const t = e.target as HTMLElement;
 		if (box.contains(t) || t === input || (trigger && trigger.contains(t))) return;
@@ -430,7 +432,7 @@ function setupPicker(input: HTMLInputElement): void {
 function setupSelect(wrap: HTMLElement): void {
 	if (wrap.hasAttribute('data-pw-datetime')) return;
 	wrap.setAttribute('data-pw-datetime', '');
-	wrap.addEventListener('change', e => {
+	on(wrap, 'change', e => {
 		const select = e.target as HTMLSelectElement;
 		if (!select.matches || !select.matches('select')) return;
 		const parent = select.parentElement as HTMLElement;

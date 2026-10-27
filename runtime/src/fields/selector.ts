@@ -18,6 +18,7 @@
 
 import { attachAutocomplete } from '../util/autocomplete';
 import { initWidgets } from './registry';
+import { on } from '../legacy';
 
 const SPINNER = "<i class='fa fa-lg fa-spin fa-spinner'></i>";
 // per builder (two on one page do not suppress each other's preview and count): the last
@@ -120,7 +121,7 @@ function setupAutocomplete(input: HTMLInputElement, field: string, name: string)
 			if (value) changeAny(value);
 		},
 	});
-	input.addEventListener('focus', () => {
+	on(input, 'focus', () => {
 		const value = input.parentElement ? input.parentElement.querySelector<HTMLInputElement>(':scope > .input-value') : null;
 		if (value) value.value = '';
 		input.value = '';
@@ -366,14 +367,14 @@ function changeAny(item: Element): void {
 function setupEvents(): void {
 	if (ready) return;
 	ready = true;
-	document.addEventListener('change', e => {
+	on(document, 'change', e => {
 		const t = e.target as HTMLElement;
 		if (!t || !t.closest || !fieldOf(t)) return;
 		if (t.matches('select.select-field, select.select-subfield')) void changeField(t as HTMLSelectElement);
 		else if (t.matches('input, select, textarea') && !t.matches('.input-value-autocomplete, .selector-value')) changeAny(t);
 	});
 	let timer = 0;
-	document.addEventListener('keyup', e => {
+	on(document, 'keyup', e => {
 		const t = e.target as HTMLInputElement;
 		if (!t || !t.matches || !t.matches('.InputfieldSelector input.input-value')) return;
 		window.clearTimeout(timer);
@@ -384,7 +385,7 @@ function setupEvents(): void {
 		}
 		timer = window.setTimeout(() => changeAny(t), 100);
 	});
-	document.addEventListener('click', e => {
+	on(document, 'click', e => {
 		const t = e.target as HTMLElement;
 		if (!t || !t.closest) return;
 		const add = t.closest('.InputfieldSelector .selector-add');

@@ -28,6 +28,7 @@ import { getCookie, setCookie } from '../util/cookie';
 import { choose } from '../util/choose';
 import { legacyLoaded } from '../legacy';
 import { runScripts } from '../util/scripts';
+import { changed, setValue } from '../util/events';
 import { open as openField, close as closeField, isCollapsed } from '../inputfields/collapse';
 
 const DEPTH = 50;
@@ -88,7 +89,7 @@ function setDepth(item: HTMLElement, depth: number, max?: number, noValidate = f
 	}
 	const input = child(itemFields(item), '.InputfieldRepeaterItemDepth');
 	const field = input ? input.querySelector<HTMLInputElement>('input') : null;
-	if (field) field.value = String(depth);
+	setValue(field, String(depth));
 	item.setAttribute('data-depth', String(depth));
 	item.style.paddingLeft = depth > 0 ? depth * DEPTH + 'px' : '0';
 	item.classList.toggle('InputfieldRepeaterItemHasDepth', depth > 0);
@@ -132,7 +133,7 @@ function initDepths(repeater: HTMLElement): void {
 function setSort(item: HTMLElement, n: number): void {
 	const wrap = child(itemFields(item), '.InputfieldRepeaterItemSort');
 	const input = wrap ? wrap.querySelector<HTMLInputElement>('.InputfieldRepeaterSort') : null;
-	if (input) input.value = String(n);
+	setValue(input, String(n));
 }
 
 function updateState(item: Element): void {
@@ -543,7 +544,7 @@ function deleteItem(trash: HTMLElement): void {
 	}
 	const box = document.getElementById('delete_repeater' + item.getAttribute('data-page')) as HTMLInputElement | null;
 	const on = !(box && box.checked);
-	if (box) box.checked = on;
+	if (box) { box.checked = on; changed(box); }
 	h.classList.toggle('ui-state-error', on);
 	h.classList.toggle('ui-state-default', !on);
 	item.classList.toggle('InputfieldRepeaterDeletePending', on);
@@ -650,8 +651,7 @@ function sortable(repeater: HTMLElement, list: HTMLElement): () => void {
 			}
 			if (h) h.classList.remove('ui-state-highlight');
 			children(list, 'li').forEach((li, n) => {
-				const input = li.querySelector<HTMLInputElement>('.InputfieldRepeaterSort');
-				if (input) input.value = String(n);
+				setValue(li.querySelector<HTMLInputElement>('.InputfieldRepeaterSort'), String(n));
 			});
 			repeater.dispatchEvent(new CustomEvent('sorted', { bubbles: true, detail: { item } }));
 			if (max > 0 && startDepth !== itemDepth(item)) repeater.classList.add('InputfieldStateChanged');

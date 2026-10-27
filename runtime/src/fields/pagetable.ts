@@ -17,6 +17,7 @@
 
 import { makeSortable } from '../util/sortable';
 import { legacyLoaded } from '../legacy';
+import { changed, setValue } from '../util/events';
 
 const sortables = new Map<HTMLElement, () => void>();
 
@@ -28,7 +29,7 @@ function dialog(): { open(url: string, size: string, options: Record<string, unk
 function updateSort(tbody: HTMLElement): void {
 	const container = tbody.closest('.InputfieldPageTableContainer');
 	const input = container && container.parentElement ? container.parentElement.querySelector<HTMLInputElement>(':scope > .InputfieldPageTableSort') : null;
-	if (input) input.value = Array.from(tbody.querySelectorAll('tr')).map(tr => tr.getAttribute('data-id')).join('|');
+	setValue(input, Array.from(tbody.querySelectorAll('tr')).map(tr => tr.getAttribute('data-id')).join('|'));
 }
 
 function makeRowsSortable(container: HTMLElement): void {
@@ -99,7 +100,7 @@ function toggleDelete(link: HTMLElement): void {
 	const ids = Array.from(tbody.children).filter(tr => tr.classList.contains('InputfieldPageTableDelete')).map(tr => tr.getAttribute('data-id'));
 	const container = link.closest('.InputfieldPageTableContainer');
 	const input = container && container.parentElement ? container.parentElement.querySelector<HTMLInputElement>(':scope > input.InputfieldPageTableDelete') : null;
-	if (input) input.value = ids.join('|');
+	setValue(input, ids.join('|'));
 }
 
 let documentReady = false;
@@ -128,7 +129,7 @@ function setupDocument(): void {
 			e.preventDefault();
 			const boxes = all.closest('.InputfieldPageTableOrphans')?.querySelectorAll<HTMLInputElement>('input') || [];
 			const on = !(boxes[0] && boxes[0].checked);
-			boxes.forEach(b => { b.checked = on; });
+			boxes.forEach(b => { if (b.checked !== on) { b.checked = on; changed(b); } });
 		}
 	}, true);
 	document.addEventListener('dblclick', e => {
