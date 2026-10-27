@@ -25,7 +25,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.9.10',
+			'version' => '0.9.11',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -231,6 +231,13 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * @var array dir => true
 	 */
 	protected $legacyInputfieldDirs = array();
+
+	/**
+	 * componentInfo(): directory URL of the declaring class and module version, by class
+	 *
+	 */
+	protected $componentBase = array();
+	protected $componentVersion = array();
 
 	/**
 	 * bossForcesUikit() and printScriptsList() answers, per instance (audit B12: method statics
@@ -489,12 +496,51 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 *
 	 */
 	public function renderNativeLogo() {
+		if($this->nativeLogo !== null) return $this->nativeLogo; // the login screen prints it twice
 		$file = $this->wire()->config->paths->wire . 'modules/AdminTheme/AdminThemeUikit/themes/default/logo.svg';
 		$svg = is_file($file) ? trim((string) file_get_contents($file)) : '';
-		if(strpos($svg, '<svg') !== 0) return "<span class='pw-logo-text'>ProcessWire</span>";
+		if(strpos($svg, '<svg') !== 0) return $this->nativeLogo = "<span class='pw-logo-text'>ProcessWire</span>";
 		// accessible name only; shape, colour model (currentColor) and markup stay as shipped
-		return preg_replace('/^<svg\b/', "<svg role='img' aria-label='ProcessWire'", $svg, 1);
+		return $this->nativeLogo = (string) preg_replace('/^<svg\b/', "<svg role='img' aria-label='ProcessWire'", $svg, 1);
 	}
+
+	/**
+	 * renderNativeLogo() for this request
+	 *
+	 * @var string|null
+	 *
+	 */
+	protected $nativeLogo = null;
+
+	/**
+	 * A value from the build's manifest (assets/dist/manifest.php, runtime/scripts/manifest.mjs):
+	 * runtimeChunks, fontPreloads, uikitCovered. Null when there is no manifest, or when it is older
+	 * than runtime.js (a `vite build` alone): callers then read the built files (audit PP2).
+	 *
+	 * @param string $key
+	 * @return mixed
+	 *
+	 */
+	public function manifest($key) {
+		if($this->manifestData === null) {
+			$dist = $this->path() . 'assets/dist/';
+			$file = $dist . 'manifest.php';
+			$data = null;
+			if(is_file($file) && (!is_file($dist . 'runtime.js') || filemtime($file) >= filemtime($dist . 'runtime.js'))) {
+				$data = include($file);
+			}
+			$this->manifestData = is_array($data) ? $data : array();
+		}
+		return $this->manifestData[$key] ?? null;
+	}
+
+	/**
+	 * manifest() data for this request
+	 *
+	 * @var array|null
+	 *
+	 */
+	protected $manifestData = null;
 
 	/**
 	 * True when this request loaded the theme at boot instead of on admin pages only
@@ -951,7 +997,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 */
 	public function hookProcessExecuteBefore(HookEvent $event) {
 		$this->scriptsBeforeProcess = array();
-		foreach($this->wire()->config->scripts->urls() as $url) $this->scriptsBeforeProcess[] = (string) $url;
+		foreach($this->assetUrls($this->wire()->config->scripts) as $url) $this->scriptsBeforeProcess[] = (string) $url;
 	}
 
 	/**
@@ -979,7 +1025,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// a Process placed directly in site/modules/ owns no directory of its own (audit B5)
 		if($own === $config->urls->siteModules || $own === $config->urls->modules) $own = '';
 		$configured = $this->moduleConfigUrl($process);
-		foreach($config->scripts->urls() as $url) {
+		foreach($this->assetUrls($config->scripts) as $url) {
 			$url = (string) $url;
 			if(strpos($url, $config->urls->wire) === 0) continue;
 			$forConfig = $configured !== '' && strpos($url, $configured) === 0;
@@ -1415,16 +1461,22 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$tag = empty($info['tag']) ? '' : (string) $info['tag'];
 		$url = empty($info['module']) ? '' : (string) $info['module'];
 		$version = empty($info['version']) ? '1' : (string) $info['version'];
+		// per class, once a request: every field of a component calls this (audit PP4)
+		$class = $module->className();
 		if($url !== '' && strpos($url, '/') !== 0 && strpos($url, '://') === false) {
 			// relative to the directory of the class that declares the component (a subclass in
 			// another module would otherwise point at its own directory)
-			$declaring = $module instanceof BridgeComponent ? wireClassName($this->componentClass($module), false) : $module->className();
-			$base = $this->wire()->config->urls($declaring);
-			$url = ($base ? $base : '') . $url;
+			if(!isset($this->componentBase[$class])) {
+				$declaring = $module instanceof BridgeComponent ? wireClassName($this->componentClass($module), false) : $class;
+				$this->componentBase[$class] = (string) $this->wire()->config->urls($declaring);
+			}
+			$url = $this->componentBase[$class] . $url;
 		}
 		if($url !== '' && strpos($url, '?') === false) {
-			$moduleVersion = $this->wire()->modules->getModuleInfoProperty($module, 'version');
-			if($moduleVersion) $url .= '?v=' . rawurlencode((string) $moduleVersion);
+			if(!isset($this->componentVersion[$class])) {
+				$this->componentVersion[$class] = (string) $this->wire()->modules->getModuleInfoProperty($module, 'version');
+			}
+			if($this->componentVersion[$class] !== '') $url .= '?v=' . rawurlencode($this->componentVersion[$class]);
 		}
 		return array('tag' => $tag, 'module' => $url, 'version' => $version);
 	}
@@ -1511,7 +1563,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// a scriptNeeds() script whose fields render here
 		foreach($this->getScriptNeeds() as $part => $when) {
 			if(isset($this->settledNeeds[$part]) || empty($this->renderedNeeds[$when])) continue;
-			foreach($this->wire()->config->scripts->urls() as $url) {
+			foreach($this->assetUrls($this->wire()->config->scripts) as $url) {
 				$url = (string) $url;
 				$path = preg_replace('/[?#].*$/', '', $url);
 				if(strpos($path, $part) === false) continue;
@@ -1625,15 +1677,39 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$file = $this->urlToFile($path);
 		if($file === '') return false;
 		$key = $file . '|' . filemtime($file) . '|' . filesize($file);
-		if($this->jqueryVerdicts === null) {
-			$this->jqueryVerdicts = (array) $this->wire()->cache->get(self::jqueryVerdictsCache);
-		}
+		if($this->jqueryVerdicts === null) $this->loadVerdicts();
 		if(!isset($this->jqueryVerdicts[$key])) {
 			$this->jqueryVerdicts[$key] = self::needsJquery((string) file_get_contents($file, false, null, 0, 512 * 1024));
 			$this->jqueryVerdictsChanged = true;
 		}
 		return (bool) $this->jqueryVerdicts[$key];
 	}
+
+	/**
+	 * $list->urls(), once per content of the list (audit PP1): core's versionUrls() reads the
+	 * file time of each asset in some modes, and the theme asks for the script list about eight
+	 * times per request
+	 *
+	 * @param FilenameArray $list
+	 * @return array
+	 *
+	 */
+	public function assetUrls(FilenameArray $list) {
+		$raw = '';
+		foreach($list as $file) $raw .= "
+" . $file;
+		$key = spl_object_id($list) . ':' . md5($raw);
+		if(!isset($this->urlsMemo[$key])) $this->urlsMemo[$key] = $list->urls();
+		return $this->urlsMemo[$key];
+	}
+
+	/**
+	 * assetUrls() answers
+	 *
+	 * @var array
+	 *
+	 */
+	protected $urlsMemo = array();
 
 	/**
 	 * The file a local root-relative URL serves, or '' (audit B6)
@@ -1666,6 +1742,17 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			if(is_file($file)) return $file;
 		}
 		return '';
+	}
+
+	/**
+	 * Both verdict caches (jQuery, UIkit) in one WireCache query, not one each (audit PP3)
+	 *
+	 */
+	protected function loadVerdicts() {
+		$both = $this->wire()->cache->get(array(self::jqueryVerdictsCache, self::uikitVerdictsCache));
+		if(!is_array($both)) $both = array();
+		if($this->jqueryVerdicts === null) $this->jqueryVerdicts = (array) ($both[self::jqueryVerdictsCache] ?? array());
+		if($this->uikitVerdicts === null) $this->uikitVerdicts = (array) ($both[self::uikitVerdictsCache] ?? array());
 	}
 
 	/**
@@ -1716,14 +1803,14 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	/**
 	 * Split $config->scripts into what gets printed now and what is deferred to the client
 	 *
-	 * @param array|null $all Script URLs in print order (default: $config->scripts->urls())
+	 * @param array|null $all Script URLs in print order (default: $this->assetUrls($config->scripts))
 	 * @return array ['print' => string[], 'deferred' => string[]]
 	 *
 	 */
 	public function getScriptUrls(?array $all = null) {
 		if($all === null) {
 			$all = array();
-			foreach($this->wire()->config->scripts->urls() as $url) $all[] = $url;
+			foreach($this->assetUrls($this->wire()->config->scripts) as $url) $all[] = $url;
 		}
 		if($this->useLegacyStack()) return array('print' => $all, 'deferred' => array());
 		$print = array();
@@ -1785,8 +1872,11 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 */
 	public function getUikitCovered() {
 		if($this->uikitCovered === null) {
-			$file = __DIR__ . '/assets/dist/uikit-covered.json';
-			$list = is_file($file) ? json_decode((string) file_get_contents($file), true) : null;
+			$list = $this->manifest('uikitCovered');
+			if(!is_array($list)) {
+				$file = __DIR__ . '/assets/dist/uikit-covered.json';
+				$list = is_file($file) ? json_decode((string) file_get_contents($file), true) : null;
+			}
 			$this->uikitCovered = is_array($list) ? array_fill_keys($list, true) : array();
 		}
 		return $this->uikitCovered;
@@ -1835,7 +1925,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 */
 	public function settleUikitAssets() {
 		$config = $this->wire()->config;
-		foreach($config->styles->urls() as $url) {
+		foreach($this->assetUrls($config->styles) as $url) {
 			$url = (string) $url;
 			if(!self::isUikitStyle($url)) continue;
 			// another admin theme's full build (AdminThemeBoss, on every page) is not a request
@@ -1843,7 +1933,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			$config->styles->remove(preg_replace('/\?.*$/', '', $url));
 			$config->styles->remove($url);
 		}
-		foreach($config->scripts->urls() as $url) {
+		foreach($this->assetUrls($config->scripts) as $url) {
 			$url = (string) $url;
 			if(self::isUikitScript($url)) {
 				$this->needUikit('Asset:' . $this->siteRelative($url));
@@ -1887,9 +1977,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$file = $this->urlToFile($path);
 		if($file === '') return false;
 		$key = $file . '|' . filemtime($file) . '|' . filesize($file);
-		if($this->uikitVerdicts === null) {
-			$this->uikitVerdicts = (array) $this->wire()->cache->get(self::uikitVerdictsCache);
-		}
+		if($this->uikitVerdicts === null) $this->loadVerdicts();
 		if(!isset($this->uikitVerdicts[$key])) {
 			$this->uikitVerdicts[$key] = self::needsUikit((string) file_get_contents($file, false, null, 0, 512 * 1024));
 			$this->uikitVerdictsChanged = true;
@@ -2146,6 +2234,17 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			$p = $this->wire()->process;
 			if($p && method_exists($p, 'getPage')) $editPage = $p->getPage();
 		}
+		// the pages behind the crumbs, loaded in one query (audit PP6)
+		$crumbPages = array();
+		if($extended) {
+			$ids = array();
+			foreach($breadcrumbs as $breadcrumb) {
+				if(preg_match('/[?&]open=(\d+)/', (string) $breadcrumb->url, $m)) $ids[] = (int) $m[1];
+			}
+			if($editPage && $editPage->parent_id) $ids[] = (int) $editPage->parent_id;
+			$ids = array_values(array_unique(array_filter($ids)));
+			if(count($ids)) foreach($this->wire()->pages->getById($ids) as $p) $crumbPages[$p->id] = $p;
+		}
 		foreach($breadcrumbs as $breadcrumb) {
 			// as AdminThemeUikit: markup a Process set for the crumb, else its title, translated
 			$title = (string) $breadcrumb->get('titleMarkup');
@@ -2160,7 +2259,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 					$href .= (strpos($href, '?') === false ? '?' : '&') . "open=$id";
 				}
 				if($id) {
-					$p = $this->wire()->pages->get($id);
+					$p = isset($crumbPages[$id]) ? $crumbPages[$id] : $this->wire()->pages->get($id);
 					if($p->id && $p->editable()) {
 						$editUrl = $sanitizer->entities($p->editUrl());
 						$edit = "<a class='pw-breadcrumb-edit' href='$editUrl' title='" .

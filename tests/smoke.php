@@ -570,5 +570,21 @@ if(isset($bridge) && $bridge) {
 	check('the runtime labels include the request failure notice', isset($bridge->runtimeLabels()['requestFailed']));
 }
 
+// 0.9.11 (audit 2026-10-27, phase 3: performance)
+if(isset($bridge) && $bridge) {
+	check('PP1 assetUrls() gives what urls() gives', $bridge->assetUrls($config->scripts) === $config->scripts->urls());
+	$config->scripts->add('/smoke-memo-' . time() . '.js');
+	check('PP1 assetUrls() follows a changed list', count($bridge->assetUrls($config->scripts)) === count($config->scripts->urls()));
+	$manifestFile = $themeDir . 'assets/dist/manifest.php';
+	check('PP2 the build writes assets/dist/manifest.php', is_file($manifestFile));
+	if(is_file($manifestFile)) {
+		$manifest = include($manifestFile);
+		check('PP2 manifest has runtime chunks, font preloads, covered UIkit classes', is_array($manifest) && !empty($manifest['runtimeChunks']) && isset($manifest['fontPreloads']) && !empty($manifest['uikitCovered']));
+		check('PP2 manifest chunks exist', is_array($manifest) && !array_filter((array) $manifest['runtimeChunks'], function($c) use($themeDir) { return !is_file($themeDir . 'assets/dist/' . $c); }));
+	}
+	check('PP3 both verdict caches load in one query', strpos($moduleSrc, 'protected function loadVerdicts()') !== false || strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), 'protected function loadVerdicts()') !== false);
+	check('PP8 the theme ships cache headers for versioned assets', is_file($themeDir . '.htaccess') && strpos((string) file_get_contents($themeDir . '.htaccess'), 'immutable') !== false);
+}
+
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

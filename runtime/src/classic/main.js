@@ -344,19 +344,27 @@ var ProcessWireAdminTheme = {
 			var lists = document.querySelectorAll('.PageListRoot .PageList');
 			var masthead = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pw-masthead-h')) || 56;
 			var vh = window.innerHeight;
-			for(var i = 0; i < lists.length; i++) {
-				var list = lists[i];
-				if(list.querySelector('.PageList')) {
+			// reads, then writes, then reads, then writes: two layouts per fit, not two per branch
+			// (audit P4)
+			var deepest = [], tops = [], i;
+			for(i = 0; i < lists.length; i++) {
+				if(lists[i].querySelector('.PageList')) {
 					// not the deepest: no cap (CSS), no scrollbar
-					list.classList.remove('pw-branch-scrolls');
+					lists[i].classList.remove('pw-branch-scrolls');
 					continue;
 				}
-				var item = list.previousElementSibling;
-				var top = item && item.classList.contains('PageListItem') ? item.getBoundingClientRect().bottom : list.getBoundingClientRect().top;
-				var room = vh - Math.max(top, masthead) - 16;
-				var max = Math.max(180, Math.min(room, vh - masthead - 40));
-				list.style.setProperty('--pw-branch-max', Math.round(max) + 'px');
-				list.classList.toggle('pw-branch-scrolls', list.scrollHeight > list.clientHeight + 1);
+				var item = lists[i].previousElementSibling;
+				deepest.push(lists[i]);
+				tops.push(item && item.classList.contains('PageListItem') ? item.getBoundingClientRect().bottom : lists[i].getBoundingClientRect().top);
+			}
+			for(i = 0; i < deepest.length; i++) {
+				var room = vh - Math.max(tops[i], masthead) - 16;
+				deepest[i].style.setProperty('--pw-branch-max', Math.round(Math.max(180, Math.min(room, vh - masthead - 40))) + 'px');
+			}
+			var scrolls = deepest.map(function(list) { return list.scrollHeight > list.clientHeight + 1; });
+			for(i = 0; i < deepest.length; i++) {
+				var list = deepest[i];
+				list.classList.toggle('pw-branch-scrolls', scrolls[i]);
 				if(resized && !list.pwFitObserved) {
 					list.pwFitObserved = true;
 					resized.observe(list);
@@ -412,7 +420,9 @@ var ProcessWireAdminTheme = {
 
 		/** editing area: the content on a card */
 		css: function() {
-			var t = this.token.bind(this);
+			// one computed style for all tokens of the sheet (P4: one per token before)
+			var root = getComputedStyle(document.documentElement);
+			var t = function(name) { return root.getPropertyValue(name).trim(); };
 			return 'html{color-scheme:' + (this.dark() ? 'dark' : 'light') + '}' +
 				'html body{background:' + t('--card') + ';color:' + t('--foreground') + '}' +
 				'body :is(h1,h2,h3,h4,h5,h6,strong,b){color:' + t('--foreground') + '}' +
@@ -622,8 +632,9 @@ var ProcessWireAdminTheme = {
 			var tall = false;
 			if(notices && !body.classList.contains('modal')) {
 				var items = notices.querySelectorAll(':scope > li');
+				var max = row() + 1; // one style read per check, not one per notice (P4)
 				for(var i = 0; i < items.length; i++) {
-					if(items[i].offsetHeight > row() + 1) { tall = true; break; }
+					if(items[i].offsetHeight > max) { tall = true; break; }
 				}
 			}
 			body.classList.toggle('pw-notices-static', tall);
@@ -633,7 +644,11 @@ var ProcessWireAdminTheme = {
 		this.observe(function() {
 			if(document.getElementById('notices') !== watched) check();
 		});
-		window.addEventListener('resize', check);
+		var frame = 0;
+		window.addEventListener('resize', function() {
+			if(frame) return;
+			frame = window.requestAnimationFrame(function() { frame = 0; check(); });
+		});
 	},
 
 	/**

@@ -13,11 +13,16 @@ import { legacyLoaded } from '../legacy';
 let lastClicked: HTMLInputElement | null = null;
 
 function abandonWrappedColumns(root: ParentNode): void {
+	// every measurement first, then every change: a write between reads forced a layout per list
+	// (audit P4)
+	const wrapped: Array<{ ul: HTMLElement; items: HTMLElement[] }> = [];
 	root.querySelectorAll<HTMLElement>(':is(.InputfieldCheckboxes, .InputfieldPage) ul.InputfieldCheckboxesColumns').forEach(ul => {
 		const items = Array.from(ul.children).filter(el => el.tagName === 'LI') as HTMLElement[];
 		if (items.length < 2 || !ul.offsetParent) return;
 		const first = items[0].offsetHeight;
-		if (!items.some(li => Math.abs(li.offsetHeight - first) > 5)) return;
+		if (items.some(li => Math.abs(li.offsetHeight - first) > 5)) wrapped.push({ ul, items });
+	});
+	wrapped.forEach(({ ul, items }) => {
 		ul.classList.remove('InputfieldCheckboxesColumns');
 		items.forEach(li => { li.style.width = '100%'; });
 	});

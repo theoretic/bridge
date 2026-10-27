@@ -78,7 +78,8 @@ export function updateCounter(input: HTMLInputElement | HTMLTextAreaElement): vo
 		el.className = 'InputfieldTextLengthNote';
 		input.insertAdjacentElement('afterend', el);
 	}
-	el.innerHTML = "<small class='detail'>" + note + '</small>';
+	const html = "<small class='detail'>" + note + '</small>';
+	if (el.innerHTML !== html) el.innerHTML = html; // unchanged text: no DOM write
 }
 
 function counted(target: EventTarget | null): HTMLInputElement | HTMLTextAreaElement | null {
@@ -101,7 +102,8 @@ let ready = false;
 export function setupCounterEvents(): void {
 	if (ready) return;
 	ready = true;
-	for (const type of ['input', 'keyup', 'change', 'focusin']) {
+	// 'input' covers typing; keyup only added a second update per key (audit P5)
+	for (const type of ['input', 'change', 'focusin']) {
 		document.addEventListener(type, e => {
 			if (legacyLoaded()) return;
 			const input = counted(e.target);

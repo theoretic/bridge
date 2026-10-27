@@ -57,7 +57,7 @@ $adminTheme->settleUikitAssets();
 // assets of other admin themes: AdminThemeBoss (a Uikit add-on) appends its full Uikit build on
 // every admin request whatever theme is current; drop anything from another AdminTheme module
 foreach(array($styles, $scripts) as $list) {
-	foreach($list->urls() as $url) {
+	foreach($adminTheme->assetUrls($list) as $url) {
 		if($adminTheme->isOtherThemeAsset($url)) {
 			$list->remove(preg_replace('/\?.*$/', '', $url));
 			$list->remove($url);
@@ -91,7 +91,7 @@ $sharedPaths = array();
 foreach(array('inputfields', 'main') as $name) foreach(array('js', 'min.js') as $e) {
 	$sharedPaths[] = $wireUrl . "templates-admin/scripts/$name.$e";
 }
-foreach($scripts->urls() as $url) {
+foreach($adminTheme->assetUrls($scripts) as $url) {
 	// a module that registered either shared script itself does not get it twice (audit B8)
 	if(in_array(preg_replace('/[?#].*$/', '', (string) $url), $sharedPaths, true)) continue;
 	$ordered[] = $url;
@@ -188,9 +188,12 @@ $config->js('AdminThemeBridge', $bridgeJs);
 // the fonts every screen paints with, fetched alongside the stylesheets instead of after them
 // (same URLs as theme.css and fa.css ask for, crossorigin as font requests are)
 $preloads = array('assets/fonts/geist-latin-wght-normal.woff2');
-// the solid subset's name carries a content hash (fa-subset.mjs): read from fa.css, whose
-// @font-face rules come first
-if(!empty($faCss) && is_file($themeDir . $faCss)) {
+// the solid subset's name carries a content hash (fa-subset.mjs): from the build's manifest, else
+// read from fa.css, whose @font-face rules come first (audit PP2)
+$fontPreloads = $adminTheme->manifest('fontPreloads');
+if(is_array($fontPreloads) && $iconVersion && !empty($fontPreloads[$iconVersion])) {
+	$preloads[] = $fontPreloads[$iconVersion];
+} else if(!empty($faCss) && is_file($themeDir . $faCss)) {
 	$faHead = (string) file_get_contents($themeDir . $faCss, false, null, 0, 16384);
 	if(preg_match('/url\((fa-solid-900-subset(?:\.[0-9a-f]+)?\.woff2)\)/', $faHead, $m)) $preloads[] = dirname($faCss) . '/' . $m[1];
 }
@@ -200,7 +203,7 @@ $attr = function($url) use($sanitizer) { return $sanitizer->entities((string) $u
 foreach($preloads as $font) {
 	if(is_file($themeDir . $font)) echo "\n\t<link rel='preload' href='" . $attr($themeUrl . $font) . "' as='font' type='font/woff2' crossorigin />";
 }
-foreach($styles->urls() as $file) {
+foreach($adminTheme->assetUrls($styles) as $file) {
 	if($adminTheme->isOtherThemeAsset($file)) continue;
 	echo "\n\t<link type='text/css' href='" . $attr($file) . "' rel='stylesheet' />";
 }
@@ -216,9 +219,11 @@ if($adminTheme->maxWidth) {
 $runtimeFile = $themeDir . 'assets/dist/runtime.js';
 if(is_file($runtimeFile)) {
 	echo "\n\t<link rel='modulepreload' href='" . $attr($bridgeJs['runtimeUrl']) . "' />";
-	if(preg_match_all('~from\s*["\']\./(chunks/[\w.-]+\.js)["\']~', (string) file_get_contents($runtimeFile), $m)) {
-		foreach(array_unique($m[1]) as $chunk) echo "\n\t<link rel='modulepreload' href='" . $attr("{$themeUrl}assets/dist/$chunk") . "' />";
+	$chunks = $adminTheme->manifest('runtimeChunks');
+	if(!is_array($chunks)) {
+		$chunks = preg_match_all('~from\s*["\']\./(chunks/[\w.-]+\.js)["\']~', (string) file_get_contents($runtimeFile), $m) ? array_unique($m[1]) : array();
 	}
+	foreach($chunks as $chunk) echo "\n\t<link rel='modulepreload' href='" . $attr("{$themeUrl}assets/dist/$chunk") . "' />";
 }
 // theme scripts that no inline code calls while the page parses run deferred (in order, before
 // DOMContentLoaded); main.js (stand-ins, InputfieldSubmitDropdown), lister.js

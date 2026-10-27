@@ -61,6 +61,16 @@ old version after the refresh, PHP-FPM's opcache is serving the old file; reload
 
 Undo: Profile > Admin Theme back to Uikit, then uninstall the module from its settings page.
 
+Browser caching (0.9.11): the module's `.htaccess` gives its versioned files (`?v=` URLs) and its
+hashed files (runtime chunks, icon font subsets) `Cache-Control: public, max-age=31536000,
+immutable` on Apache with `mod_headers`. On nginx the same is one rule in the site's server block:
+
+```nginx
+location ~* /site/modules/AdminThemeBridge/.+\.(js|css|woff2|json)$ {
+	if ($arg_v) { add_header Cache-Control "public, max-age=31536000, immutable"; }
+}
+```
+
 ## What went wrong on atis.pro
 
 ### 1. Memory exhausted during install

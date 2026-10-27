@@ -1,5 +1,23 @@
 # Changelog
 
+## AdminThemeBridge 0.9.11: less work per request and per keystroke (2026-10-27)
+
+Third release from the 2026-10-27 audit: performance.
+
+**Browser**
+- **showIf / requiredIf**: a keystroke re-read and re-parsed every rule of the form. Rules are now parsed once per field (again only when the attribute changes), and a change re-checks only the fields whose rules name the changed control (all of them for an event from anything else).
+- **New content** (AJAX fields, repeater items, dialogs) is sorted out in one linear pass (it compared every added node with every other), without options and other leaf nodes.
+- The character counter updates once per keystroke (it listened to `keyup` as well) and writes only when its text changes.
+- The page tree's fit to the screen, the notice band's measurement and the editors' colour sheet read the layout once per pass instead of once per branch, notice or token; the notice check on window resize waits for the next frame.
+
+**Server**
+- The script list's versioned URLs are computed once per content of the list, not about eight times per request.
+- The build writes `assets/dist/manifest.php` (runtime chunks to preload, the icon font subset, the UIkit classes the theme covers); the head reads it instead of reading and scanning `runtime.js`, `fa.css` and `uikit-covered.json` on every request. It falls back to the files when the manifest is missing or older than `runtime.js`.
+- The jQuery and UIkit script verdicts come from one cache query; a component's directory and version are looked up once per class; the breadcrumbs load their pages in one query; the login screen reads the logo once.
+- **Browser caching**: the module's `.htaccess` marks its versioned and hashed files `immutable` for a year (Apache with `mod_headers`; the nginx rule is in `docs/install-live.md`).
+
+Not done: loading the theme script (`scripts/main.js`) deferred. Inline scripts in the page and three other head scripts call it while the page is parsed; the gain would be on the first, uncached load only.
+
 ## AdminThemeBridge 0.9.10: failures shown, no leftovers, the rest of the audit's bugs (2026-10-27)
 
 Second release from the 2026-10-27 audit.

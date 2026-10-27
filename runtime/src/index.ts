@@ -58,16 +58,24 @@ export const Bridge = {
 // what needs Inputfields.init(): fields, and data tables swapped in on their own (the log viewer's
 // pager, Sessions)
 const INITIALISE = '.Inputfield, table.AdminDataTable';
+const LEAVES = new Set(['OPTION', 'OPTGROUP', 'SCRIPT', 'STYLE', 'BR', 'I', 'SVG', 'IMG']);
 
 export function contentAdded(records: MutationRecord[]): void {
-	const added: HTMLElement[] = [];
+	const added = new Set<HTMLElement>();
 	for (const record of records) {
 		record.addedNodes.forEach(node => {
-			if (node.nodeType === 1 && node.isConnected) added.push(node as HTMLElement);
+			// leaves hold no fields: a widget building a select adds its options one by one (P2)
+			if (node.nodeType === 1 && node.isConnected && !LEAVES.has(node.nodeName)) added.add(node as HTMLElement);
 		});
 	}
-	if (!added.length) return;
-	const top = added.length > 1 ? added.filter(el => !added.some(other => other !== el && other.contains(el))) : added;
+	if (!added.size) return;
+	// the added elements not inside another added one: a walk up per element, not a pass over all
+	// of them per element (audit P2)
+	const top: HTMLElement[] = [];
+	added.forEach(el => {
+		for (let p = el.parentElement; p; p = p.parentElement) if (added.has(p)) return;
+		top.push(el);
+	});
 	const roots: Node[] = [];
 	const native = !legacyLoaded();
 	for (const el of top) {
