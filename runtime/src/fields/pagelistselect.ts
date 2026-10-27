@@ -19,6 +19,7 @@
 
 import { makeSortable } from '../util/sortable';
 import { fetchOk, failed } from '../util/fail';
+import { adminUrl } from '../util/pw';
 
 type Child = {
 	id: number; label: string; path: string; template?: string; numChildren: number; numTotal?: number;
@@ -26,10 +27,6 @@ type Child = {
 };
 type ListData = { page: Child; children: Child[]; start: number; limit: number; error?: number; message?: string };
 
-function adminUrl(): string {
-	const pw = (window as unknown as { ProcessWire?: { config?: { urls?: { admin?: string }; LanguageSupport?: { language?: { id?: number } } } } }).ProcessWire;
-	return (pw && pw.config && pw.config.urls && pw.config.urls.admin) || '/processwire/';
-}
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''): HTMLElementTagNameMap[K] {
 	const e = document.createElement(tag);

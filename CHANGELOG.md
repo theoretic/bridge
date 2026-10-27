@@ -1,5 +1,18 @@
 # Changelog
 
+## AdminThemeBridge 0.10.1: the module split by job, shared helpers (2026-10-27)
+
+Fifth release from the 2026-10-27 audit: architecture. No change in behaviour, apart from the page tree fix below.
+
+- **The theme class is split into nine traits** under `lib/` (shell, install health, legacy detection, script classification, inline rewrites, data tables, UIkit layer, components, config); the module file keeps `getModuleInfo()`, the constants, the properties, `init()`, install and uninstall (2,488 lines down to about 500). The class name and every hookable method are unchanged, so hooks such as `AdminThemeBridge::sortableDataTable` keep working. Strings in the traits are translated in their own file (`__('…', __FILE__)`), where the language translator finds them.
+- **Runtime helpers in one place**: `util/html.ts` (escaping, six copies before), `util/pw.ts` (`ProcessWire.config` and the admin URL).
+- **A field widget or component that fails to load** says so in a translated notice.
+- **Page tree**: while a branch is dragged on a page without the legacy stack, branches are no longer cut to the screen height; the rule looked for a class nothing sets.
+- **`tools/bootstrap-htaccess.php`**: writes the `.htaccess` for a layout from `bootstrap/` from the installation's own `htaccess.txt`, with every rule pointed at the real site and core directories (`app/`, `vendor/processwire/wire/`) and PHP under `vendor/` blocked. Copied unchanged, upstream's rules name `site/` and `wire/` and protect nothing in such a layout.
+- Unused `closeLightbox()` removed.
+
+Left as they are, on purpose: the hover classes the runtime sets in script (upstream's `ui-state-*` classes, which module CSS targets), and the four screen scripts that stay classic scripts rather than runtime chunks.
+
 ## AdminThemeBridge 0.10.0: keyboard, screen readers, contrast, motion, print (2026-10-27)
 
 Fourth release from the 2026-10-27 audit: UI and accessibility.

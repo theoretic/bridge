@@ -10,6 +10,7 @@
  */
 
 import { importAgain } from './util/retry';
+import { label } from './util/labels';
 
 export interface ComponentModule {
 	tag?: string;
@@ -42,7 +43,7 @@ export function load(url: string): Promise<ComponentModule | null> {
 			console.error('Bridge: component module failed', key, err);
 			// not only in the console: the field it drives stays dead (audit B24)
 			document.dispatchEvent(new CustomEvent('pw-component-failed', { detail: { url: key, error: err } }));
-			void import('./util/notice').then(m => m.notice('A part of this screen failed to load (' + key.split('/').pop() + '). Reload the page to try again.'));
+			void import('./util/notice').then(m => m.notice(label('partFailed', 'A part of this screen failed to load. Reload the page to try again.') + ' (' + key.split('/').pop() + ')'));
 			return null;
 		});
 	registry.set(key, entry);

@@ -114,6 +114,10 @@ check('sandbox cache dir exists', is_dir($config->paths->cache));
 
 // theme assets (phases 1.6, 1.7): built stylesheet, fonts it references, defaults
 $themeDir = dirname(__DIR__) . '/modules/AdminThemeBridge/';
+// the theme class's source: the module file and its traits (lib/, audit PA1)
+$themeSource = (string) @file_get_contents($themeDir . 'AdminThemeBridge.module.php');
+foreach((array) glob($themeDir . 'lib/*.php') as $traitFile) $themeSource .= "
+" . file_get_contents($traitFile);
 $themeCss = $themeDir . 'assets/dist/theme.css';
 check('theme.css built', is_file($themeCss));
 if(is_file($themeCss)) {
@@ -459,7 +463,7 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	}
 	check('save in place for the same screens as before', array_keys(array_filter($saveInPlace)) === array('ProcessField', 'ProcessTemplate', 'ProcessModule', 'ProcessProfile', 'ProcessUser', 'ProcessRole', 'ProcessPermission'), json_encode($saveInPlace));
 	// A6: AdminThemeBoss's never-saved settings are its defaults (both on)
-	check('bossForcesUikit() reads Boss defaults', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "!array_key_exists(\$key, \$boss)") !== false);
+	check('bossForcesUikit() reads Boss defaults', strpos($themeSource, "!array_key_exists(\$key, \$boss)") !== false);
 	// A20: both sides guard the interface declaration
 	check('the interface file is guarded', strpos((string) file_get_contents($themeDir . 'BridgeComponent.php'), "if(!interface_exists('ProcessWire\\\\BridgeComponent', false))") !== false);
 	// A21: the inline-script rewrites match strings that still occur in core
@@ -534,7 +538,7 @@ if(isset($bridge) && $bridge) {
 	check('urlToFile maps root/wire/ to the core', $bridge->urlToFile($aliasUrl) === $config->paths->wire . 'templates-admin/scripts/main.js', $bridge->urlToFile($aliasUrl));
 	check('isLegacyScript counts root/wire/ URLs', $bridge->isLegacyScript($aliasUrl));
 	check('urlToFile refuses ..', $bridge->urlToFile($config->urls->siteModules . '../config.php') === '');
-	$moduleSrc = (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php');
+	$moduleSrc = $themeSource;
 	check('no GLOB_BRACE flag (undefined on musl)', strpos($moduleSrc, ', GLOB_BRACE') === false);
 	// B7: bounded, locked cache repair
 	$state = $bridge->repairState();
@@ -582,7 +586,7 @@ if(isset($bridge) && $bridge) {
 		check('PP2 manifest has runtime chunks, font preloads, covered UIkit classes', is_array($manifest) && !empty($manifest['runtimeChunks']) && isset($manifest['fontPreloads']) && !empty($manifest['uikitCovered']));
 		check('PP2 manifest chunks exist', is_array($manifest) && !array_filter((array) $manifest['runtimeChunks'], function($c) use($themeDir) { return !is_file($themeDir . 'assets/dist/' . $c); }));
 	}
-	check('PP3 both verdict caches load in one query', strpos($moduleSrc, 'protected function loadVerdicts()') !== false || strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), 'protected function loadVerdicts()') !== false);
+	check('PP3 both verdict caches load in one query', strpos($themeSource, 'protected function loadVerdicts()') !== false);
 	check('PP8 the theme ships cache headers for versioned assets', is_file($themeDir . '.htaccess') && strpos((string) file_get_contents($themeDir . '.htaccess'), 'immutable') !== false);
 }
 
@@ -605,6 +609,19 @@ if(isset($bridge) && $bridge) {
 	check('R7 sortable lists move by Alt+arrow', strpos((string) file_get_contents($rt . 'util/sortable.ts'), "e.key !== 'ArrowUp' && e.key !== 'ArrowDown'") !== false);
 	check('R7 repeater controls and the language toggle are keyboard buttons', strpos((string) file_get_contents($rt . 'fields/repeater.ts'), 'keyButton(i, title)') !== false && strpos((string) file_get_contents($rt . 'inputfields/langtabs.ts'), 'keyButton(toggle') !== false);
 	check('U3 dropdown toggles report aria-expanded', strpos((string) file_get_contents($themeDir . 'scripts/main.js'), 'aria-expanded') !== false);
+}
+
+// 0.10.1 (audit 2026-10-27, phase 5: architecture)
+if(isset($bridge) && $bridge) {
+	$traits = class_uses($bridge);
+	check('PA1 the theme class is split into its nine traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 9, implode(', ', array_keys($traits)));
+	check('PA1 hookable methods stay hookable through the traits', method_exists($bridge, '___sortableDataTable') && method_exists($bridge, '___nativeMap') && method_exists($bridge, '___renderBreadcrumbs'));
+	$traitSrc = '';
+	foreach((array) glob($themeDir . 'lib/*.php') as $f) $traitSrc .= (string) file_get_contents($f);
+	check('PA1 strings in traits are translated in their own file', !preg_match('/\$this->_\(\'/', $traitSrc));
+	check('A1 one HTML escape helper', is_file(dirname(__DIR__) . '/runtime/src/util/html.ts') && strpos((string) file_get_contents(dirname(__DIR__) . '/runtime/src/fields/file.ts'), 'const esc =') === false);
+	check('PA4 the layout .htaccess generator exists', is_file(dirname(__DIR__) . '/tools/bootstrap-htaccess.php'));
+	check('the runtime labels include the part-failed notice', isset($bridge->runtimeLabels()['partFailed']));
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

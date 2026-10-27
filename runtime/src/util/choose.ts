@@ -6,10 +6,10 @@
  */
 
 import { label } from './labels';
+import { esc } from './html';
 
 export type Choice = { value: string; label: string; disabled?: boolean; selected?: boolean };
 
-const esc = (s: string): string => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
 export function choose(message: string, choices: Choice[], noteHtml = ''): Promise<string | null> {
 	return new Promise(resolve => {

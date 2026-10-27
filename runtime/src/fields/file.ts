@@ -25,6 +25,7 @@ import { uploadAllowed, uploadTarget, rejectReason, send, toElement, initItem, f
 import { legacyLoaded } from '../legacy';
 import { setValue } from '../util/events';
 import { onRemoval } from '../util/removal';
+import { esc } from '../util/html';
 
 type FieldState = { abort: AbortController; unsort: (() => void) | null };
 const fields = new Map<HTMLElement, FieldState>();
@@ -32,7 +33,6 @@ const fields = new Map<HTMLElement, FieldState>();
 const prune = (): void => fields.forEach((st, f) => { if (!f.isConnected) { st.abort.abort(); if (st.unsort) st.unsort(); fields.delete(f); } });
 onRemoval(prune);
 
-const esc = (s: string): string => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
 /** Empty / Single / Multiple by the number of items */
 export function updateCount(inputfield: HTMLElement): void {

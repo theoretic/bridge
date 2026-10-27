@@ -31,6 +31,7 @@ import { legacyLoaded } from '../legacy';
 import { uploadAllowed } from './upload';
 import { initFileTags } from './file';
 import { onRemoval } from '../util/removal';
+import { esc } from '../util/html';
 
 type Focus = { top: number; left: number; zoom: number };
 type Settings = { size: number; listSize: number; mode: string };
@@ -45,7 +46,7 @@ let sliding = false;
 let focusModule: Promise<typeof import('./image-focus')> | null = null;
 const focus = (): Promise<typeof import('./image-focus')> => focusModule || (focusModule = import('./image-focus'));
 
-export const esc = (s: string): string => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+export { esc };
 
 export function pw(): { config: Record<string, unknown> } {
 	return ((window as unknown as { ProcessWire?: { config: Record<string, unknown> } }).ProcessWire) || { config: {} };

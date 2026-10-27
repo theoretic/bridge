@@ -15,13 +15,10 @@
 
 import { changed } from '../util/events';
 import { on } from '../legacy';
+import { pwConfig } from '../util/pw';
 
 type NameConfig = { replacements?: Record<string, string>; charset?: string; whitelist?: string };
 
-function pwConfig<T>(key: string): T {
-	const pw = (window as unknown as { ProcessWire?: { config?: Record<string, unknown> } }).ProcessWire;
-	return ((pw && pw.config && pw.config[key]) || {}) as T;
-}
 
 const QUOTES = /['""'«»‘’‚‛“”„‟‹›「」『』〝〞〟﹁﹂﹃﹄＂＇｢｣]/g;
 

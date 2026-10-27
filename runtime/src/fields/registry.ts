@@ -7,6 +7,7 @@
 
 import { legacyLoaded } from '../legacy';
 import { importAgain } from '../util/retry';
+import { label } from '../util/labels';
 
 export type FieldWidget = { init(el: HTMLElement): void };
 
@@ -56,6 +57,10 @@ export function initWidgets(root: ParentNode): void {
 		promise.then(widget => {
 			if (legacyLoaded()) return;
 			els.forEach(el => widget.init(el));
-		}).catch(err => console.error('Bridge: field widget failed', entry.selector, err));
+		}).catch(err => {
+			console.error('Bridge: field widget failed', entry.selector, err);
+			// the field it drives stays dead: tell the user, as a failed component does (audit A2)
+			void import('../util/notice').then(m => m.notice(label('partFailed', 'A part of this screen failed to load. Reload the page to try again.')));
+		});
 	}
 }

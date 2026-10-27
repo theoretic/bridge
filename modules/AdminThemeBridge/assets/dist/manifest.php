@@ -1,7 +1,7 @@
 <?php
 // built by runtime/scripts/manifest.mjs; read by AdminThemeBridge::manifest()
 return array(
-	'runtimeChunks' => array('chunks/index-jW4_p5kq.js'),
+	'runtimeChunks' => array('chunks/index-BwwV-lTs.js'),
 	'fontPreloads' => array(
 		'6.7.2' => 'assets/fonts/fa-6.7.2/fa-solid-900-subset.8d4d8a3a.woff2',
 	),

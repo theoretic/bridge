@@ -30,7 +30,8 @@
  *    Modules::addPath() and Modules::init() back to back with no hook between them.
  *  - Paths outside the web root have no URL unless `urls` names one; the core will still
  *    try to serve wire/ assets (admin scripts, module JS) from $config->urls->wire.
- *  - .htaccess ships separately and must protect the real directory names.
+ *  - Upstream's htaccess.txt names site/ and wire/: write the layout's .htaccess with
+ *    tools/bootstrap-htaccess.php, which points its rules at the real directories.
  *  - Upstream's index.config.php (several sites on one installation) is not read: one layout
  *    file is one site.
  */

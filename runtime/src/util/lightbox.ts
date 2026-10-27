@@ -8,8 +8,7 @@
 export type LightboxItem = { src: string; title?: string };
 
 import { label } from './labels';
-
-const attr = (s: string): string => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+import { esc as attr } from './html';
 
 
 let dialog: HTMLDialogElement | null = null;
@@ -55,8 +54,4 @@ export function openLightbox(items: LightboxItem[], index = 0): void {
 	};
 	show();
 	if (!d.open) d.showModal();
-}
-
-export function closeLightbox(): void {
-	if (dialog && dialog.open) dialog.close();
 }

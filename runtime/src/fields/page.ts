@@ -13,13 +13,10 @@
 
 import { setValue } from '../util/events';
 import { on } from '../legacy';
+import { adminUrl } from '../util/pw';
 
 type Match = { id: number; name: string; [key: string]: unknown };
 
-function adminUrl(): string {
-	const pw = (window as unknown as { ProcessWire?: { config?: { urls?: { admin?: string } } } }).ProcessWire;
-	return (pw && pw.config && pw.config.urls && pw.config.urls.admin) || '/processwire/';
-}
 
 function valueOf(el: HTMLSelectElement | HTMLInputElement): string {
 	if (el instanceof HTMLSelectElement && el.multiple) {

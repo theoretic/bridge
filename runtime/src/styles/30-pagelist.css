@@ -50,7 +50,7 @@ body:not(.pw-narrow-width) .PageList .PageListItemOpen.PageListHasChildren > a.P
  * the space below its top (setupTreeFit in scripts/main.js) */
 .PageListRoot .PageList:not(:has(.PageList)) { max-height: var(--pw-branch-max, calc(100vh - var(--pw-masthead-h) - 40px)); overflow: hidden auto; scrollbar-width: thin; }
 /* while an item is dragged (upstream's sortable helper, or the runtime's) no branch clips it (C15) */
-.PageListRoot:has(.ui-sortable-helper, .pw-sortable-dragging) .PageList { max-height: none; overflow: visible; }
+.PageListRoot:has(.ui-sortable-helper, .PageListSortPlaceholder) .PageList { max-height: none; overflow: visible; }
 /* a branch that does scroll (.pw-branch-scrolls, set by the script) has its scrollbar on the left,
  * where it also separates the branch from its parents: right-to-left box, left-to-right rows. The
  * box reaches 18px into the indent (2em) and pads it back, so the bar sits in the indent, clear of

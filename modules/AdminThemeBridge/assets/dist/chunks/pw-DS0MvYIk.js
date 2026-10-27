@@ -1,0 +1,1 @@
+function i(n){const o=window.ProcessWire;return o&&o.config&&o.config[n]||{}}function r(){const n=window.ProcessWire;return n&&n.config&&n.config.urls&&n.config.urls.admin||"/processwire/"}export{r as a,i as p};

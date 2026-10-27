@@ -19,6 +19,7 @@
 
 import { makeSortable } from '../util/sortable';
 import { on } from '../legacy';
+import { esc } from '../util/html';
 
 export type Opts = {
 	delimiter?: string; closeAfterSelect?: boolean; createOnBlur?: boolean; maxItems?: number;
@@ -26,7 +27,6 @@ export type Opts = {
 };
 type Tag = { value: string; label: string };
 
-const esc = (s: string): string => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
 /**
  * Build the tag control for an input or select. Options come from its data-opts JSON unless

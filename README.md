@@ -4,7 +4,7 @@ A [ProcessWire](https://processwire.com) admin built from native web components 
 every existing Inputfield and Process module.
 
 The name says what it is: a bridge between the jQuery-era admin and the modern web stack.
-"Bridge" is a working name. Status: beta, AdminThemeBridge 0.10.0; the component contract is
+"Bridge" is a working name. Status: beta, AdminThemeBridge 0.10.1; the component contract is
 version 1 and may still change before 1.0.
 
 ## What it is

@@ -8,6 +8,7 @@
  */
 
 import { legacyLoaded } from '../legacy';
+import { esc } from '../util/html';
 
 type Labels = { word1: string; words: string; char1: string; chars: string; min: string; max: string };
 
@@ -36,9 +37,7 @@ function intAttr(input: Element, ...names: string[]): number {
 	return 0;
 }
 
-function escape(s: string): string {
-	return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
-}
+const escape = esc;
 
 export function updateCounter(input: HTMLInputElement | HTMLTextAreaElement): void {
 	const mode = input.getAttribute('data-showCount') || input.getAttribute('data-showcount');
