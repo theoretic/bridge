@@ -207,7 +207,7 @@ check('the head preloads the runtime module', strpos($headPhp, "rel='moduleprelo
 // 0.9.5: the UIkit layer (ADR 0017; behaviour: Showcase's UIkit page, lazy load and stand-in)
 $uikitCss = (string) @file_get_contents($themeDir . 'assets/dist/uikit.css');
 check('the UIkit layer is built, in one cascade layer, with its covered-class list', strpos($uikitCss, '@layer uikit{') !== false && is_file($themeDir . 'assets/dist/uikit-covered.json'));
-check('the UIkit stand-in is printed before every module script', strpos($headPhp, '$uikitLayer = array($themeUrl . "scripts/uikit-layer.js') !== false);
+check('the UIkit stand-in is printed before every module script', strpos($themeSource, '$uikitLayer = array($themeUrl . "scripts/uikit-layer.js') !== false);
 $faCssFile = glob($themeDir . 'assets/fonts/fa-*/fa.css');
 $faCssText = $faCssFile ? (string) file_get_contents($faCssFile[0]) : '';
 check('Font Awesome subsets carry a content hash', $faCssText === '' || (bool) preg_match('/url\(fa-solid-900-subset\.[0-9a-f]{8}\.woff2\)/', $faCssText));
@@ -468,14 +468,8 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	check('the interface file is guarded', strpos((string) file_get_contents($themeDir . 'BridgeComponent.php'), "if(!interface_exists('ProcessWire\\\\BridgeComponent', false))") !== false);
 	// A21: the inline-script rewrites match strings that still occur in core
 	$wireDir = $config->paths->wire;
-	$needles = array(
-		'modules/Process/ProcessTemplate/ProcessTemplate.module' => array('$(document).ready(function() { ProcessTemplateInitFields(); });', "\$('#ProcessTemplatePageLister').iFrameResize({ });"),
-		'modules/Process/ProcessField/ProcessField.module' => array('"jQuery(document).ready(function() { " . '),
-		'modules/Markup/MarkupAdminDataTable/MarkupAdminDataTable.module' => array("AdminDataTable.initTable($('#\$id'));"),
-		'modules/Process/ProcessPageEdit/ProcessPageEdit.module' => array("\$func = 'initPageEditForm();';", '"<scr" . "ipt>$func</script>"'),
-		'modules/LanguageSupport/LanguageTabs.module' => array("setupLanguageTabs(\$('#\$id'));", '"<script>$func</script>"'),
-		'modules/Process/ProcessPageEditImageSelect/ProcessPageEditImageSelect.module' => array('$(document).ready(function() { setupProcessSave('),
-	);
+	// the list lives next to the rewrites (lib/AdminThemeBridgeRewrites.php, audit PA3)
+	$needles = AdminThemeBridge::upstreamNeedles();
 	foreach($needles as $file => $list) {
 		$src = is_file($wireDir . $file) ? (string) file_get_contents($wireDir . $file) : '';
 		foreach($list as $needle) check("core still prints the string the theme rewrites ($file)", $src !== '' && strpos($src, $needle) !== false, $needle);
@@ -545,7 +539,7 @@ if(isset($bridge) && $bridge) {
 	check('repair state has time and attempts', isset($state['time'], $state['attempts']), json_encode($state));
 	check('the repair takes a named lock and stops after repairAttempts', strpos($moduleSrc, 'GET_LOCK(') !== false && AdminThemeBridge::repairAttempts > 0);
 	// B8: the shared scripts once
-	check('_head.php drops a registered copy of the shared scripts', strpos((string) file_get_contents($themeDir . '_head.php'), '$sharedPaths') !== false);
+	check('_head.php drops a registered copy of the shared scripts', strpos($themeSource, '$sharedPaths') !== false);
 }
 
 // 0.9.10 (audit 2026-10-27, phase 2)
@@ -614,7 +608,7 @@ if(isset($bridge) && $bridge) {
 // 0.10.1 (audit 2026-10-27, phase 5: architecture)
 if(isset($bridge) && $bridge) {
 	$traits = class_uses($bridge);
-	check('PA1 the theme class is split into its nine traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 9, implode(', ', array_keys($traits)));
+	check('PA1 the theme class is split into its ten traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 10, implode(', ', array_keys($traits)));
 	check('PA1 hookable methods stay hookable through the traits', method_exists($bridge, '___sortableDataTable') && method_exists($bridge, '___nativeMap') && method_exists($bridge, '___renderBreadcrumbs'));
 	$traitSrc = '';
 	foreach((array) glob($themeDir . 'lib/*.php') as $f) $traitSrc .= (string) file_get_contents($f);

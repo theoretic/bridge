@@ -19,6 +19,8 @@
  */
 
 import { on } from '../legacy';
+import { label } from '../util/labels';
+import { esc } from '../util/html';
 
 type Regional = {
 	monthNames: string[]; monthNamesShort: string[]; dayNames: string[]; dayNamesShort: string[];
@@ -50,7 +52,7 @@ function regionalFromIntl(lang = document.documentElement.lang || navigator.lang
 		dayNames: range(7).map(d => day(d, 'long')),
 		dayNamesShort: range(7).map(d => day(d, 'short')),
 		dayNamesMin: range(7).map(d => day(d, 'short').slice(0, 2)),
-		firstDay, prevText: '‹', nextText: '›', currentText: 'Today', closeText: 'Done',
+		firstDay, prevText: '‹', nextText: '›', currentText: esc(label('today', 'Today')), closeText: esc(label('done', 'Done')),
 	};
 }
 

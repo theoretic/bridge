@@ -12,6 +12,7 @@ require_once(__DIR__ . '/lib/AdminThemeBridgeTables.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeUikit.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeComponents.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeConfig.php');
+require_once(__DIR__ . '/lib/AdminThemeBridgeHead.php');
 
 /**
  * AdminThemeBridge
@@ -41,11 +42,12 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	use AdminThemeBridgeUikit;
 	use AdminThemeBridgeComponents;
 	use AdminThemeBridgeConfig;
+	use AdminThemeBridgeHead;
 
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.11.1',
+			'version' => '0.11.2',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -58,6 +60,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 
 	const legacyAlways = 'always';
 	const legacyAuto = 'auto';
+	// the uikit setting's modes (the same stored values as the legacy stack's, plus never)
+	const uikitAlways = 'always';
+	const uikitAuto = 'auto';
 	const uikitNever = 'never';
 
 	// WireCache name of the module info cache rebuild state (ready()): the time of the last try and
@@ -345,7 +350,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public function __construct() {
 		parent::__construct();
 		$this->set('legacyStack', self::legacyAuto);
-		$this->set('uikit', self::legacyAuto);
+		$this->set('uikit', self::uikitAuto);
 		$this->set('maxWidth', 1600);
 		$this->set('variant', 'blue');
 		$this->set('primaryColor', '');
@@ -473,10 +478,11 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	}
 
 	/**
-	 * The nativeOverrides setting: one `ClassName=native` or `ClassName=legacy` per line; other
-	 * lines are ignored (see nativeOverrideErrors())
+	 * Set a property; a new nativeOverrides value drops the parsed copy (getNativeOverrides())
 	 *
-	 * @return array class => 'native'|'legacy'
+	 * @param string $key
+	 * @param mixed $value
+	 * @return $this
 	 *
 	 */
 	public function set($key, $value) {

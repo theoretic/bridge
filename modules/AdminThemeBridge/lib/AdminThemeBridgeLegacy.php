@@ -72,17 +72,24 @@ trait AdminThemeBridgeLegacy {
 			$this->renderedNeeds[$class] = true;
 			if($inputfield->getSetting('useLanguages')) $this->renderedNeeds['languages'] = true;
 		}
-		if($this->isNativeInputfield($inputfield)) {
-			$tag = '';
-			if($inputfield instanceof BridgeComponent) {
-				$info = $this->componentInfo($inputfield);
-				$tag = $info['tag'];
-				if($info['module'] !== '') $inputfield->wrapAttr('data-bridge-module', $info['module']);
-				$inputfield->wrapAttr('data-bridge-version', $info['version']);
+		// marked once (audit PP4): the render pass after the ready hook keeps the verdict it made
+		$legacy = $inputfield->wrapAttr('data-bridge-legacy') !== null;
+		if(!$legacy && $inputfield->wrapAttr('data-bridge-component') === null) {
+			if($this->isNativeInputfield($inputfield)) {
+				$tag = '';
+				if($inputfield instanceof BridgeComponent) {
+					$info = $this->componentInfo($inputfield);
+					$tag = $info['tag'];
+					if($info['module'] !== '') $inputfield->wrapAttr('data-bridge-module', $info['module']);
+					$inputfield->wrapAttr('data-bridge-version', $info['version']);
+				}
+				$inputfield->wrapAttr('data-bridge-component', $tag === '' ? $class : $tag);
+			} else {
+				$inputfield->wrapAttr('data-bridge-legacy', $class);
+				$legacy = true;
 			}
-			$inputfield->wrapAttr('data-bridge-component', $tag === '' ? $class : $tag);
-		} else {
-			$inputfield->wrapAttr('data-bridge-legacy', $class);
+		}
+		if($legacy) {
 			if($record) {
 				$this->needLegacy("Inputfield:$class");
 				$dir = $this->wire()->config->paths($class);
@@ -313,6 +320,13 @@ trait AdminThemeBridgeLegacy {
 		return $this->nativeMapCache;
 	}
 
+	/**
+	 * The nativeOverrides setting: one `ClassName=native` or `ClassName=legacy` per line; other
+	 * lines are ignored (see nativeOverrideErrors())
+	 *
+	 * @return array class => 'native'|'legacy'
+	 *
+	 */
 	public function getNativeOverrides() {
 		if($this->nativeOverridesCache !== null) return $this->nativeOverridesCache;
 		$this->nativeOverridesCache = array();

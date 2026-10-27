@@ -1,5 +1,18 @@
 # Changelog
 
+## AdminThemeBridge 0.11.2: the rest of the audit plan (2026-10-27)
+
+The items the 2026-10-27 audit plan listed that earlier releases left open.
+
+- **Script verdict cache pruning works again**: since 0.9.9 its keys carry the file size as well, and pruning split them at the wrong `|`, so old verdicts piled up in the cache. Now the newest verdict per file is kept and verdicts for deleted files go, for the jQuery and the UIkit checks alike.
+- **Each field is judged native or legacy once per request**: the render pass reuses the verdict of the ready hook instead of asking again.
+- **The date picker's Today and Done** are translated (theme labels).
+- **The head's asset plan is a method**: `AdminThemeBridge::headPlan()` (`lib/AdminThemeBridgeHead.php`, the tenth trait) decides styles, scripts, their order and the client config; `_head.php` only prints.
+- **The core strings the theme depends on are listed next to the rewrites**: `AdminThemeBridge::upstreamNeedles()`, read by `tests/smoke.php`. The list now also covers the sortable-table seam and the AJAX-placeholder condition `isAjaxPlaceholder()` copies from `InputfieldWrapper`, so a core change there fails the smoke test.
+- The UIkit setting has its own mode constants (`uikitAuto`, `uikitAlways`; stored values unchanged); a docblock that described the wrong method is back on its own.
+
+Checked and left as they are: the head's second other-theme check when printing (one regular expression per URL, a guard against late additions), the login screen's stylesheets (cached after the first visit, and login extensions may use them), the inline `maxWidth` style, and `BridgeBootstrap::version` (public).
+
 ## AdminThemeBridge 0.11.1: light field borders again (2026-10-27)
 
 - **Text inputs, selects, textareas, the search box, the login fields, selectize and inline editors** have the light border they had before 0.10.0 again, the line of the WYSIWYG editors and buttons. 0.10.0 had darkened them to a 3:1 edge (WCAG 1.4.11); the owner prefers the lighter look. Field edges keep their own token, `--pw-input-border`, so a site that wants the stronger edge sets it alone (for example `color-mix(in srgb, var(--foreground) 45%, var(--background))` in its admin CSS). The darker muted text from 0.10.0 stays.

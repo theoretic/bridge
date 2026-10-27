@@ -115,11 +115,11 @@ trait AdminThemeBridgeConfig {
 		$f->attr('name', 'uikit');
 		$f->label = __('UIkit for modules written for AdminThemeUikit', __FILE__);
 		$f->description = __('UIkit\'s script and a UIkit stylesheet in this theme\'s colours, for modules that use UIkit components (uk-grid, uk-modal, UIkit.notification(), ...).', __FILE__);
-		$f->addOption(self::legacyAuto, __('Load only on pages that use UIkit (default)', __FILE__));
-		$f->addOption(self::legacyAlways, __('Always load (every admin page)', __FILE__));
+		$f->addOption(self::uikitAuto, __('Load only on pages that use UIkit (default)', __FILE__));
+		$f->addOption(self::uikitAlways, __('Always load (every admin page)', __FILE__));
 		$f->addOption(self::uikitNever, __('Never load', __FILE__));
 		$mode = $this->get('uikit');
-		$f->attr('value', in_array($mode, array(self::legacyAuto, self::legacyAlways, self::uikitNever), true) ? $mode : self::legacyAuto);
+		$f->attr('value', in_array($mode, array(self::uikitAuto, self::uikitAlways, self::uikitNever), true) ? $mode : self::uikitAuto);
 		$inputfields->add($f);
 
 		/** @var InputfieldTextarea $f */

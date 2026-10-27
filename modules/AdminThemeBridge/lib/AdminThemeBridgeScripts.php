@@ -188,14 +188,27 @@ trait AdminThemeBridgeScripts {
 	public function saveScriptVerdicts() {
 		if(!$this->jqueryVerdictsChanged || !is_array($this->jqueryVerdicts)) return;
 		$this->jqueryVerdictsChanged = false;
-		// stale entries (an older mtime) go: keep the newest verdict per file
+		$this->wire()->cache->save(self::jqueryVerdictsCache, $this->pruneVerdicts($this->jqueryVerdicts), WireCache::expireNever);
+	}
+
+	/**
+	 * Verdicts worth keeping (audit B13): the newest per file, and none for a file that is gone.
+	 * Keys are `file|mtime|size`; the file is everything before the first `|`.
+	 *
+	 * @param array $verdicts key => bool
+	 * @return array
+	 *
+	 */
+	protected function pruneVerdicts(array $verdicts) {
 		$byFile = array();
-		foreach($this->jqueryVerdicts as $key => $verdict) {
-			$file = substr($key, 0, strrpos($key, '|'));
-			$byFile[$file] = array($key, $verdict);
+		foreach($verdicts as $key => $verdict) {
+			$file = substr($key, 0, (int) strpos($key, '|'));
+			$byFile[$file] = array($key, $verdict); // later entries are newer
 		}
 		$keep = array();
-		foreach($byFile as $entry) $keep[$entry[0]] = $entry[1];
-		$this->wire()->cache->save(self::jqueryVerdictsCache, $keep, WireCache::expireNever);
+		foreach($byFile as $file => $entry) {
+			if($file !== '' && is_file($file)) $keep[$entry[0]] = $entry[1];
+		}
+		return $keep;
 	}
 }

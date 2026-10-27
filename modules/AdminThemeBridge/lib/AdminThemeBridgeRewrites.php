@@ -10,6 +10,36 @@
 trait AdminThemeBridgeRewrites {
 
 	/**
+	 * The strings in core files that the theme's rewrites and copies depend on, by file under
+	 * wire/ (audit PA3, PA2): when core changes one, tests/smoke.php fails instead of the
+	 * rewrite silently doing nothing. Kept here, next to the rewrites, so a change to either side
+	 * is one edit.
+	 *
+	 * @return array file under wire/ => list of strings that must occur in it
+	 *
+	 */
+	public static function upstreamNeedles() {
+		return array(
+			// nativeInlineScripts()
+			'modules/Process/ProcessTemplate/ProcessTemplate.module' => array('$(document).ready(function() { ProcessTemplateInitFields(); });', "\$('#ProcessTemplatePageLister').iFrameResize({ });"),
+			'modules/Process/ProcessField/ProcessField.module' => array('"jQuery(document).ready(function() { " . '),
+			'modules/Process/ProcessPageEditImageSelect/ProcessPageEditImageSelect.module' => array('$(document).ready(function() { setupProcessSave('),
+			// hookDataTableRender(), hookDataTableRenderBefore() (lib/AdminThemeBridgeTables.php)
+			'modules/Markup/MarkupAdminDataTable/MarkupAdminDataTable.module' => array("AdminDataTable.initTable($('#\$id'));", "if(\$this->sortable) \$tableClass .= ' ' . \$this->settings('sortableClass');", 'public function setColNotSortable($index)'),
+			// hookPageEditExecute()
+			'modules/Process/ProcessPageEdit/ProcessPageEdit.module' => array("\$func = 'initPageEditForm();';", '"<scr" . "ipt>$func</script>"'),
+			// hookFormRender()
+			'modules/LanguageSupport/LanguageTabs.module' => array("setupLanguageTabs(\$('#\$id'));", '"<script>$func</script>"'),
+			// isAjaxPlaceholder() (lib/AdminThemeBridgeLegacy.php) copies this condition
+			'core/Inputfield/InputfieldWrapper.php' => array(
+				'$ajaxInputfield = $collapsed == Inputfield::collapsedYesAjax || $collapsed === Inputfield::collapsedTabAjax',
+				'|| ($collapsed == Inputfield::collapsedBlankAjax && $inputfield->isEmpty());',
+				"if(\$ajaxInputfield && ((\$required && \$inputfield->isEmpty()) || !\$this->wire()->user->isLoggedin())) {",
+			),
+		);
+	}
+
+	/**
 	 * Hook after InputfieldMarkup::render / renderValue: InputfieldMarkup is native, but what it
 	 * prints is anyone's. An inline script in it that calls jQuery (PageTableNext's config prints
 	 * `$('#...').iFrameResize()`) needs the stack on this page (audit A5).

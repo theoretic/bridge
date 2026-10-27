@@ -190,13 +190,7 @@ trait AdminThemeBridgeUikit {
 	protected function saveUikitVerdicts() {
 		if(!$this->uikitVerdictsChanged || !is_array($this->uikitVerdicts)) return;
 		$this->uikitVerdictsChanged = false;
-		$byFile = array();
-		foreach($this->uikitVerdicts as $key => $verdict) {
-			$byFile[substr($key, 0, strrpos($key, '|'))] = array($key, $verdict);
-		}
-		$keep = array();
-		foreach($byFile as $entry) $keep[$entry[0]] = $entry[1];
-		$this->wire()->cache->save(self::uikitVerdictsCache, $keep, WireCache::expireNever);
+		$this->wire()->cache->save(self::uikitVerdictsCache, $this->pruneVerdicts($this->uikitVerdicts), WireCache::expireNever);
 	}
 
 	/**
@@ -225,7 +219,7 @@ trait AdminThemeBridgeUikit {
 		if($mode === self::uikitNever) return $this->uikitDecided = false;
 		$reasons = $this->uikitReasons($this->uikitReasons);
 		$this->uikitReasons = is_array($reasons) ? $reasons : array();
-		if($mode === self::legacyAlways) return $this->uikitDecided = true;
+		if($mode === self::uikitAlways) return $this->uikitDecided = true;
 		return $this->uikitDecided = count($this->uikitReasons) > 0;
 	}
 
