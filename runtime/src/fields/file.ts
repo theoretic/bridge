@@ -24,9 +24,13 @@ import { setupTags, Opts as TagOpts } from './texttags';
 import { uploadAllowed, uploadTarget, rejectReason, send, toElement, initItem, filesOf, UploadResult } from './upload';
 import { legacyLoaded } from '../legacy';
 import { setValue } from '../util/events';
+import { onRemoval } from '../util/removal';
 
 type FieldState = { abort: AbortController; unsort: (() => void) | null };
 const fields = new Map<HTMLElement, FieldState>();
+// per-element state, dropped when its element leaves the page (audit R6)
+const prune = (): void => fields.forEach((st, f) => { if (!f.isConnected) { st.abort.abort(); if (st.unsort) st.unsort(); fields.delete(f); } });
+onRemoval(prune);
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
@@ -266,7 +270,7 @@ export function init(inputfield: HTMLElement): void {
 	}
 	list.setAttribute('data-pw-file', '');
 	// fields an in-place save replaced
-	fields.forEach((st, f) => { if (!f.isConnected) { st.abort.abort(); if (st.unsort) st.unsort(); fields.delete(f); } });
+	prune();
 	const old = fields.get(inputfield);
 	if (old) {
 		old.abort.abort();

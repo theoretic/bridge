@@ -237,7 +237,8 @@ function setupPicker(input: HTMLInputElement): void {
 		box.style.position = 'absolute';
 		box.style.display = 'none';
 		box.style.zIndex = '200';
-		document.body.appendChild(box);
+		// in <body> only while open (audit R6): a picker per field, repeater item and selector row
+		// would otherwise leave a hidden popup behind for each
 	} else {
 		input.insertAdjacentElement('afterend', box);
 	}
@@ -335,15 +336,25 @@ function setupPicker(input: HTMLInputElement): void {
 		closeOpen = close;
 		selected = valueDate() || selected;
 		if (selected) view = new Date(selected.getFullYear(), selected.getMonth(), 1);
+		if (!box.isConnected) document.body.appendChild(box);
 		render();
 		position();
 		box.style.display = 'block';
+		document.addEventListener('mousedown', outside);
 	};
 	const close = (): void => {
 		if (inline) return;
 		box.style.display = 'none';
+		box.remove();
+		document.removeEventListener('mousedown', outside);
 		if (closeOpen === close) closeOpen = null;
 	};
+	// a press outside the picker, its input and its trigger closes it (listening only while open)
+	function outside(e: MouseEvent): void {
+		const t = e.target as HTMLElement;
+		if (box.contains(t) || t === input || (trigger && trigger.contains(t))) return;
+		close();
+	}
 
 	on(box, 'mousedown', e => {
 		if (!(e.target as HTMLElement).closest('select')) e.preventDefault(); // keep the input focused
@@ -420,12 +431,6 @@ function setupPicker(input: HTMLInputElement): void {
 			view = new Date(d.getFullYear(), d.getMonth(), 1);
 			if (isOpen()) render();
 		}
-	});
-	on(document, 'mousedown', e => {
-		if (!isOpen() || inline) return;
-		const t = e.target as HTMLElement;
-		if (box.contains(t) || t === input || (trigger && trigger.contains(t))) return;
-		close();
 	});
 }
 

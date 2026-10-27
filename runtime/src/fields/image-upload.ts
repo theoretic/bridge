@@ -162,7 +162,9 @@ export function setupUpload(inputfield: HTMLElement, content: HTMLElement, grid:
 		const go = (body?: Blob | ArrayBuffer | string | null): void => {
 			send(file, target, { body, replaceName, onProgress: pct => { progress.value = pct; } })
 				.then(results => place(results, row))
-				.catch(err => { error(String(err && err.message || err), file.name); row.remove(); });
+				.catch(err => { error(String(err && err.message || err), file.name); row.remove(); })
+				// the preview row is gone either way (replaced by the server's markup, or removed)
+				.finally(() => URL.revokeObjectURL(url));
 			updateGrid();
 			inputfield.dispatchEvent(new Event('change', { bubbles: true }));
 			inputfield.classList.add('InputfieldStateChanged');

@@ -31,10 +31,13 @@ export function attachAutocomplete(input: HTMLInputElement, options: Autocomplet
 	menu.setAttribute('role', 'listbox');
 	menu.style.display = 'none';
 	menu.style.position = 'absolute';
-	document.body.appendChild(menu);
+	// in <body> only while open, with its resize listener (audit R6): one per attached input would
+	// otherwise stay behind for every repeater item and reloaded field
 
 	const close = (): void => {
 		menu.style.display = 'none';
+		menu.remove();
+		window.removeEventListener('resize', reposition);
 		active = -1;
 		input.setAttribute('aria-expanded', 'false');
 	};
@@ -74,8 +77,10 @@ export function attachAutocomplete(input: HTMLInputElement, options: Autocomplet
 			li.appendChild(a);
 			menu.appendChild(li);
 		});
+		if (!menu.isConnected) document.body.appendChild(menu);
 		position();
 		menu.style.display = 'block';
+		window.addEventListener('resize', reposition);
 		input.setAttribute('aria-expanded', 'true');
 		active = -1;
 	};
@@ -121,5 +126,5 @@ export function attachAutocomplete(input: HTMLInputElement, options: Autocomplet
 		}
 	});
 	input.addEventListener('blur', () => window.setTimeout(close, 150));
-	window.addEventListener('resize', () => { if (menu.style.display !== 'none') position(); });
+	function reposition(): void { if (menu.style.display !== 'none') position(); }
 }

@@ -15,11 +15,12 @@ if(!defined("PROCESSWIRE")) die();
 <footer id='pw-footer' class='pw-footer'>
 	<div class='pw-container'>
 		<p>
-			<span>Bridge <?php echo $adminTheme->version; ?></span>
+			<?php // the version for signed-in users only, as upstream themes do (audit B9) ?>
+			<span>Bridge<?php if($adminTheme->isLoggedIn) echo ' ' . $adminTheme->wire()->sanitizer->entities($adminTheme->version); ?></span>
 			<?php if($adminTheme->isLoggedIn): ?>
 			<small><?php
-				echo sprintf($adminTheme->_('based on ProcessWire %s'), $config->versionName . '<!--v' . $config->systemVersion . '-->') . ', ' .
-					sprintf($adminTheme->_('colours from %s'), "<a href='https://github.com/noelboss/AdminThemeBoss' target='_blank' rel='noopener'>AdminThemeBoss</a>");
+				echo sprintf($adminTheme->shellLabel('basedOn'), $config->versionName . '<!--v' . $config->systemVersion . '-->') . ', ' .
+					sprintf($adminTheme->shellLabel('coloursFrom'), "<a href='https://github.com/noelboss/AdminThemeBoss' target='_blank' rel='noopener'>AdminThemeBoss</a>");
 			?></small>
 			<?php endif; ?>
 		</p>
@@ -36,7 +37,7 @@ if(!defined("PROCESSWIRE")) die();
 			if($debugStripped && is_string($debugNative)) {
 				$debugScript = 'scripts/debug-tools.js';
 				$debugTools = str_replace('<div id="debug">', '<div id="debug" class="pw-debug">', $debugNative) .
-					"<script src='" . $adminTheme->url() . $debugScript . '?v=' . (is_file(__DIR__ . "/$debugScript") ? filemtime(__DIR__ . "/$debugScript") : $adminTheme->version) . "'></script>";
+					"<script src='" . $adminTheme->url() . $debugScript . '?v=' . (is_file($adminTheme->path() . $debugScript) ? filemtime($adminTheme->path() . $debugScript) : $adminTheme->version) . "'></script>";
 			}
 			echo $debugTools;
 		}

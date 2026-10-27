@@ -409,8 +409,16 @@ function diffDigest(array $a, array $b) {
 		if($onlyA) $diff[] = "$k only in uikit: " . implode(', ', $onlyA);
 		if($onlyB) $diff[] = "$k only in bridge: " . implode(', ', $onlyB);
 	}
-	$fa = array(); foreach($a['fields'] as $f) $fa[$f['id'] ?: spl_object_hash((object) $f)] = $f;
-	$fb = array(); foreach($b['fields'] as $f) $fb[$f['id'] ?: spl_object_hash((object) $f)] = $f;
+	// fields without an id by their position among those (an object hash of a temporary was reused,
+	// so they overwrote each other; audit B16)
+	$key = function(array $fields) {
+		$out = array();
+		$n = 0;
+		foreach($fields as $f) $out[$f['id'] ?: '(no id #' . (++$n) . ')'] = $f;
+		return $out;
+	};
+	$fa = $key($a['fields']);
+	$fb = $key($b['fields']);
 	foreach(array_diff_key($fa, $fb) as $id => $f) $diff[] = "field only in uikit: $id";
 	foreach(array_diff_key($fb, $fa) as $id => $f) $diff[] = "field only in bridge: $id";
 	foreach(array_intersect_key($fa, $fb) as $id => $f) {

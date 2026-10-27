@@ -22,8 +22,11 @@ $version = $config->version;
 $themeVersion = $adminTheme->version;
 // cache busting for the theme's own built files: their modification time, so a new build reaches
 // browsers at once (the stored module version only changes after a modules refresh)
-$themeAssetVersion = function($file) use($themeVersion) {
-	$path = __DIR__ . '/' . $file;
+// the theme's own directory, also when this template is a copy in /site/templates/AdminThemeBridge/
+// (AdminThemeFramework::includeFile() looks there first; audit B3)
+$themeDir = $adminTheme->path();
+$themeAssetVersion = function($file) use($themeVersion, $themeDir) {
+	$path = $themeDir . $file;
 	return is_file($path) ? (string) filemtime($path) : (string) $themeVersion;
 };
 $wireUrl = $config->urls->wire;
@@ -40,7 +43,7 @@ if($iconVersion && version_compare($iconVersion, '6.0.0', '>=')) {
 	// come from small subsets, the rest from the full files, nothing else fetches a font; built for
 	// one Font Awesome version, so any other version gets core's stylesheet
 	$faCss = "assets/fonts/fa-$iconVersion/fa.css";
-	if(is_file(__DIR__ . "/$faCss")) {
+	if(is_file($themeDir . $faCss)) {
 		$styles->append($themeUrl . "$faCss?v=" . $themeAssetVersion($faCss));
 	} else {
 		$styles->append($wireUrl . "templates-admin/styles/font-awesome-$iconVersion/css/all.min.css");
@@ -187,31 +190,34 @@ $config->js('AdminThemeBridge', $bridgeJs);
 $preloads = array('assets/fonts/geist-latin-wght-normal.woff2');
 // the solid subset's name carries a content hash (fa-subset.mjs): read from fa.css, whose
 // @font-face rules come first
-if(!empty($faCss) && is_file(__DIR__ . "/$faCss")) {
-	$faHead = (string) file_get_contents(__DIR__ . "/$faCss", false, null, 0, 16384);
+if(!empty($faCss) && is_file($themeDir . $faCss)) {
+	$faHead = (string) file_get_contents($themeDir . $faCss, false, null, 0, 16384);
 	if(preg_match('/url\((fa-solid-900-subset(?:\.[0-9a-f]+)?\.woff2)\)/', $faHead, $m)) $preloads[] = dirname($faCss) . '/' . $m[1];
 }
+// URLs printed into attributes are escaped (audit B10)
+$sanitizer = $adminTheme->wire()->sanitizer;
+$attr = function($url) use($sanitizer) { return $sanitizer->entities((string) $url); };
 foreach($preloads as $font) {
-	if(is_file(__DIR__ . "/$font")) echo "\n\t<link rel='preload' href='$themeUrl$font' as='font' type='font/woff2' crossorigin />";
+	if(is_file($themeDir . $font)) echo "\n\t<link rel='preload' href='" . $attr($themeUrl . $font) . "' as='font' type='font/woff2' crossorigin />";
 }
 foreach($styles->urls() as $file) {
 	if($adminTheme->isOtherThemeAsset($file)) continue;
-	echo "\n\t<link type='text/css' href='$file' rel='stylesheet' />";
+	echo "\n\t<link type='text/css' href='" . $attr($file) . "' rel='stylesheet' />";
 }
 // the UIkit layer is one cascade layer (@layer uikit): every unlayered stylesheet wins over it
-if($useUikit) echo "\n\t<link type='text/css' href='$uikitCss' rel='stylesheet' data-pw-uikit />";
-echo "\n\t<link type='text/css' href='$themeCss' rel='stylesheet' data-pw-theme />";
-echo "\n\t<link type='text/css' href='$fieldsCss' rel='stylesheet' data-pw-fields />";
+if($useUikit) echo "\n\t<link type='text/css' href='" . $attr($uikitCss) . "' rel='stylesheet' data-pw-uikit />";
+echo "\n\t<link type='text/css' href='" . $attr($themeCss) . "' rel='stylesheet' data-pw-theme />";
+echo "\n\t<link type='text/css' href='" . $attr($fieldsCss) . "' rel='stylesheet' data-pw-fields />";
 if($adminTheme->maxWidth) {
 	echo "\n\t<style data-pw-keep>.pw-container, #notices { max-width:" . (int) $adminTheme->maxWidth . "px; }</style>";
 }
 // the runtime module and the chunk it imports statically, fetched while the page parses instead
 // of after main.js imports it at the end of the body (audit B21, C32); same URL as that import()
-$runtimeFile = __DIR__ . '/assets/dist/runtime.js';
+$runtimeFile = $themeDir . 'assets/dist/runtime.js';
 if(is_file($runtimeFile)) {
-	echo "\n\t<link rel='modulepreload' href='{$bridgeJs['runtimeUrl']}' />";
+	echo "\n\t<link rel='modulepreload' href='" . $attr($bridgeJs['runtimeUrl']) . "' />";
 	if(preg_match_all('~from\s*["\']\./(chunks/[\w.-]+\.js)["\']~', (string) file_get_contents($runtimeFile), $m)) {
-		foreach(array_unique($m[1]) as $chunk) echo "\n\t<link rel='modulepreload' href='{$themeUrl}assets/dist/$chunk' />";
+		foreach(array_unique($m[1]) as $chunk) echo "\n\t<link rel='modulepreload' href='" . $attr("{$themeUrl}assets/dist/$chunk") . "' />";
 	}
 }
 // theme scripts that no inline code calls while the page parses run deferred (in order, before
@@ -225,6 +231,6 @@ foreach($printScripts as $file) {
 		$rel = preg_replace('/\?.*$/', '', substr($file, strlen($themeUrl)));
 		if(in_array($rel, $deferrable, true)) $defer = ' defer';
 	}
-	echo "\n\t<script type='text/javascript' src='$file'$defer></script>";
+	echo "\n\t<script type='text/javascript' src='" . $attr($file) . "'$defer></script>";
 }
 echo "\n";

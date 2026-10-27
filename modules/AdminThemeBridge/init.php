@@ -108,6 +108,7 @@ $config->set('SystemNotifications', array(
 ));
 
 $config->js('AdminThemeBridge', array(
-	'version' => $adminTheme->version,
+	// signed-in users only, as the footer (audit B9)
+	'version' => $adminTheme->isLoggedIn ? $adminTheme->version : '',
 	'legacyStack' => $adminTheme->legacyStack,
 ));

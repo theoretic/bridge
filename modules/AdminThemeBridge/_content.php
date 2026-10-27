@@ -26,7 +26,7 @@ if(!defined("PROCESSWIRE")) die();
 			<?php
 			if($adminTheme->isLoginScreen()) {
 				// login card: the mark (or the site's logo) as title; the headline stays for screen readers
-				echo "<h1 id='pw-content-title'><a class='pw-logo-link' href='{$this->wire()->config->urls->root}'>" .
+				echo "<h1 id='pw-content-title'><a class='pw-logo-link' href='" . $this->wire()->sanitizer->entities($this->wire()->config->urls->root) . "'>" .
 					$adminTheme->renderLogo() . "</a><span class='pw-sr-only'>$headline</span></h1>";
 				echo $adminTheme->renderNotices($this->wire()->notices);
 			} else if($headline !== '' && !$adminTheme->isModal) {

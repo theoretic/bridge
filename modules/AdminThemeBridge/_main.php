@@ -3,6 +3,10 @@
 /**
  * Page frame for AdminThemeBridge
  *
+ * The extra-markup call and the headline check below are taken from AdminThemeUikit's _main.php
+ * (ProcessWire 3.0.274, Mozilla Public License 2.0, https://processwire.com), modified: the rest
+ * of this file is Bridge's own.
+ *
  * FileCompiler=0
  */
 

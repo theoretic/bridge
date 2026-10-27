@@ -31,6 +31,8 @@
  *  - Paths outside the web root have no URL unless `urls` names one; the core will still
  *    try to serve wire/ assets (admin scripts, module JS) from $config->urls->wire.
  *  - .htaccess ships separately and must protect the real directory names.
+ *  - Upstream's index.config.php (several sites on one installation) is not read: one layout
+ *    file is one site.
  */
 class BridgeBootstrap {
 
@@ -110,7 +112,6 @@ class BridgeBootstrap {
 		if(is_null($rootURL)) $rootURL = '/';
 
 		if(isset($_SERVER['HTTP_HOST'])) {
-			$host = $httpHost ? $httpHost : strtolower($_SERVER['HTTP_HOST']);
 			if(is_null($_rootURL)) $rootURL = rtrim(dirname($_SERVER['SCRIPT_NAME']), "/\\") . '/';
 			$realScriptFile = empty($_SERVER['SCRIPT_FILENAME']) ? '' : realpath($_SERVER['SCRIPT_FILENAME']);
 			$realIndexFile = realpath($rootPath . "/index.php");
@@ -123,7 +124,6 @@ class BridgeBootstrap {
 			$cfg['internal'] = strtolower((string) $realIndexFile) == strtolower((string) $realScriptFile);
 		} else {
 			$cfg['internal'] = false;
-			$host = '';
 		}
 
 		// --- URLs: relative to root where the path is under root, overridable otherwise ------
@@ -134,7 +134,7 @@ class BridgeBootstrap {
 		foreach($paths as $key => $path) {
 			if(isset($urlOverrides[$key])) {
 				$urls[$key] = $urlOverrides[$key];
-			} else if(strpos($path, $rootPath . '/') === 0) {
+			} else if(self::under($path, $rootPath . '/')) {
 				$urls[$key] = substr($path, strlen($rootPath) + 1);
 			} else {
 				// no URL can serve this path; keep the upstream-shaped relative name so that
@@ -180,9 +180,22 @@ class BridgeBootstrap {
 
 		$config->bridgeLayout = $layout;
 		$config->bridgeLayoutWarnings = $warnings;
-		unset($host);
 
 		return $config;
+	}
+
+	/**
+	 * Is a path under a directory (both normalised by dir())?
+	 *
+	 * @param string $path
+	 * @param string $dir
+	 * @return bool
+	 *
+	 */
+	public static function under($path, $dir) {
+		// Windows paths differ in case only (d:/site vs D:/site) and are the same directory (B14)
+		if(DIRECTORY_SEPARATOR === '\\') return stripos($path, $dir) === 0;
+		return strpos($path, $dir) === 0;
 	}
 
 	/**

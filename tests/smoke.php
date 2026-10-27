@@ -544,5 +544,31 @@ if(isset($bridge) && $bridge) {
 	check('_head.php drops a registered copy of the shared scripts', strpos((string) file_get_contents($themeDir . '_head.php'), '$sharedPaths') !== false);
 }
 
+// 0.9.10 (audit 2026-10-27, phase 2)
+if(isset($bridge) && $bridge) {
+	$templates = array();
+	foreach(glob($themeDir . '_*.php') as $f) $templates[basename($f)] = (string) file_get_contents($f);
+	$untranslatable = array();
+	foreach($templates as $name => $src) {
+		if(preg_match_all('/\$adminTheme->_\(\'([^\']*)\'\)/', $src, $m)) {
+			foreach($m[1] as $text) if($text !== 'en') $untranslatable[] = "$name: $text"; // 'en' is core's, by design
+		}
+	}
+	check('B2 templates print labels through the module (translatable)', !count($untranslatable), implode('; ', $untranslatable));
+	check('B2 shell labels resolve', $bridge->shellLabel('menu') !== 'menu' && strpos($bridge->shellLabel('basedOn'), '%s') !== false);
+	$dirUsers = array_keys(array_filter($templates, function($src) { return strpos($src, '__DIR__') !== false; }));
+	check('B3 templates find theme files through path(), not __DIR__', !count($dirUsers), implode(', ', $dirUsers));
+	check('B9 footer shows the version to signed-in users only', strpos($templates['_footer.php'], "<span>Bridge<?php if(\$adminTheme->isLoggedIn) echo") !== false);
+	check('B13 uninstall clears the theme caches', method_exists($bridge, '___uninstall') && strpos($moduleSrc, "cache->delete('AdminThemeBridge.*')") !== false);
+	check('PA4 browser title names the product Bridge', method_exists($bridge, 'getBrowserTitle') && strpos($moduleSrc, "' • Bridge'") !== false);
+	check('PA4 _main.php carries the MPL note for its upstream lines', strpos($templates['_main.php'], 'Mozilla Public License 2.0') !== false);
+	check('B14 bootstrap compares paths without case on Windows', DIRECTORY_SEPARATOR !== '\\' || BridgeBootstrap::under('d:/site/app/', 'D:/site/'));
+	check('B16 conformance keys fields without an id by position', strpos((string) file_get_contents(dirname(__DIR__) . '/conformance/run.php'), 'spl_object_hash') === false);
+	$rt = dirname(__DIR__) . '/runtime/src/';
+	check('R4 repeater, page table, page list select use fetchOk/failed', count(array_filter(array('fields/repeater.ts', 'fields/pagetable.ts', 'fields/pagelistselect.ts'), function($f) use($rt) { return strpos((string) file_get_contents($rt . $f), "from '../util/fail'") !== false; })) === 3);
+	check('R6 datetime listens for outside presses only while open', strpos((string) file_get_contents($rt . 'fields/datetime.ts'), "document.addEventListener('mousedown', outside)") !== false);
+	check('the runtime labels include the request failure notice', isset($bridge->runtimeLabels()['requestFailed']));
+}
+
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

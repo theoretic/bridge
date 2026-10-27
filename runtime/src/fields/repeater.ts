@@ -29,11 +29,16 @@ import { choose } from '../util/choose';
 import { legacyLoaded } from '../legacy';
 import { runScripts } from '../util/scripts';
 import { changed, setValue } from '../util/events';
+import { fetchOk, failed } from '../util/fail';
 import { open as openField, close as closeField, isCollapsed } from '../inputfields/collapse';
+import { onRemoval } from '../util/removal';
 
 const DEPTH = 50;
 type Cfg = { editorUrl?: string; labels?: Record<string, string> };
 const repeaters = new Map<HTMLElement, () => void>();
+// per-element state, dropped when its element leaves the page (audit R6)
+const prune = (): void => repeaters.forEach((unsort, r) => { if (!r.isConnected) { unsort(); repeaters.delete(r); } });
+onRemoval(prune);
 let adding = false;
 let toggleTimer = 0;
 let insertTimer = 0;
@@ -273,7 +278,7 @@ function itemUrl(repeater: HTMLElement, extra: string, pageID?: number): string 
 }
 
 async function getHtml(url: string): Promise<Document> {
-	const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+	const res = await fetchOk(url);
 	return new DOMParser().parseFromString(await res.text(), 'text/html');
 }
 
@@ -341,9 +346,12 @@ async function loadItem(item: HTMLElement): Promise<void> {
 			initContent(fields, 'InputfieldRepeaterItemEdit', added);
 		}
 	} catch (err) {
+		// loadable again: a later open tries once more
+		loaded.value = '0';
 		item.classList.remove('InputfieldRepeaterItemLoading');
 		if (content) content.style.display = '';
-		console.error('Bridge repeater: item load failed', err);
+		if (spinner) { spinner.classList.remove('fa-spin', 'fa-spinner'); spinner.classList.add(ic); }
+		failed('repeater item load', err);
 	}
 }
 
@@ -413,7 +421,7 @@ async function addItem(link: HTMLElement): Promise<void> {
 		const doc = await getHtml(itemUrl(repeater, extra, pageID || inputfieldPageID));
 		if (spinner) { spinner.classList.remove(...on); spinner.classList.add(...off); }
 		const found = doc.querySelector<HTMLElement>('.InputfieldRepeaterItemRequested');
-		if (!found) { adding = false; return; }
+		if (!found) { dropPlaceholders(list); adding = false; return; }
 		const item = document.importNode(found, true) as HTMLElement;
 		place(item);
 		initContent(item, 'InputfieldRepeaterItemAdd');
@@ -434,9 +442,15 @@ async function addItem(link: HTMLElement): Promise<void> {
 		await runFieldScripts(item);
 	} catch (err) {
 		if (spinner) { spinner.classList.remove(...on); spinner.classList.add(...off); }
-		console.error('Bridge repeater: add failed', err);
+		dropPlaceholders(list);
+		failed('repeater add', err);
 	}
 	window.setTimeout(() => { adding = false; }, 500);
+}
+
+/** the spinner placeholders an insert, clone or paste put in the list, when no item replaced them */
+function dropPlaceholders(list: HTMLElement): void {
+	children(list, '.InputfieldRepeaterInsertItem').forEach(x => x.remove());
 }
 
 /* clone, copy, paste, insert *********************************************************************/
@@ -806,7 +820,7 @@ function setupDocument(): void {
 export function init(repeater: HTMLElement): void {
 	if (legacyLoaded()) return;
 	setupDocument();
-	repeaters.forEach((unsort, r) => { if (!r.isConnected) { unsort(); repeaters.delete(r); } });
+	prune();
 	repeater.setAttribute('data-pw-repeater', '');
 	initRepeater(repeater);
 }

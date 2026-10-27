@@ -64,7 +64,21 @@ const next = (e: Element, sel: string): HTMLElement | null => { const n = e.next
 const prev = (e: Element, sel: string): HTMLElement | null => { const n = e.previousElementSibling; return n && n.matches(sel) ? n as HTMLElement : null; };
 const pageId = (item: Element): number => parseInt(item.getAttribute('data-page-id') || '0', 10);
 
+// 'pageListRefresh' (upstream's event to reload a page's children): one document listener for every
+// tree on the page, trees that left the page dropped (audit R6: one listener per tree stayed behind)
+const refreshers = new Map<HTMLElement, (id: number) => void>();
+let refreshListening = false;
+function listenRefresh(): void {
+	if (refreshListening) return;
+	refreshListening = true;
+	document.addEventListener('pageListRefresh', e => {
+		const id = parseInt(String((e as CustomEvent).detail), 10);
+		refreshers.forEach((refresh, tree) => { if (tree.isConnected) refresh(id); else refreshers.delete(tree); });
+	});
+}
+
 function setupTree(container: HTMLElement): void {
+	listenRefresh();
 	if (container.hasAttribute('data-pw-pagelist')) return;
 	container.setAttribute('data-pw-pagelist', '');
 	const admin = ((pw().config.urls as { admin?: string }) || {}).admin || '/processwire/';
@@ -592,7 +606,7 @@ function setupTree(container: HTMLElement): void {
 		const a = (e.target as HTMLElement).closest('ul[data-pagination] a');
 		if (a) a.classList.remove(o.paginationHoverClass);
 	});
-	document.addEventListener('pageListRefresh', e => refreshList(parseInt(String((e as CustomEvent).detail), 10)));
+	refreshers.set(container, refreshList);
 
 	if (o.useHoverActions) {
 		root.classList.add('PageListUseHoverActions');

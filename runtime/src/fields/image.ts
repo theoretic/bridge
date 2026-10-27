@@ -30,12 +30,16 @@ import { openLightbox, LightboxItem } from '../util/lightbox';
 import { legacyLoaded } from '../legacy';
 import { uploadAllowed } from './upload';
 import { initFileTags } from './file';
+import { onRemoval } from '../util/removal';
 
 type Focus = { top: number; left: number; zoom: number };
 type Settings = { size: number; listSize: number; mode: string };
 type FieldState = { abort: AbortController; unsort: (() => void) | null; list: HTMLElement };
 
 const fields = new Map<HTMLElement, FieldState>();
+// per-element state, dropped when its element leaves the page (audit R6)
+const prune = (): void => fields.forEach((st, f) => { if (!f.isConnected) { st.abort.abort(); if (st.unsort) st.unsort(); fields.delete(f); } });
+onRemoval(prune);
 const ACTIVE = 'InputfieldImageListToggle--active';
 let sliding = false;
 let focusModule: Promise<typeof import('./image-focus')> | null = null;
@@ -568,7 +572,7 @@ export function init(inputfield: HTMLElement): void {
 	if (grid.hasAttribute('data-pw-image')) return;
 	grid.setAttribute('data-pw-image', '');
 	// fields an in-place save replaced
-	fields.forEach((st, f) => { if (!f.isConnected) { st.abort.abort(); if (st.unsort) st.unsort(); fields.delete(f); } });
+	prune();
 	const old = fields.get(inputfield);
 	if (old) { old.abort.abort(); if (old.unsort) old.unsort(); }
 	const state: FieldState = { abort: new AbortController(), unsort: null, list: grid };

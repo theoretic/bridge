@@ -25,7 +25,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.9.9',
+			'version' => '0.9.10',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -231,6 +231,14 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * @var array dir => true
 	 */
 	protected $legacyInputfieldDirs = array();
+
+	/**
+	 * bossForcesUikit() and printScriptsList() answers, per instance (audit B12: method statics
+	 * were shared by every instance)
+	 *
+	 */
+	protected $bossForces = null;
+	protected $printScriptsList = null;
 
 	/**
 	 * isFieldModuleDir() answers for this request
@@ -455,6 +463,23 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	}
 
 	/**
+	 * Browser title: upstream's, escaped in modal windows too, with the product named Bridge
+	 *
+	 * @return string
+	 *
+	 */
+	public function getBrowserTitle() {
+		$title = (string) parent::getBrowserTitle();
+		$input = $this->wire()->input;
+		// in a modal window upstream returns the Process headline as it is (audit B10)
+		if($input->get('modal') && !strlen((string) $this->browserTitle) && !$this->wire('processBrowserTitle')) {
+			$title = $this->wire()->sanitizer->entities1(strip_tags($title));
+		}
+		// the product is not ProcessWire (CLAUDE.md, ADR 0006): "Page • Bridge • host"
+		return str_replace(array(' • ProcessWire', ' &bull; ProcessWire'), array(' • Bridge', ' &bull; Bridge'), $title);
+	}
+
+	/**
 	 * The ProcessWire mark, read at runtime from the installed core (the file AdminThemeUikit
 	 * renders), inlined unmodified. Bridge does not ship a copy: MPL 2.0 section 2.3 grants no
 	 * trademark rights, so the mark stays the core's own file (ADR 0012). Falls back to the
@@ -560,15 +585,14 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 *
 	 */
 	public function bossForcesUikit() {
-		static $forces = null;
-		if($forces !== null) return $forces;
+		if($this->bossForces !== null) return $this->bossForces;
 		$modules = $this->wire()->modules;
-		if(!$modules->isInstalled('AdminThemeBoss')) return $forces = false;
+		if(!$modules->isInstalled('AdminThemeBoss')) return $this->bossForces = false;
 		// a setting never saved is Boss's default, and both default to on
 		// (AdminThemeBossConfig::getDefaults(): enablemodule, allusers => true)
 		$boss = (array) $modules->getConfig('AdminThemeBoss');
 		$on = function($key) use($boss) { return !array_key_exists($key, $boss) || !empty($boss[$key]); };
-		return $forces = $on('enablemodule') && $on('allusers');
+		return $this->bossForces = $on('enablemodule') && $on('allusers');
 	}
 
 	public function ___install() {
@@ -576,6 +600,16 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		if($this->bossForcesUikit()) {
 			$this->warning($this->_('AdminThemeBoss has "activate for all users" on: it switches every user back to Uikit on each request. Turn it off in its module settings, then select Bridge in your profile.'));
 		}
+	}
+
+	/**
+	 * Uninstall: the theme's WireCache entries (script verdicts, kept forever, and the module-cache
+	 * repair state) go with it (audit B13)
+	 *
+	 */
+	public function ___uninstall() {
+		parent::___uninstall();
+		$this->wire()->cache->delete('AdminThemeBridge.*');
 	}
 
 	public function init() {
@@ -1255,7 +1289,26 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			'cancel' => $this->_('Cancel'),
 			'close' => $this->_('Close'),
 			'sortsPage' => $this->_('Sorts the rows on this page'),
+			'requestFailed' => $this->_('A request to the server failed. Reload the page and try again.'),
 		);
+	}
+
+	/**
+	 * Labels the shell templates print (_masthead.php, _footer.php), translated in this file's
+	 * textdomain: `$adminTheme->_()` in a template is looked up here while the language parser files
+	 * it under the template, so a translation entered there was never used (audit B2)
+	 *
+	 * @param string $key
+	 * @return string
+	 *
+	 */
+	public function shellLabel($key) {
+		switch($key) {
+			case 'menu': return $this->_('Menu');
+			case 'basedOn': return $this->_('based on ProcessWire %s'); // %s is the core version
+			case 'coloursFrom': return $this->_('colours from %s'); // %s is a link to AdminThemeBoss
+		}
+		return $key;
 	}
 
 	/**
@@ -1638,9 +1691,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 *
 	 */
 	protected function printScriptsList() {
-		static $list = null;
-		if($list === null) $list = array_values(array_filter(array_map('trim', preg_split('/\r?\n/', (string) $this->get('printScripts')))));
-		return $list;
+		if($this->printScriptsList === null) $this->printScriptsList = array_values(array_filter(array_map('trim', preg_split('/\r?\n/', (string) $this->get('printScripts')))));
+		return $this->printScriptsList;
 	}
 
 	/**
@@ -2051,7 +2103,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			"<i class='fa fa-fw fa-adjust'></i><span class='pw-scheme-label'>" . $sanitizer->entities1($labels['auto']) . "</span></a></li>";
 		$name = $sanitizer->entities1($user->name);
 		// the name links to the profile when the user may edit it (touch: a second tap follows it)
-		$profile = $user->hasPermission('profile-edit') ? " href='" . $this->wire()->urls->admin . "profile/'" : " href='#'";
+		$profile = $user->hasPermission('profile-edit') ? " href='" . $this->wire()->sanitizer->entities($this->wire()->urls->admin . 'profile/') . "'" : " href='#'";
 		return
 			"<ul class='pw-user-nav'><li class='pw-dropdown'>" .
 			"<a id='tools-toggle' class='pw-dropdown-toggle'$profile>" .

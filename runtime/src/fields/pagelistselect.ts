@@ -18,6 +18,7 @@
  */
 
 import { makeSortable } from '../util/sortable';
+import { fetchOk, failed } from '../util/fail';
 
 type Child = {
 	id: number; label: string; path: string; template?: string; numChildren: number; numTotal?: number;
@@ -66,7 +67,7 @@ function setup(input: HTMLInputElement, multiple: boolean): void {
 		return u;
 	};
 	const getJSON = async (u: string): Promise<ListData> => {
-		const res = await fetch(u, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+		const res = await fetchOk(u);
 		return res.json() as Promise<ListData>;
 	};
 	const selectedIds = (): string[] => input.value.split(',').filter(Boolean);
@@ -151,7 +152,14 @@ function setup(input: HTMLInputElement, multiple: boolean): void {
 	}
 
 	async function load(id: number, start: number, target: HTMLElement, begin: boolean): Promise<void> {
-		const data = await getJSON(url(id, start));
+		let data: ListData;
+		try {
+			data = await getJSON(url(id, start));
+		} catch (err) {
+			failed('page list select', err);
+			if (begin) closeTree();
+			return;
+		}
 		if (data.error) {
 			window.alert(data.message || 'Error');
 			return;

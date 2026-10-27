@@ -1,5 +1,31 @@
 # Changelog
 
+## AdminThemeBridge 0.9.10: failures shown, no leftovers, the rest of the audit's bugs (2026-10-27)
+
+Second release from the 2026-10-27 audit.
+
+**Requests that fail**
+- **A repeater item that failed to load stayed empty for good**: it now loads again on the next open, and its spinner stops. An add, clone, paste or insert that fails no longer leaves a spinner placeholder in the list.
+- **A page table no longer shows a server error page in place of its rows** after a failed reload; the rows stay.
+- **The page list select** no longer leaves "Cancel" with no tree when the tree fails to load. **Page autocomplete** stops its spinner on an error.
+- In each case the theme's notice band says the request failed, translated.
+
+**Leftovers**
+- **The date picker** is in the page only while open, and listens for outside clicks only then (one popup and one document listener per date field stayed behind, for every repeater item and selector row).
+- **The autocomplete menu** likewise, with its resize listener.
+- **The page tree** has one listener for `pageListRefresh` for all trees, not one per tree that stayed after the tree left (the editor's Children tab, dialogs).
+- **Image upload previews** release their object URLs.
+- **Repeater, image, file and page table fields** drop their state (observers, sortables) as soon as the field leaves the page, not at the next set-up.
+
+**Server side**
+- **Labels in the masthead and footer are translatable**: they were looked up in the module's translations while the translator filed them under the template.
+- **Template copies in `/site/templates/AdminThemeBridge/`** find the theme's fonts, built files and preloads (they used their own directory).
+- **The version is shown to signed-in users only**, in the footer and in `ProcessWire.config`.
+- **The browser title names the product Bridge**, and in a modal window it is escaped. URLs printed into attributes are escaped.
+- **Uninstall** removes the theme's cache entries (script verdicts, the cache-repair state).
+- `tools/admin-theme-diag.php` reads AdminThemeBoss's unsaved settings as their default (on), as the theme does; a per-instance cache replaces method statics; `bootstrap/` compares paths without case on Windows and documents that `index.config.php` is not read; the dev router refuses `%5C..%5C`; the conformance diff no longer lets fields without an id overwrite each other.
+- `_main.php` carries the MPL note for the lines it takes from AdminThemeUikit.
+
 ## AdminThemeBridge 0.9.9: every data table sorts, and the first audit fixes (2026-10-27)
 
 From a full audit of the module, the runtime and the tools (bugs, UI, performance, architecture). This release has the table work and the fixes that could lose data or break a page; the rest follows in the next releases.

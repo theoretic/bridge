@@ -17,7 +17,8 @@
  */
 
 $docRoot = str_replace('\\', '/', rtrim($_SERVER['DOCUMENT_ROOT'], '/\\'));
-$path = urldecode((string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+// a backslash is a separator to Windows: %5C..%5C would pass the checks below as one segment
+$path = str_replace('\\', '/', urldecode((string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)));
 $file = $docRoot . $path;
 
 $blocked = preg_match('~^/(app|site[^/]*)/(assets/(cache|logs|backups|sessions|config|install|tmp)|install|config)~i', $path)

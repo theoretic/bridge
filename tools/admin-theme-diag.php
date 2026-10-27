@@ -52,8 +52,11 @@ foreach($modules->findByPrefix('AdminTheme', false) as $name) {
 echo "\nAdminThemeBoss config:\n";
 if($modules->isInstalled('AdminThemeBoss')) {
 	$boss = $modules->getConfig('AdminThemeBoss');
-	foreach(array('enablemodule', 'allusers') as $k) echo "  $k = " . var_export($boss[$k] ?? null, true) . "\n";
-	if(!empty($boss['enablemodule']) && !empty($boss['allusers'])) echo "  -> allusers sets every user's admin_theme to Uikit on each request\n";
+	// a setting never saved is Boss's default, on (the rule of AdminThemeBridge::bossForcesUikit())
+	$boss = (array) $boss;
+	$bossOn = function($k) use($boss) { return !array_key_exists($k, $boss) || !empty($boss[$k]); };
+	foreach(array('enablemodule', 'allusers') as $k) echo "  $k = " . (array_key_exists($k, $boss) ? var_export($boss[$k], true) : 'not saved (default: on)') . "\n";
+	if($bossOn('enablemodule') && $bossOn('allusers')) echo "  -> allusers sets every user's admin_theme to Uikit on each request\n";
 } else {
 	echo "  not installed\n";
 }

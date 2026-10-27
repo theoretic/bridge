@@ -18,8 +18,13 @@
 import { makeSortable } from '../util/sortable';
 import { legacyLoaded } from '../legacy';
 import { changed, setValue } from '../util/events';
+import { fetchOk, failed } from '../util/fail';
+import { onRemoval } from '../util/removal';
 
 const sortables = new Map<HTMLElement, () => void>();
+// per-element state, dropped when its element leaves the page (audit R6)
+const prune = (): void => sortables.forEach((unsort, c) => { if (!c.isConnected) { unsort(); sortables.delete(c); } });
+onRemoval(prune);
 
 function dialog(): { open(url: string, size: string, options: Record<string, unknown>): void } | null {
 	const bridge = (window as unknown as { Bridge?: { dialog?: { open(url: string, size: string, options: Record<string, unknown>): void } } }).Bridge;
@@ -53,8 +58,15 @@ async function reload(container: HTMLElement, pageID: number): Promise<void> {
 	if (sort && sort.value.length) url += '&InputfieldPageTableSort=' + sort.value.replace(/\|/g, ',');
 	const m = /[?&]id=([^&#]*)/i.exec(url);
 	if (!m || parseInt(m[1], 10) === 0) { window.location.reload(); return; }
-	const res = await fetch(new URL(url, location.href).href, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-	container.innerHTML = await res.text();
+	let html = '';
+	try {
+		html = await (await fetchOk(new URL(url, location.href).href)).text();
+	} catch (err) {
+		// the table stays as it was; an error page is not put in its place
+		failed('page table reload', err);
+		return;
+	}
+	container.innerHTML = html;
 	container.querySelectorAll('.Inputfield').forEach(li => li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'InputfieldPageTable' } })));
 	makeRowsSortable(container);
 	const del = container.parentElement?.querySelector<HTMLInputElement>(':scope > input.InputfieldPageTableDelete');
@@ -147,6 +159,6 @@ function setupDocument(): void {
 export function init(inputfield: HTMLElement): void {
 	if (legacyLoaded()) return;
 	setupDocument();
-	sortables.forEach((unsort, c) => { if (!c.isConnected) { unsort(); sortables.delete(c); } });
+	prune();
 	inputfield.querySelectorAll<HTMLElement>('.InputfieldPageTableContainer').forEach(makeRowsSortable);
 }

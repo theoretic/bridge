@@ -18,6 +18,7 @@
 import { attachAutocomplete, Suggestion } from '../util/autocomplete';
 import { makeSortable } from '../util/sortable';
 import { on } from '../legacy';
+import { fetchOk } from '../util/fail';
 
 type Page = { page_id: number; label: string };
 
@@ -159,8 +160,14 @@ function setup(data: HTMLInputElement): void {
 			let q = term;
 			if (input.classList.contains('and_words') && q.indexOf(' ') > 0) q = q.replace(/\s+/g, ',');
 			const ajaxUrl = url + '&' + searchField + operator.replace(/%/g, '%25') + encodeURIComponent(q);
-			const res = await fetch(ajaxUrl, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-			const json = await res.json() as { total: number; matches: Array<Record<string, unknown>> };
+			let json: { total: number; matches: Array<Record<string, unknown>> };
+			try {
+				json = await (await fetchOk(ajaxUrl)).json();
+			} catch (err) {
+				// no spinner left turning; the menu closes (util/autocomplete.ts)
+				setIcon('');
+				throw err;
+			}
 			if (json.total > 0) {
 				setIcon('found');
 			} else if (addAllowed()) {
