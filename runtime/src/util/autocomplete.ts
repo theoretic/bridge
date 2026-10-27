@@ -19,6 +19,8 @@ export type AutocompleteOptions = {
 	select: (item: Suggestion) => void;
 };
 
+let menus = 0;
+
 export function attachAutocomplete(input: HTMLInputElement, options: AutocompleteOptions): void {
 	const minLength = options.minLength ?? 2;
 	const delay = options.delay ?? 300;
@@ -29,6 +31,7 @@ export function attachAutocomplete(input: HTMLInputElement, options: Autocomplet
 	const menu = document.createElement('ul');
 	menu.className = 'ui-autocomplete ui-menu ui-front ui-widget ui-widget-content';
 	menu.setAttribute('role', 'listbox');
+	menu.id = 'pw-autocomplete-' + (++menus);
 	menu.style.display = 'none';
 	menu.style.position = 'absolute';
 	// in <body> only while open, with its resize listener (audit R6): one per attached input would
@@ -40,6 +43,7 @@ export function attachAutocomplete(input: HTMLInputElement, options: Autocomplet
 		window.removeEventListener('resize', reposition);
 		active = -1;
 		input.setAttribute('aria-expanded', 'false');
+		input.removeAttribute('aria-activedescendant');
 	};
 
 	const position = (): void => {
@@ -55,6 +59,7 @@ export function attachAutocomplete(input: HTMLInputElement, options: Autocomplet
 		active = n;
 		const a = links[n] as HTMLElement | undefined;
 		if (a) a.scrollIntoView({ block: 'nearest' });
+		if (a) input.setAttribute('aria-activedescendant', a.id); else input.removeAttribute('aria-activedescendant');
 	};
 
 	const render = (list: Suggestion[]): void => {
@@ -70,6 +75,7 @@ export function attachAutocomplete(input: HTMLInputElement, options: Autocomplet
 			const a = document.createElement('a');
 			a.className = 'ui-menu-item-wrapper';
 			a.setAttribute('role', 'option');
+			a.id = menu.id + '-' + n;
 			a.textContent = item.label;
 			a.addEventListener('mousedown', e => e.preventDefault()); // keep the focus in the input
 			a.addEventListener('click', () => choose(n));
@@ -105,6 +111,10 @@ export function attachAutocomplete(input: HTMLInputElement, options: Autocomplet
 
 	input.setAttribute('autocomplete', 'off');
 	input.setAttribute('aria-autocomplete', 'list');
+	// a combobox that owns the menu (audit U4)
+	input.setAttribute('role', 'combobox');
+	input.setAttribute('aria-controls', menu.id);
+	input.setAttribute('aria-expanded', 'false');
 	input.addEventListener('input', () => {
 		window.clearTimeout(timer);
 		timer = window.setTimeout(search, delay);

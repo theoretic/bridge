@@ -56,7 +56,8 @@ $config->set('MarkupAdminDataTable', array(
 ));
 
 $config->set('MarkupPagerNav', array(
-	'listMarkup' => "<ul class='pw-pagination MarkupPagerNav' role='navigation'>{out}</ul>",
+	// a list in a navigation landmark (role=navigation on the <ul> took its list semantics; audit SU7)
+	'listMarkup' => "<nav class='pw-pagination-nav' aria-label='" . $adminTheme->wire()->sanitizer->entities1($adminTheme->shellLabel('pagination')) . "'><ul class='pw-pagination MarkupPagerNav'>{out}</ul></nav>",
 	'currentItemClass' => 'pw-active MarkupPagerNavOn',
 	'separatorItemClass' => 'pw-disabled MarkupPagerNavSeparator',
 	'separatorItemLabel' => '<span>&hellip;</span>',

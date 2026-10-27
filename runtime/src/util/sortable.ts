@@ -7,6 +7,9 @@
  * Classes: the container gets the given listClass (asmListSortable and the like), the dragged
  * item `ui-state-highlight` (as jQuery UI sortable does with asmSelect) and `pw-sorting`,
  * the container `pw-sorting-active` while a drag runs.
+ *
+ * Keyboard (audit R7): Alt+ArrowUp / Alt+ArrowDown moves the item that holds the focus one place,
+ * with the same start, stop and update calls as a drag.
  */
 
 export type SortableOptions = {
@@ -142,6 +145,23 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 		if (items().indexOf(item) !== startIndex && options.update) options.update(item);
 	};
 
+	const onKey = (e: KeyboardEvent): void => {
+		if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || dragging) return;
+		const target = e.target as HTMLElement;
+		if (target.closest('select, textarea, [contenteditable]')) return; // their own Alt+arrow
+		const item = target.closest<HTMLElement>(options.items);
+		if (!item || item.parentElement !== list || (options.enabled && !options.enabled())) return;
+		const all = items();
+		const other = all[all.indexOf(item) + (e.key === 'ArrowUp' ? -1 : 1)];
+		if (!other) return;
+		e.preventDefault();
+		if (options.start) options.start(item);
+		list.insertBefore(item, e.key === 'ArrowUp' ? other : other.nextSibling);
+		target.focus(); // moving the node may drop the focus
+		if (options.stop) options.stop(item, { dx: 0, dy: 0 });
+		if (options.update) options.update(item);
+	};
+	list.addEventListener('keydown', onKey);
 	// an image or link inside an item would start the browser's own drag and swallow the pointer
 	const onNativeDrag = (e: DragEvent): void => { if (pending || dragging) e.preventDefault(); };
 	list.addEventListener('dragstart', onNativeDrag);
@@ -150,6 +170,7 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 	list.addEventListener('pointerup', onUp);
 	list.addEventListener('pointercancel', onUp);
 	return () => {
+		list.removeEventListener('keydown', onKey);
 		list.removeEventListener('dragstart', onNativeDrag);
 		list.removeEventListener('pointerdown', onDown);
 		list.removeEventListener('pointermove', onMove);

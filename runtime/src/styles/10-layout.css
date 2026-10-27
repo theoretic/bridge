@@ -9,7 +9,8 @@
  * (--pw-notice-row, --pw-notice-gap in 00-tokens.css), kept free whether or not notices show, so
  * they never shift the page */
 #main { padding-top: calc(var(--pw-notice-row) + 2 * var(--pw-notice-gap)); padding-bottom: 60px; transition: padding-top 150ms ease; }
-@media (prefers-reduced-motion: reduce) { #main { transition: none; } }
+/* no motion for whoever asked for none (audit U6): transitions, animations, smooth scrolling */
+@media (prefers-reduced-motion: reduce) { *, ::before, ::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
 #pw-content-head { display: flow-root; margin-bottom: 20px; }
 #pw-content-head-buttons { float: right; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px; margin-left: 20px; max-width: 100%; }
 #pw-content-title { margin: 6px 0 0; }

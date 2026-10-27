@@ -16,9 +16,9 @@ html .InputfieldToggleGroup input:focus-visible + label { box-shadow: 0 0 0 3px 
 .InputfieldIconItem.on { background: var(--primary); color: var(--primary-foreground); }
 
 /* rich-text inline frames (classic editors: 20-ckeditor.css, 21-tinymce.css) */
-.InputfieldForm .InputfieldCKEditorInline { background: var(--pw-input-bg); border: 1px solid var(--input); border-radius: var(--radius-md); }
+.InputfieldForm .InputfieldCKEditorInline { background: var(--pw-input-bg); border: 1px solid var(--pw-input-border); border-radius: var(--radius-md); }
 .InputfieldForm div.cke_editable_inline.cke_focus { border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-50); outline: 0; }
-.InputfieldTinyMCE .InputfieldTinyMCEInline, .InputfieldTinyMCEPlaceholder { border: 1px solid var(--input); border-radius: var(--radius-md); background: var(--pw-input-bg); }
+.InputfieldTinyMCE .InputfieldTinyMCEInline, .InputfieldTinyMCEPlaceholder { border: 1px solid var(--pw-input-border); border-radius: var(--radius-md); background: var(--pw-input-bg); }
 .InputfieldTinyMCE .InputfieldTinyMCEInline.mce-edit-focus { outline: 0; border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-50); }
 
 /* page list: the item being moved */

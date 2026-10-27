@@ -900,7 +900,29 @@ var ProcessWireAdminTheme = {
 			}
 		});
 		document.addEventListener('keydown', function(e) {
-			if(e.key === 'Escape' && !self.upstream()) self.closeDropdowns();
+			if(self.upstream()) return;
+			var menu = e.target.closest && e.target.closest('.pw-dropdown-menu:not(.pw-search-results)');
+			if(e.key === 'Escape') {
+				// from inside a menu, back to its toggle (audit U3)
+				var toggle = self.openToggle;
+				self.closeDropdowns();
+				if(menu && toggle) toggle.focus();
+				return;
+			}
+			// arrows move between the items of the menu level that has the focus
+			if(!menu || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+			var ul = e.target.closest('ul');
+			var links = Array.prototype.filter.call(ul.querySelectorAll(':scope > li > a'), function(a) { return a.offsetParent !== null; });
+			var next = links[(links.indexOf(e.target.closest('a')) + (e.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length];
+			if(next) { e.preventDefault(); next.focus(); }
+		});
+		// the focus leaving a menu and its toggle closes it (Tab past the last item)
+		document.addEventListener('focusout', function(e) {
+			if(self.upstream() || !self.openToggle) return;
+			var sel = '.pw-dropdown-menu, .pw-dropdown-toggle';
+			var to = e.relatedTarget;
+			if(to && to.closest && to.closest(sel)) return;
+			if(e.target.closest && e.target.closest(sel)) self.closeDropdowns();
 		});
 	},
 
@@ -964,6 +986,8 @@ var ProcessWireAdminTheme = {
 	openDropdown: function(toggle, menu) {
 		this.closeDropdowns();
 		menu.style.display = 'block';
+		toggle.setAttribute('aria-expanded', 'true');
+		this.openToggle = toggle;
 		var wrap = toggle.closest('.pw-dropdown');
 		if(menu === toggle.nextElementSibling || (wrap && wrap.contains(menu))) return;
 		var r = (toggle.closest('a, button') || toggle).getBoundingClientRect();
@@ -979,6 +1003,9 @@ var ProcessWireAdminTheme = {
 	closeDropdowns: function() {
 		var menus = document.querySelectorAll('.pw-dropdown-menu:not(.pw-search-results)');
 		for(var i = 0; i < menus.length; i++) menus[i].style.display = 'none';
+		var open = document.querySelectorAll('.pw-dropdown-toggle[aria-expanded="true"]');
+		for(var j = 0; j < open.length; j++) open[j].setAttribute('aria-expanded', 'false');
+		this.openToggle = null;
 	},
 
 	/**

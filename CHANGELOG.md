@@ -1,5 +1,36 @@
 # Changelog
 
+## AdminThemeBridge 0.10.0: keyboard, screen readers, contrast, motion, print (2026-10-27)
+
+Fourth release from the 2026-10-27 audit: UI and accessibility.
+
+**Seeing**
+- **Form fields have a visible edge**: text inputs, selects, textareas, the search box, the login fields, selectize and inline editors are outlined at 3:1 against the page in both schemes (WCAG 1.4.11; it was 1.26:1). Buttons, dividers and table lines keep their light line. Muted text on muted backgrounds reaches 4.5:1.
+- **A focus ring on every link** and focusable element that had none (nav, tabs, pager, page tree, dropdown items).
+- **Reduced motion** (the system setting) stops transitions, animations and smooth scrolling everywhere, not only the page fade.
+- **Phones**: data tables shown as rows use the theme's colours (upstream's light-only greys broke dark mode); page tree actions, repeater controls and field toggles have larger touch targets on touch screens.
+- **Print**: every tab and every collapsed field is printed, in light colours throughout; dialogs, the lightbox and open pickers are not.
+
+**Keyboard**
+- **Dropdowns**: arrows move between the items of a menu, Escape closes it and returns to its toggle, tabbing out closes it; toggles say whether they are open (`aria-expanded`).
+- **Collapsible fields** open and close from their toggle icon (Enter or Space).
+- **Repeater item controls** (delete, on/off, clone, settings, insert) and the language-tabs toggle are buttons.
+- **Every drag-sorted list** (repeater items, files and images, asmSelect, page autocomplete, page table rows) moves the focused item with Alt+ArrowUp / Alt+ArrowDown.
+
+**Screen readers**
+- A skip link to the content; the main navigation, breadcrumbs and pagination are named landmarks; the current section is marked (`aria-current`); the search is a search landmark with a named field.
+- Notices, server and client, are a live region (`role=status`); a client-side notice can be closed.
+- Icon-only links (page tree, edit next to a crumb) have names; a custom logo names its link; the login fields keep their label as name; the user menu toggle without a profile link is a button.
+- Dialogs are named by their title (the frame too); the lightbox, the debug panel and the in-place save's error are translated; the page autocomplete is a combobox that tells which suggestion is active.
+
+**Feedback**
+- A field loaded by AJAX shows a spinner while it loads and a notice when it fails; a dialog is dimmed until its page arrives.
+- The scheme toggle starts with the configured scheme's label; an invalid custom colour shows an error on the theme's settings instead of turning blue silently.
+
+`tests/smoke.php` checks theme.css against 80 kB raw (was 75 kB); the gzip budget in `runtime/scripts/check-css.mjs` stays the binding one.
+
+Not done: keyboard moving in the page tree (upstream has none either).
+
 ## AdminThemeBridge 0.9.11: less work per request and per keystroke (2026-10-27)
 
 Third release from the 2026-10-27 audit: performance.

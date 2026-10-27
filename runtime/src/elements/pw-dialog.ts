@@ -40,6 +40,8 @@ export type DialogOptions = {
 	moreButtons?: (doc: Document) => Array<{ html: string; secondary?: boolean; click: () => void }>;
 };
 
+let dialogCount = 0;
+
 export class PwDialog extends HTMLElement {
 	private dialog: HTMLDialogElement | null = null;
 	private frame: HTMLIFrameElement | null = null;
@@ -57,6 +59,9 @@ export class PwDialog extends HTMLElement {
 		bar.className = 'pw-dialog-bar';
 		const title = document.createElement('span');
 		title.className = 'pw-dialog-title';
+		// the dialog is named by its title, the frame too (audit U4)
+		title.id = 'pw-dialog-title-' + (++dialogCount);
+		dialog.setAttribute('aria-labelledby', title.id);
 		const closeBtn = document.createElement('button');
 		closeBtn.type = 'button';
 		closeBtn.className = 'pw-dialog-close';
@@ -87,11 +92,21 @@ export class PwDialog extends HTMLElement {
 		this.footer = footer;
 	}
 
+	private setTitle(text: string): void {
+		if (this.titleEl) this.titleEl.textContent = text;
+		if (this.frame) this.frame.title = text;
+	}
+
 	private makeFrame(): HTMLIFrameElement {
 		const frame = document.createElement('iframe');
 		frame.className = 'pw-modal-window pw-dialog-frame';
 		frame.setAttribute('frameborder', '0');
-		frame.addEventListener('load', () => { if (frame === this.frame) this.loaded(); });
+		frame.addEventListener('load', () => {
+			if (frame !== this.frame) return;
+			// a page we cannot read (another origin) is still loaded: no longer dimmed
+			if (!this.closeOnLoad) this.dialog?.classList.remove('pw-dialog-busy');
+			this.loaded();
+		});
 		return frame;
 	}
 
@@ -126,9 +141,10 @@ export class PwDialog extends HTMLElement {
 		this.closeOnLoad = false;
 		this.abort = true;
 		if (this.footer) this.footer.innerHTML = '';
-		if (this.titleEl) this.titleEl.textContent = options.title || '';
+		this.setTitle(options.title || '');
 		this.frame.src = (/[?&]modal=/.test(url) ? url : `${url}${sep}modal=1`) + hash;
-		this.dialog.className = `pw-dialog pw-dialog-${size}`;
+		// dimmed until the page arrives, as while a save closes it (audit U10)
+		this.dialog.className = `pw-dialog pw-dialog-${size} pw-dialog-busy`;
 		if (!this.dialog.open) this.dialog.showModal();
 		document.dispatchEvent(new CustomEvent('pw-modal-opened', { detail: { dialog: this, url } }));
 	}
@@ -174,7 +190,7 @@ export class PwDialog extends HTMLElement {
 				if (a && !a.getAttribute('target')) a.setAttribute('target', '_parent');
 			});
 		}
-		if (this.titleEl && !opts.title) this.titleEl.textContent = doc.title || '';
+		if (!opts.title) this.setTitle(doc.title || '');
 		if (opts.onLoad) opts.onLoad(doc, this);
 		doc.addEventListener('click', e => {
 			const t = e.target as Element;

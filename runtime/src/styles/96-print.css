@@ -5,7 +5,11 @@
 		color-scheme: light;
 		--pw-bg: #fff; --background: #fff; --card: #fff; --foreground: #0a0a0a; --card-foreground: #0a0a0a;
 		--pw-text: #0a0a0a; --pw-h1: #0a0a0a; --pw-h2: #0a0a0a; --muted-foreground: #525252; --border: #d4d4d4;
+		--muted: #f5f5f5; --secondary: #f5f5f5; --accent: #f5f5f5; --popover: #fff; --input: #d4d4d4; --pw-input-bg: #fff;
 	}
+	/* all of the form on paper: every tab, collapsed fields open (audit U8) */
+	.WireTab, pw-tabs > [hidden], .InputfieldStateCollapsed > .InputfieldContent { display: block !important; }
+	pw-dialog, .pw-lightbox, .ui-autocomplete, .ui-datepicker:not(.ui-datepicker-inline) { display: none !important; }
 	.pw-masthead, #notices, .pw-footer, #pw-content-head-buttons, .pw-breadcrumbs, .InputfieldSubmit, .pw-nav-toggle { display: none !important; }
 	.pw-masthead, #notices { position: static !important; }
 	#main { padding-top: 0 !important; }

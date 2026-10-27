@@ -15,6 +15,8 @@
 
 import { legacyLoaded } from '../legacy';
 import { runScripts } from '../util/scripts';
+import { label } from '../util/labels';
+import { failed } from '../util/fail';
 
 const HEADER = '.InputfieldHeader, .ui-widget-header';
 
@@ -25,7 +27,16 @@ export function initCollapse(root: ParentNode): void {
 		const header = childHeader(li);
 		if (!header) return;
 		header.classList.add('InputfieldStateToggle');
+		// the header is a <label> (it names the field's input): the toggle icon takes the keyboard
+		// instead, as a button (audit R7)
+		const icon = header.querySelector<HTMLElement>('i.toggle-icon');
+		if (icon && !icon.hasAttribute('tabindex')) {
+			icon.tabIndex = 0;
+			icon.setAttribute('role', 'button');
+			icon.setAttribute('aria-label', label('toggle', 'Open or close'));
+		}
 		if (li.classList.contains('InputfieldStateCollapsed')) syncIcon(li, true);
+		else if (icon && icon.getAttribute('role') === 'button') icon.setAttribute('aria-expanded', 'true');
 	});
 }
 
@@ -40,6 +51,7 @@ function syncIcon(li: HTMLElement, collapsed: boolean): void {
 	const header = childHeader(li);
 	const icon = header?.querySelector<HTMLElement>('i.toggle-icon');
 	if (!icon) return;
+	if (icon.getAttribute('role') === 'button') icon.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
 	const to = (icon.getAttribute('data-to') || '').split(/\s+/).filter(Boolean);
 	if (to.length !== 2) return;
 	// data-to lists "open-class closed-class"; upstream toggles both. Normalise instead.
@@ -96,6 +108,12 @@ async function loadAjax(li: HTMLElement, placeholder: HTMLElement): Promise<void
 	if (li.classList.contains('InputfieldAjaxLoading')) return;
 	li.classList.remove('collapsed10', 'collapsed11');
 	li.classList.add('InputfieldAjaxLoading');
+	// a spinner in the header while it loads, as upstream shows (audit U10)
+	const spinner = document.createElement('i');
+	spinner.className = 'fa fa-fw fa-spin fa-spinner InputfieldAjaxSpinner';
+	spinner.setAttribute('aria-hidden', 'true');
+	const header = childHeader(li);
+	if (header) header.appendChild(spinner);
 	try {
 		const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
 		const html = await res.text();
@@ -119,7 +137,9 @@ async function loadAjax(li: HTMLElement, placeholder: HTMLElement): Promise<void
 		li.dispatchEvent(new CustomEvent('opened', { bubbles: true }));
 	} catch (err) {
 		li.classList.remove('InputfieldAjaxLoading');
-		console.error('Bridge: ajax load failed for', url, err);
+		failed('ajax load of ' + url, err);
+	} finally {
+		spinner.remove();
 	}
 }
 
@@ -136,6 +156,14 @@ export function setupCollapseEvents(): void {
 		const header = target.closest<HTMLElement>('.InputfieldStateToggle');
 		if (!header) return;
 		const li = header.parentElement;
+		if (!li || !li.classList.contains('Inputfield')) return;
+		e.preventDefault();
+		toggle(li);
+	});
+	document.addEventListener('keydown', e => {
+		if (legacyLoaded() || (e.key !== 'Enter' && e.key !== ' ')) return;
+		const icon = (e.target as HTMLElement).closest<HTMLElement>('.InputfieldStateToggle > i.toggle-icon[role=button], .InputfieldStateToggle i.toggle-icon[role=button]');
+		const li = icon ? icon.closest<HTMLElement>('.InputfieldStateToggle')?.parentElement : null;
 		if (!li || !li.classList.contains('Inputfield')) return;
 		e.preventDefault();
 		toggle(li);

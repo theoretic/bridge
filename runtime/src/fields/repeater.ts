@@ -32,6 +32,7 @@ import { changed, setValue } from '../util/events';
 import { fetchOk, failed } from '../util/fail';
 import { open as openField, close as closeField, isCollapsed } from '../inputfields/collapse';
 import { onRemoval } from '../util/removal';
+import { keyButton } from '../util/keybutton';
 
 const DEPTH = 50;
 type Cfg = { editorUrl?: string; labels?: Record<string, string> };
@@ -231,7 +232,10 @@ function adjustLabel(item: HTMLElement, increment: boolean): void {
 function icon(classes: string, title: string): HTMLElement {
 	const i = document.createElement('i');
 	i.className = 'fa ' + classes;
-	if (title) i.title = title;
+	if (title) {
+		i.title = title;
+		keyButton(i, title); // the item controls work from the keyboard too (audit R7)
+	}
 	return i;
 }
 

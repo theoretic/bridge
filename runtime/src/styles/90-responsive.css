@@ -80,3 +80,15 @@ body.pw-nav-overflow .pw-primary-nav .pw-dropdown-menu::before, body.pw-nav-over
 body.pw-nav-overflow .pw-primary-nav .pw-dropdown-menu li a { color: var(--muted-foreground); padding: 6px 10px 6px 26px; white-space: normal; }
 body.pw-nav-overflow .pw-primary-nav .pw-dropdown-menu li a:hover { background: var(--accent); color: var(--accent-foreground); }
 body.pw-nav-overflow .pw-primary-nav .pw-dropdown-menu a.pw-has-items::after, body.pw-nav-overflow .pw-primary-nav .pw-dropdown-menu li > ul { display: none; }
+/* data tables as rows on a phone (upstream MarkupAdminDataTable.css draws them in #777 and #ccc,
+ * light-only; audit U7) */
+@media (max-width: 767px) {
+	table.AdminDataTableResponsive tr { border-top-color: var(--pw-text-muted); }
+	table.AdminDataTableResponsive tbody tr td { border-top-color: var(--pw-line); }
+	table.AdminDataList .th { color: var(--pw-text-muted); }
+}
+/* finger-sized targets where the pointer is a finger (audit U5) */
+@media (pointer: coarse) {
+	.PageList .PageListActions li a, .PageListerActions a { padding: 6px 10px; }
+	.InputfieldRepeaterItemControls > i, .InputfieldHeader i.toggle-icon { padding: 8px; margin: -8px 0; }
+}

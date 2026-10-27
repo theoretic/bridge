@@ -16,7 +16,7 @@
 	line-height: 1.375rem;
 	color: var(--foreground);
 	background: var(--pw-input-bg);
-	border: 1px solid var(--input);
+	border: 1px solid var(--pw-input-border);
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-xs);
 	-webkit-appearance: none;

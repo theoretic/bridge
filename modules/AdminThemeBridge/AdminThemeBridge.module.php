@@ -25,7 +25,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.9.11',
+			'version' => '0.10.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -433,7 +433,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			if($url === '') continue;
 			if(!$hasDark) $class = ''; // a single logo is shown in both schemes
 			if(strpos($url, '//') === false) $url = $config->urls->root . ltrim($url, '/');
-			$out .= "<img class='pw-logo pw-logo-custom $class' src='" . $sanitizer->entities($url) . "' alt='' />";
+			// the logo is the only content of its link: it names the link (audit SU3)
+			$out .= "<img class='pw-logo pw-logo-custom $class' src='" . $sanitizer->entities($url) . "' alt='" . $sanitizer->entities1($this->shellLabel('home')) . "' />";
 		}
 		if($out !== '') return $out;
 		return $this->renderNativeLogo();
@@ -454,6 +455,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			'messageClass' => 'NoticeMessage pw-notice-success',
 			'warningClass' => 'NoticeWarning pw-notice-warning',
 			'errorClass' => 'NoticeError pw-notice-error',
+			// announced to assistive technology (audit SU7); id and class as upstream
+			'listMarkup' => "<ul class='pw-notices' id='notices' role='status' aria-live='polite'>{out}</ul><!--/notices-->",
 		), $options);
 		return parent::renderNotices($notices, $options);
 	}
@@ -684,6 +687,15 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// login form: labels hidden, placeholders instead (ProcessLogin does both when skipLabel is set)
 		$this->addHookBefore('ProcessLogin::buildLoginForm', function(HookEvent $event) {
 			$event->object->set('skipLabel', Inputfield::skipLabelHeader);
+		});
+		// without a visible label the inputs keep their label as accessible name (audit SU5)
+		$this->addHookAfter('ProcessLogin::buildLoginForm', function(HookEvent $event) {
+			$form = $event->return;
+			if(!$form instanceof InputfieldForm) return;
+			foreach(array('login_name', 'login_pass') as $name) {
+				$f = $form->getChildByName($name);
+				if($f && $f->label && !$f->attr('aria-label')) $f->attr('aria-label', $f->label);
+			}
 		});
 
 		$this->addHookBefore('Inputfield::render', $this, 'hookInputfieldRender');
@@ -1336,6 +1348,10 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			'close' => $this->_('Close'),
 			'sortsPage' => $this->_('Sorts the rows on this page'),
 			'requestFailed' => $this->_('A request to the server failed. Reload the page and try again.'),
+			'toggle' => $this->_('Open or close'),
+			'previous' => $this->_('Previous'),
+			'next' => $this->_('Next'),
+			'saveNoAnswer' => $this->_('The save got no answer from the server. Check the page and save again if needed.'),
 		);
 	}
 
@@ -1351,6 +1367,12 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public function shellLabel($key) {
 		switch($key) {
 			case 'menu': return $this->_('Menu');
+			case 'mainNav': return $this->_('Main'); // the main navigation landmark
+			case 'breadcrumbs': return $this->_('Breadcrumbs');
+			case 'skip': return $this->_('Skip to content');
+			case 'search': return $this->_('Search');
+			case 'home': return $this->_('Home');
+			case 'pagination': return $this->_('Pagination');
 			case 'basedOn': return $this->_('based on ProcessWire %s'); // %s is the core version
 			case 'coloursFrom': return $this->_('colours from %s'); // %s is a link to AdminThemeBoss
 		}
@@ -2128,12 +2150,16 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			$class = "pw-nav-item pw-nav-item-top page-$id-";
 			// current section: the request URL lies under this item's URL (Pages, Setup, ...)
 			$current = (string) $this->wire()->input->url();
-			if(!empty($item['url']) && $item['url'] !== $this->wire()->urls->admin && strpos($current, $item['url']) === 0) $class .= ' pw-current';
+			$ariaCurrent = '';
+			if(!empty($item['url']) && $item['url'] !== $this->wire()->urls->admin && strpos($current, $item['url']) === 0) {
+				$class .= ' pw-current';
+				$ariaCurrent = " aria-current='true'"; // the section of this page (audit SU1)
+			}
 			// top level is text only, as Uikit and Boss render it
-			if(!count($children)) return "<li class='$class'><a href='$url'>$title</a></li>";
+			if(!count($children)) return "<li class='$class'><a href='$url'$ariaCurrent>$title</a></li>";
 			$my = in_array($item['name'], array('access', 'page', 'module'), true) ? 'left top' : 'left-1 top';
 			$out = "<li class='$class pw-nav-item-parent pw-dropdown'>" .
-				"<a href='$url' id='prnav-page-$id' data-from='prnav-page-$parentId' class='pw-dropdown-toggle'>$title</a>" .
+				"<a href='$url' id='prnav-page-$id' data-from='prnav-page-$parentId' class='pw-dropdown-toggle' aria-haspopup='true' aria-expanded='false'$ariaCurrent>$title</a>" .
 				"<ul class='pw-dropdown-menu prnav' data-my='$my' data-at='left bottom' style='display:none'>";
 			foreach($children as $child) $out .= $this->renderNavItem($child, $level + 1);
 			return $out . "</ul></li>";
@@ -2187,14 +2213,17 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		);
 		$attrs = '';
 		foreach($labels as $key => $label) $attrs .= " data-label-$key='" . $sanitizer->entities($label) . "'";
-		$out .= "<li class='pw-scheme-toggle'><a href='#' data-pw-scheme-toggle$attrs>" .
-			"<i class='fa fa-fw fa-adjust'></i><span class='pw-scheme-label'>" . $sanitizer->entities1($labels['auto']) . "</span></a></li>";
+		// the label of the configured scheme (scripts/main.js puts the user's own in its place; audit SU6)
+		$scheme = $this->getColorScheme();
+		$out .= "<li class='pw-scheme-toggle'><a href='#' role='button' data-pw-scheme-toggle$attrs>" .
+			"<i class='fa fa-fw fa-adjust' aria-hidden='true'></i><span class='pw-scheme-label'>" . $sanitizer->entities1($labels[$scheme] ?? $labels['auto']) . "</span></a></li>";
 		$name = $sanitizer->entities1($user->name);
-		// the name links to the profile when the user may edit it (touch: a second tap follows it)
-		$profile = $user->hasPermission('profile-edit') ? " href='" . $this->wire()->sanitizer->entities($this->wire()->urls->admin . 'profile/') . "'" : " href='#'";
+		// the name links to the profile when the user may edit it (touch: a second tap follows it);
+		// otherwise it only opens the menu, a button (audit SU2)
+		$profile = $user->hasPermission('profile-edit') ? " href='" . $this->wire()->sanitizer->entities($this->wire()->urls->admin . 'profile/') . "'" : " href='#' role='button'";
 		return
 			"<ul class='pw-user-nav'><li class='pw-dropdown'>" .
-			"<a id='tools-toggle' class='pw-dropdown-toggle'$profile>" .
+			"<a id='tools-toggle' class='pw-dropdown-toggle' aria-haspopup='true' aria-expanded='false'$profile>" .
 			$this->renderNavIcon('user') . $name . "</a>" .
 			"<ul class='pw-dropdown-menu' data-my='right top' data-at='right bottom' style='display:none'>$out</ul>" .
 			"</li></ul>";
@@ -2226,8 +2255,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$out = '';
 		if($extended) {
 			$treeUrl = $sanitizer->entities($this->wire()->urls->admin . 'page/');
-			$out .= "<li class='pw-breadcrumb-tree'><a href='$treeUrl' title='" .
-				$sanitizer->entities1($this->_('Page tree')) . "'>" . $this->renderIcon('sitemap') . "</a></li>";
+			// icon-only links: named for assistive technology, not by their title alone (audit SU8)
+			$treeLabel = $sanitizer->entities1($this->_('Page tree'));
+			$out .= "<li class='pw-breadcrumb-tree'><a href='$treeUrl' title='$treeLabel' aria-label='$treeLabel'>" . $this->renderIcon('sitemap') . "</a></li>";
 		}
 		$editPage = null;
 		if($isPageEdit) {
@@ -2262,15 +2292,17 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 					$p = isset($crumbPages[$id]) ? $crumbPages[$id] : $this->wire()->pages->get($id);
 					if($p->id && $p->editable()) {
 						$editUrl = $sanitizer->entities($p->editUrl());
+						$editLabel = $sanitizer->entities1($this->_('Edit')) . ': ' . $sanitizer->entities1(strip_tags($title));
 						$edit = "<a class='pw-breadcrumb-edit' href='$editUrl' title='" .
-							$sanitizer->entities1($this->_('Edit')) . "'>" . $this->renderIcon('pencil') . "</a>";
+							$sanitizer->entities1($this->_('Edit')) . "' aria-label='$editLabel'>" . $this->renderIcon('pencil') . "</a>";
 					}
 				}
 			}
 			$url = $sanitizer->entities($href);
 			$out .= "<li><a href='$url'>$title</a>$edit</li>";
 		}
-		return "<ul class='pw-breadcrumbs'>$out</ul>";
+		// a navigation landmark of its own (audit SU1); the list keeps its class for CSS and modules
+		return "<nav class='pw-breadcrumbs-nav' aria-label='" . $sanitizer->entities1($this->shellLabel('breadcrumbs')) . "'><ul class='pw-breadcrumbs'>$out</ul></nav>";
 	}
 
 	/**
@@ -2331,6 +2363,11 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$f->description = $this->_('Hex value such as #3584EA. Hover, tints and shadows are derived from it.');
 		$f->attr('placeholder', '#3584EA');
 		$f->attr('value', (string) $this->get('primaryColor'));
+		// a value the theme cannot use falls back to blue: say so (audit SU9)
+		$color = trim((string) $this->get('primaryColor'));
+		if($color !== '' && $this->getPrimaryColor() === '') {
+			$f->error(sprintf($this->_('Not a hex colour (#RRGGBB): %s. The blue preset is used instead.'), $color));
+		}
 		$f->showIf = 'variant=custom';
 		$f->columnWidth = 50;
 		$fs->add($f);

@@ -33,7 +33,7 @@ body.ProcessLogin #login_name, body.ProcessLogin #login_pass {
 	width: 100%;
 	padding: 6px 12px;
 	font-size: .875rem;
-	border: 1px solid var(--input);
+	border: 1px solid var(--pw-input-border);
 	border-radius: var(--radius-md);
 	background: var(--pw-input-bg);
 	color: var(--foreground);

@@ -7,15 +7,20 @@
 
 export type LightboxItem = { src: string; title?: string };
 
+import { label } from './labels';
+
+const attr = (s: string): string => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+
+
 let dialog: HTMLDialogElement | null = null;
 
 function build(): HTMLDialogElement {
 	const d = document.createElement('dialog');
 	d.className = 'pw-lightbox';
 	d.innerHTML = '<figure class="pw-lightbox-figure"><img alt=""><figcaption></figcaption></figure>' +
-		'<button type="button" class="pw-lightbox-prev" aria-label="Previous"><i class="fa fa-angle-left"></i></button>' +
-		'<button type="button" class="pw-lightbox-next" aria-label="Next"><i class="fa fa-angle-right"></i></button>' +
-		'<button type="button" class="pw-lightbox-close" aria-label="Close"><i class="fa fa-times"></i></button>';
+		`<button type="button" class="pw-lightbox-prev" aria-label="${attr(label('previous', 'Previous'))}"><i class="fa fa-angle-left"></i></button>` +
+		`<button type="button" class="pw-lightbox-next" aria-label="${attr(label('next', 'Next'))}"><i class="fa fa-angle-right"></i></button>` +
+		`<button type="button" class="pw-lightbox-close" aria-label="${attr(label('close', 'Close'))}"><i class="fa fa-times"></i></button>`;
 	document.body.appendChild(d);
 	d.addEventListener('click', e => {
 		const t = e.target as HTMLElement;

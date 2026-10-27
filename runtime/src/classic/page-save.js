@@ -164,7 +164,7 @@
 				busy = false;
 				setBusy(form, submitter, false);
 				if(confirmForm) form.classList.remove('InputfieldFormSubmitted');
-				var msg ='The save got no answer from the server. Check the page and save again if needed.';
+				var msg = ((ProcessWire.config.AdminThemeBridge || {}).labels || {}).saveNoAnswer || 'The save got no answer from the server. Check the page and save again if needed.';
 				if(window.ProcessWire && typeof ProcessWire.alert === 'function') ProcessWire.alert(msg); else window.alert(msg);
 			});
 	}

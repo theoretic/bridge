@@ -15,6 +15,7 @@
 
 import { legacyLoaded } from '../legacy';
 import { getCookie, setCookie } from '../util/cookie';
+import { keyButton } from '../util/keybutton';
 
 type Config = { activeTab?: number; liActiveClass?: string; labelOpen?: string; labelClose?: string; requestId?: string };
 
@@ -66,7 +67,8 @@ function setup(tabs: HTMLElement): void {
 		const toggle = document.createElement('span');
 		toggle.className = 'langTabsToggle';
 		toggle.title = cfg().labelOpen || '';
-		toggle.innerHTML = "<i class='fa fa-folder-o'></i>";
+		toggle.innerHTML = "<i class='fa fa-folder-o' aria-hidden='true'></i>";
+		keyButton(toggle, toggle.title); // from the keyboard too (audit R7)
 		header.appendChild(toggle);
 	}
 	const links = Array.from(tabs.querySelectorAll<HTMLElement>('a.langTabLink, a[data-lang]'));

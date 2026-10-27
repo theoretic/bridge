@@ -118,7 +118,7 @@ $themeCss = $themeDir . 'assets/dist/theme.css';
 check('theme.css built', is_file($themeCss));
 if(is_file($themeCss)) {
 	$css = file_get_contents($themeCss);
-	check('theme.css under 75 kB raw', strlen($css) < 75 * 1024, (string) strlen($css));
+	check('theme.css under 80 kB raw (the gzip budget in check-css.mjs is the binding one)', strlen($css) < 80 * 1024, (string) strlen($css));
 	check('theme.css under 15 kB gzip', strlen(gzencode($css, 9)) <= 15 * 1024, (string) strlen(gzencode($css, 9)));
 	check('theme.css is flat (no nesting left)', !preg_match('/[{;]\s*&/', $css));
 	// every font the stylesheet references ships next to it (none until Geist is self-hosted)
@@ -584,6 +584,27 @@ if(isset($bridge) && $bridge) {
 	}
 	check('PP3 both verdict caches load in one query', strpos($moduleSrc, 'protected function loadVerdicts()') !== false || strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), 'protected function loadVerdicts()') !== false);
 	check('PP8 the theme ships cache headers for versioned assets', is_file($themeDir . '.htaccess') && strpos((string) file_get_contents($themeDir . '.htaccess'), 'immutable') !== false);
+}
+
+// 0.10.0 (audit 2026-10-27, phase 4: UI and accessibility)
+if(isset($bridge) && $bridge) {
+	$masthead = (string) file_get_contents($themeDir . '_masthead.php');
+	check('SU1 skip link and a named main navigation', strpos($masthead, "class='pw-sr-only pw-skip-link' href='#main'") !== false && strpos($masthead, "id='pw-nav' aria-label=") !== false);
+	check('SU4 the search is a landmark with a named field', strpos($masthead, "role='search'") !== false);
+	foreach(array('mainNav', 'breadcrumbs', 'skip', 'search', 'home', 'pagination') as $key) {
+		check("shell label '$key' resolves", $bridge->shellLabel($key) !== $key);
+	}
+	foreach(array('toggle', 'previous', 'next', 'saveNoAnswer') as $key) {
+		check("runtime label '$key' exists", isset($bridge->runtimeLabels()[$key]));
+	}
+	$themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
+	check('U6 one reduced-motion rule for everything', strpos($themeCss, 'animation-iteration-count:1!important') !== false);
+	check('U1 form fields have their own border token', strpos($themeCss, '--pw-input-border: color-mix(') !== false);
+	check('U2 focusable elements get a ring', strpos($themeCss, ':focus-visible{outline:2px solid var(--ring)') !== false);
+	$rt = dirname(__DIR__) . '/runtime/src/';
+	check('R7 sortable lists move by Alt+arrow', strpos((string) file_get_contents($rt . 'util/sortable.ts'), "e.key !== 'ArrowUp' && e.key !== 'ArrowDown'") !== false);
+	check('R7 repeater controls and the language toggle are keyboard buttons', strpos((string) file_get_contents($rt . 'fields/repeater.ts'), 'keyButton(i, title)') !== false && strpos((string) file_get_contents($rt . 'inputfields/langtabs.ts'), 'keyButton(toggle') !== false);
+	check('U3 dropdown toggles report aria-expanded', strpos((string) file_get_contents($themeDir . 'scripts/main.js'), 'aria-expanded') !== false);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

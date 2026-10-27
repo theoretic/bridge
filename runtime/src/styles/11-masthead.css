@@ -46,7 +46,7 @@
 	width: 200px;
 	height: 32px;
 	padding: 0 12px 0 30px;
-	border: 1px solid var(--input);
+	border: 1px solid var(--pw-input-border);
 	border-radius: var(--radius-md);
 	background: var(--pw-input-bg);
 	color: var(--pw-text);
