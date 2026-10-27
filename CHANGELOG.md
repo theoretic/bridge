@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.11.1: light field borders again (2026-10-27)
+
+- **Text inputs, selects, textareas, the search box, the login fields, selectize and inline editors** have the light border they had before 0.10.0 again, the line of the WYSIWYG editors and buttons. 0.10.0 had darkened them to a 3:1 edge (WCAG 1.4.11); the owner prefers the lighter look. Field edges keep their own token, `--pw-input-border`, so a site that wants the stronger edge sets it alone (for example `color-mix(in srgb, var(--foreground) 45%, var(--background))` in its admin CSS). The darker muted text from 0.10.0 stays.
+
 ## AdminThemeBridge 0.11.0: interface scale, display controls, settings per user (2026-10-27)
 
 Asked for by the owner after the audit.
@@ -8,7 +12,6 @@ Asked for by the owner after the audit.
 - **The colour scheme switch** moved out of the user menu, next to the scale buttons, as an icon button that names the current scheme.
 - **Scale and scheme are kept per user, in each browser**: in `localStorage` under a key the server derives from the user id with the site's secret salt (`AdminThemeBridge::prefsKey()`, an HMAC), so two users of one browser keep their own settings and nothing in the key names the user. They apply before first paint, to dialog windows too, and a change shows at once in other tabs and open dialogs. The login screen uses the last user's settings in that browser. The old browser-wide scheme (`pwScheme`) is taken over once.
 - For module authors (`docs/contract.md` 4.0): the length tokens are rem; `ProcessWireAdminTheme.cssLength()` reads one in px; `pw-scale-change` fires on a scale change.
-- **Field borders are light again** (after 0.11.0 was tagged, unversioned): text inputs, selects, textareas, the search box, the login fields, selectize and inline editors have the line of the WYSIWYG editors and buttons, as before 0.10.0, which had darkened them to a 3:1 edge (WCAG 1.4.11). Field edges keep their own token, `--pw-input-border`, so a site that wants the stronger edge sets it alone (for example `color-mix(in srgb, var(--foreground) 45%, var(--background))`). The darker muted text from 0.10.0 stays.
 
 theme.css stays within its gzip budget (15,159 of 15,360 B): rem values compress as well as px.
 
