@@ -603,7 +603,7 @@ if(isset($bridge) && $bridge) {
 	}
 	$themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
 	check('U6 one reduced-motion rule for everything', strpos($themeCss, 'animation-iteration-count:1!important') !== false);
-	check('U1 form fields have their own border token', strpos($themeCss, '--pw-input-border: color-mix(') !== false);
+	check('U1 form fields have their own border token, light as the editors', strpos($themeCss, '--pw-input-border: var(--input)') !== false);
 	check('U2 focusable elements get a ring', strpos($themeCss, ':focus-visible{outline:2px solid var(--ring)') !== false);
 	$rt = dirname(__DIR__) . '/runtime/src/';
 	check('R7 sortable lists move by Alt+arrow', strpos((string) file_get_contents($rt . 'util/sortable.ts'), "e.key !== 'ArrowUp' && e.key !== 'ArrowDown'") !== false);

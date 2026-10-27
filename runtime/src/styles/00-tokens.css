@@ -131,8 +131,9 @@
 	--pw-surface: var(--card);
 	--pw-surface-2: var(--muted);
 	--pw-line: var(--border);
-	/* form fields: 3:1 against the page in both schemes (WCAG 1.4.11; --input stays for buttons) */
-	--pw-input-border: color-mix(in srgb, var(--foreground) 45%, var(--background));
+	/* form fields: the light line of the editors and buttons (the owner preferred it to the 3:1 edge
+	 * of 0.10.0); its own token, so a site can darken field edges alone */
+	--pw-input-border: var(--input);
 	--pw-text: var(--foreground);
 	--pw-text-muted: var(--muted-foreground);
 	--pw-link: var(--foreground);
