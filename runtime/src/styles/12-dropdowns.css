@@ -90,7 +90,7 @@
 /* hover bridge over the 4px gap between a menu and its flyout */
 .pw-dropdown-menu li > a.pw-has-items::before { content: ""; position: absolute; top: 0; bottom: 0; right: -10px; width: 10px; }
 .pw-dropdown-menu a.pw-has-items { padding-right: 28px; }
-.pw-dropdown-menu a.pw-has-items::after { content: "\f105"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font: 900 12px/1 "Font Awesome 6 Free"; color: var(--muted-foreground); }
+.pw-dropdown-menu a.pw-has-items::after { content: "\f105"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font: 900 12px/1 "Font Awesome 6 Free", FontAwesome; color: var(--muted-foreground); }
 .pw-dropdown-menu .pw-has-items-icon { display: none; }
 .pw-dropdown-menu li.add > a { color: var(--muted-foreground); }
 /* legacy shape: jQuery UI menu resets */

@@ -167,7 +167,9 @@ trait AdminThemeBridgeShell {
 
 	/**
 	 * Icon set: Font Awesome 6 with the v4 shims, as AdminThemeUikit does, so icon pickers
-	 * (field and template "icon" selects) offer the same list under both themes.
+	 * (field and template "icon" selects) offer the same list under both themes. Cores before
+	 * 3.0.265 never call this and load Font Awesome 4.7, so the theme's own glyphs (theme.css)
+	 * name the FontAwesome font as a fallback.
 	 *
 	 * @return array
 	 *

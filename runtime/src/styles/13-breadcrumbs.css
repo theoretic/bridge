@@ -11,7 +11,7 @@
 	color: var(--pw-text-muted);
 }
 .pw-breadcrumbs li { display: flex; align-items: center; }
-.pw-breadcrumbs li + li::before { content: "\f105"; margin: 0 10px; font: 900 10px/1 "Font Awesome 6 Free"; color: var(--muted-foreground); }
+.pw-breadcrumbs li + li::before { content: "\f105"; margin: 0 10px; font: 900 10px/1 "Font Awesome 6 Free", FontAwesome; color: var(--muted-foreground); }
 .pw-breadcrumbs a { color: var(--pw-text-muted); text-decoration: none; }
 .pw-breadcrumbs a:hover { color: var(--foreground); }
 .pw-breadcrumbs .pw-breadcrumb-tree a { color: var(--muted-foreground); }

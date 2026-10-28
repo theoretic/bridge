@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.11.7: arrows on cores before 3.0.265 (2026-10-28)
+
+- **Breadcrumb separators, submenu arrows and page tree carets show on cores before 3.0.265**: those cores have no `$config->adminIcons`, so the admin loads Font Awesome 4.7 and the theme's own glyphs, which named only the Font Awesome 6 font, came out as empty boxes. They now fall back to the Font Awesome 4 font, which has the same code points. Sites on 3.0.265 or later always got Font Awesome 6 and are unchanged.
+
 ## AdminThemeBridge 0.11.6: nesting on phones, FieldsetPage (2026-10-28)
 
 A sweep of every core field that nests (fieldsets in fieldsets, repeaters with depth in repeaters, FieldsetPage, page tables) and the core forms that nest fieldsets, at desktop and phone widths.

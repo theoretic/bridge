@@ -212,6 +212,9 @@ $faCssFile = glob($themeDir . 'assets/fonts/fa-*/fa.css');
 $faCssText = $faCssFile ? (string) file_get_contents($faCssFile[0]) : '';
 check('Font Awesome subsets carry a content hash', $faCssText === '' || (bool) preg_match('/url\(fa-solid-900-subset\.[0-9a-f]{8}\.woff2\)/', $faCssText));
 check('the last build listed its chunks (kept one more release)', is_file($themeDir . 'assets/dist/chunks.json'));
+// 0.11.7: cores before 3.0.265 have no $config->adminIcons and load Font Awesome 4.7 (family FontAwesome)
+$faFamilies = preg_match_all('/"Font Awesome 6 Free"(?!\s*,\s*FontAwesome)/', $themeCss, $m);
+check('theme glyphs fall back to Font Awesome 4 (FontAwesome)', $faFamilies === 0, (string) $faFamilies);
 // 0.8.7: one body observer, ownership by the stack (not by jQuery), placeholders, hand-over
 // (behaviour: native-check placeholder and foreign-jquery, lister-check M, repeater-check B)
 $observers = array();
