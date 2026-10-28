@@ -83,12 +83,23 @@
 .InputfieldRepeaterItem > .InputfieldHeader, .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader { padding: 10px var(--pw-field-pad); background: var(--muted); font-size: .875rem; line-height: 1.25rem; color: var(--foreground); text-overflow: ellipsis; }
 /* item controls show on hover upstream: also with keyboard focus inside, and always on touch */
 .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit:focus-within > .InputfieldRepeaterItemControls { opacity: 1 !important; }
-@media (hover: none) { .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit > .InputfieldRepeaterItemControls { opacity: 1 !important; } }
+/* there the controls sit beside the label instead of over it (upstream: absolute), or on a line of
+ * their own when the label would get less than 6em */
+@media (hover: none) {
+	.Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit { display: flex; flex-wrap: wrap; align-items: center; }
+	.Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader.InputfieldRepeaterHeaderInit > .InputfieldRepeaterItemControls { opacity: 1 !important; order: 1; display: flex; flex-direction: row-reverse; position: static; height: auto; margin: 0 0 0 auto; padding: 0 0 0 8px; }
+	.InputfieldRepeaterHeaderInit > :is(.InputfieldRepeaterItemControls, .InputfieldRepeaterDrag) { flex: none; }
+	.InputfieldRepeaterHeaderInit > .InputfieldRepeaterItemLabel { flex: 1 1 6em; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+}
 .InputfieldRepeaterItem.InputfieldStateCollapsed > .InputfieldHeader { border-radius: var(--radius-xl); }
 .InputfieldRepeaterItem > .InputfieldContent { padding-top: 12px; }
 /* nested items: the indent is the item's inline padding-left (upstream, Matrix too) inside the card,
  * so the card moves to the header and content (35-jqueryui.css; upstream clears the li background) */
 .Inputfields > .InputfieldRepeaterItemHasDepth { background: none; outline: 0; }
+/* FieldsetPage: one item whose header upstream hides; no card of its own, its fields sit in the
+ * field's card as in a fieldset */
+.InputfieldRepeaterSingle > .InputfieldContent > .Inputfields > .InputfieldRepeaterItem { background: none; outline: 0; }
+.InputfieldRepeaterSingle > .InputfieldContent > .Inputfields > .InputfieldRepeaterItem > .InputfieldContent { padding: 0; }
 .Inputfields > .InputfieldMarkup > .InputfieldContent > .pw-table, .Inputfields > .InputfieldMarkup > .InputfieldContent > .AdminDataTable { margin: 0 calc(var(--pw-field-pad) * -1) calc(var(--pw-field-pad-bottom) * -1); width: calc(100% + var(--pw-field-pad) * 2); max-width: none; }
 
 /* submit / button rows: no card */

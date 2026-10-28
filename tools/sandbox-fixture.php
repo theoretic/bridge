@@ -13,6 +13,9 @@
  * in the page editor, one custom tab, no children, so its editor loads no jQuery
  * (tools/page-edit-check.js opens it).
  *
+ * Also adds /bridge-nesting/ (template "bridge_nesting"): fieldsets in fieldsets, a repeater with
+ * depth holding a fieldset and a nested repeater with depth, a FieldsetPage in a tab.
+ *
  * Usage: php tools/sandbox-fixture.php /path/to/sandbox/root
  */
 
@@ -450,3 +453,116 @@ if(!$role->id) {
 	echo "ok   role bridge-fixture\n";
 }
 echo "ok   fixture role id {$role->id}\n";
+
+// nesting (/bridge-nesting/, template "bridge_nesting"): fieldsets in fieldsets (one collapsed),
+// columns inside them, a repeater with depth whose open items hold a fieldset and a nested
+// repeater with depth, and a FieldsetPage in a tab that holds that nested repeater too
+if(!$modules->isInstalled('FieldtypeFieldsetPage') && $modules->isInstallable('FieldtypeFieldsetPage')) {
+	$modules->install('FieldtypeFieldsetPage');
+	echo "ok   installed FieldtypeFieldsetPage\n";
+}
+$nestDefs = array(
+	'bn_text' => array('FieldtypeText', 'Nested text', array()),
+	'bn_col_a' => array('FieldtypeText', 'Column A', array('columnWidth' => 50)),
+	'bn_col_b' => array('FieldtypeInteger', 'Column B', array('columnWidth' => 50)),
+	'bn_textarea' => array('FieldtypeTextarea', 'Nested textarea', array('inputfieldClass' => 'InputfieldTextarea', 'rows' => 3)),
+	'bn_fs_outer' => array('FieldsetOpen', 'Fieldset outer', array()),
+	'bn_fs_inner' => array('FieldsetOpen', 'Fieldset inner', array()),
+	'bn_fs_collapsed' => array('FieldsetOpen', 'Fieldset collapsed', array('collapsed' => Inputfield::collapsedYes)),
+	'bn_tab' => array('FieldsetTabOpen', 'Nesting tab', array()),
+);
+foreach($nestDefs as $name => $def) {
+	list($type, $label, $settings) = $def;
+	$f = $fields->get($name);
+	if(!$f) {
+		$f = new Field();
+		$f->type = $modules->get(strpos($type, 'Fieldtype') === 0 ? $type : "Fieldtype$type");
+		$f->name = $name;
+		$f->label = $label;
+		foreach($settings as $k => $v) $f->set($k, $v);
+		$fields->save($f);
+		echo "ok   field $name\n";
+	}
+	if(strpos($type, 'Fieldset') !== false && !$fields->get("{$name}_END")) {
+		$f->type->getFieldsetCloseField($f, true);
+		echo "ok   field {$name}_END\n";
+	}
+}
+$makeRepeater = function($name, $label, $type, array $names, $depth) use($fields, $modules) {
+	$f = $fields->get($name);
+	if($f) return $f;
+	if(!$modules->isInstalled($type)) return null;
+	$f = new Field();
+	$f->type = $modules->get($type);
+	$f->name = $name;
+	$f->label = $label;
+	if($type === 'FieldtypeRepeater') {
+		$f->set('repeaterDepth', $depth);
+		$f->set('repeaterLoading', 2); // rendered with the page, no AJAX
+		$f->set('repeaterCollapse', 3); // items open
+	}
+	$fields->save($f);
+	$rtpl = $f->type->_getRepeaterTemplate($f);
+	$ids = array();
+	foreach($names as $n) {
+		$rtpl->fieldgroup->add($fields->get($n));
+		$ids[] = $fields->get($n)->id;
+	}
+	$rtpl->fieldgroup->save();
+	$f->set('repeaterFields', $ids);
+	$fields->save($f);
+	echo "ok   field $name\n";
+	return $f;
+};
+$makeRepeater('bn_rep_inner', 'Inner repeater', 'FieldtypeRepeater', array('bn_text', 'bn_col_a', 'bn_col_b'), 2);
+$makeRepeater('bn_rep_outer', 'Outer repeater', 'FieldtypeRepeater', array('bn_text', 'bn_col_a', 'bn_col_b',
+	'bn_fs_inner', 'bn_textarea', 'bn_fs_inner_END', 'bn_rep_inner'), 2);
+$makeRepeater('bn_fsp', 'Fieldset page', 'FieldtypeFieldsetPage', array('bn_text', 'bn_rep_inner'), 0);
+$btpl = $makeTemplate('bridge_nesting', array('title',
+	'bn_fs_outer', 'bn_text', 'bn_fs_inner', 'bn_col_a', 'bn_col_b', 'bn_fs_collapsed', 'bn_textarea', 'bn_fs_collapsed_END',
+	'bn_fs_inner_END', 'bn_fs_outer_END',
+	'bn_rep_outer', 'bn_tab', 'bn_fsp', 'bn_tab_END'), array('noChildren' => 1));
+$bpage = $pages->get('/bridge-nesting/');
+if(!$bpage->id) {
+	$bpage = new Page();
+	$bpage->template = $btpl;
+	$bpage->parent = $pages->get('/');
+	$bpage->name = 'bridge-nesting';
+	$bpage->title = 'Bridge nesting';
+	$bpage->addStatus(Page::statusHidden);
+	$bpage->save();
+	echo "ok   page /bridge-nesting/\n";
+}
+$bpage->of(false);
+$fillInner = function(Page $item) {
+	foreach(array(array('Inner parent', 0), array('Inner child', 1)) as $def) {
+		$in = $item->bn_rep_inner->getNew();
+		$in->bn_text = $def[0];
+		$in->setDepth($def[1]);
+		$in->save();
+		$item->bn_rep_inner->add($in);
+	}
+};
+if($btpl->hasField('bn_rep_outer') && !$bpage->bn_rep_outer->count()) {
+	foreach(array(array('Outer parent', 0), array('Outer child', 1), array('Outer grandchild', 2)) as $def) {
+		$item = $bpage->bn_rep_outer->getNew();
+		$item->of(false);
+		$item->bn_text = $def[0];
+		$item->setDepth($def[1]);
+		$item->save();
+		$fillInner($item);
+		$item->save();
+		$bpage->bn_rep_outer->add($item);
+	}
+}
+if($btpl->hasField('bn_fsp')) {
+	$fsp = $bpage->bn_fsp;
+	if($fsp && $fsp->id && !$fsp->bn_rep_inner->count()) {
+		$fsp->of(false);
+		$fsp->bn_text = 'Inside a fieldset page';
+		$fillInner($fsp);
+		$fsp->save();
+	}
+}
+$bpage->save();
+echo "ok   nesting page id {$bpage->id}\n";

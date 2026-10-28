@@ -47,7 +47,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.11.5',
+			'version' => '0.11.6',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',

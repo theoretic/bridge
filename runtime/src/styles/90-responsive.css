@@ -48,9 +48,19 @@
 	.Inputfields > .InputfieldColumnWidth { width: 100% !important; }
 	#pw-content-head-buttons { float: none; margin: 0 0 10px; justify-content: flex-start; }
 	:root { --pw-field-pad: 16px; --pw-field-pad-bottom: 18px; }
-	.InputfieldHeader { padding: 16px 10px 8px 16px; }
+	.InputfieldHeader { padding: 16px 10px 8px var(--pw-field-pad); }
 	/* #main keeps its top padding: it is the notices band (10-layout.css) */
 	.pw-container, #notices { padding: 0 12px; }
+	/* nested cards (fieldsets, repeater items, their fields) keep less padding, and repeater depth
+	 * steps 16px instead of the 50px the runtime and upstream write inline */
+	:is(.InputfieldFieldset:not(.WireTab), .InputfieldItemList) .Inputfields { --pw-field-pad: 10px; --pw-field-pad-bottom: 12px; }
+	.InputfieldRepeaterItem[data-depth="1"] { padding-left: 16px !important; }
+	.InputfieldRepeaterItem[data-depth="2"] { padding-left: 32px !important; }
+	.InputfieldRepeaterItem[data-depth="3"] { padding-left: 48px !important; }
+	.InputfieldRepeaterItem[data-depth="4"] { padding-left: 64px !important; }
+	.InputfieldRepeaterItem[data-depth="5"] { padding-left: 80px !important; }
+	/* checkbox tables (a role's template permissions) wrap their labels (upstream: nowrap) */
+	.InputfieldCheckboxes table label { white-space: normal; }
 }
 
 /* the drawer also when the top bar does not fit its items (seven or eight sections, 200 % zoom):

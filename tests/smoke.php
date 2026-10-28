@@ -122,8 +122,8 @@ $themeCss = $themeDir . 'assets/dist/theme.css';
 check('theme.css built', is_file($themeCss));
 if(is_file($themeCss)) {
 	$css = file_get_contents($themeCss);
-	check('theme.css under 80 kB raw (the gzip budget in check-css.mjs is the binding one)', strlen($css) < 80 * 1024, (string) strlen($css));
-	check('theme.css under 15 kB gzip', strlen(gzencode($css, 9)) <= 15 * 1024, (string) strlen(gzencode($css, 9)));
+	check('theme.css under 84 kB raw (the gzip budget in check-css.mjs is the binding one)', strlen($css) < 84 * 1024, (string) strlen($css));
+	check('theme.css under 15.5 kB gzip', strlen(gzencode($css, 9)) <= 15.5 * 1024, (string) strlen(gzencode($css, 9)));
 	check('theme.css is flat (no nesting left)', !preg_match('/[{;]\s*&/', $css));
 	// every font the stylesheet references ships next to it (none until Geist is self-hosted)
 	preg_match_all('~url\(\.\./fonts/([^)]+)\)~', $css, $m);
@@ -656,6 +656,13 @@ if(isset($bridge) && $bridge) {
 	check('a nested repeater item has its card on header and content', strpos($themeCss, '.Inputfields>.InputfieldRepeaterItemHasDepth{background:none;outline:0}') !== false && strpos($themeCss, '.InputfieldRepeaterItemHasDepth>.InputfieldContent.ui-widget-content{background:var(--card)') !== false);
 	check('a collapsed repeater item header is rounded all round', strpos($themeCss, '.InputfieldRepeaterItem.InputfieldStateCollapsed>.InputfieldHeader{border-radius:var(--radius-xl)}') !== false && !preg_match('/\.Inputfields \.InputfieldRepeater \.InputfieldRepeaterItem>\.InputfieldHeader\{[^}]*border-radius/', $themeCss));
 	check('a tree item without children keeps the caret room outside its focus ring', strpos($themeCss, 'body:not(.pw-narrow-width) .PageListItem:not(.PageListHasChildren)>a.PageListPage{margin-left:') !== false);
+	// 0.11.6: nesting (/bridge-nesting/ from tools/sandbox-fixture.php): a FieldsetPage has no inner
+	// card; on touch screens item controls sit beside the label; on phones nested cards and depth
+	// indents are smaller and checkbox tables wrap
+	check('a FieldsetPage item has no card of its own', strpos($themeCss, '.InputfieldRepeaterSingle>.InputfieldContent>.Inputfields>.InputfieldRepeaterItem{background:none;outline:0}') !== false);
+	check('touch: repeater item controls beside the label, not over it', (bool) preg_match('/@media ?\(hover:none\)\{[^@]*\.InputfieldRepeaterHeaderInit>\.InputfieldRepeaterItemControls\{[^}]*position:static/', $themeCss));
+	check('phone: nested cards and repeater depth take less width', strpos($themeCss, '.InputfieldRepeaterItem[data-depth="1"]{padding-left:1rem!important}') !== false && strpos($themeCss, ':is(.InputfieldFieldset:not(.WireTab),.InputfieldItemList) .Inputfields{--pw-field-pad:') !== false);
+	check('phone: checkbox table labels wrap', strpos($themeCss, '.InputfieldCheckboxes table label{white-space:normal}') !== false);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

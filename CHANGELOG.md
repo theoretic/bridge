@@ -1,5 +1,16 @@
 # Changelog
 
+## AdminThemeBridge 0.11.6: nesting on phones, FieldsetPage (2026-10-28)
+
+A sweep of every core field that nests (fieldsets in fieldsets, repeaters with depth in repeaters, FieldsetPage, page tables) and the core forms that nest fieldsets, at desktop and phone widths.
+
+- **FieldsetPage has no frame inside its frame**: its single item, whose header upstream hides, drew a card of its own with no label; its fields now sit in the field's card as in a fieldset.
+- **Repeater item controls no longer cover the label on touch screens**, where they always show: they sit beside the label, which shortens with an ellipsis, or on a line of their own when the label would get less than 6em. Mouse screens keep upstream's controls on hover.
+- **Deep nesting keeps usable widths on phones**: cards inside fieldsets and repeaters keep 10px of padding instead of 16px, and each repeater depth level indents 16px instead of 50px (the inline indent, written by the runtime and by upstream, is overridden). At the deepest point of the new fixture, inputs went from 37px to full width.
+- **Checkbox tables wrap their labels on phones**: a role's template permissions ran past their card, since upstream keeps those labels on one line.
+- The theme.css gzip budget is 15.5 KiB (was 15 KiB).
+- `tools/sandbox-fixture.php` adds `/bridge-nesting/`: fieldsets in fieldsets with columns and a collapsed one, a repeater with depth whose items hold a fieldset and a nested repeater with depth, and a FieldsetPage holding that repeater in a tab.
+
 ## AdminThemeBridge 0.11.5: nested repeater items, even tree focus ring (2026-10-28)
 
 - **Nested repeater items start at their indent**: the depth indent is the item's inline left padding (upstream's, Repeater Matrix's too), which sat inside the card, so the frame spanned the full width with an empty strip on the left. An item with depth now draws its card on the header and content instead, as upstream clears the item's background for the same reason.
