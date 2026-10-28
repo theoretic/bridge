@@ -290,8 +290,8 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 		} else if (e.key === 'Enter' || (e.key === 'Tab' && open && active > -1)) {
 			if (e.key === 'Enter') e.preventDefault(); // never submit the form from here
 			if (open && active > -1 && opts[active]) {
+				// Tab takes the highlighted option and still moves on: it never keeps the focus here
 				const opt = opts[active];
-				if (e.key === 'Tab') e.preventDefault();
 				add(opt.getAttribute('data-value') || '', opt.classList.contains('create') ? undefined : opt.textContent || undefined);
 			} else if (canCreate(text.value.trim())) {
 				add(text.value.trim());

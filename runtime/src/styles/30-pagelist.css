@@ -36,8 +36,16 @@
 
 .PageListSortPlaceholder { background: var(--pw-primary-bg); outline: 1px dashed var(--pw-primary-40); }
 .PageListSorting .PageListSortItem > a.PageListPage { color: var(--pw-primary); }
-.PageListSelectHeader .PageListSelectName { color: var(--pw-h1); }
+.PageListSelectHeader .PageListSelectName { color: var(--pw-h1); padding-right: 8px; }
+/* the page's label as the tree prints it: its icon, the title, status icons (the lock) */
+.PageListSelectName i.icon { margin-right: .4em; }
+.PageListSelectName .PageListStatusIcon { margin-left: .4em; color: var(--pw-text-muted); }
 .PageListSelectActionToggle { color: var(--pw-primary); }
+/* Change / Add / Cancel and the chosen pages of the multiple variant line up with the label:
+ * no list indent, no separator (ProcessPageList.css draws one before each action) */
+.PageListSelectHeader .PageListActions { padding: 0; margin: 0; }
+.PageListSelectHeader .PageListActions > li { border: 0; padding: 0; margin: 0; }
+.InputfieldPageListSelectMultiple ol { padding: 0; }
 
 .PageList .PageListMoveNote { cursor: move; }
 .PageList .PageListPlaceholder .PageListPlaceholderItem { padding: 0; border: 0; }
@@ -49,6 +57,11 @@ body:not(.pw-narrow-width) .PageList .PageListItemOpen.PageListHasChildren > a.P
  * no frame); only the deepest open branch, so scroll areas never nest. --pw-branch-max fits it to
  * the space below its top (setupTreeFit in scripts/main.js) */
 .PageListRoot .PageList:not(:has(.PageList)) { max-height: var(--pw-branch-max, calc(100vh - var(--pw-masthead-h) - 40px)); overflow: hidden auto; scrollbar-width: thin; }
+/* that overflow clips whatever reaches past the branch's left edge, the keyboard focus ring of its
+ * items included: the branch keeps 4px for it, taken back from its indent */
+.PageListRoot > .PageList:not(:has(.PageList)):not(.pw-branch-scrolls) { padding-left: 4px; margin-left: -4px; }
+.PageList .PageList:not(:has(.PageList)):not(.pw-branch-scrolls) { padding-left: 4px; margin-left: calc(2em - 4px); }
+.PageList a.PageListPage:focus-visible { border-radius: var(--radius-sm); }
 /* while an item is dragged (upstream's sortable helper, or the runtime's) no branch clips it (C15) */
 .PageListRoot:has(.ui-sortable-helper, .PageListSortPlaceholder) .PageList { max-height: none; overflow: visible; }
 /* a branch that does scroll (.pw-branch-scrolls, set by the script) has its scrollbar on the left,

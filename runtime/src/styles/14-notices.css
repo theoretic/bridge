@@ -42,6 +42,13 @@ body:not(.modal):not(.ProcessLogin):not(:has(> #notices.pw-notices-fixed)):has(>
 body.pw-notices-static:not(.modal):not(.ProcessLogin):not(:has(> #notices.pw-notices-fixed)) #main {
 	padding-top: calc(var(--pw-notice-gap) - 6px);
 }
+/* A screen that came without notices needs no band: the empty list core prints is the sign (closing
+ * notices removes the whole list, so the band stays then and the page does not move). Kept on the
+ * screens whose save swaps the notices in without a reload (scripts/page-save.js RULES), where the
+ * "Saved" notice would push the page down. A client-side notice (util/notice.ts) brings it back. */
+body:not(.modal):not(.ProcessLogin):has(> #notices:empty):not(:has(:is(#ProcessPageEdit, #ProcessFieldEdit, #ProcessTemplateEdit, #ModuleEditForm, #ProcessProfile))) #main {
+	padding-top: calc(4 * var(--pw-notice-gap));
+}
 /* Notices that arrived while the top of the page was scrolled away (scripts/main.js
  * setupNoticeFloat): fixed just below the sticky masthead, out of the flow, so the band keeps its
  * place; a long list scrolls inside itself. Gone with the list, or when the page is back at the top. */

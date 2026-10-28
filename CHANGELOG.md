@@ -1,5 +1,13 @@
 # Changelog
 
+## AdminThemeBridge 0.11.4: tree focus, Tab in tag fields, smaller notice band (2026-10-28)
+
+- **The page tree's keyboard focus ring is whole and rounded**: a branch that limits its height clipped the ring's left side; it now keeps 4px for it, taken back from its indent, so rows do not move.
+- **Tab leaves a tag field** (InputfieldTextTags, and the tags of file and image fields): with an option highlighted it still takes it, then moves on to the next field instead of keeping the focus.
+- **A screen without notices has a narrow band** above the title (Setup, the page tree, listings): 32px instead of the reserved notice row. Closing or auto-hiding notices keeps the band, so the page never jumps; the page, field, template, module and profile editors keep it too, since their save brings the "Saved" notice in without a reload.
+- **InputfieldPageListSelect**: the page's icon and status icons have room around the title, and Change no longer has a separator and a gap before it. **InputfieldPageListSelectMultiple**: the chosen pages and Add line up with the label (no list indent).
+- **Sort arrows on table headers** are visible before a column is sorted.
+
 ## AdminThemeBridge 0.11.3: the menu toggle next to the logo (2026-10-27)
 
 - **The menu toggle sits next to the logo** on small screens and whenever the top bar folds into the drawer, instead of at the right beside the display controls; the controls, user menu and search stay on the right.

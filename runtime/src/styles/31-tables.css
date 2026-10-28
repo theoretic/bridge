@@ -32,7 +32,7 @@ table.AdminDataList tr td:first-child a { color: var(--foreground); font-weight:
 /* sortable headers (datatable.ts, upstream tablesorter): an arrow, dim until the column is sorted */
 .tablesorter-header { cursor: pointer; }
 .tablesorter-header:hover { color: var(--foreground); }
-.tablesorter-header:not(.sorter-false)::after { content: "\2195"; margin-left: 4px; opacity: .35; }
+.tablesorter-header:not(.sorter-false)::after { content: "\2195"; margin-left: 4px; opacity: .7; }
 .tablesorter-header.tablesorter-headerAsc::after { content: "\2191"; opacity: 1; }
 .tablesorter-header.tablesorter-headerDesc::after { content: "\2193"; opacity: 1; }
 .tablesorter-header.sorter-false { cursor: default; }

@@ -643,6 +643,14 @@ if(isset($bridge) && $bridge) {
 	check('the theme script keeps prefs, scale and a rem-aware length reader', strpos($mainJs, 'pwPrefs.last') !== false && strpos($mainJs, 'data-pw-scale') !== false && strpos($mainJs, 'cssLength') !== false);
 	// the drawer's menu toggle sits next to the logo; the right-hand controls take the free space
 	check('the menu toggle sits next to the logo', !preg_match('/\.pw-nav-toggle\{[^}]*margin-left:auto/', $themeCss) && strpos($themeCss, 'body.pw-nav-overflow .pw-masthead-right{margin-left:auto}') !== false);
+	// 0.11.4: the tree's focus ring fits its clipping branch; a screen without notices has a
+	// narrow band; PageListSelect without list indent; sort arrows visible; Tab leaves a tag input
+	check('a clipping tree branch keeps room for the focus ring', strpos($themeCss, '.PageList .PageList:not(:has(.PageList)):not(.pw-branch-scrolls){padding-left:.25rem;margin-left:calc(2em - .25rem)}') !== false && strpos($themeCss, 'a.PageListPage:focus-visible{border-radius:') !== false);
+	check('no notices: a narrow band, except where a save swaps notices in', (bool) preg_match('/:has\(>#notices:empty\):not\(:has\(:is\(#ProcessPageEdit,[^)]*#ProcessProfile\)\)\) #main\{padding-top:/', $themeCss));
+	check('PageListSelect actions and chosen pages without list indent', strpos($themeCss, '.PageListSelectHeader .PageListActions>li{border:0;padding:0;margin:0}') !== false && strpos($themeCss, '.InputfieldPageListSelectMultiple ol{padding:0}') !== false);
+	check('unsorted column arrows are visible', (bool) preg_match('/\.tablesorter-header:not\(\.sorter-false\):after\{[^}]*opacity:\.7/', $themeCss));
+	$tagsSrc = dirname(__DIR__) . '/runtime/src/fields/texttags.ts';
+	if(is_file($tagsSrc)) check('Tab in a tag input takes the option and moves on', strpos((string) file_get_contents($tagsSrc), "if (e.key === 'Tab') e.preventDefault()") === false);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
