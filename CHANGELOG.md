@@ -1,5 +1,11 @@
 # Changelog
 
+## AdminThemeBridge 0.11.5: nested repeater items, even tree focus ring (2026-10-28)
+
+- **Nested repeater items start at their indent**: the depth indent is the item's inline left padding (upstream's, Repeater Matrix's too), which sat inside the card, so the frame spanned the full width with an empty strip on the left. An item with depth now draws its card on the header and content instead, as upstream clears the item's background for the same reason.
+- **Collapsed repeater item headers are rounded all round**: a more specific header rule kept their bottom corners square.
+- **The page tree's focus ring is even on items without children**: they kept the caret's room inside the link, so the ring had a wide left side; it is now a margin outside the link, and labels still line up.
+
 ## AdminThemeBridge 0.11.4: tree focus, Tab in tag fields, smaller notice band (2026-10-28)
 
 - **The page tree's keyboard focus ring is whole and rounded**: a branch that limits its height clipped the ring's left side; it now keeps 4px for it, taken back from its indent, so rows do not move.

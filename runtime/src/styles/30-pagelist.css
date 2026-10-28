@@ -49,9 +49,10 @@
 
 .PageList .PageListMoveNote { cursor: move; }
 .PageList .PageListPlaceholder .PageListPlaceholderItem { padding: 0; border: 0; }
-/* open/closed caret on items with children (Uikit pw-page-list.less) */
-body:not(.pw-narrow-width) .PageList .PageListItem > a.PageListPage::before { content: ""; display: inline-block; width: 10px; margin-right: 4px; font: 900 12px/1 "Font Awesome 6 Free"; color: var(--pw-text-muted); }
-body:not(.pw-narrow-width) .PageList .PageListHasChildren:not(.PageListItemOpen) > a.PageListPage::before { content: "\f105"; }
+/* open/closed caret on items with children (Uikit pw-page-list.less); other items keep its room as a
+ * margin, outside their focus ring */
+body:not(.pw-narrow-width) .PageListItem:not(.PageListHasChildren) > a.PageListPage { margin-left: 14px; }
+body:not(.pw-narrow-width) .PageList .PageListHasChildren > a.PageListPage::before { content: "\f105"; display: inline-block; width: 10px; margin-right: 4px; font: 900 12px/1 "Font Awesome 6 Free"; color: var(--pw-text-muted); }
 body:not(.pw-narrow-width) .PageList .PageListItemOpen.PageListHasChildren > a.PageListPage::before { content: "\f107"; }
 /* a branch that would run past the bottom of the screen scrolls like a dropdown menu (thin bar,
  * no frame); only the deepest open branch, so scroll areas never nest. --pw-branch-max fits it to

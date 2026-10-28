@@ -80,12 +80,15 @@
 /* as specific as upstream InputfieldRepeater.css (.Inputfields .InputfieldRepeater
  * .InputfieldRepeaterItem > .InputfieldHeader), which otherwise wins with its own padding and
  * line-height (audit C10); a long label ends in an ellipsis */
-.InputfieldRepeaterItem > .InputfieldHeader, .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader { padding: 10px var(--pw-field-pad); background: var(--muted); border-radius: var(--radius-xl) var(--radius-xl) 0 0; font-size: .875rem; line-height: 1.25rem; color: var(--foreground); text-overflow: ellipsis; }
+.InputfieldRepeaterItem > .InputfieldHeader, .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader { padding: 10px var(--pw-field-pad); background: var(--muted); font-size: .875rem; line-height: 1.25rem; color: var(--foreground); text-overflow: ellipsis; }
 /* item controls show on hover upstream: also with keyboard focus inside, and always on touch */
 .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit:focus-within > .InputfieldRepeaterItemControls { opacity: 1 !important; }
 @media (hover: none) { .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit > .InputfieldRepeaterItemControls { opacity: 1 !important; } }
 .InputfieldRepeaterItem.InputfieldStateCollapsed > .InputfieldHeader { border-radius: var(--radius-xl); }
 .InputfieldRepeaterItem > .InputfieldContent { padding-top: 12px; }
+/* nested items: the indent is the item's inline padding-left (upstream, Matrix too) inside the card,
+ * so the card moves to the header and content (35-jqueryui.css; upstream clears the li background) */
+.Inputfields > .InputfieldRepeaterItemHasDepth { background: none; outline: 0; }
 .Inputfields > .InputfieldMarkup > .InputfieldContent > .pw-table, .Inputfields > .InputfieldMarkup > .InputfieldContent > .AdminDataTable { margin: 0 calc(var(--pw-field-pad) * -1) calc(var(--pw-field-pad-bottom) * -1); width: calc(100% + var(--pw-field-pad) * 2); max-width: none; }
 
 /* submit / button rows: no card */

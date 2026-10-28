@@ -15,6 +15,10 @@
 	font-weight: 400;
 }
 .Inputfield.InputfieldRepeaterItem > .InputfieldHeader { color: var(--pw-h1); }
+/* nested repeater items: the card on the header and content, after the reset above */
+.InputfieldRepeaterItemHasDepth > .InputfieldHeader.ui-widget-header, .InputfieldRepeaterItemHasDepth > .InputfieldContent.ui-widget-content { border: 1px solid var(--border); }
+.InputfieldRepeaterItemHasDepth:not(.InputfieldStateCollapsed) > .InputfieldHeader { border-bottom: 0; }
+.InputfieldRepeaterItemHasDepth > .InputfieldContent.ui-widget-content { background: var(--card); border-top: 0; border-radius: 0 0 var(--radius-xl) var(--radius-xl); }
 .ui-widget-content:where(:not(.ui-dialog)) { background: var(--card); border-color: var(--border); color: var(--pw-text); }
 .ui-slider.ui-widget-content { background: var(--muted); }
 .ui-widget-content a { color: var(--pw-link); }

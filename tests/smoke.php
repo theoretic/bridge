@@ -651,6 +651,11 @@ if(isset($bridge) && $bridge) {
 	check('unsorted column arrows are visible', (bool) preg_match('/\.tablesorter-header:not\(\.sorter-false\):after\{[^}]*opacity:\.7/', $themeCss));
 	$tagsSrc = dirname(__DIR__) . '/runtime/src/fields/texttags.ts';
 	if(is_file($tagsSrc)) check('Tab in a tag input takes the option and moves on', strpos((string) file_get_contents($tagsSrc), "if (e.key === 'Tab') e.preventDefault()") === false);
+	// 0.11.5: nested repeater items draw their card from the indent; collapsed item headers are
+	// rounded all round; tree items without children keep the caret's room outside the focus ring
+	check('a nested repeater item has its card on header and content', strpos($themeCss, '.Inputfields>.InputfieldRepeaterItemHasDepth{background:none;outline:0}') !== false && strpos($themeCss, '.InputfieldRepeaterItemHasDepth>.InputfieldContent.ui-widget-content{background:var(--card)') !== false);
+	check('a collapsed repeater item header is rounded all round', strpos($themeCss, '.InputfieldRepeaterItem.InputfieldStateCollapsed>.InputfieldHeader{border-radius:var(--radius-xl)}') !== false && !preg_match('/\.Inputfields \.InputfieldRepeater \.InputfieldRepeaterItem>\.InputfieldHeader\{[^}]*border-radius/', $themeCss));
+	check('a tree item without children keeps the caret room outside its focus ring', strpos($themeCss, 'body:not(.pw-narrow-width) .PageListItem:not(.PageListHasChildren)>a.PageListPage{margin-left:') !== false);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
