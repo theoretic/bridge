@@ -9,7 +9,7 @@
 	color: var(--foreground);
 }
 .Inputfield .selectize-control .selectize-input.items.focus,
-.Inputfield .selectize-control.single .selectize-input.items.focus { border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-50); }
+.Inputfield .selectize-control.single .selectize-input.items.focus { border-color: var(--ring); box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
 .Inputfield .selectize-control .selectize-input.items.dropdown-active::before { background: var(--border); }
 .selectize-control .selectize-input input { color: var(--foreground); }
 .selectize-control .selectize-input input::placeholder { color: var(--muted-foreground); }

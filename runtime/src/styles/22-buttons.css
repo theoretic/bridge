@@ -22,7 +22,7 @@
 	transition: background var(--pw-transition), color var(--pw-transition), box-shadow var(--pw-transition);
 }
 .ui-button:hover, .pw-button:hover { background: var(--pw-primary-hover); color: var(--primary-foreground); box-shadow: var(--shadow-xs); }
-.ui-button:focus-visible, .pw-button:focus-visible { outline: 0; box-shadow: 0 0 0 3px var(--ring-50); }
+.ui-button:focus-visible, .pw-button:focus-visible { outline: 0; box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
 .ui-button .ui-button-text { padding: 0; line-height: inherit; display: inline; }
 .ui-button .fa, .pw-button .fa { margin-right: 6px; font-size: inherit; }
 /* secondary priority = Basecoat outline */
@@ -52,7 +52,7 @@
 }
 .pw-button-dropdown-wrap .ui-button { box-shadow: none; }
 /* the rule above took the focus ring off both halves of a split button (audit C17) */
-.pw-button-dropdown-wrap .ui-button:focus-visible { position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--ring-50); }
+.pw-button-dropdown-wrap .ui-button:focus-visible { position: relative; z-index: 1; box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
 /* until the theme script runs (body.pw-init, core AdminThemeFramework), as AdminThemeUikit's
  * pw-init.less: the button menus are not shown as lists (audit C2) */
 body.pw-init .pw-button-dropdown { display: none; }

@@ -9,7 +9,7 @@
 html .InputfieldToggleGroup label { background-color: var(--pw-input-bg); border-color: var(--input); color: var(--muted-foreground); }
 html .InputfieldToggleGroup label.InputfieldToggleCurrent, html .InputfieldToggleGroup input:checked + label { background-color: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
 html .InputfieldToggleGroup label:not(.InputfieldToggleCurrent):hover, html .InputfieldToggleGroup input:not(:checked) + label:not(.InputfieldToggleCurrent):hover { background-color: var(--accent); color: var(--accent-foreground); }
-html .InputfieldToggleGroup input:focus-visible + label { box-shadow: 0 0 0 3px var(--ring-50); }
+html .InputfieldToggleGroup input:focus-visible + label { box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
 
 /* InputfieldIcon picker */
 .InputfieldIconItem:hover, .InputfieldIconItem:active::after { background: var(--accent); color: var(--accent-foreground); }
@@ -17,9 +17,9 @@ html .InputfieldToggleGroup input:focus-visible + label { box-shadow: 0 0 0 3px 
 
 /* rich-text inline frames (classic editors: 20-ckeditor.css, 21-tinymce.css) */
 .InputfieldForm .InputfieldCKEditorInline { background: var(--pw-input-bg); border: 1px solid var(--pw-input-border); border-radius: var(--radius-md); }
-.InputfieldForm div.cke_editable_inline.cke_focus { border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-50); outline: 0; }
+.InputfieldForm div.cke_editable_inline.cke_focus { border-color: var(--ring); box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); outline: 0; }
 .InputfieldTinyMCE .InputfieldTinyMCEInline, .InputfieldTinyMCEPlaceholder { border: 1px solid var(--pw-input-border); border-radius: var(--radius-md); background: var(--pw-input-bg); }
-.InputfieldTinyMCE .InputfieldTinyMCEInline.mce-edit-focus { outline: 0; border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-50); }
+.InputfieldTinyMCE .InputfieldTinyMCEInline.mce-edit-focus { outline: 0; border-color: var(--ring); box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
 
 /* page list: the item being moved */
 .PageListSortItem > a.PageListPage { background: var(--pw-highlight); }

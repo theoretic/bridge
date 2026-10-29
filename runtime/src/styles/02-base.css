@@ -49,6 +49,9 @@ body.AdminThemeBridge .detail, body.AdminThemeBridge .notes, body.AdminThemeBrid
 .pw-clearfix::after, .ui-helper-clearfix::after { content: ""; display: table; clear: both; }
 /* keyboard focus on links and other focusable elements without a ring of their own (audit U2);
  * low specificity: controls and components keep theirs */
-:where(a, summary, [tabindex]:not(th, [tabindex="-1"])):focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+:where(a, summary, [tabindex]:not(th, [tabindex="-1"])):focus-visible { outline: var(--ring-width) solid var(--ring); outline-offset: 2px; }
 /* the skip link: hidden until focused (audit SU1) */
 .pw-skip-link:focus { position: fixed; top: 8px; left: 8px; z-index: 1000; width: auto; height: auto; margin: 0; padding: 8px 12px; clip: auto; overflow: visible; background: var(--background); color: var(--foreground); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+/* where it lands: <main> has the focus, its head shows the ring (setupSkipLink in classic/main.js) */
+#main[tabindex="-1"]:focus { outline: 0; }
+.pw-skip-landing { outline: var(--ring-width) solid var(--ring); outline-offset: 6px; border-radius: var(--radius-sm); }

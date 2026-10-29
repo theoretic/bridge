@@ -43,7 +43,7 @@
 .InputfieldContent :is(input, select, textarea):focus, .pw-input:focus, .pw-select:focus, .pw-textarea:focus {
 	outline: 0;
 	border-color: var(--ring);
-	box-shadow: 0 0 0 3px var(--ring-50);
+	box-shadow: 0 0 0 var(--ring-halo) var(--ring-50);
 }
 .InputfieldStateError .InputfieldContent :is(input, select, textarea), .InputfieldContent [aria-invalid=true] { border-color: var(--destructive); }
 .pw-input-small, .pw-select-small { min-height: 32px; padding: 4px 8px; font-size: .8125rem; }
@@ -94,7 +94,7 @@
 }
 :is(.InputfieldCheckbox, .InputfieldCheckboxes, .LanguageSupport) input[type=checkbox]:checked { background: var(--primary); }
 :is(.InputfieldCheckbox, .InputfieldCheckboxes, .LanguageSupport) input[type=checkbox]:checked::after { left: 14px; background: var(--primary-foreground); }
-:is(.InputfieldCheckbox, .InputfieldCheckboxes, .LanguageSupport) input[type=checkbox]:focus-visible { outline: 0; box-shadow: 0 0 0 3px var(--ring-50); }
+:is(.InputfieldCheckbox, .InputfieldCheckboxes, .LanguageSupport) input[type=checkbox]:focus-visible { outline: 0; box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
 
 /* chips: asmSelect, selectize, page tags */
 .asmList .asmListItem, .asmList .asmListItem.ui-state-default, .selectize-input .item, .InputfieldTextTags .selectize-input .item {
@@ -145,7 +145,7 @@ ul.InputfieldFileList > li { list-style: none; }
 .Inputfield .InputfieldContent .InputMask .ui-button-text { display: inline-flex; align-items: center; gap: 6px; padding: 0; line-height: 2.125rem; }
 .InputfieldContent .InputMask input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 100px; }
 /* the file input is transparent: its focus shows on the mask (audit C23) */
-.InputfieldContent .InputMask.ui-button:focus-within { box-shadow: 0 0 0 3px var(--ring-50); }
+.InputfieldContent .InputMask.ui-button:focus-within { box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
 .InputfieldFileValidExtensions, .InputfieldImageValidExtensions { margin-left: 8px; color: var(--pw-text-muted); font-size: .8125rem; }
 
 /* language tabs on fields. With LanguageTabs jQueryUI=false (init.php) LanguageTabs.js only

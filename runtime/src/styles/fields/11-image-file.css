@@ -60,6 +60,6 @@
 .InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider)::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border: 1px solid var(--primary); border-radius: 50%; background: var(--background); box-shadow: var(--shadow-sm); }
 .InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider)::-moz-range-thumb { width: 16px; height: 16px; border: 1px solid var(--primary); border-radius: 50%; background: var(--background); box-shadow: var(--shadow-sm); box-sizing: border-box; }
 .InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider):focus-visible { outline: 0; }
-.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider):focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--ring-50); }
-.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider):focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--ring-50); }
+.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider):focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
+.InputfieldImage :is(input.InputfieldImageSizeSlider, input.focusZoomSlider):focus-visible::-moz-range-thumb { box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
 .InputfieldImage .focusCircle { touch-action: none; }

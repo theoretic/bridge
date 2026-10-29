@@ -601,7 +601,7 @@ if(isset($bridge) && $bridge) {
 	$themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
 	check('U6 one reduced-motion rule for everything', strpos($themeCss, 'animation-iteration-count:1!important') !== false);
 	check('U1 form fields have their own border token, light as the editors', strpos($themeCss, '--pw-input-border: var(--input)') !== false);
-	check('U2 focusable elements get a ring', strpos($themeCss, ':focus-visible{outline:2px solid var(--ring)') !== false);
+	check('U2 focusable elements get a ring', strpos($themeCss, ':focus-visible{outline:var(--ring-width) solid var(--ring)') !== false);
 	$rt = dirname(__DIR__) . '/runtime/src/';
 	check('R7 sortable lists move by Alt+arrow', strpos((string) file_get_contents($rt . 'util/sortable.ts'), "e.key !== 'ArrowUp' && e.key !== 'ArrowDown'") !== false);
 	check('R7 repeater controls and the language toggle are keyboard buttons', strpos((string) file_get_contents($rt . 'fields/repeater.ts'), 'keyButton(i, title)') !== false && strpos((string) file_get_contents($rt . 'inputfields/langtabs.ts'), 'keyButton(toggle') !== false);
@@ -666,6 +666,9 @@ if(isset($bridge) && $bridge) {
 	check('touch: repeater item controls beside the label, not over it', (bool) preg_match('/@media ?\(hover:none\)\{[^@]*\.InputfieldRepeaterHeaderInit>\.InputfieldRepeaterItemControls\{[^}]*position:static/', $themeCss));
 	check('phone: nested cards and repeater depth take less width', strpos($themeCss, '.InputfieldRepeaterItem[data-depth="1"]{padding-left:1rem!important}') !== false && strpos($themeCss, ':is(.InputfieldFieldset:not(.WireTab),.InputfieldItemList) .Inputfields{--pw-field-pad:') !== false);
 	check('phone: checkbox table labels wrap', strpos($themeCss, '.InputfieldCheckboxes table label{white-space:normal}') !== false);
+	// 0.11.8: thinner focus rings from two tokens; skip to content focuses <main> and rings its head
+	check('focus rings take their widths from --ring-width and --ring-halo', strpos($themeCss, '--ring-width:') !== false && strpos($themeCss, '0 0 0 var(--ring-halo) var(--ring-50)') !== false && strpos($themeCss, 'outline:2px solid var(--ring)') === false && strpos($themeCss, '0 0 0 3px var(--ring-50)') === false);
+	check('skip to content shows where it lands', strpos($mainJs, 'setupSkipLink:function') !== false && strpos($mainJs, 'pw-skip-landing') !== false && strpos($themeCss, '.pw-skip-landing{outline:') !== false);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

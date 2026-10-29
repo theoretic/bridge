@@ -151,6 +151,7 @@ var ProcessWireAdminTheme = {
 			this.setupDropdownPointers();
 		}
 		this.setupNative();
+		this.setupSkipLink();
 		this.setupNotices();
 		this.setupNoticeFloat();
 		this.setupNavFit();
@@ -403,6 +404,31 @@ var ProcessWireAdminTheme = {
 	 * (InputfieldFloatRange does from its value box), so any edit in the field updates its sliders,
 	 * after the field's own handlers ran.
 	 */
+	/**
+	 * Skip to content: <main> takes the focus, so the next Tab starts there, and the page head
+	 * (breadcrumbs, head buttons, title) shows the ring until the focus moves on. Plain #main only
+	 * moved the starting point of the next Tab, with nothing shown where. The hash stays as it was:
+	 * WireTabs reads it.
+	 */
+	setupSkipLink: function() {
+		var link = document.querySelector('.pw-skip-link');
+		var main = document.getElementById('main');
+		if(!link || !main) return;
+		link.addEventListener('click', function(e) {
+			e.preventDefault();
+			var head = document.getElementById('pw-content-head');
+			var mark = head && head.offsetHeight ? head : main;
+			main.setAttribute('tabindex', '-1');
+			mark.classList.add('pw-skip-landing');
+			main.addEventListener('blur', function() {
+				main.removeAttribute('tabindex');
+				mark.classList.remove('pw-skip-landing');
+			}, { once: true });
+			main.focus({ preventScroll: true });
+			mark.scrollIntoView({ block: 'nearest' });
+		});
+	},
+
 	setupRangeFill: function() {
 		var fill = function(range) {
 			var min = parseFloat(range.min), max = parseFloat(range.max), val = parseFloat(range.value);

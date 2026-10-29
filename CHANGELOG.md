@@ -1,5 +1,10 @@
 # Changelog
 
+## AdminThemeBridge 0.11.8: thinner focus ring, skip link shows where it lands (2026-10-29)
+
+- **Thinner keyboard focus ring**: links, tree items and buttons with an outline ring get 1.5px instead of 2px; inputs, buttons and pills with a halo get 2px instead of 3px. Both widths are tokens, `--ring-width` and `--ring-halo`. Browsers round widths down to whole device pixels, so on a screen at 100% scaling the outline draws 1px.
+- **Skip to content shows where it lands**: the link only moved the starting point of the next Tab, with nothing on screen, so you knew where you were only after pressing Tab again. It now focuses `<main>` and rings the page head (breadcrumbs, head buttons, title) until the focus moves on; the next Tab goes to the first control in it. The URL keeps its hash (WireTabs reads it).
+
 ## AdminThemeBridge 0.11.7: arrows on cores before 3.0.265 (2026-10-28)
 
 - **Breadcrumb separators, submenu arrows and page tree carets show on cores before 3.0.265**: those cores have no `$config->adminIcons`, so the admin loads Font Awesome 4.7 and the theme's own glyphs, which named only the Font Awesome 6 font, came out as empty boxes. They now fall back to the Font Awesome 4 font, which has the same code points. Sites on 3.0.265 or later always got Font Awesome 6 and are unchanged.

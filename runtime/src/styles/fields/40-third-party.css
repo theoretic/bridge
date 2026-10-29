@@ -53,5 +53,5 @@ li.InputfieldMatrix div.alert p { background: var(--card); color: var(--foregrou
 .Inputfield.InputfieldFloatRange input[type=range]::-moz-range-track { height: 4px; border: 0; border-radius: 2px; background: linear-gradient(to right, var(--primary) var(--pw-range-fill, 0%), var(--input) var(--pw-range-fill, 0%)); box-shadow: none; }
 .Inputfield.InputfieldFloatRange input[type=range]::-webkit-slider-thumb { width: 16px; height: 16px; margin-top: -6px; border: 1px solid var(--primary); border-radius: 50%; background: var(--background); box-shadow: var(--shadow-sm); }
 .Inputfield.InputfieldFloatRange input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: 1px solid var(--primary); border-radius: 50%; background: var(--background); box-shadow: var(--shadow-sm); box-sizing: border-box; }
-.Inputfield.InputfieldFloatRange input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--ring-50); }
-.Inputfield.InputfieldFloatRange input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--ring-50); }
+.Inputfield.InputfieldFloatRange input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
+.Inputfield.InputfieldFloatRange input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
