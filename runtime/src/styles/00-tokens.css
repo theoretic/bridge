@@ -118,7 +118,7 @@
 	--ring: color-mix(in srgb, var(--primary) 80%, var(--foreground));
 	--ring-50: var(--ring);
 	/* its widths: the outline around links and buttons, the halo around inputs and pills */
-	--ring-width: 1.5px;
+	--ring-width: 2px;
 	--ring-halo: 2px;
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);

@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.11.9: focus outline back to 2px (2026-10-29)
+
+- **The outline ring on links, tree items and buttons is 2px again**: at 1.5px, browsers round it down to 1px on screens at 100% or 125% scaling, half the old width. The halo around inputs, buttons and pills stays at 2px (was 3px before 0.11.8), so both rings now have the same width.
+
 ## AdminThemeBridge 0.11.8: thinner focus ring, skip link shows where it lands (2026-10-29)
 
 - **Thinner keyboard focus ring**: links, tree items and buttons with an outline ring get 1.5px instead of 2px; inputs, buttons and pills with a halo get 2px instead of 3px. Both widths are tokens, `--ring-width` and `--ring-halo`. Browsers round widths down to whole device pixels, so on a screen at 100% scaling the outline draws 1px.
