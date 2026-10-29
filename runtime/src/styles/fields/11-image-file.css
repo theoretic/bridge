@@ -14,6 +14,14 @@
 .gridImage--delete:hover .gridImage__inner { background: color-mix(in srgb, var(--destructive) 30%, transparent); }
 .InputfieldImageEditAll .gridImage:hover .gridImage__inner { background: none; }
 .gridImage__edit, .gridImage__resize { text-shadow: 0 1px 3px rgb(0 0 0 / .6); }
+/* an image on its way: no spinner over it, the strap along the bottom is its progress bar, in the
+ * user's primary on an opaque tint of it (upstream: a fixed green); an error turns it red */
+.gridImageUploading .gridImage__resize > .fa-spinner { display: none; }
+.gridImage__progress { color: var(--primary); background: color-mix(in srgb, var(--primary) 20%, var(--card)); border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; }
+.gridImage__progress::-webkit-progress-bar { background: color-mix(in srgb, var(--primary) 20%, var(--card)); border-radius: inherit; }
+.gridImage__progress[value]::-webkit-progress-value { background: var(--primary); transition: width .2s; }
+.gridImage__progress[value]::-moz-progress-bar { background: var(--primary); }
+.gridImage__progress[value="-1"], .gridImage__progress[value="-1"]::-webkit-progress-bar { background: var(--destructive); }
 .gridImage__btn { background: var(--card); color: var(--muted-foreground); }
 .gridImage:hover .gridImage__btn:hover { background: var(--card); color: var(--destructive); }
 .gridImage--active .gridImage__btn { background: var(--primary); color: var(--primary-foreground); }

@@ -12,7 +12,8 @@
  * Same behaviour as upstream:
  * - WireTabs over the editor's top-level wrappers (#PageEditTabs), Delete never remembered;
  * - Delete posts only with its confirm box checked (else the box's label flashes);
- * - a submit while an upload runs (body.pw-uploading) asks first (the form's data-uploading);
+ * - a submit while an upload runs (body.pw-uploading) asks first (the form's data-uploading),
+ *   unless the save waits for it (main.js saveWait): then only a second click asks;
  * - Save and Publish get the after-save dropdown (InputfieldSubmitDropdown, the theme's native
  *   stand-in on these pages; the head copies get a copy of the menu), switched off while the
  *   template select is changed;
@@ -64,6 +65,8 @@
 			document.addEventListener('click', function(e) {
 				var button = e.target.closest ? e.target.closest('button[type=submit]') : null;
 				if(!button || !document.body.classList.contains('pw-uploading')) return;
+				// a save that will wait for the upload (main.js saveWait) does not ask
+				if(theme.saveWait && theme.saveWait.claims(button)) return;
 				var form = document.getElementById('ProcessPageEdit');
 				if(!window.confirm(form ? form.getAttribute('data-uploading') : '')) {
 					e.preventDefault();

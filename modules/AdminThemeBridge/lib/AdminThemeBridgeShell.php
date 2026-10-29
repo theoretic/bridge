@@ -201,6 +201,7 @@ trait AdminThemeBridgeShell {
 			'done' => __('Done', __FILE__),
 			'partFailed' => __('A part of this screen failed to load. Reload the page to try again.', __FILE__),
 			'saveNoAnswer' => __('The save got no answer from the server. Check the page and save again if needed.', __FILE__),
+			'saveWaiting' => __('Waiting for the uploads to finish, then saving. Click again to save now, Esc to stop.', __FILE__),
 		);
 	}
 

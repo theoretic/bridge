@@ -13,7 +13,8 @@
  * scripts bind at document ready and would leave the swapped form without their UI.
  *
  * Everything else takes the classic submit: Save + Exit/View/Add/Next (after-submit action),
- * Delete, a changed template, uploads in progress, Shift+click on a save button, the single-field
+ * Delete, a changed template, uploads in progress (a save waits for them first, main.js saveWait;
+ * only "save now" while they run gets here), Shift+click on a save button, the single-field
  * editor and modal windows (this script is not loaded there). Any unexpected response falls back
  * to the classic path; a failure after the server has saved navigates to the saved page.
  *

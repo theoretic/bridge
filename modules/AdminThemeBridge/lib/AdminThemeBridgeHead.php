@@ -129,6 +129,9 @@ trait AdminThemeBridgeHead {
 			&& $this->saveInPlaceProcess($this->wire()->process);
 		// stand-ins for the current Process's scripts on a page without the legacy stack (ADR 0016)
 		foreach($this->nativeProcessScripts() as $file) $printScripts[] = $themeUrl . "$file?v=" . $themeAssetVersion($file);
+		// a save waits for the uploads and other requests to the screen, whatever the in-place
+		// setting, modal windows included
+		if($this->saveInPlaceProcess($this->wire()->process)) $printScripts[] = $themeUrl . "scripts/save-wait.js?v=" . $themeAssetVersion('scripts/save-wait.js');
 		if($pageSave) $printScripts[] = $themeUrl . "scripts/page-save.js?v=" . $themeAssetVersion('scripts/page-save.js');
 
 		$bridgeJs = $config->js('AdminThemeBridge');

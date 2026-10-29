@@ -671,6 +671,15 @@ if(isset($bridge) && $bridge) {
 	check('skip to content shows where it lands', strpos($mainJs, 'setupSkipLink:function') !== false && strpos($mainJs, 'pw-skip-landing') !== false && strpos($themeCss, '.pw-skip-landing{outline:') !== false);
 	// 0.11.10: the page tree's extras chevron is centred in its pill, flipped or not
 	check('the extras chevron is centred, without upstream margins', strpos($themeCss, '.PageList .PageListActionExtras>a>i{position:relative;top:.1em;left:-.045em;margin:0}') !== false && strpos($themeCss, '.PageList .PageListActionExtras>a>i.fa-flip-horizontal{left:.045em}') !== false);
+	// 0.12.0: a save waits for uploads and other requests to the edit screen, then clicks again
+	$pageEditJs = (string) @file_get_contents($themeDir . 'scripts/page-edit.js');
+	$saveWaitJs = (string) @file_get_contents($themeDir . 'scripts/save-wait.js');
+	check('a save waits for the page\'s requests', strpos($saveWaitJs, 'pw-uploading') !== false && strpos($saveWaitJs, 'gridImageUploading') !== false && strpos($saveWaitJs, 'submit_delete') !== false && strpos($saveWaitJs, 'loadend') !== false);
+	check('save-wait.js is printed for the edit screens, deferred', strpos((string) @file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), 'scripts/save-wait.js?v=') !== false && strpos($headPhp, "'scripts/save-wait.js'") !== false);
+	check('the native upload confirm leaves a waiting save alone', strpos($pageEditJs, 'saveWait.claims(') !== false);
+	check("runtime label 'saveWaiting' exists", isset($bridge->runtimeLabels()['saveWaiting']));
+	$fieldsCss = (string) @file_get_contents($themeDir . 'assets/dist/fields.css');
+	check('image upload: no spinner, progress bar in the primary', strpos($fieldsCss, '.gridImageUploading .gridImage__resize>.fa-spinner{display:none}') !== false && strpos($fieldsCss, '.gridImage__progress[value]::-webkit-progress-value{background:var(--primary)') !== false);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

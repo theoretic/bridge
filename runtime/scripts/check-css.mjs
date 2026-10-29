@@ -81,7 +81,7 @@ for (const { name, budget, with: parts = [] } of FILES) {
 const scriptsDir = fileURLToPath(new URL('../../modules/AdminThemeBridge/scripts/', import.meta.url));
 const CLASSIC = {
 	'main.js': 11.5, 'setup.js': 7, 'image-select.js': 6, 'lister.js': 4.5, 'page-save.js': 3.75,
-	'screens.js': 3.25, 'link.js': 3, 'wire-tabs.js': 2, 'page-edit.js': 1.75, 'uikit-layer.js': 2.5, 'debug-tools.js': 1,
+	'screens.js': 3.25, 'link.js': 3, 'wire-tabs.js': 2, 'page-edit.js': 1.75, 'save-wait.js': 1.5, 'uikit-layer.js': 2.5, 'debug-tools.js': 1,
 };
 let classicTotal = 0;
 for (const f of existsSync(scriptsDir) ? readdirSync(scriptsDir).filter(f => f.endsWith('.js')).sort() : []) {
@@ -94,8 +94,9 @@ for (const f of existsSync(scriptsDir) ? readdirSync(scriptsDir).filter(f => f.e
 	if (!minified) { console.error(`scripts/${f}: not built (run scripts/build-classic.mjs)`); failed = true; }
 	if (gz > budget) { console.error(`scripts/${f}: over the gzip budget`); failed = true; }
 }
-// total raised from 40 to 42 KiB after the UIkit layer (owner's decision, 2026-10-22)
-const CLASSIC_TOTAL = 42 * 1024;
+// total raised from 40 to 42 KiB after the UIkit layer (owner's decision, 2026-10-22), and to
+// 42.25 KiB for scripts/save-wait.js (owner's decision, 2026-10-29)
+const CLASSIC_TOTAL = 42.25 * 1024;
 console.log(`classic scripts: ${classicTotal} B gzip (budget ${CLASSIC_TOTAL})`);
 if (classicTotal > CLASSIC_TOTAL) { console.error('classic scripts: over the total gzip budget'); failed = true; }
 

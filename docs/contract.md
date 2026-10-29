@@ -129,7 +129,7 @@ if($adminTheme && method_exists($adminTheme, 'needUikit')) $adminTheme->needUiki
 
 ### 4.1 Theme script `ProcessWireAdminTheme` (scripts/main.js, classic)
 
-The theme's classic scripts (`scripts/*.js`) are built: their sources are `runtime/src/classic/*.js`, minified by `npm run build` (0.9.0). `main.js`, `lister.js`, `page-edit.js` and `wire-tabs.js` are printed blocking in `<head>` (inline core code calls them while the page parses); `setup.js`, `screens.js`, `link.js`, `image-select.js` and `page-save.js` are `defer`red. `runtime.js` and its shared chunk are `modulepreload`ed.
+The theme's classic scripts (`scripts/*.js`) are built: their sources are `runtime/src/classic/*.js`, minified by `npm run build` (0.9.0). `main.js`, `lister.js`, `page-edit.js` and `wire-tabs.js` are printed blocking in `<head>` (inline core code calls them while the page parses); `setup.js`, `screens.js`, `link.js`, `image-select.js`, `save-wait.js` and `page-save.js` are `defer`red. `runtime.js` and its shared chunk are `modulepreload`ed.
 
 | Member | Meaning |
 |---|---|
@@ -255,6 +255,15 @@ How it goes:
 | `pw-form-saved` | after the new screen is in place and set up | `form`, `url`, `errors` |
 
 Field scripts must initialise on `reloaded` (as core fields do), not only on document ready, to survive an in-place save; the swapped form gets `Inputfields.init()` and `reloaded` on every `.Inputfield`. `ProcessWire.config.AdminThemeBridge.pageSave` tells whether the feature is active on the page. The save's notices go away after 10 s unless they include an error (`setupNoticeTimeout()`, 4.1), on both save paths.
+
+#### Save waits for the page's requests (scripts/save-wait.js, 0.12.0)
+
+On the screens above, modal windows and `pageSaveInPlace = 0` included, a click on a save button of `ProcessPageEdit`, `ProcessFieldEdit`, `ProcessTemplateEdit`, `ModuleEditForm` or `ProcessProfile` (or its head copy) while the page still has work on its way is held, and the button is clicked again once all of it is done, so what it adds to the form (an uploaded file's item, a new repeater item, an AJAX-loaded field) is saved too. Pending work:
+- an `XMLHttpRequest` or `fetch()` to this screen's path (other paths, such as polling, do not count);
+- `body.pw-uploading`, set by upstream's and the runtime's uploads (with their 500 ms tail);
+- `.gridImageUploading` in the form: an image still being resized in the browser before its upload.
+
+The click goes through again 400 ms after the last of them. While it waits, `body.pw-save-waiting`, a spinner on the button and its copy, and a status for screen readers (`labels.saveWaiting`). Another click on a save button saves at once, after upstream's upload confirm as before (cancelling it goes back to waiting); a double click counts once. Escape stops waiting without saving. Delete (`submit_delete`) never waits. `ProcessWireAdminTheme.saveWait.claims(button)` tells whether a click on a button is the waiter's (the native `page-edit.js` leaves its upload confirm to it).
 
 ### 4.4 Native Process screens (ADR 0016)
 

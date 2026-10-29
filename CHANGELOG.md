@@ -1,5 +1,11 @@
 # Changelog
 
+## AdminThemeBridge 0.12.0: save waits for uploads (2026-10-29)
+
+- **A save waits for uploads and other requests of the page**: Save clicked while files were uploading asked "Are you sure? An upload is currently in progress" and, if you said yes, posted the form the classic way, which cut the upload off. Now the save waits until the uploads, a repeater item being added, an AJAX-loaded field and any other request to the edit screen are done, then saves (in place, or the classic way where that is set). The button shows a spinner meanwhile; a second click saves at once (with the old confirm), Escape stops waiting. Works in the page editor (users, roles and permissions included), the field, template and module editors and the profile, with or without the legacy stack, from the head button copies too and in modal windows. Delete does not wait. New script `scripts/save-wait.js`; new label `saveWaiting`.
+- **Image uploads: no spinner, a progress bar in your colour**: the spinning loader over an image being uploaded (or resized first) is gone; the strap along the bottom of its tile, upstream's fixed green, now shows the upload's progress in the primary colour of your theme variant on a tint of it, with bottom corners rounded like the thumbnail, and turns red on an error. Native and legacy image fields alike.
+- The classic scripts' total gzip budget is 42.25 KiB (was 42 KiB) for `save-wait.js`.
+
 ## AdminThemeBridge 0.11.10: extras chevron centred (2026-10-29)
 
 - **The page tree's extras chevron is centred in its pill**: when open, upstream gave the flipped icon 2px and 3px side margins, so it sat 1px left of centre and the pill grew 5px; the glyph also sat 1.5px high. It is now centred whether open or closed, and the pill keeps its width.

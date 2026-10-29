@@ -103,7 +103,7 @@ if(is_file($runtimeFile)) {
 // theme scripts that no inline code calls while the page parses run deferred (in order, before
 // DOMContentLoaded); main.js (stand-ins, InputfieldSubmitDropdown), lister.js
 // (ProcessLister.initialized), page-edit.js and wire-tabs.js (the editor's inline init) do not
-$deferrable = array('scripts/setup.js', 'scripts/screens.js', 'scripts/link.js', 'scripts/image-select.js', 'scripts/page-save.js');
+$deferrable = array('scripts/setup.js', 'scripts/screens.js', 'scripts/link.js', 'scripts/image-select.js', 'scripts/save-wait.js', 'scripts/page-save.js');
 foreach($printScripts as $file) {
 	if($adminTheme->isOtherThemeAsset($file)) continue;
 	$defer = '';
