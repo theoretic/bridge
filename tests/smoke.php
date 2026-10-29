@@ -669,6 +669,8 @@ if(isset($bridge) && $bridge) {
 	// 0.11.8: thinner focus rings from two tokens; skip to content focuses <main> and rings its head
 	check('focus rings take their widths from --ring-width and --ring-halo', strpos($themeCss, '--ring-width:') !== false && strpos($themeCss, '0 0 0 var(--ring-halo) var(--ring-50)') !== false && strpos($themeCss, 'outline:2px solid var(--ring)') === false && strpos($themeCss, '0 0 0 3px var(--ring-50)') === false);
 	check('skip to content shows where it lands', strpos($mainJs, 'setupSkipLink:function') !== false && strpos($mainJs, 'pw-skip-landing') !== false && strpos($themeCss, '.pw-skip-landing{outline:') !== false);
+	// 0.11.10: the page tree's extras chevron is centred in its pill, flipped or not
+	check('the extras chevron is centred, without upstream margins', strpos($themeCss, '.PageList .PageListActionExtras>a>i{position:relative;top:.1em;left:-.045em;margin:0}') !== false && strpos($themeCss, '.PageList .PageListActionExtras>a>i.fa-flip-horizontal{left:.045em}') !== false);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

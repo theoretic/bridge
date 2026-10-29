@@ -33,6 +33,10 @@
 .PageListerActions { margin-left: 8px; }
 .PageList .PageListActions li a:hover, .PageListerActions a:hover { background: var(--accent); color: var(--accent-foreground); }
 .PageListActions li a .fa { font-size: inherit; }
+/* the extras chevron centred in its pill: upstream gives the flipped one 2px/3px margins, and the
+ * glyph's ink sits 1.5px high and .6px right of its box (left when flipped) */
+.PageList .PageListActionExtras > a > i { position: relative; top: .1em; left: -.045em; margin: 0; }
+.PageList .PageListActionExtras > a > i.fa-flip-horizontal { left: .045em; }
 
 .PageListSortPlaceholder { background: var(--pw-primary-bg); outline: 1px dashed var(--pw-primary-40); }
 .PageListSorting .PageListSortItem > a.PageListPage { color: var(--pw-primary); }

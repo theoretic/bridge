@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.11.10: extras chevron centred (2026-10-29)
+
+- **The page tree's extras chevron is centred in its pill**: when open, upstream gave the flipped icon 2px and 3px side margins, so it sat 1px left of centre and the pill grew 5px; the glyph also sat 1.5px high. It is now centred whether open or closed, and the pill keeps its width.
+
 ## AdminThemeBridge 0.11.9: focus outline back to 2px (2026-10-29)
 
 - **The outline ring on links, tree items and buttons is 2px again**: at 1.5px, browsers round it down to 1px on screens at 100% or 125% scaling, half the old width. The halo around inputs, buttons and pills stays at 2px (was 3px before 0.11.8), so both rings now have the same width.
