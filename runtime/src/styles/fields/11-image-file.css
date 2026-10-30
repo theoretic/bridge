@@ -9,6 +9,7 @@
 		linear-gradient(45deg, var(--pw-checker-b) 25%, transparent 25%, transparent 75%, var(--pw-checker-b) 75%, var(--pw-checker-b));
 }
 /* hover and selection overlays: a dark veil (white icons stay readable), selection in the primary */
+.gridImage__inner { border-radius: var(--radius-sm); }
 .gridImage:hover .gridImage__inner { background: rgb(0 0 0 / .45); }
 .gridImage.gridImageEditing .gridImage__inner, .gridImage--active .gridImage__inner { background: rgb(0 0 0 / .45); box-shadow: inset 0 0 0 3px var(--primary); }
 .gridImage--delete:hover .gridImage__inner { background: color-mix(in srgb, var(--destructive) 30%, transparent); }
@@ -22,10 +23,13 @@
 .gridImage__progress[value]::-webkit-progress-value { background: var(--primary); transition: width .2s; }
 .gridImage__progress[value]::-moz-progress-bar { background: var(--primary); }
 .gridImage__progress[value="-1"], .gridImage__progress[value="-1"]::-webkit-progress-bar { background: var(--destructive); }
-.gridImage__btn { background: var(--card); color: var(--muted-foreground); }
+.gridImage__btn { background: var(--card); color: var(--muted-foreground); border-radius: var(--radius-sm); }
 .gridImage:hover .gridImage__btn:hover { background: var(--card); color: var(--destructive); }
 .gridImage--active .gridImage__btn { background: var(--primary); color: var(--primary-foreground); }
-.gridImage--delete, .gridImage--delete .gridImage__trash, .gridImage--delete .gridImage__trash:hover, .InputfieldImageEditAll .gridImage--delete { background-color: var(--destructive); }
+.gridImage--delete .gridImage__trash, .gridImage--delete .gridImage__trash:hover, .InputfieldImageEditAll .gridImage--delete { background-color: var(--destructive); }
+/* a tile marked for deletion: a 2px red ring on its edge (upstream: its whole padding red); the
+ * list view keeps the red row, its struck-through name is white on it */
+.gridImage--delete { background-color: var(--card); box-shadow: var(--shadow-sm), inset 0 0 0 2px var(--destructive); }
 .gridImage--delete .gridImage__trash { color: #fff; }
 /* tooltip: popover */
 .gridImage__tooltip { background: var(--popover); color: var(--popover-foreground); border-radius: var(--radius-md); box-shadow: var(--shadow-md); filter: none; }

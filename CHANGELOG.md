@@ -1,5 +1,11 @@
 # Changelog
 
+## AdminThemeBridge 0.12.1: image tiles: thinner deletion frame, rounded buttons and overlay (2026-10-30)
+
+- **An image marked for deletion gets a 2px red frame**: the tile's whole padding (about 6px) turned red, upstream's way. The tile now keeps its own background with a 2px red ring on its edge; the trash button stays red. The list view keeps its red row.
+- **Rounded buttons on image tiles**: the trash button (and the other buttons on a tile) had square corners; they now have the theme's small radius.
+- **Rounded hover overlay on image tiles**: the dark veil over a hovered image (and the selection ring and deletion tint drawn on the same layer) had square corners; it now has the theme's small radius.
+
 ## AdminThemeBridge 0.12.0: save waits for uploads (2026-10-29)
 
 - **A save waits for uploads and other requests of the page**: Save clicked while files were uploading asked "Are you sure? An upload is currently in progress" and, if you said yes, posted the form the classic way, which cut the upload off. Now the save waits until the uploads, a repeater item being added, an AJAX-loaded field and any other request to the edit screen are done, then saves (in place, or the classic way where that is set). The button shows a spinner meanwhile; a second click saves at once (with the old confirm), Escape stops waiting. Works in the page editor (users, roles and permissions included), the field, template and module editors and the profile, with or without the legacy stack, from the head button copies too and in modal windows. Delete does not wait. New script `scripts/save-wait.js`; new label `saveWaiting`.

@@ -680,6 +680,10 @@ if(isset($bridge) && $bridge) {
 	check("runtime label 'saveWaiting' exists", isset($bridge->runtimeLabels()['saveWaiting']));
 	$fieldsCss = (string) @file_get_contents($themeDir . 'assets/dist/fields.css');
 	check('image upload: no spinner, progress bar in the primary', strpos($fieldsCss, '.gridImageUploading .gridImage__resize>.fa-spinner{display:none}') !== false && strpos($fieldsCss, '.gridImage__progress[value]::-webkit-progress-value{background:var(--primary)') !== false);
+	// 0.12.1: an image marked for deletion has a 2px red ring, not a red padding
+	check('image marked for deletion: 2px red ring', strpos($fieldsCss, '.gridImage--delete{background-color:var(--card);box-shadow:var(--shadow-sm),inset 0 0 0 .125rem var(--destructive)}') !== false);
+	check('image tile buttons have rounded corners', strpos($fieldsCss, '.gridImage__btn{background:var(--card);color:var(--muted-foreground);border-radius:var(--radius-sm)}') !== false);
+	check('image tile hover overlay has rounded corners', strpos($fieldsCss, '.gridImage__inner{border-radius:var(--radius-sm)}') !== false);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
