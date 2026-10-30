@@ -214,6 +214,9 @@ trait AdminThemeBridgeShell {
 			'moveSkip' => __('Leave it where it is', __FILE__),
 			'moveWait' => __('Wait for the uploads to finish, then move the files.', __FILE__),
 			'movePages' => __('Moving %d pages', __FILE__), // the page tree's move note
+			'nextPage' => __('Next page', __FILE__), // the dialog that opens several selected pages in turn
+			'discardChanges' => __('This page has unsaved changes. Leave it?', __FILE__),
+			'trashPages' => __('Move %d pages to the trash?', __FILE__),
 		);
 	}
 

@@ -741,6 +741,14 @@ if(isset($bridge) && $bridge) {
 	check('files-move posts bridgeFilesMove, meta as JSON', strpos($movesSrc, "body.append('bridgeFilesMove', '1')") !== false && strpos($movesSrc, "body.append('meta', JSON.stringify(meta))") !== false);
 	check('the page tree\'s Move is its own chunk, loaded early', is_file($rt . 'fields/pagelist-move.ts') && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-move')") !== false && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "addEventListener('pointerover', early, { once: true })") !== false);
 	check('the tree takes an empty sort answer as success', strpos((string) @file_get_contents($rt . 'fields/pagelist-move.ts'), 'if (!text && res.ok) return {};') !== false);
+	// 0.14.1: one band and one menu for several selected tree rows
+	$groupSrc = (string) @file_get_contents($rt . 'fields/pagelist-group.ts');
+	check('several tree rows get one menu, without View, loaded when a second row is selected', strpos($groupSrc, "if (action.cn === 'View') return;") !== false
+		&& strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-group')") !== false);
+	check('the group menu finds extras by cn, not by their key', strpos($groupSrc, 'Object.values(action.extras).find(x => x.cn === cn)') !== false);
+	check('Move from the group menu arms the whole selection', strpos((string) @file_get_contents($rt . 'fields/pagelist-move.ts'), 'const moveGroup = (rows: HTMLElement[]): void =>') !== false);
+	check('a press on the group menu keeps the selection', strpos((string) @file_get_contents($rt . 'util/selection.ts'), ".pw-drag-ghost, .pw-group-actions';") !== false);
+	foreach(array('nextPage', 'discardChanges', 'trashPages') as $key) check("runtime label '$key' exists", isset($bridge->runtimeLabels()[$key]));
 	check('moves go through ProcessPageEdit::ajaxSave', strpos($themeSource, "addHookBefore('ProcessPageEdit::ajaxSave', \$this, 'hookPageEditAjaxSave')") !== false);
 	check('moveFiles, moveFileAllowed, filesMoved are hookable', method_exists($bridge, '___moveFiles') && method_exists($bridge, '___moveFileAllowed') && method_exists($bridge, '___filesMoved'));
 	foreach(array('selectedCount', 'moveTo', 'moveButton', 'moveGoes', 'moveBadExt', 'moveNoRoom', 'moveReplace', 'moveSwap', 'moveSkip', 'moveWait', 'movePages') as $key) {
@@ -751,6 +759,9 @@ if(isset($bridge) && $bridge) {
 	check('fields.css: band, selection, ghost, drop states, move dialog', strpos($fieldsCss, '.pw-marquee{position:fixed;') !== false && strpos($fieldsCss, '.gridImage.pw-selected{') !== false
 		&& strpos($fieldsCss, '.pw-drag-ghost{position:fixed;') !== false && strpos($fieldsCss, '.Inputfield.pw-drop-no{') !== false && strpos($fieldsCss, 'dialog.pw-ask-move li{') !== false);
 	check('theme.css rings a field that takes the dragged files', strpos($themeCss, '.Inputfield:is(.pw-drag-in-file,.pw-drop-ok){') !== false);
+	check('selected tree rows stay inside the branch and join into one band', strpos($fieldsCss, '.PageList .PageListItem.pw-selected{--pw-sel-line:') !== false
+		&& strpos($fieldsCss, '.PageList .PageListItem.pw-selected:has(+.PageListItem.pw-selected){') !== false && strpos($fieldsCss, 'margin:0 -8px;padding-left:8px') === false);
+	check('the group menu has the action pills\' look', strpos($themeCss, '.pw-group-actions a{') !== false || strpos($themeCss, ',.pw-group-actions a{') !== false);
 	// a real round trip on the fixture page (tools/sandbox-fixture.php): bf_files -> bf_docs and back
 	$np = $pages->get('/bridge-native/');
 	$su = $wire->users->get('name=bridge');

@@ -197,31 +197,103 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	check('H selecting their parent leaves the parent alone selected', (await hSelected()).join() === TREE, JSON.stringify(await hSelected()));
 	await page.keyboard.press('Escape');
 	check('H Escape clears the selection', !(await hSelected()).length);
-	const groupMove = async (leadN, dropSel, below) => {
-		const lead = hRow(leadN);
-		await page.hover(lead + ' > a.PageListPage');
-		await page.waitForTimeout(500);
-		await page.click(lead + ' > .PageListActions .PageListActionMove > a');
-		await waitFor(() => !!document.querySelector('.PageListSorting'), null, 5000);
-		const note = await page.$eval('.PageListSortItem .PageListMoveNote', n => n.textContent).catch(() => '');
-		const hidden = await page.$$eval('.PageListRoot .pw-drag-member', l => l.length);
-		const a = await (await page.$(lead + ' > a.PageListPage')).boundingBox();
-		const b = await (await page.$(dropSel)).boundingBox();
+	// several rows: one band per run of adjacent rows, one menu for all (0.14.1)
+	const MENU = '.pw-group-actions';
+	const menuFor = async (n) => {
+		await page.mouse.move(5, 5);
+		await page.waitForTimeout(400);
+		await page.hover(hRow(n) + ' > a.PageListPage');
+		return waitFor((m) => { const el = document.querySelector(m); return !!el && !el.hidden; }, MENU, 5000);
+	};
+	const menuClick = async (re) => {
+		const links = page.locator(MENU + ' a');
+		const texts = await links.allTextContents();
+		const i = texts.findIndex(t => re.test(t.trim()));
+		if(i > -1) await links.nth(i).click();
+		return texts;
+	};
+	await ctrlClick(hRow(1));
+	await ctrlClick(hRow(2));
+	await ctrlClick(hRow(4));
+	const band = await page.evaluate((rows) => {
+		const [a, b, d] = rows.map(s => document.querySelector(s));
+		const st = (e) => getComputedStyle(e);
+		const list = a.parentElement.getBoundingClientRect();
+		const ra = a.getBoundingClientRect();
+		return {
+			joined: st(a).borderBottomLeftRadius === '0px' && st(b).borderTopLeftRadius === '0px',
+			ends: st(a).borderTopLeftRadius !== '0px' && st(b).borderBottomRightRadius !== '0px' && st(d).borderTopLeftRadius !== '0px' && st(d).borderBottomLeftRadius !== '0px',
+			inside: ra.left >= list.left && ra.right <= list.right,
+		};
+	}, [hRow(1), hRow(2), hRow(4)]);
+	check('H adjacent selected rows make one band, rounded at its ends, inside the branch', band.joined && band.ends && band.inside, JSON.stringify(band));
+	const shown = await menuFor(2);
+	const gm = await page.evaluate(([m, r1, r2]) => {
+		const menu = document.querySelector(m);
+		const a = document.querySelector(r1).getBoundingClientRect();
+		const b = document.querySelector(r2).getBoundingClientRect();
+		const r = menu.getBoundingClientRect();
+		const own = document.querySelector(r2 + ' > .PageListActions');
+		const labels = [document.querySelector(r1 + ' > a.PageListPage'), document.querySelector(r2 + ' > a.PageListPage')].map(x => x.getBoundingClientRect().right);
+		return { cns: [...menu.querySelectorAll('a[data-cn]')].map(x => x.getAttribute('data-cn')), ownHidden: !own || own.offsetParent === null,
+			centred: Math.abs((r.top + r.bottom) / 2 - (a.top + b.bottom) / 2) <= 3, after: r.left >= Math.max(...labels) };
+	}, [MENU, hRow(1), hRow(2)]);
+	check('H hovering a selected row shows one menu for the selection, without View, rows\' own menus hidden', shown && gm.ownHidden
+		&& gm.cns.indexOf('View') < 0 && gm.cns.indexOf('Edit') > -1 && gm.cns.indexOf('Move') > -1, JSON.stringify(gm));
+	check('H the menu sits after the titles, centred on the band', gm.centred && gm.after, JSON.stringify(gm));
+	// Edit: one page after another in the dialog
+	await menuClick(/^Edit|Редакт/);
+	const d1 = await waitFor(() => { const t = document.querySelector('dialog.pw-dialog[open] .pw-dialog-title'); return !!t && /\(1\/3\)/.test(t.textContent); }, null, 10000);
+	const next = await waitFor(() => [...document.querySelectorAll('dialog.pw-dialog[open] .pw-dialog-buttons button')].some(b => /›|Next|Следующ/.test(b.textContent) || b.querySelector('.fa-angle-right')), null, 15000);
+	if(next) await page.locator('dialog.pw-dialog[open] .pw-dialog-buttons button', { has: page.locator('.fa-angle-right') }).click();
+	const d2 = await waitFor(() => { const t = document.querySelector('dialog.pw-dialog[open] .pw-dialog-title'); return !!t && /\(2\/3\)/.test(t.textContent); }, null, 10000);
+	check('H Edit opens the selected pages in turn, with Next in the dialog', d1 && next && d2);
+	// Escape inside the window's frame stays in the frame: its close button
+	await page.click('dialog.pw-dialog[open] .pw-dialog-close');
+	check('H closing the dialog ends the round', await waitFor(() => !document.querySelector('dialog.pw-dialog[open]'), null, 5000));
+	await waitFor((t) => document.querySelectorAll(t + ' + .PageList > .PageListItem').length >= 50, T);
+	await page.waitForTimeout(500);
+	// Hide and Unhide: every selected page
+	await page.keyboard.press('Escape');
+	await ctrlClick(hRow(1));
+	await ctrlClick(hRow(2));
+	await menuFor(1);
+	await menuClick(/^$/); // the Extras toggle: an icon only
+	const extras = await page.locator(MENU + ' a').allTextContents();
+	await menuClick(/^(Hide|Скрыть)/);
+	const hid = await waitFor((rows) => rows.every(s => document.querySelector(s).classList.contains('PageListStatusHidden')), [hRow(1), hRow(2)], 20000);
+	await page.waitForTimeout(1500);
+	check('H Hide from the menu hides every selected page, which stay selected', hid && (await hSelected()).length === 2, JSON.stringify({ extras, sel: await hSelected() }));
+	await menuFor(1);
+	await menuClick(/^$/);
+	await menuClick(/^(Unhide|Показать|Отобразить)/);
+	const shownAgain = await waitFor((rows) => rows.every(s => !document.querySelector(s).classList.contains('PageListStatusHidden')), [hRow(1), hRow(2)], 20000);
+	await page.waitForTimeout(1500);
+	check('H Unhide from the menu shows them again', shownAgain);
+	await page.keyboard.press('Escape');
+	// Move from the menu: the selection waits; a press on any of its rows drags them all
+	await ctrlClick(hRow(1));
+	await ctrlClick(hRow(3));
+	await menuFor(3);
+	await menuClick(/^(Move|Переместить)/);
+	await waitFor(() => !!document.querySelector('.PageListRoot.pw-move-armed'), null, 5000);
+	const armedInfo = await page.evaluate(() => ({ note: (document.querySelector('.PageListMoveNote') || {}).textContent || '', hidden: document.querySelectorAll('.PageListRoot .pw-drag-member').length, selected: document.querySelectorAll('.PageListRoot .pw-selected').length }));
+	{
+		// the others hide when the press begins the drag: the drop row is measured after it
+		const a = await (await page.$(hRow(1) + ' > a.PageListPage')).boundingBox();
+		const drop = await page.$(hRow(5) + ' > a.PageListPage');
 		await page.mouse.move(a.x + 10, a.y + a.height / 2);
 		await page.mouse.down();
 		await page.mouse.move(a.x + 10, a.y + a.height / 2 + 5, { steps: 3 });
-		await page.mouse.move(b.x + 10, below ? b.y + b.height - 3 : b.y + b.height / 2, { steps: 10 });
+		const b = await drop.boundingBox();
+		await page.mouse.move(b.x + 10, b.y + b.height - 3, { steps: 10 });
 		await page.mouse.up();
 		await waitFor(() => !document.querySelector('.PageListSortSaving'), null, 20000);
 		await page.waitForTimeout(500);
-		return { note, hidden };
-	};
-	await ctrlClick(hRow(1));
-	await ctrlClick(hRow(3));
-	const hm = await groupMove(3, hRow(5) + ' > a.PageListPage', true);
+	}
 	const h1 = await serverIds();
 	const want = [h0[1], h0[3], h0[4], h0[0], h0[2]];
-	check('H Move on a selected row names the count and hides the other', /2/.test(hm.note) && hm.hidden === 1, JSON.stringify(hm));
+	check('H Move from the menu: both rows stay shown with the note, none hidden yet', /2/.test(armedInfo.note) && armedInfo.hidden === 0 && armedInfo.selected === 2, JSON.stringify(armedInfo));
 	check('H both pages land after the drop row, in their order', h1.slice(0, 5).join() === want.join() && (await hDom()).slice(0, 5).join() === want.join(), JSON.stringify({ h0: h0.slice(0, 5), h1: h1.slice(0, 5) }));
 	check('H the selection is cleared after the move', !(await hSelected()).length);
 	// into a page whose template takes no children: refused, both rows back in place
@@ -231,17 +303,18 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	await ctrlClick(hRow(1));
 	await ctrlClick(hRow(2));
 	alerts.length = 0;
-	await page.hover(hRow(2) + ' > a.PageListPage');
-	await page.waitForTimeout(500);
-	await page.click(hRow(2) + ' > .PageListActions .PageListActionMove > a');
-	await waitFor(() => !!document.querySelector('.PageListSorting'), null, 5000);
+	await menuFor(2);
+	await menuClick(/^(Move|Переместить)/);
+	await waitFor(() => !!document.querySelector('.PageListRoot.pw-move-armed'), null, 5000);
 	{
 		const a = await (await page.$(hRow(2) + ' > a.PageListPage')).boundingBox();
-		// the lower half of an open row puts the item first in its child list (here its placeholder)
-		const b = await (await page.$(hRow(7))).boundingBox();
+		// the lower half of an open row puts the item first in its child list (here its placeholder);
+		// measured once the press has hidden the other selected row
+		const open7 = await page.$(hRow(7));
 		await page.mouse.move(a.x + 10, a.y + a.height / 2);
 		await page.mouse.down();
 		await page.mouse.move(a.x + 10, a.y + a.height / 2 + 5, { steps: 3 });
+		const b = await open7.boundingBox();
 		await page.mouse.move(b.x + 10, b.y + b.height * 0.8, { steps: 10 });
 		const into = await page.$eval('.PageListSortItem', li => li.parentElement.classList.contains('PageListPlaceholder'));
 		await page.mouse.up();

@@ -95,7 +95,19 @@ div.InputfieldPageAutocomplete > ol { order: 1; margin: 0; padding: 0; }
 .InputfieldFileList > .InputfieldFileItem.pw-selected > .InputfieldFileInfo { background: var(--pw-primary-bg); box-shadow: inset 0 0 0 var(--ring-width) var(--ring); }
 .gridImage.pw-selected { box-shadow: var(--shadow-sm), 0 0 0 var(--ring-width) var(--card), 0 0 0 calc(2 * var(--ring-width)) var(--ring); }
 .gridImage--delete.pw-selected { box-shadow: var(--shadow-sm), inset 0 0 0 2px var(--destructive), 0 0 0 var(--ring-width) var(--card), 0 0 0 calc(2 * var(--ring-width)) var(--ring); }
-.PageList .PageListItem.pw-selected { margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: var(--radius-md); background: var(--pw-primary-bg); box-shadow: inset 0 0 0 1px var(--pw-primary-40); }
+/* page tree: adjacent selected rows read as one band; inside the row's box, as the deepest branch
+ * clips what reaches past it (overflow for its scrollbar, 30-pagelist.css) */
+.PageList .PageListItem.pw-selected { --pw-sel-line: var(--pw-primary-40); border-radius: var(--radius-md); background: var(--pw-primary-bg); box-shadow: inset 0 0 0 1px var(--pw-sel-line); }
+.PageList .PageListItem.pw-selected + .PageListItem.pw-selected { border-top-left-radius: 0; border-top-right-radius: 0; box-shadow: inset 1px 0 var(--pw-sel-line), inset -1px 0 var(--pw-sel-line), inset 0 -1px var(--pw-sel-line); }
+.PageList .PageListItem.pw-selected:has(+ .PageListItem.pw-selected) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; box-shadow: inset 1px 0 var(--pw-sel-line), inset -1px 0 var(--pw-sel-line), inset 0 1px var(--pw-sel-line); }
+.PageList .PageListItem.pw-selected + .PageListItem.pw-selected:has(+ .PageListItem.pw-selected) { box-shadow: inset 1px 0 var(--pw-sel-line), inset -1px 0 var(--pw-sel-line); }
+/* several rows selected: one menu for all of them (fields/pagelist-group.ts), not each row's own */
+.PageListRoot.pw-multi-selection .PageListItem.pw-selected > .PageListActions { display: none !important; }
+.pw-group-actions { position: fixed; z-index: 20; display: flex; align-items: center; margin: 0; padding: 0; list-style: none; }
+.pw-group-actions[hidden] { display: none; }
+.pw-group-actions > li { margin: 0 3px 0 0; padding: 0; border: 0; }
+.pw-group-count { margin-left: 2px; color: var(--muted-foreground); font-weight: 400; }
+.PageListRoot.pw-move-armed .PageListItem.pw-selected { cursor: move; }
 .pw-drag-member { display: none !important; }
 .pw-drag-away { opacity: .4; }
 .PageList .PageListSortItem[data-pw-count] { position: relative; }

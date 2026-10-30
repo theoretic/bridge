@@ -61,6 +61,18 @@ of the tree's chunk). Rows inside a selected row are never selected on their own
 posted on its own, as upstream's endpoint takes one; an empty answer is a success; a page the
 server refuses goes back to where it was, and the messages are shown once.
 
+Several selected tree rows (0.14.1, owner review of 0.14.0): a menu per row made the selection
+useless, since a row's own menu acts on that row alone. So with two or more rows selected:
+- adjacent selected rows draw **one band**, inside the branch's box (the deepest branch scrolls,
+  so anything reaching past its sides is cut off);
+- the rows' own menus give way to **one menu for the selection**, shown on hovering any selected
+  row, after the titles and centred on the band. It holds every action of the rows except View
+  (several pages cannot be viewed at once), each applying to every row that has it;
+- AJAX extras are posted row by row as from the rows' own menus; actions that open a page open the
+  rows in turn in the native dialog (a Next button; browsers allow one new tab per click, so tabs
+  are not an option);
+- Move from that menu arms the selection: a press on any selected row drags them all.
+
 ### Moves between fields: when and where
 
 - **Saved at the drop**, like uploads and tree moves: one request to the page editor moves the

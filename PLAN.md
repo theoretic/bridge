@@ -356,8 +356,8 @@ Shift, a rubber band), a plain click keeps its meaning; moves saved at the drop 
 `ProcessPageEdit::ajaxSave`, by reference within a page's files directory; a target accepts what an
 upload would, and a dialog settles the rest (Replace / Swap / Leave for a single-file field).
 
-**Status 2026-10-30: done (0.14.0, unreleased).**
-- `tools/image-file-check.js` sections R to U and `tools/pagetree-check.js` section H pass in Chromium
+**Status 2026-10-30: done (0.14.0; 0.14.1 adds one band and one menu for several selected tree rows; unreleased).**
+- `tools/image-file-check.js` sections R to U and `tools/pagetree-check.js` section H (40/40) pass in Chromium
   and Firefox on atispro; smoke test green with a server-side round trip; Gate 2 unchanged.
 - Open: touch multi-select; moves between a page and its repeater items (needs a physical copy);
   Extras actions on a tree selection; WireTab headers that open while dragging over them.

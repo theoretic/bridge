@@ -53,7 +53,8 @@ let lastActive: Instance | null = null;
 let documentReady = false;
 let status: HTMLElement | null = null;
 
-const OUTSIDE_KEEP = 'dialog, .pw-lightbox, .selectize-dropdown, .ui-dialog, .pw-drag-ghost';
+// presses there keep every selection: dialogs, dropdowns, and the menu of several tree rows
+const OUTSIDE_KEEP = 'dialog, .pw-lightbox, .selectize-dropdown, .ui-dialog, .pw-drag-ghost, .pw-group-actions';
 const TEXT = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
 
 function announce(n: number): void {

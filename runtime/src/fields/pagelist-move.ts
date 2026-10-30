@@ -44,12 +44,15 @@ export type TreeCtx = {
 
 type Origin = { list: HTMLElement; at: number };
 
-export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void } {
+export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void; moveGroup(rows: HTMLElement[]): void } {
 	const { root, kids, next, prev, pageId } = c;
 	let moving: HTMLElement | null = null;
 	let group: HTMLElement[] = [];
 	let origins = new Map<HTMLElement, Origin>();
 	let dragId = -1;
+	// Move from the menu of several rows: the rows wait, as they are, for a press on any of them
+	let armed = false;
+	let note: HTMLElement | null = null;
 
 	const items = (list: Element): HTMLElement[] => kids(list, '.PageListItem').filter(x => !x.classList.contains('PageListPlaceholderItem'));
 
@@ -63,9 +66,9 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 	};
 
 	const onEsc = (e: KeyboardEvent): void => {
-		if (e.key !== 'Escape' || !moving) return;
+		if (e.key !== 'Escape' || (!moving && !armed)) return;
 		e.preventDefault();
-		if (dragId > -1) {
+		if (moving && dragId > -1) {
 			try { root.releasePointerCapture(dragId); } catch (err) { /* released */ }
 			dragId = -1;
 			moving.classList.remove('PageListSortPlaceholder');
@@ -75,13 +78,9 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 		cancelMove();
 	};
 
-	const clickMove = (a: HTMLAnchorElement): void => {
-		if (c.ignoreClicks() || moving) return;
-		const visible = Array.from(root.querySelectorAll<HTMLElement>('.PageListItem')).filter(x => x.offsetParent !== null);
-		if (visible.length === 1) { a.style.textDecoration = 'line-through'; a.classList.add('ui-state-disabled'); return; }
-		const li = a.closest<HTMLElement>('.PageListItem') as HTMLElement;
-		group = c.select.isSelected(li) ? c.select.selected() : [li];
-		if (group.indexOf(li) < 0) group = [li];
+	/** the rows that move: open ones closed, where each came from, places to drop into, the mode on */
+	const prepare = (rows: HTMLElement[]): void => {
+		group = rows;
 		group.forEach(m => { if (m.classList.contains('PageListItemOpen')) c.toggleItem(m); });
 		origins = new Map();
 		group.forEach(m => {
@@ -97,31 +96,60 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 			ph.appendChild(c.el('div', 'PageListItem PageListPlaceholderItem', '&nbsp;'));
 			open.insertAdjacentElement('afterend', ph);
 		});
+		root.classList.add('PageListSorting');
+		kids(kids(root, '.PageList')[0], '.PageList').forEach(x => x.classList.add('PageListSortingList'));
+		window.addEventListener('keydown', onEsc, true);
+	};
+
+	/** the move note with Cancel, in a row before its actions */
+	const addNote = (li: HTMLElement): void => {
 		const count = group.length > 1 ? esc(label('movePages', 'Moving %d pages').replace('%d', String(group.length))) + ':&nbsp;' : '';
-		const note = c.el('span', 'PageListMoveNote detail', c.icons.sort + '&nbsp;' + count + c.o.moveInstructionLabel + '&nbsp;' + c.icons.left + '&nbsp;');
+		note = c.el('span', 'PageListMoveNote detail', c.icons.sort + '&nbsp;' + count + c.o.moveInstructionLabel + '&nbsp;' + c.icons.left + '&nbsp;');
 		const cancel = c.el('a', '', c.o.selectCancelLabel);
 		cancel.href = '#';
 		cancel.addEventListener('click', e => { e.preventDefault(); cancelMove(); });
 		note.appendChild(cancel);
-		const actions = kids(li, 'ul.PageListActions')[0];
-		li.insertBefore(note, actions || null);
+		li.insertBefore(note, kids(li, 'ul.PageListActions')[0] || null);
+	};
+
+	/** the row that is dragged, the others hidden meanwhile */
+	const lift = (li: HTMLElement): void => {
 		li.classList.add('PageListSortItem');
 		group.forEach(m => { if (m !== li) m.classList.add('pw-drag-member'); });
 		if (group.length > 1) li.setAttribute('data-pw-count', String(group.length));
-		root.classList.add('PageListSorting');
-		kids(kids(root, '.PageList')[0], '.PageList').forEach(x => x.classList.add('PageListSortingList'));
 		moving = li;
-		window.addEventListener('keydown', onEsc, true);
+	};
+
+	const clickMove = (a: HTMLAnchorElement): void => {
+		if (c.ignoreClicks() || moving || armed) return;
+		const visible = Array.from(root.querySelectorAll<HTMLElement>('.PageListItem')).filter(x => x.offsetParent !== null);
+		if (visible.length === 1) { a.style.textDecoration = 'line-through'; a.classList.add('ui-state-disabled'); return; }
+		const li = a.closest<HTMLElement>('.PageListItem') as HTMLElement;
+		const rows = c.select.isSelected(li) ? c.select.selected() : [li];
+		prepare(rows.indexOf(li) < 0 ? [li] : rows);
+		addNote(li);
+		lift(li);
+	};
+
+	/** Move for several selected rows: they stay as they are until one of them is pressed */
+	const moveGroup = (rows: HTMLElement[]): void => {
+		if (c.ignoreClicks() || moving || armed || !rows.length) return;
+		prepare(rows);
+		addNote(group[0]);
+		armed = true;
+		root.classList.add('pw-move-armed');
 	};
 
 	const cancelMove = (): void => {
 		root.querySelectorAll('.PageListSortingList').forEach(x => x.classList.remove('PageListSortingList'));
-		if (moving) {
-			moving.classList.remove('PageListSortItem');
-			moving.removeAttribute('data-pw-count');
-			moving.querySelectorAll('.PageListMoveNote').forEach(x => x.remove());
-		}
-		group.forEach(m => m.classList.remove('pw-drag-member'));
+		if (note) note.remove();
+		note = null;
+		armed = false;
+		root.classList.remove('pw-move-armed');
+		group.forEach(m => {
+			m.classList.remove('pw-drag-member', 'PageListSortItem');
+			m.removeAttribute('data-pw-count');
+		});
 		root.querySelectorAll('.PageListPlaceholder').forEach(x => {
 			if (x.querySelector('.PageListItem:not(.PageListPlaceholderItem)')) { x.classList.remove('PageListPlaceholder'); x.querySelectorAll('.PageListPlaceholderItem').forEach(p => p.remove()); }
 			else x.remove();
@@ -197,8 +225,17 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 
 	// dragging the item that is moving: placed before or after the item under the pointer
 	root.addEventListener('pointerdown', e => {
-		if (!moving || e.button !== 0) return;
+		if (e.button !== 0) return;
 		const t = e.target as HTMLElement;
+		if (!moving && armed) {
+			// any row of the waiting selection: it leads, the others go with it
+			const row = t.closest<HTMLElement>('.PageListItem');
+			if (!row || group.indexOf(row) < 0 || t.closest('.PageListMoveNote a')) return;
+			armed = false;
+			root.classList.remove('pw-move-armed');
+			lift(row);
+		}
+		if (!moving) return;
 		if (!moving.contains(t) || t.closest('.PageListMoveNote a')) return;
 		e.preventDefault();
 		dragId = e.pointerId;
@@ -238,5 +275,5 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 	root.addEventListener('pointerup', drop);
 	root.addEventListener('pointercancel', drop);
 
-	return { clickMove };
+	return { clickMove, moveGroup };
 }

@@ -14,7 +14,7 @@
 .PageList .PageListItemHover { background: color-mix(in srgb, var(--muted) 60%, transparent); border-radius: var(--radius-sm); }
 
 .PageList .PageListActions > li { border: 0; padding: 0; margin: 0 3px 0 0; }
-.PageList .PageListActions li a, .PageListerActions a, .PageList .PageListMoveNote a {
+.PageList .PageListActions li a, .PageListerActions a, .PageList .PageListMoveNote a, .pw-group-actions a {
 	display: inline-block;
 	vertical-align: top;
 	margin: 1px 2px 0 0;
@@ -31,7 +31,7 @@
 	transition: background var(--pw-transition), color var(--pw-transition);
 }
 .PageListerActions { margin-left: 8px; }
-.PageList .PageListActions li a:hover, .PageListerActions a:hover { background: var(--accent); color: var(--accent-foreground); }
+.PageList .PageListActions li a:hover, .PageListerActions a:hover, .pw-group-actions a:hover { background: var(--accent); color: var(--accent-foreground); }
 .PageListActions li a .fa { font-size: inherit; }
 /* the extras chevron centred in its pill: upstream gives the flipped one 2px/3px margins, and the
  * glyph's ink sits 1.5px high and .6px right of its box (left when flipped) */

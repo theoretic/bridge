@@ -1,5 +1,12 @@
 # Changelog
 
+## AdminThemeBridge 0.14.1: one menu for several selected pages (2026-10-30)
+
+- **Selected pages in the tree read as one block**: next to each other, they share one band with rounded ends. The band's edges were cut off at the sides; they now show.
+- **One menu for the selection**: with two or more pages selected, hovering any of them shows one menu for all of them, after their titles and centred on the band. The pages' own menus stay hidden meanwhile. It has the same actions as a page's own menu except View; an action that only some of the pages have shows how many.
+- **Its actions apply to every selected page**: Hide, Unhide, Unpublish, Lock, Copy and the other extras run page by page, and the pages stay selected (Trash asks first). Edit (and New) open the pages one after another in the dialog, with a Next page button; closing the dialog ends the round.
+- **Move from that menu makes the whole selection draggable**: press any of the selected pages and drag; they all go.
+
 ## AdminThemeBridge 0.14.0: select several items, drag them together or to another field (2026-10-30)
 
 Decision in `docs/decisions/0018-multiselect-and-moves-between-fields.md`.

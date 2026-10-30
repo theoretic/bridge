@@ -187,9 +187,12 @@ function setupTree(container: HTMLElement): void {
 		if (extrasLink) extrasData.set(extrasLink, extras);
 		if (last) { (last as HTMLElement).classList.add('ui-priority-secondary'); actions.appendChild(last); }
 		li.appendChild(actions);
+		actionsData.set(li, links);
 		return li;
 	};
 	const extrasData = new WeakMap<HTMLAnchorElement, Record<string, Action>>();
+	// each row's actions as the server sent them (the menu of several selected rows, pagelist-group.ts)
+	const actionsData = new WeakMap<HTMLElement, Action[]>();
 
 	const listChildren = (children: Child[]): HTMLElement => {
 		const list = el('div', 'PageList');
@@ -451,13 +454,27 @@ function setupTree(container: HTMLElement): void {
 			&& !(li.parentElement && li.parentElement.classList.contains('PageListRootHidden')),
 		normalize: list => { const set = new Set(list); return list.filter(li => !ancestors(li).some(a => set.has(a))); },
 		enabled: () => !legacyLoaded() && !root.classList.contains('PageListSorting') && !root.classList.contains('PageListSortSaving'),
+		// several rows: their own action menus give way to one for all (pagelist-group.ts, loaded then)
+		onChange: rows => {
+			root.classList.toggle('pw-multi-selection', rows.length > 1);
+			if (rows.length > 1 || grouper) void loadGroup().then(g => g.update(rows));
+		},
 	});
 	// Move: its own chunk, loaded when the pointer or the focus first reaches the tree, so a click on
 	// Move finds it in place
-	let mover: Promise<{ clickMove(a: HTMLAnchorElement): void }> | null = null;
-	const loadMove = (): Promise<{ clickMove(a: HTMLAnchorElement): void }> => mover || (mover = import('./pagelist-move').then(m => m.installMove({
+	type Mover = { clickMove(a: HTMLAnchorElement): void; moveGroup(rows: HTMLElement[]): void };
+	let mover: Promise<Mover> | null = null;
+	const loadMove = (): Promise<Mover> => mover || (mover = import('./pagelist-move').then(m => m.installMove({
 		root, container, o, icons, el, kids, next, prev, pageId, numOf, setNum, adjustTotal, forceReload, toggleItem,
 		spinner, alertMsg, ignoreClicks: () => ignoreClicks, select,
+	})));
+	let grouper: Promise<{ update(rows: HTMLElement[]): void }> | null = null;
+	const loadGroup = (): Promise<{ update(rows: HTMLElement[]): void }> => grouper || (grouper = import('./pagelist-group').then(m => m.installGroup({
+		root, select, pageId, isModal, hoverDelay: o.hoverActionDelay,
+		actionsOf: li => actionsData.get(li) || [],
+		ajaxAction,
+		moveGroup: rows => { void loadMove().then(mv => mv.moveGroup(rows)); },
+		refreshList,
 	})));
 	const clickMove = (a: HTMLAnchorElement): void => { void loadMove().then(m => m.clickMove(a)); };
 	const early = (): void => { void loadMove(); };
