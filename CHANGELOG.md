@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.13.1: dragged page tree item (2026-10-30)
+
+- **The page tree item you drag is a rounded band one row high**: it had a dashed outline and was 20px high (upstream's `height: 1em`), so the Cancel button hung out of the coloured background and the content sat off centre. The dashed outline is gone; the band has rounded corners, room for the Cancel button and its content centred, and the title stays in line with the rows around it. The gap left by a legacy (jQuery UI) drag gets the same band.
+
 ## AdminThemeBridge 0.13.0: Add New skips the template step (2026-10-30)
 
 - **New setting "Step 2 if template auto-selected"** (Appearance, off by default): when every page under the parent uses one template, or the parent allows only one, Add New creates the page with that template and opens it in the page editor, without the Add New form in between. A notice names the template and why it was chosen, and says where to turn this off (linked to the settings for superusers). It uses upstream's quick add: the page starts unpublished, its name is a placeholder (`untitled-…`) replaced from the title on the first save, and one left without saving goes to the trash after a day, the next time a page is added this way. A template chosen in the link (Add New shortcuts, Save + Publish + Add Another), the user screens and parents listed in `$config->pageAdd['noSuggestTemplates']` keep the form; parents with a name format for children keep upstream's own quick add.

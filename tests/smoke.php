@@ -706,6 +706,8 @@ if(isset($bridge) && $bridge) {
 	check('skip to content shows where it lands', strpos($mainJs, 'setupSkipLink:function') !== false && strpos($mainJs, 'pw-skip-landing') !== false && strpos($themeCss, '.pw-skip-landing{outline:') !== false);
 	// 0.11.10: the page tree's extras chevron is centred in its pill, flipped or not
 	check('the extras chevron is centred, without upstream margins', strpos($themeCss, '.PageList .PageListActionExtras>a>i{position:relative;top:.1em;left:-.045em;margin:0}') !== false && strpos($themeCss, '.PageList .PageListActionExtras>a>i.fa-flip-horizontal{left:.045em}') !== false);
+	// 0.13.1: the dragged page tree item is a rounded band one row high, without the dashed outline
+	check('the dragged tree item is a rounded, centred band', strpos($themeCss, '.PageList .PageListItem.PageListSortPlaceholder{display:flex;align-items:center;box-sizing:border-box;height:auto;min-height:1.875rem;') !== false && strpos($themeCss, 'outline:1px dashed var(--pw-primary-40)') === false);
 	// 0.12.0: a save waits for uploads and other requests to the edit screen, then clicks again
 	$pageEditJs = (string) @file_get_contents($themeDir . 'scripts/page-edit.js');
 	$saveWaitJs = (string) @file_get_contents($themeDir . 'scripts/save-wait.js');

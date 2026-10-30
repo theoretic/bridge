@@ -38,7 +38,22 @@
 .PageList .PageListActionExtras > a > i { position: relative; top: .1em; left: -.045em; margin: 0; }
 .PageList .PageListActionExtras > a > i.fa-flip-horizontal { left: .045em; }
 
-.PageListSortPlaceholder { background: var(--pw-primary-bg); outline: 1px dashed var(--pw-primary-40); }
+/* the item being dragged (the runtime's) or the gap it leaves (jQuery UI's): a rounded band one row
+ * high, its content centred; upstream's height: 1em let the Cancel pill hang out of it. The band
+ * reaches 8px past the row on each side, so the title stays in line with its siblings */
+.PageList .PageListItem.PageListSortPlaceholder {
+	display: flex;
+	align-items: center;
+	box-sizing: border-box;
+	height: auto;
+	min-height: calc(1.375rem + 8px);
+	padding: 4px 8px;
+	margin: 0 -8px;
+	border-radius: var(--radius-md);
+	background: var(--pw-primary-bg);
+}
+.PageList .PageListSortItem .PageListMoveNote { display: inline-flex; align-items: center; }
+.PageList .PageListSortItem .PageListMoveNote a { margin: 0 0 0 2px; }
 .PageListSorting .PageListSortItem > a.PageListPage { color: var(--pw-primary); }
 .PageListSelectHeader .PageListSelectName { color: var(--pw-h1); padding-right: 8px; }
 /* the page's label as the tree prints it: its icon, the title, status icons (the lock) */
