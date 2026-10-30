@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.15.1: rubber band beside the page tree (2026-10-30)
+
+- **The page tree's rubber band starts beside the tree too**: a press in the empty space to the left or right of the tree, anywhere across the window but between the tree's top and bottom, draws the band, as a press on the tree's background does. Ctrl or Shift adds to the selection, a click there clears it. Links, buttons, the masthead and other lists keep their own clicks; above and below the tree nothing changes.
+
 ## AdminThemeBridge 0.15.0: a warning before risky actions (2026-10-30)
 
 Decision in `docs/decisions/0019-risky-action-warnings.md`.

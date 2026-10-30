@@ -828,6 +828,10 @@ if(isset($bridge) && $bridge) {
 	foreach(array('guards', 'ask', 'danger') as $chunk) {
 		check("the $chunk chunk is built", count(preg_grep('/^' . $chunk . '-[\w-]+\.js$/', $chunks)) > 0);
 	}
+	// 0.15.1: the page tree's rubber band starts beside the tree, at its height
+	$selSrc = (string) @file_get_contents($rt . 'util/selection.ts');
+	check('a band may start beside a selectable list (marqueeStrip), the page tree opts in', strpos($selSrc, 'if (inst.container.contains(t) || inst.strip(e)) lastActive = inst;') !== false
+		&& strpos($selSrc, 'if (e.clientY < r.top || e.clientY > r.bottom) return false;') !== false && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), 'marqueeStrip: true,') !== false);
 	$themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
 	check('theme.css has the warning dialog and its red button', strpos($themeCss, '.pw-ask-danger .pw-ask-message .fa{') !== false && strpos($themeCss, '.ui-button.pw-button-danger{') !== false);
 }

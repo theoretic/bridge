@@ -450,6 +450,8 @@ function setupTree(container: HTMLElement): void {
 		items: '.PageListItem',
 		ignore: '.PageListActions, .PageListMoveNote, ul[data-pagination], input, button, select, textarea',
 		marqueeFromItems: true,
+		// the tree is narrower than the screen: a band may start beside it, at its height
+		marqueeStrip: true,
 		canSelect: li => !li.classList.contains('PageListPlaceholderItem') && !li.classList.contains('PageListID1')
 			&& !(li.parentElement && li.parentElement.classList.contains('PageListRootHidden')),
 		normalize: list => { const set = new Set(list); return list.filter(li => !ancestors(li).some(a => set.has(a))); },

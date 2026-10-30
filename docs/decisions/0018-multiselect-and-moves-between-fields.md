@@ -41,7 +41,8 @@ Facts that shaped the design (core 3.0.274):
 The same gestures in all three places, with the mouse or a pen:
 - **Ctrl+click** (Cmd on a Mac) toggles an item, **Shift+click** selects the range from the last
   one toggled, a **rubber band** from the list's background selects what it touches (the page tree:
-  also from a row's blank part). These clicks do nothing else.
+  also from a row's blank part, and since 0.15.1 from beside the tree, across the window's width
+  between its top and bottom, `marqueeStrip`). These clicks do nothing else.
 - A **plain click keeps its upstream meaning** (the image editor, opening a tree row) and clears
   the selection. A press on an unselected item clears it too, so a drag that follows moves that
   item alone; a press on a selected item keeps it for the drag.

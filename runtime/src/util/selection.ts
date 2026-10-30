@@ -7,7 +7,9 @@
  *   the last item toggled. The click does nothing else: no edit panel, no link, no lightbox.
  * - A press on the list's background (with `marqueeFromItems`, also on an item's own blank box)
  *   draws a rubber band after 4 px: the items it touches are selected, added with Ctrl or Shift.
- *   A press there that does not move clears the selection.
+ *   A press there that does not move clears the selection. With `marqueeStrip` the band also
+ *   starts beside the container: anywhere across the window's width, between the container's top
+ *   and bottom, except on controls, links, the masthead and other selectable lists.
  * - A plain click on an item clears the selection, then does what it did before. A press on an
  *   unselected item clears it too, so a drag that follows moves that item alone; a press on a
  *   selected item keeps the selection for the drag.
@@ -30,6 +32,8 @@ export type SelectableOptions = {
 	canSelect?: (item: HTMLElement) => boolean;
 	/** a press on an item's own box (not on its children) may start the rubber band */
 	marqueeFromItems?: boolean;
+	/** a press beside the container, across the window's width at its height, starts it too */
+	marqueeStrip?: boolean;
 	/** applied to every new selection (the page tree drops rows inside a selected row) */
 	normalize?: (items: HTMLElement[]) => HTMLElement[];
 	enabled?: () => boolean;
@@ -46,7 +50,7 @@ export type Selectable = {
 	destroy(): void;
 };
 
-type Instance = { container: HTMLElement; api: Selectable; selectAll(): void };
+type Instance = { container: HTMLElement; api: Selectable; selectAll(): void; strip(e: PointerEvent): boolean };
 
 const instances = new Set<Instance>();
 let lastActive: Instance | null = null;
@@ -56,6 +60,9 @@ let status: HTMLElement | null = null;
 // presses there keep every selection: dialogs, dropdowns, and the menu of several tree rows
 const OUTSIDE_KEEP = 'dialog, .pw-lightbox, .selectize-dropdown, .ui-dialog, .pw-drag-ghost, .pw-group-actions';
 const TEXT = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+// a press beside a container with marqueeStrip does what it did there
+const STRIP_IGNORE = 'a, button, input, select, textarea, label, summary, [contenteditable]:not([contenteditable="false"]), [role=button], '
+	+ '[tabindex]:not([tabindex="-1"]), #pw-masthead, .pw-dropdown-menu, #notices, [data-pw-selectable]';
 
 function announce(n: number): void {
 	if (!document.body) return;
@@ -78,7 +85,7 @@ function setupDocument(): void {
 		lastActive = null;
 		instances.forEach(inst => {
 			if (!inst.container.isConnected) { instances.delete(inst); return; }
-			if (inst.container.contains(t)) lastActive = inst;
+			if (inst.container.contains(t) || inst.strip(e)) lastActive = inst;
 			else if (!e.ctrlKey && !e.metaKey && !e.shiftKey) inst.api.clear();
 		});
 	}, true);
@@ -174,6 +181,22 @@ export function makeSelectable(container: HTMLElement, o: SelectableOptions): Se
 		band = { id: e.pointerId, x: e.clientX + window.scrollX, y: e.clientY + window.scrollY, base: selected(), add: e.ctrlKey || e.metaKey || e.shiftKey, box: null };
 	};
 
+	// beside the container (marqueeStrip): the moves come to it from the start, no text is selected
+	const strip = (e: PointerEvent): boolean => {
+		if (!o.marqueeStrip || band || e.button !== 0 || (e.pointerType !== 'mouse' && e.pointerType !== 'pen')) return false;
+		if (o.enabled && !o.enabled()) return false;
+		const t = e.target as HTMLElement;
+		if (!t.closest || t.closest(STRIP_IGNORE) || container.offsetParent === null) return false;
+		// not on the window's scrollbar
+		if (e.clientX >= document.documentElement.clientWidth) return false;
+		const r = container.getBoundingClientRect();
+		if (e.clientY < r.top || e.clientY > r.bottom) return false;
+		startBand(e);
+		document.body.classList.add('pw-marquee-active');
+		try { container.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
+		return true;
+	};
+
 	const onMove = (e: PointerEvent): void => {
 		if (!band || e.pointerId !== band.id) return;
 		// released outside the container before the band began
@@ -208,6 +231,7 @@ export function makeSelectable(container: HTMLElement, o: SelectableOptions): Se
 		const b = band;
 		band = null;
 		edgeScroll(0, true);
+		document.body.classList.remove('pw-marquee-active');
 		if (b.box) {
 			b.box.remove();
 			container.classList.remove('pw-marquee-active');
@@ -271,7 +295,7 @@ export function makeSelectable(container: HTMLElement, o: SelectableOptions): Se
 	container.addEventListener('pointercancel', onUp);
 	container.addEventListener('click', onClick, true);
 	container.addEventListener('dragstart', onNativeDrag);
-	const inst: Instance = { container, api, selectAll: () => apply(candidates()) };
+	const inst: Instance = { container, api, selectAll: () => apply(candidates()), strip };
 	instances.add(inst);
 	return api;
 }
