@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.13.2: settings in four groups (2026-10-30)
+
+- **The theme's settings are grouped**: Users (use for the login screen, change users to this theme by role), Appearance (colour, colour scheme, logos, maximum content width), Features (extended breadcrumbs, save without reload, step 2 if template auto-selected) and Legacy (legacy script stack, UIkit, scripts that never wait, native or legacy per class). Setting names and values are unchanged.
+
 ## AdminThemeBridge 0.13.1: dragged page tree item (2026-10-30)
 
 - **The page tree item you drag is a rounded band one row high**: it had a dashed outline and was 20px high (upstream's `height: 1em`), so the Cancel button hung out of the coloured background and the content sat off centre. The dashed outline is gone; the band has rounded corners, room for the Cancel button and its content centred, and the title stays in line with the rows around it. The gap left by a legacy (jQuery UI) drag gets the same band.

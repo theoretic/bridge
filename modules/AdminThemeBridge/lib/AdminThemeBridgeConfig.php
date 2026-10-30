@@ -13,6 +13,20 @@ trait AdminThemeBridgeConfig {
 		parent::getModuleConfigInputfields($inputfields);
 		$modules = $this->wire()->modules;
 
+		// the two settings AdminThemeFramework adds (login screen, users by role) go first, in Users
+		/** @var InputfieldFieldset $fs */
+		$fs = $modules->get('InputfieldFieldset');
+		$fs->attr('name', '_users');
+		$fs->label = __('Users', __FILE__);
+		$fs->icon = 'users';
+		$inputfields->add($fs);
+		foreach(array('useAsLogin', '_setAdminThemeRoleId') as $name) {
+			$f = $inputfields->getChildByName($name);
+			if(!$f) continue;
+			$inputfields->remove($f);
+			$fs->add($f);
+		}
+
 		/** @var InputfieldFieldset $fs */
 		$fs = $modules->get('InputfieldFieldset');
 		$fs->attr('name', '_appearance');
@@ -63,6 +77,41 @@ trait AdminThemeBridgeConfig {
 		$f->columnWidth = 50;
 		$fs->add($f);
 
+		/** @var InputfieldText $f */
+		$f = $modules->get('InputfieldText');
+		$f->attr('name', 'logoURL');
+		$f->label = __('Logo URL', __FILE__);
+		$f->description = __('Relative to the site root, e.g. site/templates/admin-logo.svg. Empty for the ProcessWire mark from the installed core.', __FILE__);
+		$f->attr('value', (string) $this->get('logoURL'));
+		$f->columnWidth = 50;
+		$fs->add($f);
+
+		/** @var InputfieldText $f */
+		$f = $modules->get('InputfieldText');
+		$f->attr('name', 'logoURLDark');
+		$f->label = __('Logo URL for the dark scheme', __FILE__);
+		$f->description = __('Optional. Shown instead of the logo above when the dark scheme is on.', __FILE__);
+		$f->attr('value', (string) $this->get('logoURLDark'));
+		$f->columnWidth = 50;
+		$fs->add($f);
+
+		/** @var InputfieldInteger $f */
+		$f = $modules->get('InputfieldInteger');
+		$f->attr('name', 'maxWidth');
+		$f->label = __('Maximum content width (px), 0 for none', __FILE__);
+		$f->attr('value', $this->getMaxWidth());
+		$f->attr('min', 0);
+		$f->attr('max', 4000);
+		$f->columnWidth = 50;
+		$fs->add($f);
+
+		/** @var InputfieldFieldset $fs */
+		$fs = $modules->get('InputfieldFieldset');
+		$fs->attr('name', '_features');
+		$fs->label = __('Features', __FILE__);
+		$fs->icon = 'toggle-on';
+		$inputfields->add($fs);
+
 		/** @var InputfieldCheckbox $f */
 		$f = $modules->get('InputfieldCheckbox');
 		$f->attr('name', 'extendedBreadcrumbs');
@@ -91,25 +140,15 @@ trait AdminThemeBridgeConfig {
 		$f->notes = __('The new page starts unpublished, with a placeholder name that the title replaces on the first save. A page left without saving stays unpublished; after a day it goes to the trash the next time a page is added this way.', __FILE__);
 		$f->attr('value', 1);
 		if($this->pageAddSkipTemplate) $f->attr('checked', 'checked');
-		$fs->add($f);
-
-		/** @var InputfieldText $f */
-		$f = $modules->get('InputfieldText');
-		$f->attr('name', 'logoURL');
-		$f->label = __('Logo URL', __FILE__);
-		$f->description = __('Relative to the site root, e.g. site/templates/admin-logo.svg. Empty for the ProcessWire mark from the installed core.', __FILE__);
-		$f->attr('value', (string) $this->get('logoURL'));
 		$f->columnWidth = 50;
 		$fs->add($f);
 
-		/** @var InputfieldText $f */
-		$f = $modules->get('InputfieldText');
-		$f->attr('name', 'logoURLDark');
-		$f->label = __('Logo URL for the dark scheme', __FILE__);
-		$f->description = __('Optional. Shown instead of the logo above when the dark scheme is on.', __FILE__);
-		$f->attr('value', (string) $this->get('logoURLDark'));
-		$f->columnWidth = 50;
-		$fs->add($f);
+		/** @var InputfieldFieldset $fs */
+		$fs = $modules->get('InputfieldFieldset');
+		$fs->attr('name', '_legacy');
+		$fs->label = __('Legacy', __FILE__);
+		$fs->icon = 'history';
+		$inputfields->add($fs);
 
 		/** @var InputfieldRadios $f */
 		$f = $modules->get('InputfieldRadios');
@@ -118,7 +157,8 @@ trait AdminThemeBridgeConfig {
 		$f->addOption(self::legacyAuto, __('Load only when the page has a legacy Inputfield or Process (default)', __FILE__));
 		$f->addOption(self::legacyAlways, __('Always load (every admin page)', __FILE__));
 		$f->attr('value', $this->legacyStack);
-		$inputfields->add($f);
+		$f->columnWidth = 50;
+		$fs->add($f);
 
 		/** @var InputfieldRadios $f */
 		$f = $modules->get('InputfieldRadios');
@@ -130,7 +170,8 @@ trait AdminThemeBridgeConfig {
 		$f->addOption(self::uikitNever, __('Never load', __FILE__));
 		$mode = $this->get('uikit');
 		$f->attr('value', in_array($mode, array(self::uikitAuto, self::uikitAlways, self::uikitNever), true) ? $mode : self::uikitAuto);
-		$inputfields->add($f);
+		$f->columnWidth = 50;
+		$fs->add($f);
 
 		/** @var InputfieldTextarea $f */
 		$f = $modules->get('InputfieldTextarea');
@@ -140,7 +181,7 @@ trait AdminThemeBridgeConfig {
 		$f->attr('rows', 3);
 		$f->attr('value', (string) $this->get('printScripts'));
 		$f->collapsed = Inputfield::collapsedBlank;
-		$inputfields->add($f);
+		$fs->add($f);
 
 		/** @var InputfieldTextarea $f */
 		$f = $modules->get('InputfieldTextarea');
@@ -153,15 +194,6 @@ trait AdminThemeBridgeConfig {
 		$bad = $this->nativeOverrideErrors();
 		if(count($bad)) $f->error(sprintf(__('Ignored (not ClassName=native|legacy): %s', __FILE__), implode(', ', $bad)));
 		$f->collapsed = count($bad) ? Inputfield::collapsedNo : Inputfield::collapsedBlank;
-		$inputfields->add($f);
-
-		/** @var InputfieldInteger $f */
-		$f = $modules->get('InputfieldInteger');
-		$f->attr('name', 'maxWidth');
-		$f->label = __('Maximum content width (px), 0 for none', __FILE__);
-		$f->attr('value', $this->getMaxWidth());
-		$f->attr('min', 0);
-		$f->attr('max', 4000);
-		$inputfields->add($f);
+		$fs->add($f);
 	}
 }
