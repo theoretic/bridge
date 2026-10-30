@@ -188,16 +188,18 @@
 			icon.classList.toggle('fa-spinner', on);
 		},
 
-		_submit: function(url) {
+		_submit: function(url, confirmed) {
 			var refreshAll = true;
 			var rowIDs = ProcessLister.refreshRowPageIDs.filter(function(id) { return id; });
 			var results = ProcessLister.results;
 			if(!results) return false;
 			if(!rowIDs.length) {
 				var form = results.querySelector('.InputfieldFormConfirm');
-				if(form && form.querySelector('.InputfieldStateChanged')) {
+				if(!confirmed && form && form.querySelector('.InputfieldStateChanged')) {
 					var msg = (window.ProcessWire && ProcessWire.config && ProcessWire.config.InputfieldForm && ProcessWire.config.InputfieldForm.labels && ProcessWire.config.InputfieldForm.labels.unsaved) || 'Leave without saving changes?';
-					if(!window.confirm(msg)) return false;
+					// the runtime's dialog (ADR 0019): OK submits again
+					theme.confirm({ title: msg, danger: true }, function() { ProcessLister._submit(url, true); });
+					return false;
 				}
 				var headline = results.querySelector('.lister_headline');
 				if(headline && !headline.querySelector('i.fa-spin')) headline.insertAdjacentHTML('beforeend', "<i class='fa fa-spin fa-spinner'></i>");

@@ -88,6 +88,18 @@ var ProcessWireAdminTheme = {
 	},
 
 	/**
+	 * The runtime's confirmation dialog for classic scripts (util/ask.ts, ADR 0019): opts is
+	 * {title, message?, items?, ok?, danger?} or a string; through window.Bridge, the stand-in
+	 * included (its calls run when the runtime arrives), else the browser's own
+	 */
+	confirm: function(opts, funcOk, funcCancel) {
+		if(typeof opts === 'string') opts = { title: opts };
+		if(window.Bridge && window.Bridge.confirm) return void window.Bridge.confirm(opts, funcOk, funcCancel);
+		if(window.confirm([opts.title, opts.message || ''].join(' ').trim())) { if(typeof funcOk === 'function') funcOk(); }
+		else if(typeof funcCancel === 'function') funcCancel();
+	},
+
+	/**
 	 * One MutationObserver on <body> for the theme and the runtime: fn(records) is called for
 	 * every batch of DOM changes in the body (subtree, childList), in registration order; a throw
 	 * in one does not stop the others. Returns a function that unregisters fn (audit B18).
@@ -1750,15 +1762,15 @@ var ProcessWireAdminTheme = {
 /**
  * ProcessWire.alert / confirm / prompt on pages without the legacy stack: upstream defines them
  * in templates-admin/scripts/main.js (with vex dialogs), which is deferred there. Plain browser
- * dialogs until then; upstream's versions replace these when the stack loads.
+ * dialogs until then (confirm: the runtime's dialog); upstream's versions replace these when the
+ * stack loads.
  */
 (function(pw) {
 	if(!pw || ProcessWireAdminTheme.upstream()) return;
 	var strip = function(s) { var d = document.createElement('div'); d.innerHTML = String(s); return d.textContent || ''; };
 	if(!pw.alert) pw.alert = function(message, allowMarkup, expire, func) { window.alert(strip(message)); if(typeof func === 'function') func(); };
 	if(!pw.confirm) pw.confirm = function(message, funcOk, funcCancel) {
-		if(window.confirm(strip(message))) { if(typeof funcOk === 'function') funcOk(); }
-		else if(typeof funcCancel === 'function') funcCancel();
+		ProcessWireAdminTheme.confirm(strip(message), funcOk, funcCancel);
 	};
 	if(!pw.prompt) pw.prompt = function(message, placeholder, func) {
 		var value = window.prompt(strip(message), placeholder || '');

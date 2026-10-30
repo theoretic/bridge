@@ -18,6 +18,7 @@
 
 import type { Selectable } from '../util/selection';
 import { label } from '../util/labels';
+import { confirm } from '../util/danger';
 import { esc } from '../util/html';
 
 type Action = { cn: string; name: string; url: string; extras?: Record<string, Action>; ajax?: boolean };
@@ -211,9 +212,11 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void }
 					secondary: true,
 					click: () => {
 						const changed = !!doc.querySelector('form.InputfieldFormConfirm .InputfieldStateChanged');
-						if (changed && !window.confirm(label('discardChanges', 'This page has unsaved changes. Leave it?'))) return;
-						n++;
-						openAt();
+						void (changed ? confirm({ title: label('discardChanges', 'This page has unsaved changes. Leave it?'), danger: true }) : Promise.resolve(true)).then(ok => {
+							if (!ok) return;
+							n++;
+							openAt();
+						});
 					},
 				}],
 				onClose: () => { if (!switching) done(); },
@@ -235,8 +238,13 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void }
 		hide();
 		if (cn === 'Move') { c.moveGroup(selected.filter(li => li.isConnected)); return; }
 		if (entry.action.ajax) {
-			if (cn === 'Trash' && !window.confirm(label('trashPages', 'Move %d pages to the trash?').replace('%d', String(rows.length)))) return;
-			void ajaxAll(cn, rows);
+			if (cn !== 'Trash') { void ajaxAll(cn, rows); return; }
+			void confirm({
+				title: label('trashPages', 'Move %d pages to the trash?').replace('%d', String(rows.length)),
+				message: label('warnTrashMany', 'They leave the site right away. You can restore them from the trash.'),
+				ok: label('warnVerbTrash', 'Move to trash'),
+				danger: true,
+			}).then(ok => { if (ok) void ajaxAll(cn, rows); });
 			return;
 		}
 		openAll(cn, entry.action.name, rows);

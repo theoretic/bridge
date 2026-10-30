@@ -795,5 +795,42 @@ if(isset($bridge) && $bridge) {
 	}
 }
 
+// 0.15.0: risky action warnings (ADR 0019)
+if(isset($bridge) && $bridge) {
+	$fresh = $modules->wire(new AdminThemeBridge());
+	check('"Warn before risky actions" is on by default', !empty($fresh->dangerWarn));
+	$found = false;
+	$configFields = $modules->wire(new InputfieldWrapper());
+	$bridge->getModuleConfigInputfields($configFields);
+	foreach($configFields->getAll() as $f) if($f->attr('name') === 'dangerWarn') $found = true;
+	check('the setting is in the module config', $found);
+	$labels = $bridge->runtimeLabels();
+	foreach(array('warnThisField', 'warnReplaceTitle', 'warnReplace', 'warnReplaceNow', 'warnReplaceImage', 'warnOverwriteTitle', 'warnOverwrite',
+		'warnSaveReplaceTitle', 'warnSaveReplace', 'warnVariationTitle', 'warnVariationsTitle', 'warnVariations', 'warnUninstallTitle', 'warnUninstall', 'warnRemoveDbTitle',
+		'warnRemoveDb', 'warnCommentTitle', 'warnComment', 'warnActionTitle', 'warnAction', 'warnRenameTitle', 'warnRename', 'warnTrashTitle', 'warnTrash',
+		'warnTrashMany', 'warnTrashKids', 'warnMoveImagesTitle', 'warnMoveImages', 'warnNewItemTitle', 'warnNewItem', 'warnVerbReplace', 'warnVerbOverwrite',
+		'warnVerbDelete', 'warnVerbUninstall', 'warnVerbRemove', 'warnVerbApply', 'warnVerbSave', 'warnVerbTrash', 'warnVerbMove') as $key) {
+		check("runtime label '$key' exists", isset($labels[$key]));
+	}
+	check('the warnings reach the runtime with the path history flag', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), "\$bridgeJs['dangerWarn'] = (bool) \$this->dangerWarn;") !== false);
+	$rt = dirname(__DIR__) . '/runtime/src/';
+	$guardsSrc = (string) @file_get_contents($rt . 'guards.ts');
+	foreach(array('drop', 'change', 'click', 'submit') as $type) {
+		check("guards: a capture listener on window for $type", strpos($guardsSrc, "window.addEventListener('$type', on") !== false);
+	}
+	check('the guards load only while the setting is on', strpos((string) @file_get_contents($rt . 'index.ts'), "dangerWarn) void import('./guards')") !== false);
+	$left = array();
+	foreach(array('fields/pagelist-group.ts', 'fields/repeater.ts', 'classic/page-edit.js', 'classic/lister.js', 'classic/setup.js') as $file) {
+		if(strpos((string) @file_get_contents($rt . $file), 'window.confirm(') !== false) $left[] = $file;
+	}
+	check('no window.confirm left in the runtime\'s own confirms', !count($left), implode(', ', $left));
+	$chunks = array_map('basename', (array) glob($themeDir . 'assets/dist/chunks/*.js'));
+	foreach(array('guards', 'ask', 'danger') as $chunk) {
+		check("the $chunk chunk is built", count(preg_grep('/^' . $chunk . '-[\w-]+\.js$/', $chunks)) > 0);
+	}
+	$themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
+	check('theme.css has the warning dialog and its red button', strpos($themeCss, '.pw-ask-danger .pw-ask-message .fa{') !== false && strpos($themeCss, '.ui-button.pw-button-danger{') !== false);
+}
+
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

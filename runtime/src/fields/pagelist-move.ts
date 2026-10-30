@@ -20,11 +20,12 @@ import { gather, edgeScroll } from '../util/sortable';
 import type { Selectable } from '../util/selection';
 import { label } from '../util/labels';
 import { esc } from '../util/html';
+import { guard, fill } from '../util/danger';
 
 export type TreeCtx = {
 	root: HTMLElement;
 	container: HTMLElement;
-	o: { ajaxMoveURL: string; moveInstructionLabel: string; selectCancelLabel: string; ajaxUnknownError: string };
+	o: { ajaxMoveURL: string; moveInstructionLabel: string; selectCancelLabel: string; ajaxUnknownError: string; trashPageID: number };
 	icons: { sort: string; left: string };
 	el: <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: string) => HTMLElementTagNameMap[K];
 	kids: (e: Element | null, sel: string) => HTMLElement[];
@@ -188,6 +189,27 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 		let before = list.previousElementSibling as HTMLElement | null;
 		if (before && !before.classList.contains('PageListItem')) before = before.previousElementSibling as HTMLElement | null;
 		const parentID = before ? pageId(before) : 0;
+		// a drop on the Trash sends the pages away from the site at once (ADR 0019)
+		if (parentID && parentID === c.o.trashPageID) {
+			const one = travelling.length === 1;
+			const kidsOf = one ? c.numOf(lead) : 0;
+			const ok = await guard({
+				title: one
+					? fill('warnTrashTitle', 'Move %s to the trash?', (lead.querySelector('a.PageListPage') || lead).textContent || '')
+					: fill('trashPages', 'Move %d pages to the trash?', travelling.length),
+				message: kidsOf
+					? fill('warnTrashKids', 'It leaves the site right away, with its %d subpages. You can restore it from the trash.', kidsOf)
+					: one
+						? label('warnTrash', 'It leaves the site right away. You can restore it from the trash.')
+						: label('warnTrashMany', 'They leave the site right away. You can restore them from the trash.'),
+				ok: label('warnVerbTrash', 'Move to trash'),
+			});
+			if (!ok) {
+				group.slice().reverse().forEach(restore);
+				cancelMove();
+				return;
+			}
+		}
 		root.classList.add('PageListSortSaving');
 		cancelMove();
 		group = travelling;

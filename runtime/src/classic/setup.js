@@ -719,8 +719,14 @@
 				if(window.ProcessWire && ProcessWire.alert) ProcessWire.alert(alertText); else window.alert(alertText);
 				return;
 			}
-			if(confirmText && checkbox && checkbox.checked && !window.confirm(confirmText)) {
-				e.preventDefault();
+			// the runtime's dialog (ADR 0019): a clicked box is checked by now, Cancel unchecks it; on
+			// a disabled box's label the click does nothing either way
+			if(confirmText && checkbox && checkbox.checked) {
+				if(el.tagName !== 'INPUT') { e.preventDefault(); theme.confirm(confirmText); return; }
+				theme.confirm(confirmText, function() { updatePermissions(false, [el]); }, function() {
+					el.checked = false;
+					updatePermissions(false, [el]);
+				});
 				return;
 			}
 			if(el.tagName === 'INPUT') setTimeout(function() { updatePermissions(false, [el]); }, 100);

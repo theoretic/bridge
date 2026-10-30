@@ -62,16 +62,22 @@
 		bindDocument: function() {
 			if(this.bound) return;
 			this.bound = true;
+			var confirmed = null;
 			document.addEventListener('click', function(e) {
 				var button = e.target.closest ? e.target.closest('button[type=submit]') : null;
 				if(!button || !document.body.classList.contains('pw-uploading')) return;
+				if(button === confirmed) { confirmed = null; return; }
 				// a save that will wait for the upload (main.js saveWait) does not ask
 				if(theme.saveWait && theme.saveWait.claims(button)) return;
 				var form = document.getElementById('ProcessPageEdit');
-				if(!window.confirm(form ? form.getAttribute('data-uploading') : '')) {
-					e.preventDefault();
-					e.stopImmediatePropagation();
-				}
+				e.preventDefault();
+				e.stopImmediatePropagation();
+				// the runtime's dialog (ADR 0019); OK clicks the button again, past this listener
+				theme.confirm({ title: form ? form.getAttribute('data-uploading') || '' : '', danger: true }, function() {
+					if(!button.isConnected) return;
+					confirmed = button;
+					button.click();
+				});
 			}, handover.bind(true));
 			document.addEventListener('pw-wiretabs-change', function(e) {
 				var tab = e.detail.tab;

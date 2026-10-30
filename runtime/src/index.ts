@@ -13,6 +13,8 @@ import type { LightboxItem } from './util/lightbox';
 import { legacyLoaded, legacyPending, loadLegacy, onLegacyLoaded } from './legacy';
 import { replay } from './util/stubs';
 import { load as loadComponent, loadFrom as loadComponentsFrom, loadProcess, loaded as loadedComponents } from './components';
+import type { AskOptions } from './util/ask';
+import { pwConfig } from './util/pw';
 
 export const version = '1.0.0';
 
@@ -32,10 +34,15 @@ export const Bridge = {
 	tables: {
 		sort: (table: HTMLTableElement, column: number, dir: 'asc' | 'desc' = 'asc'): Promise<void> => import('./fields/datatable').then(m => m.sort(table, column, dir)),
 	},
+	// a themed confirm (always asks) and a risky action's warning (asks while the setting is on,
+	// ADR 0019); a promise, and callbacks for classic scripts calling through the stand-in
+	confirm: (opts: AskOptions | string, onOk?: () => void, onCancel?: () => void): Promise<boolean> => import('./util/danger').then(m => m.callbacks(m.confirm(opts), onOk, onCancel)),
+	guard: (opts: AskOptions, onOk?: () => void, onCancel?: () => void): Promise<boolean> => import('./util/danger').then(m => m.callbacks(m.guard(opts), onOk, onCancel)),
 	init(): void {
 		defineTabs();
 		defineDialog();
 		setupModalLinks();
+		if (pwConfig<{ dangerWarn?: boolean }>('AdminThemeBridge').dangerWarn) void import('./guards').then(m => m.start());
 		Inputfields.init(document);
 		void loadProcess();
 		void loadComponentsFrom(document);

@@ -51,7 +51,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.14.1',
+			'version' => '0.15.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -364,6 +364,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->set('extendedBreadcrumbs', 1);
 		$this->set('pageSaveInPlace', 1);
 		$this->set('pageAddSkipTemplate', 0);
+		$this->set('dangerWarn', 1);
 		$this->set('printScripts', '');
 		$this->set('nativeOverrides', '');
 		$this->setClasses(array(

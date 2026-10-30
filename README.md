@@ -70,6 +70,10 @@ are the point. A screen with a jQuery-era field loads that field's stack, as it 
 - The dark scheme reaches CKEditor, TinyMCE and the other field widgets; button text and focus
   rings meet the contrast checks in every colour preset, and every focus is visible under
   Windows high contrast.
+- Before data is lost for good, a dialog says what goes and when: a file dropped on a
+  single-file field that holds one, an upload that overwrites a file of the same name, Save and
+  Replace in the image editor, deleted variations, a module uninstall, a renamed published page
+  without path history, and more (Features > Warn before risky actions, on by default).
 
 ## Compatibility
 

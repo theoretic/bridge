@@ -217,6 +217,47 @@ trait AdminThemeBridgeShell {
 			'nextPage' => __('Next page', __FILE__), // the dialog that opens several selected pages in turn
 			'discardChanges' => __('This page has unsaved changes. Leave it?', __FILE__),
 			'trashPages' => __('Move %d pages to the trash?', __FILE__),
+			// risky action warnings (0.15.0, ADR 0019): a title, the risk, the OK button's verb;
+			// each %s or %d is filled in order by the runtime
+			'warnThisField' => __('This field', __FILE__), // a field without a label
+			'warnReplaceTitle' => __('Replace %s?', __FILE__),
+			'warnReplace' => __('%s holds one file. The new file takes the place of %s, which is deleted when you save the page.', __FILE__),
+			'warnReplaceNow' => __('%s holds one file. The new file takes the place of %s, which is deleted right away. This can’t be undone.', __FILE__),
+			'warnReplaceImage' => __('The image you dropped takes the place of %s, which is deleted when you save the page.', __FILE__),
+			'warnOverwriteTitle' => __('Overwrite files in %s?', __FILE__),
+			'warnOverwrite' => __('Files of these names are already in the field. The upload overwrites them right away, and the sized copies of an image go too. This can’t be undone.', __FILE__),
+			'warnSaveReplaceTitle' => __('Replace the original image?', __FILE__),
+			'warnSaveReplace' => __('The original file is overwritten with this version and its sized copies are made again. This can’t be undone.', __FILE__),
+			'warnVariationTitle' => __('Delete this sized copy?', __FILE__),
+			'warnVariationsTitle' => __('Delete %d sized copies?', __FILE__),
+			'warnVariations' => __('They are deleted right away. Rich text that shows one of them loses the image.', __FILE__),
+			'warnUninstallTitle' => __('Uninstall %s?', __FILE__),
+			'warnUninstall' => __('The module’s uninstall step runs when you submit. It may remove its database tables, fields, templates or pages along with its settings. This can’t be undone.', __FILE__),
+			'warnRemoveDbTitle' => __('Remove %s from the database?', __FILE__),
+			'warnRemoveDb' => __('Its settings are removed. This can’t be undone.', __FILE__),
+			'warnCommentTitle' => __('Delete this comment?', __FILE__),
+			'warnComment' => __('The comment is deleted for good when you save the page. This can’t be undone.', __FILE__),
+			'warnActionTitle' => __('%s: change the original image?', __FILE__), // %s is the action, e.g. Sepia
+			'warnAction' => __('The action is applied when you save the page and replaces the original pixels. This can’t be undone.', __FILE__),
+			'warnRenameTitle' => __('Change this page’s address?', __FILE__),
+			'warnRename' => __('Its address goes from …/%s/ to …/%s/, and those of its subpages change too. Links and bookmarks to the old address stop working.', __FILE__),
+			'warnTrashTitle' => __('Move %s to the trash?', __FILE__),
+			'warnTrash' => __('It leaves the site right away. You can restore it from the trash.', __FILE__),
+			'warnTrashMany' => __('They leave the site right away. You can restore them from the trash.', __FILE__),
+			'warnTrashKids' => __('It leaves the site right away, with its %d subpages. You can restore it from the trash.', __FILE__),
+			'warnMoveImagesTitle' => __('Move %d images to %s?', __FILE__),
+			'warnMoveImages' => __('A file field keeps no sized copies: those of the moved images are deleted right away. Rich text that shows one of them loses the image.', __FILE__),
+			'warnNewItemTitle' => __('Remove this new item?', __FILE__),
+			'warnNewItem' => __('It is not saved yet. What you entered in it is lost.', __FILE__),
+			'warnVerbReplace' => __('Replace', __FILE__),
+			'warnVerbOverwrite' => __('Overwrite', __FILE__),
+			'warnVerbDelete' => __('Delete', __FILE__),
+			'warnVerbUninstall' => __('Uninstall', __FILE__),
+			'warnVerbRemove' => __('Remove', __FILE__),
+			'warnVerbApply' => __('Apply', __FILE__),
+			'warnVerbSave' => __('Save', __FILE__),
+			'warnVerbTrash' => __('Move to trash', __FILE__),
+			'warnVerbMove' => __('Move', __FILE__),
 		);
 	}
 

@@ -28,6 +28,7 @@ import { notice } from '../util/notice';
 import { failed } from '../util/fail';
 import { label } from '../util/labels';
 import { esc } from '../util/html';
+import { guard, fill } from '../util/danger';
 
 type Outcome = 'ok' | 'ext' | 'room' | 'single';
 type Row = { li: HTMLElement; hash: string; name: string; ext: string; thumb: string; outcome: Outcome };
@@ -300,6 +301,18 @@ export function mover(src: HTMLElement, list: HTMLElement): Mover {
 		}
 		const take = items.filter(r => r.outcome === 'ok' || (r.outcome === 'single' && resolve[r.hash] && resolve[r.hash] !== 'skip'));
 		if (!take.length) return;
+		// images into a plain file field lose their sized copies on the server (ADR 0019)
+		const image = '[data-bridge-component="InputfieldImage"]';
+		if (src.matches(image) && !field.matches(image)) {
+			const header = field.querySelector(':scope > .InputfieldHeader');
+			const ok = await guard({
+				title: fill('warnMoveImagesTitle', 'Move %d images to %s?', take.length, header ? (header.textContent || '').trim() : nameOf(field)),
+				message: label('warnMoveImages', 'A file field keeps no sized copies: those of the moved images are deleted right away. Rich text that shows one of them loses the image.'),
+				items: take.map(r => r.name),
+				ok: label('warnVerbMove', 'Move'),
+			});
+			if (!ok) return;
+		}
 		const up = uploadTarget(uploadOf(field) as HTMLElement);
 		const url = up.url.replace(/([?&])InputfieldFileAjax=1&?/, '$1').replace(/[?&]$/, '');
 		const body = new FormData();

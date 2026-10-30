@@ -1,5 +1,25 @@
 # Changelog
 
+## AdminThemeBridge 0.15.0: a warning before risky actions (2026-10-30)
+
+Decision in `docs/decisions/0019-risky-action-warnings.md`.
+
+- **Warn before risky actions** (Features, on by default): before something is lost for good, a dialog says what goes, when, and whether it can be undone. Cancel has the focus; the red button names the action. It asks before:
+  - a file or image replaces the one in a single-file field (dropped or chosen). The dialog says whether the old one goes when you save or right away, with the field's overwrite setting;
+  - an upload overwrites a file of the same name in a field with overwrite on;
+  - an image dropped on the big image of the edit panel replaces it;
+  - Save and Replace in the image editor; Delete Checked in the variations window;
+  - B&W, Sepia or Reduce 50% (they replace the original pixels at save);
+  - a comment set to Delete; Uninstall (or Remove from the database) in a module's settings;
+  - a published page saved under a new name when PagePathHistory is not installed (the old address stops working);
+  - Trash in a page's menu in the page tree, or a page dropped on the Trash;
+  - images moved to a plain file field (their sized copies are deleted);
+  - a new, unsaved repeater item removed after something was entered in it.
+
+  It works the same with and without the legacy script stack.
+- **The theme's other confirmations use the same dialog**, whatever the setting: Trash for several selected pages, leaving a page with unsaved changes in the page-by-page dialog, saving while an upload runs, refreshing the Lister with unsaved edits, the role permission box, and `ProcessWire.confirm` on pages without jQuery.
+- For module authors: `Bridge.confirm(opts)` asks with the theme's dialog, and `Bridge.guard(opts)` asks only while the setting is on. Both return a promise and also take callbacks.
+
 ## AdminThemeBridge 0.14.1: one menu for several selected pages (2026-10-30)
 
 - **Selected pages in the tree read as one block**: next to each other, they share one band with rounded ends. The band's edges were cut off at the sides; they now show.

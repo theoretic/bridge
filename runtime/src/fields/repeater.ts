@@ -33,6 +33,8 @@ import { fetchOk, failed } from '../util/fail';
 import { open as openField, close as closeField, isCollapsed } from '../inputfields/collapse';
 import { onRemoval } from '../util/removal';
 import { keyButton } from '../util/keybutton';
+import { guard, confirm } from '../util/danger';
+import { label as lbl } from '../util/labels';
 
 const DEPTH = 50;
 type Cfg = { editorUrl?: string; labels?: Record<string, string> };
@@ -56,7 +58,7 @@ function pageVersion(): number {
 function confirmed(message: string, fn: () => void): void {
 	const pw = (window as unknown as { ProcessWire?: { confirm?: (m: string, ok: () => void) => void } }).ProcessWire;
 	if (pw && pw.confirm) pw.confirm(message, fn);
-	else if (window.confirm(message)) fn();
+	else void confirm(message).then(ok => { if (ok) fn(); });
 }
 function alertMsg(message: string): void {
 	const pw = (window as unknown as { ProcessWire?: { alert?: (m: string) => void } }).ProcessWire;
@@ -553,11 +555,21 @@ function deleteItem(trash: HTMLElement): void {
 	const item = h ? h.parentElement as HTMLElement : null;
 	if (!h || !item || disabled(trash)) return;
 	if (item.classList.contains('InputfieldRepeaterNewItem')) {
-		const qty = item.parentElement?.parentElement?.querySelector<HTMLInputElement>(':scope > .InputfieldRepeaterAddItem > input');
-		if (qty) qty.value = String((parseInt(qty.value, 10) || 0) - 1);
-		const repeater = repeaterOf(item);
-		item.remove();
-		checkMinMax(repeater);
+		const remove = (): void => {
+			if (!item.isConnected) return;
+			const qty = item.parentElement?.parentElement?.querySelector<HTMLInputElement>(':scope > .InputfieldRepeaterAddItem > input');
+			if (qty) qty.value = String((parseInt(qty.value, 10) || 0) - 1);
+			const repeater = repeaterOf(item);
+			item.remove();
+			checkMinMax(repeater);
+		};
+		// what was typed in it goes with it (ADR 0019)
+		if (!item.querySelector('.InputfieldStateChanged')) { remove(); return; }
+		void guard({
+			title: lbl('warnNewItemTitle', 'Remove this new item?'),
+			message: lbl('warnNewItem', 'It is not saved yet. What you entered in it is lost.'),
+			ok: lbl('warnVerbRemove', 'Remove'),
+		}).then(ok => { if (ok) remove(); });
 		return;
 	}
 	const box = document.getElementById('delete_repeater' + item.getAttribute('data-page')) as HTMLInputElement | null;

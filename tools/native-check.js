@@ -525,6 +525,44 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	}
 	await page6.close();
 
+	// risky action warning (0.15.0, ADR 0019): a drop on the single-image field of /bridge-native/
+	// (tools/sandbox-fixture.php) asks first; Cancel keeps the image and uploads nothing
+	const page7 = await ctx.newPage();
+	await page7.goto(ADMIN + 'page/', { waitUntil: 'networkidle' });
+	const nativeId = await page7.evaluate(async admin => {
+		const r = await fetch(admin + 'page/list/?id=1&render=JSON&start=0&limit=200', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(res => res.json());
+		const c = (r.children || []).find(x => x.path === '/bridge-native/');
+		return c ? c.id : 0;
+	}, new URL(ADMIN).pathname);
+	if(nativeId) {
+		await page7.goto(ADMIN + 'page/edit/?id=' + nativeId, { waitUntil: 'networkidle' });
+		let uploads = 0;
+		page7.on('request', req => { if(/InputfieldFileAjax=1/.test(req.url())) uploads++; });
+		const warned = await page7.evaluate(async () => {
+			const field = document.getElementById('wrap_Inputfield_bf_image');
+			if(!field) return { field: false };
+			const before = field.querySelectorAll('li.gridImage:not(.gridImagePlaceholder)').length;
+			const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
+			const dt = new DataTransfer();
+			dt.items.add(new File([png], 'native-check.png', { type: 'image/png' }));
+			field.querySelector(':scope > .InputfieldContent').dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+			const t = Date.now();
+			let d = null;
+			while(!d && Date.now() - t < 3000) { d = document.querySelector('dialog.pw-ask-danger[open]'); await new Promise(r => setTimeout(r, 50)); }
+			const text = d ? d.innerText : '';
+			const focus = d ? document.activeElement === d.querySelector('button[value=cancel]') : false;
+			if(d) d.querySelector('button[value=cancel]').click();
+			await new Promise(r => setTimeout(r, 300));
+			return { field: true, before, text, focus, after: field.querySelectorAll('li.gridImage:not(.gridImagePlaceholder)').length, left: document.querySelectorAll('dialog.pw-ask').length };
+		});
+		check('danger: a drop on a single-image field that holds one asks first, naming both files', warned.field && /native-check\.png/.test(warned.text) && warned.before === 1, JSON.stringify(warned));
+		check('danger: Cancel has the focus first', warned.focus);
+		check('danger: Cancel keeps the image, uploads nothing, removes the dialog', warned.after === warned.before && uploads === 0 && warned.left === 0, JSON.stringify(warned) + ' uploads=' + uploads);
+	} else {
+		check('danger: /bridge-native/ fixture page found', false, 'run tools/sandbox-fixture.php');
+	}
+	await page7.close();
+
 	await consoleErrors.settle();
 	consoleErrors.check(check);
 	await browser.close();

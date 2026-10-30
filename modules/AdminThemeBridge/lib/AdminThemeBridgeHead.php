@@ -143,6 +143,9 @@ trait AdminThemeBridgeHead {
 		$bridgeJs['variant'] = $this->getVariant();
 		$bridgeJs['legacyReasons'] = $this->getLegacyReasons();
 		$bridgeJs['pageSave'] = $pageSave;
+		// risky action warnings (ADR 0019); a rename only warns when no path history keeps the old URL
+		$bridgeJs['dangerWarn'] = (bool) $this->dangerWarn;
+		$bridgeJs['pathHistory'] = $this->wire()->modules->isInstalled('PagePathHistory');
 		// the UIkit layer (ADR 0017): printed, or the URLs the theme script loads it from on demand
 		$bridgeJs['uikit'] = array(
 			'loaded' => $useUikit,

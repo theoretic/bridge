@@ -199,6 +199,8 @@ Built from `runtime/`, imported by the theme script on every admin page. Dispatc
 | `Bridge.Inputfields.reload(target, {queryString})` | upstream's AJAX reload: `?field=&reloadInputfieldAjax=`, repeater items by `data-page` / `data-fnsx`. The content is swapped, its scripts run, then `reloaded` (3.6) |
 | `Bridge.Inputfields.highlight(target)` / `hashAction(hash)` | upstream's `#find-<name>`, `#focus-<name>`, `#highlight-<name>` on load. `focus()` / `find()` show the field's WireTab first. Names resolve as upstream: control name, id, `name[]`, then wrapper ids. A match outside any Inputfield, such as the masthead search's `name=q`, is skipped (3.7) |
 | `Bridge.legacy.loaded()` / `load()` | as the theme script's |
+| `Bridge.confirm(opts, onOk?, onCancel?)` | the runtime's confirmation dialog (`dialog.pw-ask`, 0.15.0, ADR 0019): `opts` is a title string or `{title, message?, items?, ok?, danger?}` (`ok` is the OK button's text, `danger` the warning look); Promise of true for OK, and the callbacks for classic scripts (they work through the stand-in). Always asks |
+| `Bridge.guard(opts, onOk?, onCancel?)` | the same as a risky action's warning (`danger` on): asks only while the theme's "Warn before risky actions" setting is on (`ProcessWire.config.AdminThemeBridge.dangerWarn`), otherwise true at once |
 
 Form behaviours of upstream `inputfields.js`, on pages without the legacy stack (milestone 2.2, ADR 0015):
 - change tracking: `change`/`input` on a control in `.InputfieldForm` adds `InputfieldStateChanged` (not inside `.InputfieldIgnoreChanges`); `change` also dispatches `changed`;
@@ -212,7 +214,7 @@ Form behaviours of upstream `inputfields.js`, on pages without the legacy stack 
 
 Field widgets with scripts of their own are separate chunks loaded on demand (`runtime/src/fields/registry.ts`). Each is found by the markup its upstream script looks for and marks what it initialised. Examples: `select[data-pw-asm]` for asmSelect, `.InputfieldPage[data-pw-page]` for the Page wrapper. When the legacy stack loads later, the theme wraps upstream plugins so they skip marked elements (`ProcessWireAdminTheme.legacy.guardNative()`).
 
-On such pages `ProcessWire.alert/confirm/prompt` are plain browser dialogs until the stack loads, and inline head scripts that configure vex wait for it (`ProcessWireAdminTheme.legacy.later(fn)`).
+On such pages `ProcessWire.alert/prompt` are plain browser dialogs and `ProcessWire.confirm` is `Bridge.confirm` (0.15.0) until the stack loads, and inline head scripts that configure vex wait for it (`ProcessWireAdminTheme.legacy.later(fn)`).
 
 `window.Inputfields` on such pages is a facade (`Inputfields.native === true`): `inputfield`, `open`, `close`, `toggle`, `isCollapsed`, `hidden`, `focus`, `find`, `changed`, `name`, `label`; targets are elements, jQuery-like lists, selectors or field names. Upstream `inputfields.js` replaces it when the stack loads.
 

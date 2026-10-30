@@ -143,6 +143,17 @@ trait AdminThemeBridgeConfig {
 		$f->columnWidth = 50;
 		$fs->add($f);
 
+		/** @var InputfieldCheckbox $f */
+		$f = $modules->get('InputfieldCheckbox');
+		$f->attr('name', 'dangerWarn');
+		$f->label = __('Warn before risky actions', __FILE__);
+		$f->description = __('A dialog names what is lost before it goes: a file or image that replaces the one in a single-file field, an upload that overwrites a file of the same name, Save and Replace in the image editor, deleted image variations, B&W, Sepia and Reduce 50%, a module uninstall, a comment set to Delete, a published page renamed without path history, a page sent to the trash from the page tree, images moved into a file field and a new repeater item removed with what was typed in it.', __FILE__);
+		$f->notes = __('Confirmations the core and this theme already show stay either way.', __FILE__);
+		$f->attr('value', 1);
+		if($this->dangerWarn) $f->attr('checked', 'checked');
+		$f->columnWidth = 50;
+		$fs->add($f);
+
 		/** @var InputfieldFieldset $fs */
 		$fs = $modules->get('InputfieldFieldset');
 		$fs->attr('name', '_legacy');

@@ -81,3 +81,10 @@ dialog.pw-ask::backdrop { background: rgb(0 0 0 / .5); }
 .pw-ask-note { margin-top: 8px; }
 .pw-ask-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .pw-ask-buttons .ui-button { margin: 0; }
+/* confirmations and risky action warnings (runtime util/ask.ts, ADR 0019): a warning has the
+   icon and a red OK, darkened so white text reads on the dark scheme's lighter red too */
+.pw-ask-risk { margin: 0; color: var(--pw-text-muted); }
+.pw-ask-items { margin: 10px 0 0; padding-left: 20px; overflow-wrap: anywhere; }
+.pw-ask-danger .pw-ask-message .fa { margin-right: 4px; color: var(--destructive); }
+.ui-button.pw-button-danger { --pw-danger-button: color-mix(in srgb, var(--destructive) 75%, #000); border-color: var(--pw-danger-button); background: var(--pw-danger-button); color: #fff; }
+.ui-button.pw-button-danger:hover { background: color-mix(in srgb, var(--destructive) 62%, #000); color: #fff; }
