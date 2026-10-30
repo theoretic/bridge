@@ -51,7 +51,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.16.0',
+			'version' => '0.17.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -365,6 +365,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->set('pageSaveInPlace', 1);
 		$this->set('pageAddSkipTemplate', 0);
 		$this->set('dangerWarn', 1);
+		$this->set('dataTableSortRows', 10);
 		$this->set('printScripts', '');
 		$this->set('nativeOverrides', '');
 		$this->setClasses(array(
@@ -480,7 +481,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// tables print `AdminDataTable.initTable($('#id'))`: without jQuery the runtime's
 		// AdminDataTable (milestone 3.5) takes the element instead
 		$this->addHookAfter('MarkupAdminDataTable::render', $this, 'hookDataTableRender');
-		// every core data table sorts by its headers, also those core made unsortable (0.9.9)
+		// every core data table sorts by its headers, also those core made unsortable (0.9.9), once
+		// it has as many rows as the dataTableSortRows setting (0.17.0)
 		$this->addHookBefore('MarkupAdminDataTable::render', $this, 'hookDataTableRenderBefore');
 		// inline jQuery code in a native markup field (a module's config screen, notes): A5
 		$this->addHookAfter('InputfieldMarkup::render', $this, 'hookMarkupRender');

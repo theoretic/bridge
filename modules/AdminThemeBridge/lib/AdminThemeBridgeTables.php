@@ -24,7 +24,8 @@ trait AdminThemeBridgeTables {
 	}
 
 	/**
-	 * Hook before MarkupAdminDataTable::render: a table sortableDataTable() accepts sorts by its
+	 * Hook before MarkupAdminDataTable::render: a table with fewer rows than the dataTableSortRows
+	 * setting does not sort, whoever made it; a table sortableDataTable() accepts sorts by its
 	 * headers, also when its maker called setSortable(false); a column whose header has no text (a
 	 * checkbox or icon column) does not sort (`th.sorter-false`, honoured by both sorters)
 	 *
@@ -33,7 +34,11 @@ trait AdminThemeBridgeTables {
 	 */
 	public function hookDataTableRenderBefore(HookEvent $event) {
 		$table = $event->object;
-		if(!$table instanceof MarkupAdminDataTable || $table->sortable) return;
+		if(!$table instanceof MarkupAdminDataTable) return;
+		if($table->sortable) {
+			if(count((array) $table->rows) < $this->getDataTableSortRows()) $table->setSortable(false);
+			return;
+		}
 		if(!$this->sortableDataTable($table, $this->dataTableMaker())) return;
 		$table->setSortable(true);
 		foreach(array_values((array) $table->headerRow) as $n => $th) {
@@ -64,7 +69,8 @@ trait AdminThemeBridgeTables {
 	 * Should a data table that its maker made unsortable sort by its headers under this theme?
 	 *
 	 * Hook after to opt a module's table in or out. By default: tables made by core modules
-	 * (wire/modules) with a header row and at least two rows, except
+	 * (wire/modules) with a header row and at least as many rows as the dataTableSortRows setting
+	 * (two at least), except
 	 *
 	 * - the Lister's (`ProcessListerTable`): it sorts on the server by its own header links;
 	 * - InputfieldCheckboxes' table mode (`pw-no-select`): the order of its rows is posted;
@@ -78,7 +84,7 @@ trait AdminThemeBridgeTables {
 	 *
 	 */
 	public function ___sortableDataTable(MarkupAdminDataTable $table, $maker = '') {
-		if(count((array) $table->headerRow) === 0 || count((array) $table->rows) < 2) return false;
+		if(count((array) $table->headerRow) === 0 || count((array) $table->rows) < max(2, $this->getDataTableSortRows())) return false;
 		$classes = ' ' . $table->settings('class') . ' ' . $table->class . ' ';
 		foreach(array('ProcessListerTable', 'pw-no-select') as $class) {
 			if(strpos($classes, " $class ") !== false) return false;
@@ -86,5 +92,15 @@ trait AdminThemeBridgeTables {
 		$process = $this->wire()->process;
 		if($process instanceof Process && wireInstanceOf($process, 'ProcessSessionDB')) return false;
 		return $this->isUnder($maker, $this->wire()->config->paths->modules);
+	}
+
+	/**
+	 * Fewest rows a data table sorts with (the dataTableSortRows setting), within 0..10000
+	 *
+	 * @return int
+	 *
+	 */
+	public function getDataTableSortRows() {
+		return max(0, min(10000, (int) $this->get('dataTableSortRows')));
 	}
 }

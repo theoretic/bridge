@@ -544,6 +544,8 @@ if(isset($bridge) && $bridge) {
 	};
 	$coreMaker = $config->paths->modules . 'Process/ProcessField/ProcessField.module';
 	$siteMaker = $config->paths->siteModules . 'SomeModule/SomeModule.module';
+	$sortRows = $bridge->get('dataTableSortRows');
+	$bridge->set('dataTableSortRows', 2);
 	check('a core table with a header and two rows sorts', $bridge->sortableDataTable($makeTable(array('A', 'B', 'C'), 2), $coreMaker) === true);
 	check('the Lister\'s table does not (server sort)', !$bridge->sortableDataTable($makeTable(array('A', 'B', 'C'), 2, 'ProcessListerTable'), $coreMaker));
 	check('a checkboxes table does not (posted order)', !$bridge->sortableDataTable($makeTable(array('A', 'B', 'C'), 2, 'pw-no-select'), $coreMaker));
@@ -558,6 +560,22 @@ if(isset($bridge) && $bridge) {
 	$bridge->removeHook($optIn);
 	check('an opted-in table renders sortable', strpos($html, 'AdminDataTableSortable') !== false, $html);
 	check('its columns without header text do not sort', substr_count($html, 'sorter-false') === 2, $html);
+	// 0.17.0: the dataTableSortRows threshold (default 10), for every table
+	check('sortable rows threshold defaults to 10', $modules->wire(new AdminThemeBridge())->getDataTableSortRows() === 10);
+	$bridge->set('dataTableSortRows', 10);
+	check('a core table below the threshold does not sort', !$bridge->sortableDataTable($makeTable(array('A', 'B', 'C'), 9), $coreMaker));
+	check('a core table at the threshold sorts', $bridge->sortableDataTable($makeTable(array('A', 'B', 'C'), 10), $coreMaker) === true);
+	$sorted = function($rows) use($makeTable, $bridge) {
+		$t = $makeTable(array('A', 'B', 'C'), $rows);
+		$t->setSortable(true);
+		$bridge->hookDataTableRenderBefore(new HookEvent(array('object' => $t)));
+		return strpos($t->render(), 'AdminDataTableSortable') !== false;
+	};
+	check('a table made sortable stops sorting below the threshold', !$sorted(9));
+	check('a table made sortable still sorts at the threshold', $sorted(10));
+	$bridge->set('dataTableSortRows', 0);
+	check('threshold 0: a core table still needs two rows', !$bridge->sortableDataTable($makeTable(array('A', 'B', 'C'), 1), $coreMaker) && $sorted(1));
+	$bridge->set('dataTableSortRows', $sortRows);
 	check('the runtime labels include the paged-table hint', isset($bridge->runtimeLabels()['sortsPage']));
 
 	// B6: script URLs resolve through urls/paths pairs, also root . 'wire/' for a core elsewhere

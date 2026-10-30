@@ -1,5 +1,10 @@
 # Changelog
 
+## AdminThemeBridge 0.17.0: data tables sort from 10 rows (2026-10-30)
+
+- **New setting: Datatable sortable rows threshold** (Features, default 10). A data table sorts by its column headers only when it has at least this many rows; a shorter table shows no sort arrows and its headers are plain. This holds for every table, also those a module made sortable itself. A table split into pages counts the rows of its page. Set 0 to sort every table as before (core tables still need two rows).
+- For module authors: `AdminThemeBridge::getDataTableSortRows()` returns the setting; `___sortableDataTable()` takes it into account before its hooks run, so a hook after can still opt a short table in.
+
 ## AdminThemeBridge 0.16.0: drag a page in the tree, no Move button (2026-10-30)
 
 - **Pages in the tree are moved by dragging them, and the Move button is gone.** Press a page's title and drag it to its new place: between other pages, into an open page, or onto the trash (which asks first, as before). A click that does not move still opens or closes the page. On a touch screen, hold the title for a moment, then drag; a swipe still scrolls. Only pages that had Move before can be dragged (not the home page, nor pages you may neither sort nor move).

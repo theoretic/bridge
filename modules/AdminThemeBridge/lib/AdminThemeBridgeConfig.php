@@ -154,6 +154,18 @@ trait AdminThemeBridgeConfig {
 		$f->columnWidth = 50;
 		$fs->add($f);
 
+		/** @var InputfieldInteger $f */
+		$f = $modules->get('InputfieldInteger');
+		$f->attr('name', 'dataTableSortRows');
+		$f->label = __('Datatable sortable rows threshold', __FILE__);
+		$f->description = __('A data table sorts by its column headers only when it has at least this many rows; a shorter table shows no sort arrows. Default 10.', __FILE__);
+		$f->notes = __('A table split into pages counts the rows of its page. Tables that never sort under this theme (the Lister\'s, which sorts on the server, and third-party tables made unsortable) stay so. 0 sorts every table.', __FILE__);
+		$f->attr('value', $this->getDataTableSortRows());
+		$f->attr('min', 0);
+		$f->attr('max', 10000);
+		$f->columnWidth = 50;
+		$fs->add($f);
+
 		/** @var InputfieldFieldset $fs */
 		$fs = $modules->get('InputfieldFieldset');
 		$fs->attr('name', '_legacy');
