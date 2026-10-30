@@ -107,7 +107,6 @@ div.InputfieldPageAutocomplete > ol { order: 1; margin: 0; padding: 0; }
 .pw-group-actions[hidden] { display: none; }
 .pw-group-actions > li { margin: 0 3px 0 0; padding: 0; border: 0; }
 .pw-group-count { margin-left: 2px; color: var(--muted-foreground); font-weight: 400; }
-.PageListRoot.pw-move-armed .PageListItem.pw-selected { cursor: move; }
 .pw-drag-member { display: none !important; }
 .pw-drag-away { opacity: .4; }
 .PageList .PageListSortItem[data-pw-count] { position: relative; }

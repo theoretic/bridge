@@ -1,32 +1,37 @@
 /**
- * The page tree's Move (milestone 3.4, split from fields/pagelist.ts in 0.14.0 and loaded at the
- * first Move click): upstream ProcessPageList.js's clickMove / stopMove on the same markup and
- * endpoint.
+ * The page tree's moves (milestone 3.4, split from fields/pagelist.ts in 0.14.0; 0.16.0: a row is
+ * dragged by its title, there is no Move action): upstream ProcessPageList.js's stopMove on the same
+ * markup and endpoint.
  *
- * - Move on an item: it gets the move note with Cancel (`PageListSortItem`, `PageListMoveNote`),
- *   the root `PageListSorting`; open items without visible children get a placeholder list to drop
- *   into. The item is then dragged before or after the item under the pointer (an open item's child
- *   list takes it first, never between the item and its list).
- * - With several rows selected (util/selection.ts, ADR 0018), Move on one of them moves them all:
- *   the others are hidden (`pw-drag-member`) while it is dragged with a count (`data-pw-count`), and
- *   land after it, in their order. Each page is posted on its own, as upstream's endpoint takes one
- *   (`id`, `parent_id`, `sort` = the drop list's order, the container's CSRF token); a page the
- *   server refuses goes back where it was, and the messages are shown once at the end. Counts follow;
+ * - A row can be dragged when the server gave it Move (ProcessPageListActions: the page is sortable
+ *   or moveable); that action is not shown (fields/pagelist.ts). The drag starts on the row's title,
+ *   count or note: with the mouse or a pen after 4 px (a press that does not move stays a click that
+ *   opens or closes the row; the click after a drag is swallowed), with touch after a 400 ms hold, so
+ *   a swipe still scrolls. Ctrl, Cmd or Shift make a press a selection, never a drag; the row's blank
+ *   part draws the rubber band and its actions stay links (util/selection.ts).
+ * - While dragging: the item `PageListSortItem PageListSortPlaceholder`, the root `PageListSorting`;
+ *   open items without visible children get a placeholder list to drop into. The item goes before
+ *   or after the item under the pointer (an open item's child list takes it first, never between the
+ *   item and its list).
+ * - A selected row (util/selection.ts, ADR 0018) drags the selection: the others are hidden
+ *   (`pw-drag-member`) while it is dragged with a count (`data-pw-count`), and land after it, in
+ *   their order. Each page is posted on its own, as upstream's endpoint takes one (`id`,
+ *   `parent_id`, `sort` = the drop list's order, the container's CSRF token); a page the server
+ *   refuses goes back where it was, and the messages are shown once at the end. Counts follow;
  *   `pageMoved` on each moved item.
- * - Esc or Cancel ends the move; the window scrolls near its edges while dragging.
+ * - A drop where the rows were posts nothing. Esc or a cancelled pointer puts them back; the window
+ *   scrolls near its edges while dragging.
  */
 
-import { gather, edgeScroll } from '../util/sortable';
+import { gather, edgeScroll, swallowClick } from '../util/sortable';
 import type { Selectable } from '../util/selection';
 import { label } from '../util/labels';
-import { esc } from '../util/html';
 import { guard, fill } from '../util/danger';
 
 export type TreeCtx = {
 	root: HTMLElement;
 	container: HTMLElement;
-	o: { ajaxMoveURL: string; moveInstructionLabel: string; selectCancelLabel: string; ajaxUnknownError: string; trashPageID: number };
-	icons: { sort: string; left: string };
+	o: { ajaxMoveURL: string; ajaxUnknownError: string; trashPageID: number };
 	el: <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: string) => HTMLElementTagNameMap[K];
 	kids: (e: Element | null, sel: string) => HTMLElement[];
 	next: (e: Element, sel: string) => HTMLElement | null;
@@ -41,21 +46,35 @@ export type TreeCtx = {
 	alertMsg: (m: string) => void;
 	ignoreClicks: () => boolean;
 	select: Selectable;
+	/** the server gave the row Move */
+	canMove: (li: HTMLElement) => boolean;
+	/** a drag began (the menu of several rows steps aside) */
+	onStart: () => void;
 };
 
 type Origin = { list: HTMLElement; at: number };
 
-export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void; moveGroup(rows: HTMLElement[]): void } {
+const THRESHOLD = 4;
+const HOLD = 400;
+// the parts of a row that drag it; the rest of the row draws the rubber band
+const GRIP = 'a.PageListPage, .PageListNumChildren, .PageListNote';
+
+export function installMove(c: TreeCtx): void {
 	const { root, kids, next, prev, pageId } = c;
 	let moving: HTMLElement | null = null;
 	let group: HTMLElement[] = [];
 	let origins = new Map<HTMLElement, Origin>();
+	// each list the rows came from, in its order at the start: a drop that changes none posts nothing
+	let orders = new Map<HTMLElement, HTMLElement[]>();
 	let dragId = -1;
-	// Move from the menu of several rows: the rows wait, as they are, for a press on any of them
-	let armed = false;
-	let note: HTMLElement | null = null;
+	// pressed, not dragged yet
+	let pending: HTMLElement | null = null;
+	let startX = 0;
+	let startY = 0;
+	let holdTimer = 0;
 
 	const items = (list: Element): HTMLElement[] => kids(list, '.PageListItem').filter(x => !x.classList.contains('PageListPlaceholderItem'));
+	const busy = (): boolean => root.classList.contains('PageListSorting') || root.classList.contains('PageListSortSaving');
 
 	/** back where it was: its place among the items of its list that do not move */
 	const restore = (li: HTMLElement): void => {
@@ -66,17 +85,30 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 		o.list.insertBefore(li, before);
 	};
 
-	const onEsc = (e: KeyboardEvent): void => {
-		if (e.key !== 'Escape' || (!moving && !armed)) return;
-		e.preventDefault();
-		if (moving && dragId > -1) {
-			try { root.releasePointerCapture(dragId); } catch (err) { /* released */ }
-			dragId = -1;
-			moving.classList.remove('PageListSortPlaceholder');
-			edgeScroll(0, true);
-		}
+	const unchanged = (): boolean => group.every(m => { const o = origins.get(m); return !!o && o.list === m.parentElement; })
+		&& Array.from(orders).every(([list, was]) => { const now = items(list); return now.length === was.length && now.every((x, n) => x === was[n]); });
+
+	const forget = (): void => {
+		window.clearTimeout(holdTimer);
+		pending = null;
+		dragId = -1;
+	};
+
+	/** the drag ends where it began */
+	const abort = (): void => {
+		if (!moving) return;
+		try { root.releasePointerCapture(dragId); } catch (err) { /* released */ }
+		dragId = -1;
+		moving.classList.remove('PageListSortPlaceholder');
+		edgeScroll(0, true);
 		group.slice().reverse().forEach(restore);
 		cancelMove();
+	};
+
+	const onEsc = (e: KeyboardEvent): void => {
+		if (e.key !== 'Escape' || !moving) return;
+		e.preventDefault();
+		abort();
 	};
 
 	/** the rows that move: open ones closed, where each came from, places to drop into, the mode on */
@@ -84,9 +116,11 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 		group = rows;
 		group.forEach(m => { if (m.classList.contains('PageListItemOpen')) c.toggleItem(m); });
 		origins = new Map();
+		orders = new Map();
 		group.forEach(m => {
 			const list = m.parentElement as HTMLElement;
 			origins.set(m, { list, at: items(list).filter(x => group.indexOf(x) < 0 && (x.compareDocumentPosition(m) & Node.DOCUMENT_POSITION_FOLLOWING)).length });
+			if (!orders.has(list)) orders.set(list, items(list));
 		});
 		// an open item without visible children gets an empty list to drop into
 		root.querySelectorAll<HTMLElement>('.PageListItemOpen').forEach(open => {
@@ -102,51 +136,25 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 		window.addEventListener('keydown', onEsc, true);
 	};
 
-	/** the move note with Cancel, in a row before its actions */
-	const addNote = (li: HTMLElement): void => {
-		const count = group.length > 1 ? esc(label('movePages', 'Moving %d pages').replace('%d', String(group.length))) + ':&nbsp;' : '';
-		note = c.el('span', 'PageListMoveNote detail', c.icons.sort + '&nbsp;' + count + c.o.moveInstructionLabel + '&nbsp;' + c.icons.left + '&nbsp;');
-		const cancel = c.el('a', '', c.o.selectCancelLabel);
-		cancel.href = '#';
-		cancel.addEventListener('click', e => { e.preventDefault(); cancelMove(); });
-		note.appendChild(cancel);
-		li.insertBefore(note, kids(li, 'ul.PageListActions')[0] || null);
-	};
-
-	/** the row that is dragged, the others hidden meanwhile */
-	const lift = (li: HTMLElement): void => {
-		li.classList.add('PageListSortItem');
+	/** the pressed row starts moving, with the selection when it is in it */
+	const begin = (li: HTMLElement): void => {
+		window.clearTimeout(holdTimer);
+		pending = null;
+		const visible = Array.from(root.querySelectorAll<HTMLElement>('.PageListItem')).filter(x => x.offsetParent !== null);
+		if (visible.length < 2 || !li.isConnected) { dragId = -1; return; }
+		const rows = c.select.isSelected(li) ? c.select.selected().filter(c.canMove) : [li];
+		prepare(rows.indexOf(li) < 0 ? [li] : rows);
+		li.classList.add('PageListSortItem', 'PageListSortPlaceholder');
 		group.forEach(m => { if (m !== li) m.classList.add('pw-drag-member'); });
 		if (group.length > 1) li.setAttribute('data-pw-count', String(group.length));
 		moving = li;
-	};
-
-	const clickMove = (a: HTMLAnchorElement): void => {
-		if (c.ignoreClicks() || moving || armed) return;
-		const visible = Array.from(root.querySelectorAll<HTMLElement>('.PageListItem')).filter(x => x.offsetParent !== null);
-		if (visible.length === 1) { a.style.textDecoration = 'line-through'; a.classList.add('ui-state-disabled'); return; }
-		const li = a.closest<HTMLElement>('.PageListItem') as HTMLElement;
-		const rows = c.select.isSelected(li) ? c.select.selected() : [li];
-		prepare(rows.indexOf(li) < 0 ? [li] : rows);
-		addNote(li);
-		lift(li);
-	};
-
-	/** Move for several selected rows: they stay as they are until one of them is pressed */
-	const moveGroup = (rows: HTMLElement[]): void => {
-		if (c.ignoreClicks() || moving || armed || !rows.length) return;
-		prepare(rows);
-		addNote(group[0]);
-		armed = true;
-		root.classList.add('pw-move-armed');
+		window.getSelection()?.removeAllRanges();
+		try { root.setPointerCapture(dragId); } catch (err) { /* older engines */ }
+		c.onStart();
 	};
 
 	const cancelMove = (): void => {
 		root.querySelectorAll('.PageListSortingList').forEach(x => x.classList.remove('PageListSortingList'));
-		if (note) note.remove();
-		note = null;
-		armed = false;
-		root.classList.remove('pw-move-armed');
 		group.forEach(m => {
 			m.classList.remove('pw-drag-member', 'PageListSortItem');
 			m.removeAttribute('data-pw-count');
@@ -182,6 +190,7 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 		const travelling = group.slice();
 		// the others land after the lead (those before it in the tree before it), in their order
 		gather(lead, travelling, travelling);
+		if (unchanged()) { cancelMove(); return; }
 		if (list.classList.contains('PageListPlaceholder')) {
 			list.classList.remove('PageListPlaceholder');
 			list.querySelectorAll('.PageListPlaceholderItem').forEach(x => x.remove());
@@ -221,7 +230,6 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 			li.appendChild(spin);
 			const data = await post(li, parentID, list);
 			spin.remove();
-			li.classList.remove('PageListSortItem');
 			if (data && data.error) {
 				if (data.message && messages.indexOf(data.message) < 0) messages.push(data.message);
 				restore(li);
@@ -245,27 +253,40 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 		moved.forEach(li => li.dispatchEvent(new CustomEvent('pageMoved', { bubbles: true })));
 	};
 
-	// dragging the item that is moving: placed before or after the item under the pointer
+	// a press on a row's title, count or note may become its drag
 	root.addEventListener('pointerdown', e => {
-		if (e.button !== 0) return;
-		const t = e.target as HTMLElement;
-		if (!moving && armed) {
-			// any row of the waiting selection: it leads, the others go with it
-			const row = t.closest<HTMLElement>('.PageListItem');
-			if (!row || group.indexOf(row) < 0 || t.closest('.PageListMoveNote a')) return;
-			armed = false;
-			root.classList.remove('pw-move-armed');
-			lift(row);
+		if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || moving || pending || busy() || c.ignoreClicks()) return;
+		const grip = (e.target as HTMLElement).closest<HTMLElement>(GRIP);
+		const row = grip ? grip.parentElement : null;
+		if (!row || !row.classList.contains('PageListItem') || !root.contains(row) || !c.canMove(row)) return;
+		pending = row;
+		dragId = e.pointerId;
+		startX = e.clientX;
+		startY = e.clientY;
+		if (e.pointerType === 'touch') {
+			holdTimer = window.setTimeout(() => { if (pending === row) begin(row); }, HOLD);
+			return;
+		}
+		// no text selection and no browser drag of the link: the press is a click or this drag
+		e.preventDefault();
+	});
+	// touch: the hold made it a drag, so the finger no longer scrolls or opens the link's menu
+	root.addEventListener('touchmove', e => { if (moving) e.preventDefault(); }, { passive: false });
+	root.addEventListener('contextmenu', e => { if (pending || moving) e.preventDefault(); });
+	root.addEventListener('dragstart', e => { if (pending || moving) e.preventDefault(); });
+
+	// dragging: placed before or after the item under the pointer
+	root.addEventListener('pointermove', e => {
+		if (e.pointerId !== dragId) return;
+		if (pending) {
+			const far = Math.max(Math.abs(e.clientX - startX), Math.abs(e.clientY - startY));
+			// touch: moving before the hold is a scroll
+			if (e.pointerType === 'touch') { if (far > 8) forget(); return; }
+			if (!(e.buttons & 1)) { forget(); return; }
+			if (far < THRESHOLD) return;
+			begin(pending);
 		}
 		if (!moving) return;
-		if (!moving.contains(t) || t.closest('.PageListMoveNote a')) return;
-		e.preventDefault();
-		dragId = e.pointerId;
-		moving.classList.add('PageListSortPlaceholder');
-		root.setPointerCapture(dragId);
-	});
-	root.addEventListener('pointermove', e => {
-		if (!moving || e.pointerId !== dragId) return;
 		e.preventDefault();
 		edgeScroll(e.clientY);
 		const under = document.elementFromPoint(e.clientX, e.clientY);
@@ -285,17 +306,20 @@ export function installMove(c: TreeCtx): { clickMove(a: HTMLAnchorElement): void
 			target.insertAdjacentElement('afterend', moving);
 		}
 	});
-	const drop = (e: PointerEvent): void => {
-		if (!moving || e.pointerId !== dragId) return;
+	root.addEventListener('pointerup', e => {
+		if (e.pointerId !== dragId) return;
+		if (!moving) { forget(); return; }
 		dragId = -1;
 		edgeScroll(0, true);
 		try { root.releasePointerCapture(e.pointerId); } catch (err) { /* released */ }
+		// the click that follows does not open or close the row it ends over
+		swallowClick();
 		const li = moving;
 		li.classList.remove('PageListSortPlaceholder');
 		void stopMove(li);
-	};
-	root.addEventListener('pointerup', drop);
-	root.addEventListener('pointercancel', drop);
-
-	return { clickMove, moveGroup };
+	});
+	root.addEventListener('pointercancel', e => {
+		if (e.pointerId !== dragId) return;
+		if (moving) abort(); else forget();
+	});
 }

@@ -57,7 +57,8 @@ Items carry `pw-selected`; the count is announced in a polite live region.
 (badged with the count) and land around it at the drop in their original order: one block. Esc and a
 cancelled pointer restore the order. The window scrolls near its edges.
 
-In the page tree, Move on a selected row moves the selection (`fields/pagelist-move.ts`, split out
+In the page tree, Move on a selected row moves the selection (since 0.16.0 dragging a selected row
+by its title; `fields/pagelist-move.ts`, split out
 of the tree's chunk). Rows inside a selected row are never selected on their own. Each page is
 posted on its own, as upstream's endpoint takes one; an empty answer is a success; a page the
 server refuses goes back to where it was, and the messages are shown once.
@@ -73,7 +74,8 @@ useless, since a row's own menu acts on that row alone. So with two or more rows
 - AJAX extras are posted row by row as from the rows' own menus; actions that open a page open the
   rows in turn in the native dialog (a Next button; browsers allow one new tab per click, so tabs
   are not an option);
-- Move from that menu arms the selection: a press on any selected row drags them all.
+- Move from that menu arms the selection: a press on any selected row drags them all (0.16.0:
+  gone with the Move action; a selected row is dragged by its title and takes the others).
 
 ### Moves between fields: when and where
 

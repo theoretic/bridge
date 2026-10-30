@@ -1,5 +1,12 @@
 # Changelog
 
+## AdminThemeBridge 0.16.0: drag a page in the tree, no Move button (2026-10-30)
+
+- **Pages in the tree are moved by dragging them, and the Move button is gone.** Press a page's title and drag it to its new place: between other pages, into an open page, or onto the trash (which asks first, as before). A click that does not move still opens or closes the page. On a touch screen, hold the title for a moment, then drag; a swipe still scrolls. Only pages that had Move before can be dragged (not the home page, nor pages you may neither sort nor move).
+- **Selected pages are dragged together**: drag any selected page by its title and the others come along, as before with Move. Move is gone from the menu for several pages too. A press on a page's blank part still draws the rubber band, and Ctrl, Cmd or Shift with a click still select.
+- A page dropped where it was saves nothing.
+- With the legacy jQuery stack loaded on a screen, the tree is core's own and keeps its Move button.
+
 ## AdminThemeBridge 0.15.3: Copy for several pages copies each of them (2026-10-30)
 
 - **Copy in the menu for several selected pages copies every one of them**, each as its own Copy would: a page without children is copied at once (an unpublished "(copy)" next to it), and for a page with children core's copy form opens (title, name, whether to copy the children), one page after another with Next page. The menu used to take the first selected page's kind for all, so a selection holding both kinds failed for some pages. Other actions are decided page by page the same way.

@@ -8,7 +8,7 @@
  *     div.PageListRoot(.PageListUseHoverActions)
  *       div.PageList > div.PageListItem.PageListID<id>(.PageListItemOpen)[data-numChild, data-numTotal]
  *                        > a.PageListPage + span.PageListNumChildren + span.PageListNote
- *                        + ul.PageListActions > li.PageListAction<Edit|View|New|Move|Extras> > a
+ *                        + ul.PageListActions > li.PageListAction<Edit|View|New|Extras> > a
  *                    + div.PageList (its children; ul.PageListPagination; More as li.PageListActionMore)
  *
  * Options from ProcessWire.config.ProcessPageList (ajaxURL, ajaxMoveURL, rootPageID, showRootPage,
@@ -19,12 +19,12 @@
  *   the native dialog (elements/pw-dialog.ts).
  * - Extras shows the item's extra actions; AJAX ones (unpublish, hide, lock, trash, ...) are posted
  *   with the CSRF token and the item is updated, added or removed as the answer says.
- * - Move: the item is dragged to its new place among the visible items, also into an open item
- *   without visible children (a placeholder list) or the trash; the new parent and order are posted
- *   to ajaxMoveURL; counts follow; `pageMoved` on the item (fields/pagelist-move.ts, loaded at the
- *   first Move click).
+ * - Moves (0.16.0): a row the server gave Move is dragged by its title to its new place among the
+ *   visible items, also into an open item without visible children (a placeholder list) or the
+ *   trash; the new parent and order are posted to ajaxMoveURL; counts follow; `pageMoved` on the
+ *   item (fields/pagelist-move.ts, loaded with the tree). The Move action is not shown.
  * - Rows are selected with Ctrl/Cmd+click, Shift+click or a rubber band from a row's blank part
- *   (util/selection.ts, ADR 0018); Move on a selected row moves them all. A row inside a selected
+ *   (util/selection.ts, ADR 0018); dragging a selected row moves them all. A row inside a selected
  *   row is never selected on its own; the home page is not selectable.
  * - `pageListRefresh` on document (detail: page id) reloads the list holding that page.
  * - Events on the container: `pageListChildrenDone` (detail: the JSON data).
@@ -172,6 +172,8 @@ function setupTree(container: HTMLElement): void {
 		let last: HTMLElement | null = null;
 		links.forEach(action => {
 			const name = action.cn;
+			// a row is moved by dragging it (pagelist-move.ts): Move only says that it may be
+			if (name === 'Move') return;
 			if (hasExtras && name !== 'Edit' && name !== 'View' && name !== 'Extras') { extras[name] = action; return; }
 			const link = el('a', '', action.name);
 			link.href = action.url;
@@ -448,7 +450,7 @@ function setupTree(container: HTMLElement): void {
 	};
 	const select = makeSelectable(root, {
 		items: '.PageListItem',
-		ignore: '.PageListActions, .PageListMoveNote, ul[data-pagination], input, button, select, textarea',
+		ignore: '.PageListActions, ul[data-pagination], input, button, select, textarea',
 		marqueeFromItems: true,
 		// the tree is narrower than the screen: a band may start beside it, at its height
 		marqueeStrip: true,
@@ -462,26 +464,22 @@ function setupTree(container: HTMLElement): void {
 			if (rows.length > 1 || grouper) void loadGroup().then(g => g.update(rows));
 		},
 	});
-	// Move: its own chunk, loaded when the pointer or the focus first reaches the tree, so a click on
-	// Move finds it in place
-	type Mover = { clickMove(a: HTMLAnchorElement): void; moveGroup(rows: HTMLElement[]): void };
-	let mover: Promise<Mover> | null = null;
-	const loadMove = (): Promise<Mover> => mover || (mover = import('./pagelist-move').then(m => m.installMove({
-		root, container, o, icons, el, kids, next, prev, pageId, numOf, setNum, adjustTotal, forceReload, toggleItem,
-		spinner, alertMsg, ignoreClicks: () => ignoreClicks, select,
-	})));
-	let grouper: Promise<{ update(rows: HTMLElement[]): void }> | null = null;
-	const loadGroup = (): Promise<{ update(rows: HTMLElement[]): void }> => grouper || (grouper = import('./pagelist-group').then(m => m.installGroup({
+	type Grouper = { update(rows: HTMLElement[]): void; hide(): void };
+	let grouper: Promise<Grouper> | null = null;
+	const loadGroup = (): Promise<Grouper> => grouper || (grouper = import('./pagelist-group').then(m => m.installGroup({
 		root, select, pageId, isModal, hoverDelay: o.hoverActionDelay,
 		actionsOf: li => actionsData.get(li) || [],
 		ajaxAction,
-		moveGroup: rows => { void loadMove().then(mv => mv.moveGroup(rows)); },
 		refreshList,
 	})));
-	const clickMove = (a: HTMLAnchorElement): void => { void loadMove().then(m => m.clickMove(a)); };
-	const early = (): void => { void loadMove(); };
-	container.addEventListener('pointerover', early, { once: true });
-	container.addEventListener('focusin', early, { once: true });
+	// moves: their own chunk, loaded once the tree is in, so the first press on a row finds it
+	let mover: Promise<void> | null = null;
+	const loadMove = (): Promise<void> => mover || (mover = import('./pagelist-move').then(m => m.installMove({
+		root, container, o, el, kids, next, prev, pageId, numOf, setNum, adjustTotal, forceReload, toggleItem,
+		spinner, alertMsg, ignoreClicks: () => ignoreClicks, select,
+		canMove: li => (actionsData.get(li) || []).some(a => a.cn === 'Move'),
+		onStart: () => { if (grouper) void grouper.then(g => g.hide()); },
+	})));
 
 	/* events ****************************************************************************************/
 
@@ -520,8 +518,6 @@ function setupTree(container: HTMLElement): void {
 			});
 			return;
 		}
-		const move = t.closest<HTMLAnchorElement>('.PageListActionMove > a');
-		if (move) { e.preventDefault(); clickMove(move); return; }
 		const extras = t.closest<HTMLAnchorElement>('.PageListActionExtras > a');
 		if (extras) { e.preventDefault(); clickExtras(extras); return; }
 		const ajax = t.closest<HTMLAnchorElement>('a.PageListActionExtra[data-ajax]');
@@ -579,7 +575,7 @@ function setupTree(container: HTMLElement): void {
 		});
 	}
 
-	void loadChildren(o.rootPageID > 0 ? o.rootPageID : 1, root, 0, true);
+	void loadChildren(o.rootPageID > 0 ? o.rootPageID : 1, root, 0, true).then(() => { void loadMove(); });
 }
 
 let handover = false;

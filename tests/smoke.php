@@ -739,20 +739,27 @@ if(isset($bridge) && $bridge) {
 	check('file and image fields select and drag out', strpos((string) @file_get_contents($rt . 'fields/file.ts'), 'export function dragOut(') !== false && strpos((string) @file_get_contents($rt . 'fields/image.ts'), 'dragOut(inputfield, grid)') !== false);
 	$movesSrc = (string) @file_get_contents($rt . 'fields/files-move.ts');
 	check('files-move posts bridgeFilesMove, meta as JSON', strpos($movesSrc, "body.append('bridgeFilesMove', '1')") !== false && strpos($movesSrc, "body.append('meta', JSON.stringify(meta))") !== false);
-	check('the page tree\'s Move is its own chunk, loaded early', is_file($rt . 'fields/pagelist-move.ts') && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-move')") !== false && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "addEventListener('pointerover', early, { once: true })") !== false);
+	check('the page tree\'s moves are their own chunk, loaded with the tree', is_file($rt . 'fields/pagelist-move.ts') && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-move')") !== false && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "root, 0, true).then(() => { void loadMove(); });") !== false);
 	check('the tree takes an empty sort answer as success', strpos((string) @file_get_contents($rt . 'fields/pagelist-move.ts'), 'if (!text && res.ok) return {};') !== false);
 	// 0.14.1: one band and one menu for several selected tree rows
 	$groupSrc = (string) @file_get_contents($rt . 'fields/pagelist-group.ts');
-	check('several tree rows get one menu, without View and Edit (0.15.2), loaded when a second row is selected', strpos($groupSrc, "if (action.cn === 'View' || action.cn === 'Edit') return;") !== false
+	check('several tree rows get one menu, without View, Edit (0.15.2) and Move (0.16.0), loaded when a second row is selected', strpos($groupSrc, "if (action.cn === 'View' || action.cn === 'Edit' || action.cn === 'Move') return;") !== false
 		&& strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-group')") !== false);
 	check('the group menu decides AJAX or a dialog per row (Copy differs by children, 0.15.3)', strpos($groupSrc, 'const ajax = rows.filter(li => { const a = actionOf(li, cn); return !!a && !!a.ajax; });') !== false);
 	check('the group menu finds extras by cn, not by their key', strpos($groupSrc, 'Object.values(action.extras).find(x => x.cn === cn)') !== false);
-	check('Move from the group menu arms the whole selection', strpos((string) @file_get_contents($rt . 'fields/pagelist-move.ts'), 'const moveGroup = (rows: HTMLElement[]): void =>') !== false);
+	// 0.16.0: no Move action in the native tree; a row the server gave Move is dragged by its title
+	$treeSrc = (string) @file_get_contents($rt . 'fields/pagelist.ts');
+	$treeMoveSrc = (string) @file_get_contents($rt . 'fields/pagelist-move.ts');
+	check('the native tree shows no Move action, which only marks a row movable', strpos($treeSrc, "if (name === 'Move') return;") !== false
+		&& strpos($treeSrc, "canMove: li => (actionsData.get(li) || []).some(a => a.cn === 'Move'),") !== false && strpos($treeSrc, '.PageListActionMove') === false);
+	check('a tree row drags from its title, count or note, after 4 px or a 400 ms touch hold, never with a modifier', strpos($treeMoveSrc, "const GRIP = 'a.PageListPage, .PageListNumChildren, .PageListNote';") !== false
+		&& strpos($treeMoveSrc, 'const THRESHOLD = 4;') !== false && strpos($treeMoveSrc, 'const HOLD = 400;') !== false && strpos($treeMoveSrc, 'e.ctrlKey || e.metaKey || e.shiftKey || e.altKey') !== false);
+	check('a tree drag swallows its click and posts nothing when nothing changed', strpos($treeMoveSrc, 'swallowClick();') !== false && strpos($treeMoveSrc, 'if (unchanged()) { cancelMove(); return; }') !== false);
 	check('a press on the group menu keeps the selection', strpos((string) @file_get_contents($rt . 'util/selection.ts'), ".pw-drag-ghost, .pw-group-actions';") !== false);
 	foreach(array('nextPage', 'discardChanges', 'trashPages') as $key) check("runtime label '$key' exists", isset($bridge->runtimeLabels()[$key]));
 	check('moves go through ProcessPageEdit::ajaxSave', strpos($themeSource, "addHookBefore('ProcessPageEdit::ajaxSave', \$this, 'hookPageEditAjaxSave')") !== false);
 	check('moveFiles, moveFileAllowed, filesMoved are hookable', method_exists($bridge, '___moveFiles') && method_exists($bridge, '___moveFileAllowed') && method_exists($bridge, '___filesMoved'));
-	foreach(array('selectedCount', 'moveTo', 'moveButton', 'moveGoes', 'moveBadExt', 'moveNoRoom', 'moveReplace', 'moveSwap', 'moveSkip', 'moveWait', 'movePages') as $key) {
+	foreach(array('selectedCount', 'moveTo', 'moveButton', 'moveGoes', 'moveBadExt', 'moveNoRoom', 'moveReplace', 'moveSwap', 'moveSkip', 'moveWait') as $key) {
 		check("runtime label '$key' exists", isset($bridge->runtimeLabels()[$key]));
 	}
 	$fieldsCss = (string) @file_get_contents($themeDir . 'assets/dist/fields.css');

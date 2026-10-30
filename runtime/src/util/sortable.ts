@@ -81,6 +81,13 @@ export function edgeScroll(clientY: number, stop = false): void {
 /** Document order, for sort() */
 export const byDom = (a: Node, b: Node): number => a === b ? 0 : (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
 
+/** after a real drag the browser still sends a click: it must not open or toggle anything */
+export function swallowClick(): void {
+	const stop = (ev: Event): void => { ev.stopPropagation(); ev.preventDefault(); };
+	window.addEventListener('click', stop, { capture: true, once: true });
+	window.setTimeout(() => window.removeEventListener('click', stop, { capture: true }), 0);
+}
+
 /**
  * Put a group's members around its lead as one block: those that came before it in `order` go
  * right before it, the others right after, each part in its original order
@@ -155,13 +162,6 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 		try { list.setPointerCapture(pointerId); } catch (err) { /* older engines */ }
 		window.addEventListener('keydown', onEsc, true);
 		if (options.start) options.start(item, group);
-	};
-
-	// after a real drag the browser still sends a click: it must not open or toggle anything
-	const swallowClick = (): void => {
-		const stop = (ev: Event): void => { ev.stopPropagation(); ev.preventDefault(); };
-		window.addEventListener('click', stop, { capture: true, once: true });
-		window.setTimeout(() => window.removeEventListener('click', stop, { capture: true }), 0);
 	};
 
 	// the order at the press; nodes that left the list meanwhile stay out

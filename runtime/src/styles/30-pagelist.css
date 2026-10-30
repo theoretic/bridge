@@ -52,9 +52,14 @@
 	border-radius: var(--radius-md);
 	background: var(--pw-primary-bg);
 }
+/* upstream's Move note with Cancel: the jQuery tree, when the legacy stack runs */
 .PageList .PageListSortItem .PageListMoveNote { display: inline-flex; align-items: center; }
 .PageList .PageListSortItem .PageListMoveNote a { margin: 0 0 0 2px; }
 .PageListSorting .PageListSortItem > a.PageListPage { color: var(--pw-primary); }
+/* rows are dragged by their titles (fields/pagelist-move.ts): a grabbing hand meanwhile; on touch the
+ * hold that starts a drag neither selects the title nor opens the link's menu */
+.PageListRoot.PageListSorting, .PageListRoot.PageListSorting a { cursor: grabbing; }
+@media (pointer: coarse) { .PageList .PageListItem > a.PageListPage { -webkit-touch-callout: none; user-select: none; } }
 .PageListSelectHeader .PageListSelectName { color: var(--pw-h1); padding-right: 8px; }
 /* the page's label as the tree prints it: its icon, the title, status icons (the lock) */
 .PageListSelectName i.icon { margin-right: .4em; }

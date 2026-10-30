@@ -6,9 +6,9 @@
  * root). Hovering a selected row shows `ul.PageListActions.pw-group-actions` instead, after the
  * longest title of the run of selected rows under the pointer (adjacent selected rows read as one
  * band) and centred on it vertically. It holds the actions of the selected rows except View and
- * Edit (0.15.2: a page is edited on its own): each once, with how many rows it applies to when not
- * all. They act on every selected row that has them:
- * - Move: the selection becomes draggable as one (fields/pagelist-move.ts moveGroup());
+ * Edit (0.15.2: a page is edited on its own) and Move (0.16.0: a selected row drags the selection,
+ * fields/pagelist-move.ts): each once, with how many rows it applies to when not all. They act on
+ * every selected row that has them:
  * - AJAX extras (hide, unpublish, lock, trash, ...): posted row by row as a single row's are
  *   (Trash asks first); the rows stay selected afterwards. AJAX or not is each row's own: Copy is
  *   AJAX for a page without children only, so those are copied first, then the others' copy
@@ -34,7 +34,6 @@ export type GroupCtx = {
 	hoverDelay: number;
 	actionsOf: (li: HTMLElement) => Action[];
 	ajaxAction: (link: HTMLAnchorElement) => Promise<void>;
-	moveGroup: (rows: HTMLElement[]) => void;
 	refreshList: (id: number) => void;
 };
 
@@ -42,7 +41,7 @@ type Dialog = { open(url: string, size: string, options: Record<string, unknown>
 
 const text = (html: string): string => { const d = document.createElement('div'); d.innerHTML = html; return (d.textContent || '').trim(); };
 
-export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void } {
+export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; hide(): void } {
 	const root = c.root;
 	const menu = document.createElement('ul');
 	menu.className = 'PageListActions actions pw-group-actions';
@@ -80,8 +79,8 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void }
 			map.set(action.cn, entry);
 		};
 		selected.forEach(li => c.actionsOf(li).forEach(action => {
-			// several pages cannot be viewed or edited at once
-			if (action.cn === 'View' || action.cn === 'Edit') return;
+			// several pages cannot be viewed or edited at once; they move by a drag
+			if (action.cn === 'View' || action.cn === 'Edit' || action.cn === 'Move') return;
 			if (action.extras) Object.keys(action.extras).forEach(k => add(extras, (action.extras as Record<string, Action>)[k], li));
 			add(primary, action, li);
 		}));
@@ -237,7 +236,6 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void }
 		if (!entry) return;
 		const rows = entry.rows.filter(li => li.isConnected);
 		hide();
-		if (cn === 'Move') { c.moveGroup(selected.filter(li => li.isConnected)); return; }
 		// per row, as its own link: Copy is AJAX for a page without children and core's copy form
 		// for one with children (ProcessPageClone), so one selection can hold both
 		const ajax = rows.filter(li => { const a = actionOf(li, cn); return !!a && !!a.ajax; });
@@ -270,6 +268,7 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void }
 	document.addEventListener('pw-legacy-handover', () => { hide(); menu.remove(); });
 
 	return {
+		hide,
 		update: rows => {
 			selected = rows;
 			if (rows.length < 2) { hide(); return; }
