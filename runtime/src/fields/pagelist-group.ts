@@ -5,14 +5,14 @@
  * With two or more rows selected, their own action menus stay hidden (`pw-multi-selection` on the
  * root). Hovering a selected row shows `ul.PageListActions.pw-group-actions` instead, after the
  * longest title of the run of selected rows under the pointer (adjacent selected rows read as one
- * band) and centred on it vertically. It holds the actions of the selected rows except View: each
- * once, with how many rows it applies to when not all. They act on every selected row that has
- * them:
+ * band) and centred on it vertically. It holds the actions of the selected rows except View and
+ * Edit (0.15.2: a page is edited on its own): each once, with how many rows it applies to when not
+ * all. They act on every selected row that has them:
  * - Move: the selection becomes draggable as one (fields/pagelist-move.ts moveGroup());
  * - AJAX extras (hide, unpublish, lock, trash, ...): posted row by row as a single row's are
  *   (Trash asks first); the rows stay selected afterwards;
- * - the others (Edit, New, extras that open a page): the native dialog, one row after another, with a
- *   Next button in its footer (unsaved changes ask first); closing it ends the round. Edited
+ * - the others (New, extras that open a page): the native dialog, one row after another, with a
+ *   Next button in its footer (unsaved changes ask first); closing it ends the round. The opened
  *   rows' lists reload afterwards.
  */
 
@@ -38,7 +38,6 @@ export type GroupCtx = {
 
 type Dialog = { open(url: string, size: string, options: Record<string, unknown>): void };
 
-const EDIT_BUTTONS = '#ProcessPageEdit > .Inputfields > .InputfieldSubmit .ui-button';
 const text = (html: string): string => { const d = document.createElement('div'); d.innerHTML = html; return (d.textContent || '').trim(); };
 
 export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void } {
@@ -79,7 +78,8 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void }
 			map.set(action.cn, entry);
 		};
 		selected.forEach(li => c.actionsOf(li).forEach(action => {
-			if (action.cn === 'View') return; // several pages cannot be viewed at once
+			// several pages cannot be viewed or edited at once
+			if (action.cn === 'View' || action.cn === 'Edit') return;
 			if (action.extras) Object.keys(action.extras).forEach(k => add(extras, (action.extras as Record<string, Action>)[k], li));
 			add(primary, action, li);
 		}));
@@ -206,7 +206,6 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void }
 			switching = true;
 			dialog.open(it.action.url, 'large', {
 				title: `${text(name)}: ${title(it.li)} (${n + 1}/${items.length})`,
-				buttons: cn === 'Edit' ? EDIT_BUTTONS : undefined,
 				moreButtons: last ? undefined : (doc: Document) => [{
 					html: esc(label('nextPage', 'Next page')) + " <i class='fa fa-angle-right' aria-hidden='true'></i>",
 					secondary: true,

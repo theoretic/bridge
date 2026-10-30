@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.15.2: no Edit in the menu for several pages (2026-10-30)
+
+- **The menu for several selected pages in the tree no longer offers Edit**: pages are edited one at a time. Edit a page from its own menu, or with a plain click on it. The other actions (Move, New, Hide, Unpublish, Trash and the other extras) stay.
+
 ## AdminThemeBridge 0.15.1: rubber band beside the page tree (2026-10-30)
 
 - **The page tree's rubber band starts beside the tree too**: a press in the empty space to the left or right of the tree, anywhere across the window but between the tree's top and bottom, draws the band, as a press on the tree's background does. Ctrl or Shift adds to the selection, a click there clears it. Links, buttons, the masthead and other lists keep their own clicks; above and below the tree nothing changes.

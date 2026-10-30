@@ -743,7 +743,7 @@ if(isset($bridge) && $bridge) {
 	check('the tree takes an empty sort answer as success', strpos((string) @file_get_contents($rt . 'fields/pagelist-move.ts'), 'if (!text && res.ok) return {};') !== false);
 	// 0.14.1: one band and one menu for several selected tree rows
 	$groupSrc = (string) @file_get_contents($rt . 'fields/pagelist-group.ts');
-	check('several tree rows get one menu, without View, loaded when a second row is selected', strpos($groupSrc, "if (action.cn === 'View') return;") !== false
+	check('several tree rows get one menu, without View and Edit (0.15.2), loaded when a second row is selected', strpos($groupSrc, "if (action.cn === 'View' || action.cn === 'Edit') return;") !== false
 		&& strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-group')") !== false);
 	check('the group menu finds extras by cn, not by their key', strpos($groupSrc, 'Object.values(action.extras).find(x => x.cn === cn)') !== false);
 	check('Move from the group menu arms the whole selection', strpos((string) @file_get_contents($rt . 'fields/pagelist-move.ts'), 'const moveGroup = (rows: HTMLElement[]): void =>') !== false);

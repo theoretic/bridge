@@ -68,7 +68,8 @@ useless, since a row's own menu acts on that row alone. So with two or more rows
   so anything reaching past its sides is cut off);
 - the rows' own menus give way to **one menu for the selection**, shown on hovering any selected
   row, after the titles and centred on the band. It holds every action of the rows except View
-  (several pages cannot be viewed at once), each applying to every row that has it;
+  and, since 0.15.2, Edit (several pages cannot be viewed or edited at once), each applying to
+  every row that has it;
 - AJAX extras are posted row by row as from the rows' own menus; actions that open a page open the
   rows in turn in the native dialog (a Next button; browsers allow one new tab per click, so tabs
   are not an option);
