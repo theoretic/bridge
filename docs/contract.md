@@ -344,6 +344,7 @@ Since 0.9.9 every data table a core module renders sorts, also those it made uns
   - Publish buttons follow the template's `data-publish`;
   - the name is checked against its siblings (`exists`, 250 ms after typing; `#ProcessPageAddStatus`, `data-dup-note`);
   - `data-nolang` templates hide the language tabs (globals `hideLanguageTabs()` / `unhideLanguageTabs()` when LanguageTabs.js is absent).
+  - with `pageAddSkipTemplate` on ("Step 2 if template auto-selected", off by default; `lib/AdminThemeBridgePageAdd.php`), a GET of `page/add/?parent_id=` without `template_id` whose template is known (the only one allowed, or the one every child uses, unless `$config->pageAdd['noSuggestTemplates']` covers the parent) skips the form: before `ProcessPageAdd::buildForm` the theme runs upstream's `processQuickAdd()` with `name_format=untitled-time` and a notice names the template. Not on `ProcessPageType` screens (users) or under a parent with `childNameFormat` (upstream's own quick add).
 - **Profile:**
   - remembered passwords are cleared from `autocomplete=off` inputs;
   - a submit that needs the current password, without it, opens and focuses `#_old_pass` (upstream: a vex prompt).

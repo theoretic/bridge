@@ -83,6 +83,16 @@ trait AdminThemeBridgeConfig {
 		$f->columnWidth = 50;
 		$fs->add($f);
 
+		/** @var InputfieldCheckbox $f */
+		$f = $modules->get('InputfieldCheckbox');
+		$f->attr('name', 'pageAddSkipTemplate');
+		$f->label = __('Step 2 if template auto-selected', __FILE__);
+		$f->description = __('When every page under the parent uses one template, or the parent allows only one, Add New creates the page with that template and opens it in the page editor, without the Add New form. A notice names the template. A template chosen in the link (such as Add New shortcuts) still shows the form.', __FILE__);
+		$f->notes = __('The new page starts unpublished, with a placeholder name that the title replaces on the first save. A page left without saving stays unpublished; after a day it goes to the trash the next time a page is added this way.', __FILE__);
+		$f->attr('value', 1);
+		if($this->pageAddSkipTemplate) $f->attr('checked', 'checked');
+		$fs->add($f);
+
 		/** @var InputfieldText $f */
 		$f = $modules->get('InputfieldText');
 		$f->attr('name', 'logoURL');

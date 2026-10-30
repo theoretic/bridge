@@ -278,6 +278,41 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	check('the field editor saves in place (3.8)', $bridge->saveInPlaceProcess($modules->getModule('ProcessField', array('noInit' => true, 'noPermissionCheck' => true))));
 	check('the page editor saves in place', $bridge->saveInPlaceProcess($ppe));
 	check('the page tree does not (no edit form)', !$bridge->saveInPlaceProcess($ppl));
+	// Add New skips the template step when the template is auto-selected (0.13.0)
+	$fresh = $modules->wire(new AdminThemeBridge());
+	check('"Step 2 if template auto-selected" is off by default', empty($fresh->pageAddSkipTemplate));
+	check('the page-add hook is there', method_exists($bridge, 'hookPageAddBuildForm') && method_exists($bridge, 'pageAddAutoTemplate'));
+	$allTemplates = array();
+	foreach($templates as $t) $allTemplates[$t->id] = $t;
+	$uniform = $mixed = null;
+	foreach($pages->find('children.count>1, include=all, limit=200') as $p) {
+		$n = $pages->count("parent_id=$p->id, templates_id!={$p->child('include=all, sort=sort')->template->id}, include=all");
+		if(!$n && !$uniform) $uniform = $p;
+		if($n && !$mixed) $mixed = $p;
+		if($uniform && $mixed) break;
+	}
+	if($uniform) {
+		list($t, $why) = $bridge->pageAddAutoTemplate($uniform, $allTemplates);
+		check('children of one template: it is auto-selected', $t && $why === 'siblings' && $t->id == $uniform->child('include=all')->template->id, "$uniform->path: $why");
+		$pageAdd = $config->pageAdd;
+		$config->pageAdd = array('noSuggestTemplates' => $uniform->template->name);
+		list($t,) = $bridge->pageAddAutoTemplate($uniform, $allTemplates);
+		check('not when noSuggestTemplates names the parent template', !$t);
+		$config->pageAdd = $pageAdd;
+		list($t,) = $bridge->pageAddAutoTemplate($uniform, array_diff_key($allTemplates, array($uniform->child('include=all')->template->id => 1)));
+		check('not when the children\'s template is not allowed', !$t);
+	} else {
+		warn('no parent with children of one template in the sandbox');
+	}
+	if($mixed) {
+		list($t,) = $bridge->pageAddAutoTemplate($mixed, $allTemplates);
+		check('children of mixed templates: none auto-selected', !$t, $mixed->path);
+	} else {
+		warn('no parent with children of mixed templates in the sandbox');
+	}
+	$only = $templates->get('basic-page') ?: reset($allTemplates);
+	list($t, $why) = $bridge->pageAddAutoTemplate($pages->get('/'), array($only->id => $only));
+	check('the only allowed template is auto-selected', $t && $t->id == $only->id && $why === 'only');
 	foreach(array('InputfieldIcon', 'InputfieldPassword') as $class) check("$class is native (3.6)", $bridge->isNativeInputfield($modules->get($class)));
 	foreach(array('scripts/wire-tabs.js', 'scripts/page-edit.js') as $file) check("$file present", is_file($themeDir . $file));
 	// File and Image native (milestone 3.2); site module scripts written against jQuery are deferred
@@ -611,7 +646,7 @@ if(isset($bridge) && $bridge) {
 // 0.10.1 (audit 2026-10-27, phase 5: architecture)
 if(isset($bridge) && $bridge) {
 	$traits = class_uses($bridge);
-	check('PA1 the theme class is split into its ten traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 10, implode(', ', array_keys($traits)));
+	check('PA1 the theme class is split into its eleven traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 11, implode(', ', array_keys($traits)));
 	check('PA1 hookable methods stay hookable through the traits', method_exists($bridge, '___sortableDataTable') && method_exists($bridge, '___nativeMap') && method_exists($bridge, '___renderBreadcrumbs'));
 	$traitSrc = '';
 	foreach((array) glob($themeDir . 'lib/*.php') as $f) $traitSrc .= (string) file_get_contents($f);

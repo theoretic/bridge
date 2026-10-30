@@ -13,6 +13,7 @@ require_once(__DIR__ . '/lib/AdminThemeBridgeUikit.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeComponents.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeConfig.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeHead.php');
+require_once(__DIR__ . '/lib/AdminThemeBridgePageAdd.php');
 
 /**
  * AdminThemeBridge
@@ -43,11 +44,12 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	use AdminThemeBridgeComponents;
 	use AdminThemeBridgeConfig;
 	use AdminThemeBridgeHead;
+	use AdminThemeBridgePageAdd;
 
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.12.1',
+			'version' => '0.13.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -359,6 +361,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->set('logoURLDark', '');
 		$this->set('extendedBreadcrumbs', 1);
 		$this->set('pageSaveInPlace', 1);
+		$this->set('pageAddSkipTemplate', 0);
 		$this->set('printScripts', '');
 		$this->set('nativeOverrides', '');
 		$this->setClasses(array(
@@ -467,6 +470,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// the page editor (milestone 3.1): its inline init call falls back to the native editor, and
 		// the page tree in its Children tab stays legacy until the page tree is native (3.4)
 		$this->addHookAfter('ProcessPageEdit::execute', $this, 'hookPageEditExecute');
+		// Add New with a known template goes straight to the editor (setting, off by default)
+		if($this->pageAddSkipTemplate) $this->addHookBefore('ProcessPageAdd::buildForm', $this, 'hookPageAddBuildForm');
 		// tables print `AdminDataTable.initTable($('#id'))`: without jQuery the runtime's
 		// AdminDataTable (milestone 3.5) takes the element instead
 		$this->addHookAfter('MarkupAdminDataTable::render', $this, 'hookDataTableRender');
