@@ -1,6 +1,10 @@
 /* Images and files (InputfieldImage.css, InputfieldFile.css, ProcessPageEditImageSelect.css) */
+/* no dashed borders: upstream's transparent tile border (dashed on hidden images) turns solid,
+ * the gap a dragged image leaves is a tinted tile, the crop grid faint solid lines */
+.gridImage, .gridImage.InputfieldFileItemHidden { border-style: solid !important; }
 .gridImage { background: var(--card); box-shadow: var(--shadow-sm); }
-.gridImage.ui-sortable-placeholder { border-color: var(--border); }
+.gridImage.ui-sortable-placeholder { border-color: transparent; background: var(--pw-primary-bg); }
+.cropper-dashed { border-style: solid; }
 .gridImage.gridImagePlaceholder .gridImage__overflow, .InputfieldImageEditAll .gridImage.gridImagePlaceholder .gridImage__overflow { background: var(--muted); }
 /* transparency checkerboard, in the scheme's greys */
 .gridImage .gridImage__overflow, .InputfieldImageEditAll .gridImage .gridImage__overflow img, .InputfieldImageEdit__image {

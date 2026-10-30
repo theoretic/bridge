@@ -25,7 +25,7 @@ div.jsoneditor-value.jsoneditor-null { color: var(--pw-code-d); }
 div.jsoneditor-value.jsoneditor-color-value, div.jsoneditor-value.jsoneditor-invalid { color: var(--foreground); }
 div.jsoneditor-readonly, div.jsoneditor td.jsoneditor-separator, div.jsoneditor-default { color: var(--muted-foreground); }
 div.jsoneditor-field.jsoneditor-empty::after, div.jsoneditor-value.jsoneditor-empty::after { color: var(--muted-foreground); }
-div.jsoneditor-empty { border-color: var(--border); }
+div.jsoneditor-empty { border-color: var(--border); border-style: solid; border-radius: var(--radius-sm); }
 div.jsoneditor-field[contenteditable=true]:focus, div.jsoneditor-field[contenteditable=true]:hover,
 div.jsoneditor-value[contenteditable=true]:focus, div.jsoneditor-value[contenteditable=true]:hover,
 div.jsoneditor-field.jsoneditor-highlight, div.jsoneditor-value.jsoneditor-highlight { background-color: var(--pw-highlight); border-color: var(--pw-primary-40); }

@@ -96,7 +96,7 @@ body.pw-nav-overflow .pw-primary-nav .pw-dropdown-menu a.pw-has-items::after, bo
  * light-only; audit U7) */
 @media (max-width: 767px) {
 	table.AdminDataTableResponsive tr { border-top-color: var(--pw-text-muted); }
-	table.AdminDataTableResponsive tbody tr td { border-top-color: var(--pw-line); }
+	table.AdminDataTableResponsive tbody tr td { border-top: 1px solid var(--pw-line); }
 	table.AdminDataList .th { color: var(--pw-text-muted); }
 }
 /* finger-sized targets where the pointer is a finger (audit U5) */

@@ -708,6 +708,13 @@ if(isset($bridge) && $bridge) {
 	check('the extras chevron is centred, without upstream margins', strpos($themeCss, '.PageList .PageListActionExtras>a>i{position:relative;top:.1em;left:-.045em;margin:0}') !== false && strpos($themeCss, '.PageList .PageListActionExtras>a>i.fa-flip-horizontal{left:.045em}') !== false);
 	// 0.13.1: the dragged page tree item is a rounded band one row high, without the dashed outline
 	check('the dragged tree item is a rounded, centred band', strpos($themeCss, '.PageList .PageListItem.PageListSortPlaceholder{display:flex;align-items:center;box-sizing:border-box;height:auto;min-height:1.875rem;') !== false && strpos($themeCss, 'outline:1px dashed var(--pw-primary-40)') === false);
+	// 0.13.3: no dotted or dashed borders from the theme; upstream's are turned solid where they show
+	$fieldsCss = (string) @file_get_contents($themeDir . 'assets/dist/fields.css');
+	$dotted = '/(?:border|outline)[a-z-]*:[^;}]*\b(?:dotted|dashed)\b/';
+	check('no dotted or dashed border in theme.css or fields.css', !preg_match($dotted, $themeCss) && !preg_match($dotted, $fieldsCss));
+	check('upstream dashed borders turned solid (tables on phones, image tiles, crop grid, JSON slots)', strpos($themeCss, 'table.AdminDataTableResponsive tbody tr td{border-top:1px solid var(--pw-line)}') !== false
+		&& strpos($fieldsCss, '.gridImage,.gridImage.InputfieldFileItemHidden{border-style:solid!important}') !== false
+		&& strpos($fieldsCss, '.cropper-dashed{border-style:solid}') !== false && strpos($fieldsCss, 'div.jsoneditor-empty{border-color:var(--border);border-style:solid;') !== false);
 	// 0.12.0: a save waits for uploads and other requests to the edit screen, then clicks again
 	$pageEditJs = (string) @file_get_contents($themeDir . 'scripts/page-edit.js');
 	$saveWaitJs = (string) @file_get_contents($themeDir . 'scripts/save-wait.js');

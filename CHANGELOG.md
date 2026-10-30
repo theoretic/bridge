@@ -1,5 +1,18 @@
 # Changelog
 
+## AdminThemeBridge 0.13.3: no dotted or dashed borders (2026-10-30)
+
+The dotted and dashed lines the admin still drew are gone; each element got its own look:
+
+- **A file dragged over a file or image field**: the dashed frame is a solid ring inside the field's rounded edge, on the same tinted background.
+- **Data tables on a phone**: the dotted line between the cells of a row is solid, in the colour of the row lines on wider screens.
+- **The gap a dragged image leaves** (image sorting with the legacy script stack): the dashed outline is gone; the gap is a tinted tile like the dragged page in the page tree.
+- **The image crop tool's grid**: faint solid lines instead of dashed ones.
+- **Empty key and value slots in a JSON field**: a solid outline with rounded corners instead of a dashed one.
+- Image tiles and hidden images had a dashed border in a transparent colour; it is solid now (nothing changes on screen).
+
+Rich-text editors (TinyMCE, CKEditor) keep their own dashed and dotted guides in the edited content (tables without borders, preformatted text).
+
 ## AdminThemeBridge 0.13.2: settings in four groups (2026-10-30)
 
 - **The theme's settings are grouped**: Users (use for the login screen, change users to this theme by role), Appearance (colour, colour scheme, logos, maximum content width), Features (extended breadcrumbs, save without reload, step 2 if template auto-selected) and Legacy (legacy script stack, UIkit, scripts that never wait, native or legacy per class). Setting names and values are unchanged.
