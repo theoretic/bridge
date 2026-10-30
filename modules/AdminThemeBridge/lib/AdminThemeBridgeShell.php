@@ -202,6 +202,18 @@ trait AdminThemeBridgeShell {
 			'partFailed' => __('A part of this screen failed to load. Reload the page to try again.', __FILE__),
 			'saveNoAnswer' => __('The save got no answer from the server. Check the page and save again if needed.', __FILE__),
 			'saveWaiting' => __('Waiting for the uploads to finish, then saving. Click again to save now, Esc to stop.', __FILE__),
+			// multi-select and moves between fields (0.14.0); %d and %s are filled in by the runtime
+			'selectedCount' => __('%d selected', __FILE__),
+			'moveTo' => __('Move to %s', __FILE__), // the dialog's title, %s is the field's label
+			'moveButton' => __('Move %d', __FILE__), // the dialog's button, %d is how many files move
+			'moveGoes' => __('Moves', __FILE__),
+			'moveBadExt' => __('Stays: this field does not take .%s files', __FILE__),
+			'moveNoRoom' => __('Stays: no room in this field', __FILE__),
+			'moveReplace' => __('Replace %s (it is deleted)', __FILE__),
+			'moveSwap' => __('Swap: %s goes to the other field', __FILE__),
+			'moveSkip' => __('Leave it where it is', __FILE__),
+			'moveWait' => __('Wait for the uploads to finish, then move the files.', __FILE__),
+			'movePages' => __('Moving %d pages', __FILE__), // the page tree's move note
 		);
 	}
 

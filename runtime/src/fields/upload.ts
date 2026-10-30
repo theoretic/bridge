@@ -87,7 +87,8 @@ export function rejectReason(file: File, target: UploadTarget, resized = false):
 let running = 0;
 let doneTimer = 0;
 
-function busy(on: boolean): void {
+/** body.pw-uploading while uploads (and moves between fields, fields/files-move.ts) run */
+export function busy(on: boolean): void {
 	if (on) {
 		running++;
 		window.clearTimeout(doneTimer);

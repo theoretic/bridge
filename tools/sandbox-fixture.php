@@ -164,6 +164,8 @@ $nativeDefs = array(
 	'bf_tab' => array('FieldtypeFieldsetTabOpen', 'Extra', array()),
 	// milestone 3.2: a single image (the multiple ones are bf_images and bf_files above)
 	'bf_image' => array('FieldtypeImage', 'Image (single)', array('extensions' => 'png jpg', 'maxFiles' => 1, 'useTags' => 0)),
+	// 0.14.0: a second file field for moves between fields (kinds mixed, room for two, no tags)
+	'bf_docs' => array('FieldtypeFile', 'Docs', array('extensions' => 'txt pdf png jpg', 'maxFiles' => 2, 'useTags' => 0)),
 );
 foreach($nativeDefs as $name => $def) {
 	list($type, $label, $settings) = $def;
@@ -185,7 +187,7 @@ if(!$tabClose && $tabOpen) {
 ";
 }
 $order = array('title', 'bf_text', 'bf_textarea', 'bf_integer', 'bf_checkbox', 'bf_toggle', 'bf_options',
-	'bf_images', 'bf_files', 'bf_image', 'bf_repeater', 'bf_repeater_depth', 'bf_pagetable',
+	'bf_images', 'bf_files', 'bf_docs', 'bf_image', 'bf_repeater', 'bf_repeater_depth', 'bf_pagetable',
 	'bf_tab', 'bf_tags', 'bf_date', 'bf_pages_asm', 'bf_pages_auto', 'bf_pages_list', 'bf_selector', 'bf_tab_END');
 // milestone 3.3: repeaters of native fields (a plain one; one with depth and limits) and a page
 // table whose items live under their own parent (no Children tab on the fixture page)

@@ -646,7 +646,7 @@ if(isset($bridge) && $bridge) {
 // 0.10.1 (audit 2026-10-27, phase 5: architecture)
 if(isset($bridge) && $bridge) {
 	$traits = class_uses($bridge);
-	check('PA1 the theme class is split into its eleven traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 11, implode(', ', array_keys($traits)));
+	check('PA1 the theme class is split into its twelve traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 12, implode(', ', array_keys($traits)));
 	check('PA1 hookable methods stay hookable through the traits', method_exists($bridge, '___sortableDataTable') && method_exists($bridge, '___nativeMap') && method_exists($bridge, '___renderBreadcrumbs'));
 	$traitSrc = '';
 	foreach((array) glob($themeDir . 'lib/*.php') as $f) $traitSrc .= (string) file_get_contents($f);
@@ -728,6 +728,60 @@ if(isset($bridge) && $bridge) {
 	check('image marked for deletion: 2px red ring', strpos($fieldsCss, '.gridImage--delete{background-color:var(--card);box-shadow:var(--shadow-sm),inset 0 0 0 .125rem var(--destructive)}') !== false);
 	check('image tile buttons have rounded corners', strpos($fieldsCss, '.gridImage__btn{background:var(--card);color:var(--muted-foreground);border-radius:var(--radius-sm)}') !== false);
 	check('image tile hover overlay has rounded corners', strpos($fieldsCss, '.gridImage__inner{border-radius:var(--radius-sm)}') !== false);
+}
+
+// 0.14.0: several items selected and dragged together; files moved between fields (ADR 0018)
+if(isset($bridge) && $bridge) {
+	$rt = dirname(__DIR__) . '/runtime/src/';
+	$sortableSrc = (string) @file_get_contents($rt . 'util/sortable.ts');
+	check('selection: util/selection.ts makes lists selectable', strpos((string) @file_get_contents($rt . 'util/selection.ts'), 'export function makeSelectable(') !== false);
+	check('sortable: groups travel together, a handler may take the drag outside', strpos($sortableSrc, 'group?: (item: HTMLElement) => HTMLElement[]') !== false && strpos($sortableSrc, 'outside?: (item: HTMLElement') !== false && strpos($sortableSrc, 'export function edgeScroll(') !== false);
+	check('file and image fields select and drag out', strpos((string) @file_get_contents($rt . 'fields/file.ts'), 'export function dragOut(') !== false && strpos((string) @file_get_contents($rt . 'fields/image.ts'), 'dragOut(inputfield, grid)') !== false);
+	$movesSrc = (string) @file_get_contents($rt . 'fields/files-move.ts');
+	check('files-move posts bridgeFilesMove, meta as JSON', strpos($movesSrc, "body.append('bridgeFilesMove', '1')") !== false && strpos($movesSrc, "body.append('meta', JSON.stringify(meta))") !== false);
+	check('the page tree\'s Move is its own chunk, loaded early', is_file($rt . 'fields/pagelist-move.ts') && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-move')") !== false && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "addEventListener('pointerover', early, { once: true })") !== false);
+	check('the tree takes an empty sort answer as success', strpos((string) @file_get_contents($rt . 'fields/pagelist-move.ts'), 'if (!text && res.ok) return {};') !== false);
+	check('moves go through ProcessPageEdit::ajaxSave', strpos($themeSource, "addHookBefore('ProcessPageEdit::ajaxSave', \$this, 'hookPageEditAjaxSave')") !== false);
+	check('moveFiles, moveFileAllowed, filesMoved are hookable', method_exists($bridge, '___moveFiles') && method_exists($bridge, '___moveFileAllowed') && method_exists($bridge, '___filesMoved'));
+	foreach(array('selectedCount', 'moveTo', 'moveButton', 'moveGoes', 'moveBadExt', 'moveNoRoom', 'moveReplace', 'moveSwap', 'moveSkip', 'moveWait', 'movePages') as $key) {
+		check("runtime label '$key' exists", isset($bridge->runtimeLabels()[$key]));
+	}
+	$fieldsCss = (string) @file_get_contents($themeDir . 'assets/dist/fields.css');
+	$themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
+	check('fields.css: band, selection, ghost, drop states, move dialog', strpos($fieldsCss, '.pw-marquee{position:fixed;') !== false && strpos($fieldsCss, '.gridImage.pw-selected{') !== false
+		&& strpos($fieldsCss, '.pw-drag-ghost{position:fixed;') !== false && strpos($fieldsCss, '.Inputfield.pw-drop-no{') !== false && strpos($fieldsCss, 'dialog.pw-ask-move li{') !== false);
+	check('theme.css rings a field that takes the dragged files', strpos($themeCss, '.Inputfield:is(.pw-drag-in-file,.pw-drop-ok){') !== false);
+	// a real round trip on the fixture page (tools/sandbox-fixture.php): bf_files -> bf_docs and back
+	$np = $pages->get('/bridge-native/');
+	$su = $wire->users->get('name=bridge');
+	if($np->id && $np->template->hasField('bf_docs') && $su && $su->id) {
+		$guest = $wire->user;
+		$wire->users->setCurrentUser($su);
+		$np->of(false);
+		$fg = $np->template->fieldgroup;
+		$first = $np->bf_files->first();
+		if($first) {
+			$name = $first->basename;
+			$desc = (string) $first->description;
+			$r = $bridge->moveFiles($np, $fg->getFieldContext('bf_files'), $fg->getFieldContext('bf_docs'), array($name));
+			$pages->uncache($np);
+			$np = $pages->get($np->id);
+			$np->of(false);
+			$moved = $np->bf_docs->getFile($name);
+			check('moveFiles moves a file to another field of the page, saved, the file still there', $r['ok'] && $moved && is_file($moved->filename) && !$np->bf_files->getFile($name), json_encode($r));
+			$r = $bridge->moveFiles($np, $fg->getFieldContext('bf_docs'), $fg->getFieldContext('bf_files'), array($name), array('index' => 0));
+			$pages->uncache($np);
+			$np = $pages->get($np->id);
+			$np->of(false);
+			$back = $np->bf_files->first();
+			check('moveFiles moves it back to the start, with its description', $r['ok'] && $back && $back->basename === $name && (string) $back->description === $desc && is_file($back->filename), json_encode($r));
+			$r = $bridge->moveFiles($np, $fg->getFieldContext('bf_files'), $fg->getFieldContext('bf_images'), array($name));
+			check('moveFiles refuses what an upload would refuse (a .txt for an image field)', !$r['ok'] && count($r['errors']) === 1 && $np->bf_files->getFile($name), json_encode($r));
+		}
+		$wire->users->setCurrentUser($guest);
+	} else {
+		warn('no fixture page with bf_docs: the moveFiles round trip is skipped', 'tools/sandbox-fixture.php');
+	}
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

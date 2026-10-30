@@ -347,6 +347,21 @@ Report by ProcessShowcase's author: modules that use UIkit look broken under Bri
   - layer coverage tuning: classes worth adding to `95-uikit-compat.css` so common pages skip the layer, such as `uk-margin-large-top` and `uk-button-group`;
   - a conformance pass on the sandboxes with UIkit-using modules (Fluency, PageTableNext, AgentTools) to confirm none starts loading the layer unexpectedly.
 
+### Multi-select and moves between fields (inserted 2026-10-30)
+
+Owner request: select several file items, image tiles or tree pages and drag them together, and
+drag files and images from one field of a page to another. Decision in
+`docs/decisions/0018-multiselect-and-moves-between-fields.md`: file-manager gestures (Ctrl/Cmd,
+Shift, a rubber band), a plain click keeps its meaning; moves saved at the drop through a hook on
+`ProcessPageEdit::ajaxSave`, by reference within a page's files directory; a target accepts what an
+upload would, and a dialog settles the rest (Replace / Swap / Leave for a single-file field).
+
+**Status 2026-10-30: done (0.14.0, unreleased).**
+- `tools/image-file-check.js` sections R to U and `tools/pagetree-check.js` section H pass in Chromium
+  and Firefox on atispro; smoke test green with a server-side round trip; Gate 2 unchanged.
+- Open: touch multi-select; moves between a page and its repeater items (needs a physical copy);
+  Extras actions on a tree selection; WireTab headers that open while dragging over them.
+
 ### Phase 4 — distribution and politics
 
 Bootstrap from phase 0 becomes the installer path; docs; upstream PRs (`wireDir`, a formal Inputfield component interface, an admin-fired event replacing direct `jQuery(document).on(...)`); CLA signed; module-directory listing for the theme; a name check (trademark search) before any public announcement.

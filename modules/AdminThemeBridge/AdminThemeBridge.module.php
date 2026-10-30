@@ -14,6 +14,7 @@ require_once(__DIR__ . '/lib/AdminThemeBridgeComponents.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeConfig.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeHead.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgePageAdd.php');
+require_once(__DIR__ . '/lib/AdminThemeBridgeFiles.php');
 
 /**
  * AdminThemeBridge
@@ -45,11 +46,12 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	use AdminThemeBridgeConfig;
 	use AdminThemeBridgeHead;
 	use AdminThemeBridgePageAdd;
+	use AdminThemeBridgeFiles;
 
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.13.3',
+			'version' => '0.14.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -470,6 +472,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// the page editor (milestone 3.1): its inline init call falls back to the native editor, and
 		// the page tree in its Children tab stays legacy until the page tree is native (3.4)
 		$this->addHookAfter('ProcessPageEdit::execute', $this, 'hookPageEditExecute');
+		// files and images dragged between the file fields of a page (0.14.0, lib/AdminThemeBridgeFiles.php)
+		$this->addHookBefore('ProcessPageEdit::ajaxSave', $this, 'hookPageEditAjaxSave');
 		// Add New with a known template goes straight to the editor (setting, off by default)
 		if($this->pageAddSkipTemplate) $this->addHookBefore('ProcessPageAdd::buildForm', $this, 'hookPageAddBuildForm');
 		// tables print `AdminDataTable.initTable($('#id'))`: without jQuery the runtime's

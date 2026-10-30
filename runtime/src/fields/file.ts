@@ -6,6 +6,11 @@
  *   when the field is empty), the wrapper's InputfieldFileEmpty / Single / Multiple;
  * - sort by dragging an item (each item's input.InputfieldFileSort renumbered, the Inputfield
  *   changed, `sorted` dispatched on it);
+ * - select several rows (util/selection.ts: Ctrl/Cmd+click, Shift+click, a rubber band from the
+ *   field's background) and drag them together; a delete box of a selected row sets every selected
+ *   row's box (0.14.0, ADR 0018);
+ * - drag rows out onto another file or image field of the page: fields/files-move.ts, loaded at the
+ *   first drag (dragOut(), shared with image.ts);
  * - delete: label.InputfieldFileDelete's checkbox marks the item (.InputfieldFileInfo
  *   ui-state-error) and hides its data; a double click toggles every item;
  * - tags: input.InputfieldFileTagsInput (free) and .InputfieldFileTagsSelect (from
@@ -19,7 +24,9 @@
  * initialisation runs on the restored markup. The tag controls stay (upstream skips them).
  */
 
-import { makeSortable } from '../util/sortable';
+import { makeSortable, DragEnd } from '../util/sortable';
+import { makeSelectable, Selectable } from '../util/selection';
+import type { Mover } from './files-move';
 import { setupTags, Opts as TagOpts } from './texttags';
 import { uploadAllowed, uploadTarget, rejectReason, send, toElement, initItem, filesOf, UploadResult } from './upload';
 import { legacyLoaded } from '../legacy';
@@ -27,11 +34,44 @@ import { setValue } from '../util/events';
 import { onRemoval } from '../util/removal';
 import { esc } from '../util/html';
 
-type FieldState = { abort: AbortController; unsort: (() => void) | null };
+type FieldState = { abort: AbortController; unsort: (() => void) | null; select: Selectable | null };
 const fields = new Map<HTMLElement, FieldState>();
+const drop = (st: FieldState): void => { st.abort.abort(); if (st.unsort) st.unsort(); if (st.select) st.select.destroy(); };
 // per-element state, dropped when its element leaves the page (audit R6)
-const prune = (): void => fields.forEach((st, f) => { if (!f.isConnected) { st.abort.abort(); if (st.unsort) st.unsort(); fields.delete(f); } });
+const prune = (): void => fields.forEach((st, f) => { if (!f.isConnected) { drop(st); fields.delete(f); } });
 onRemoval(prune);
+
+/**
+ * Dragging items out of a file or image field onto another one (0.14.0): the sortable's `outside`
+ * and its end, with fields/files-move.ts loaded at the first drag where uploads are possible (the
+ * same page editor contract). Until it is in, a drag stays a sort.
+ */
+export function dragOut(inputfield: HTMLElement, list: HTMLElement): {
+	load(): void;
+	outside(item: HTMLElement, group: HTMLElement[], e: PointerEvent): boolean;
+	end(end: DragEnd, group: HTMLElement[]): void;
+} {
+	let mover: Mover | null = null;
+	let loading = false;
+	return {
+		load: () => {
+			if (mover || loading || !uploadAllowed()) return;
+			loading = true;
+			void import('./files-move').then(m => { mover = m.mover(inputfield, list); }).catch(() => { loading = false; });
+		},
+		outside: (item, group, e) => !!mover && mover.probe(item, group, e),
+		end: (end, group) => {
+			if (!mover) return;
+			if (end.outside) void mover.drop(group);
+			else mover.cancel();
+		},
+	};
+}
+
+/** The items that travel with a pressed one: the selection when the item is in it */
+export function groupOf(state: { select: Selectable | null }): (item: HTMLElement) => HTMLElement[] {
+	return item => state.select && state.select.isSelected(item) ? state.select.selected() : [item];
+}
 
 
 /** Empty / Single / Multiple by the number of items */
@@ -60,6 +100,8 @@ export function initFileTags(root: ParentNode, inputfield: HTMLElement): void {
 	selects.forEach(input => setupTags(input, opts));
 }
 
+let spreading = false;
+
 function setDeleted(input: HTMLInputElement): void {
 	const info = input.closest('.InputfieldFileInfo');
 	if (!info) return;
@@ -78,7 +120,19 @@ function setupDocument(): void {
 	document.addEventListener('change', e => {
 		if (legacyLoaded()) return;
 		const input = e.target as HTMLInputElement;
-		if (input.matches && input.matches('.InputfieldFileDelete input')) setDeleted(input);
+		if (!input.matches || !input.matches('.InputfieldFileDelete input')) return;
+		setDeleted(input);
+		// a selected row's box sets the box of every selected row in its field
+		const row = input.closest('li.InputfieldFileItem.pw-selected');
+		const list = row ? row.parentElement : null;
+		if (!list || spreading) return;
+		spreading = true;
+		list.querySelectorAll<HTMLInputElement>(':scope > li.InputfieldFileItem.pw-selected .InputfieldFileDelete input').forEach(box => {
+			if (box === input || box.checked === input.checked) return;
+			box.checked = input.checked;
+			box.dispatchEvent(new Event('change', { bubbles: true }));
+		});
+		spreading = false;
 	});
 	document.addEventListener('dblclick', e => {
 		if (legacyLoaded()) return;
@@ -95,8 +149,7 @@ function setupDocument(): void {
 	});
 	document.addEventListener('pw-legacy-handover', () => {
 		fields.forEach((state, inputfield) => {
-			state.abort.abort();
-			if (state.unsort) state.unsort();
+			drop(state);
 			inputfield.querySelectorAll('.InputfieldFileInit').forEach(el => el.classList.remove('InputfieldFileInit'));
 			inputfield.querySelectorAll('[data-pw-file]').forEach(el => el.removeAttribute('data-pw-file'));
 		});
@@ -104,18 +157,24 @@ function setupDocument(): void {
 	});
 }
 
-function sortable(inputfield: HTMLElement, list: HTMLElement): () => void {
+function sortable(inputfield: HTMLElement, list: HTMLElement, state: FieldState): () => void {
+	const out = dragOut(inputfield, list);
+	const infos = (group: HTMLElement[]): Element[] => group.map(li => li.querySelector('.InputfieldFileInfo')).filter(Boolean) as Element[];
 	return makeSortable(list, {
 		items: 'li.InputfieldFileItem',
 		threshold: 4,
-		enabled: () => !legacyLoaded() && list.querySelectorAll(':scope > li.InputfieldFileItem').length > 1,
-		start: item => { const info = item.querySelector('.InputfieldFileInfo'); if (info) info.classList.add('ui-state-highlight'); },
-		stop: item => {
+		// one row may still leave the field (drags between fields)
+		enabled: () => !legacyLoaded() && list.querySelectorAll(':scope > li.InputfieldFileItem').length > 0,
+		group: groupOf(state),
+		outside: out.outside,
+		start: (_item, group) => { out.load(); infos(group).forEach(info => info.classList.add('ui-state-highlight')); },
+		stop: (_item, end, group) => {
+			infos(group).forEach(info => info.classList.remove('ui-state-highlight'));
+			out.end(end, group);
+			if (end.outside || end.cancelled) return;
 			Array.from(list.children).forEach((li, n) => {
 				setValue(li.querySelector<HTMLInputElement>('.InputfieldFileSort'), String(n));
 			});
-			const info = item.querySelector('.InputfieldFileInfo');
-			if (info) info.classList.remove('ui-state-highlight');
 			inputfield.classList.add('InputfieldFileJustSorted', 'InputfieldStateChanged');
 			window.setTimeout(() => inputfield.classList.remove('InputfieldFileJustSorted'), 500);
 		},
@@ -273,15 +332,19 @@ export function init(inputfield: HTMLElement): void {
 	prune();
 	const old = fields.get(inputfield);
 	if (old) {
-		old.abort.abort();
-		if (old.unsort) old.unsort();
+		drop(old);
 		content.classList.remove('InputfieldFileInit');
 	}
-	const state: FieldState = { abort: new AbortController(), unsort: null };
+	const state: FieldState = { abort: new AbortController(), unsort: null, select: null };
 	fields.set(inputfield, state);
 	updateCount(inputfield);
 	if (inputfield.closest('.InputfieldRenderValueMode')) return;
-	state.unsort = sortable(inputfield, list);
+	state.select = makeSelectable(content, {
+		items: 'li.InputfieldFileItem',
+		ignore: 'a, input, select, textarea, button, label, [contenteditable], .selectize-control, .InputfieldFileData',
+		enabled: () => !legacyLoaded(),
+	});
+	state.unsort = sortable(inputfield, list, state);
 	list.querySelectorAll<HTMLElement>('.ui-widget-header, .ui-state-default').forEach(el => {
 		el.addEventListener('mouseenter', () => el.classList.add('ui-state-hover'), { signal: state.abort.signal });
 		el.addEventListener('mouseleave', () => el.classList.remove('ui-state-hover'), { signal: state.abort.signal });

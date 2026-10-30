@@ -21,13 +21,18 @@
  *   with the CSRF token and the item is updated, added or removed as the answer says.
  * - Move: the item is dragged to its new place among the visible items, also into an open item
  *   without visible children (a placeholder list) or the trash; the new parent and order are posted
- *   to ajaxMoveURL; counts follow; `pageMoved` on the item.
+ *   to ajaxMoveURL; counts follow; `pageMoved` on the item (fields/pagelist-move.ts, loaded at the
+ *   first Move click).
+ * - Rows are selected with Ctrl/Cmd+click, Shift+click or a rubber band from a row's blank part
+ *   (util/selection.ts, ADR 0018); Move on a selected row moves them all. A row inside a selected
+ *   row is never selected on its own; the home page is not selectable.
  * - `pageListRefresh` on document (detail: page id) reloads the list holding that page.
  * - Events on the container: `pageListChildrenDone` (detail: the JSON data).
  */
 
 import { setCookie } from '../util/cookie';
 import { legacyLoaded } from '../legacy';
+import { makeSelectable } from '../util/selection';
 
 type Action = { cn: string; name: string; url: string; extras?: Record<string, Action>; ajax?: boolean };
 type Child = {
@@ -425,134 +430,39 @@ function setupTree(container: HTMLElement): void {
 		if (data.refreshChildren) forceReload(root.querySelector<HTMLElement>('.PageListID' + data.refreshChildren), true);
 	};
 
-	/* move ******************************************************************************************/
+	/* selection and move ****************************************************************************/
 
-	let moving: HTMLElement | null = null;
-	let from: HTMLElement | null = null;
-
-	const clickMove = (a: HTMLAnchorElement): void => {
-		if (ignoreClicks) return;
-		const visible = Array.from(root.querySelectorAll<HTMLElement>('.PageListItem')).filter(x => x.offsetParent !== null);
-		if (visible.length === 1) { a.style.textDecoration = 'line-through'; a.classList.add('ui-state-disabled'); return; }
-		const li = a.closest<HTMLElement>('.PageListItem') as HTMLElement;
-		if (li.classList.contains('PageListItemOpen')) toggleItem(li);
-		// an open item without visible children gets an empty list to drop into
-		root.querySelectorAll<HTMLElement>('.PageListItemOpen').forEach(open => {
-			const list = next(open, '.PageList');
-			if (numOf(open) > 1 && !(list && list.offsetParent !== null)) return;
-			if (list && list.offsetParent !== null) return;
-			const ph = el('div', 'PageListPlaceholder PageList');
-			ph.appendChild(el('div', 'PageListItem PageListPlaceholderItem', '&nbsp;'));
-			open.insertAdjacentElement('afterend', ph);
-		});
-		const note = el('span', 'PageListMoveNote detail', icons.sort + '&nbsp;' + o.moveInstructionLabel + '&nbsp;' + icons.left + '&nbsp;');
-		const cancel = el('a', '', o.selectCancelLabel);
-		cancel.href = '#';
-		cancel.addEventListener('click', e => { e.preventDefault(); cancelMove(); });
-		note.appendChild(cancel);
-		const actions = kids(li, 'ul.PageListActions')[0];
-		li.insertBefore(note, actions || null);
-		li.classList.add('PageListSortItem');
-		from = li.parentElement as HTMLElement;
-		root.classList.add('PageListSorting');
-		kids(kids(root, '.PageList')[0], '.PageList').forEach(x => x.classList.add('PageListSortingList'));
-		moving = li;
-	};
-
-	const cancelMove = (): void => {
-		root.querySelectorAll('.PageListSortingList').forEach(x => x.classList.remove('PageListSortingList'));
-		if (moving) { moving.classList.remove('PageListSortItem'); moving.querySelectorAll('.PageListMoveNote').forEach(x => x.remove()); }
-		root.querySelectorAll('.PageListPlaceholder').forEach(x => {
-			if (x.querySelector('.PageListItem:not(.PageListPlaceholderItem)')) { x.classList.remove('PageListPlaceholder'); x.querySelectorAll('.PageListPlaceholderItem').forEach(p => p.remove()); }
-			else x.remove();
-		});
-		root.classList.remove('PageListSorting');
-		moving = null;
-	};
-
-	const stopMove = async (li: HTMLElement): Promise<void> => {
-		let list = li.parentElement as HTMLElement;
-		const origin = from;
-		if (list.classList.contains('PageListPlaceholder')) {
-			list.classList.remove('PageListPlaceholder');
-			list.querySelectorAll('.PageListPlaceholderItem').forEach(x => x.remove());
+	// a row inside a selected row moves with it: never selected on its own
+	const ancestors = (li: HTMLElement): HTMLElement[] => {
+		const out: HTMLElement[] = [];
+		for (let list = li.parentElement; list && list !== root; ) {
+			const item = prev(list, '.PageListItem');
+			if (!item) break;
+			out.push(item);
+			list = item.parentElement;
 		}
-		let before = list.previousElementSibling as HTMLElement | null;
-		if (before && !before.classList.contains('PageListItem')) before = before.previousElementSibling as HTMLElement | null;
-		const parentID = before ? pageId(before) : 0;
-		root.classList.add('PageListSortSaving');
-		cancelMove();
-		const spin = spinner();
-		li.appendChild(spin);
-		const sort = kids(list, '.PageListItem').map(x => pageId(x)).join(',') + ',';
-		const body = new URLSearchParams();
-		body.set('id', String(pageId(li)));
-		body.set('parent_id', String(parentID));
-		body.set('sort', sort);
-		body.set(container.getAttribute('data-token-name') || '', container.getAttribute('data-token-value') || '');
-		let data: { error?: boolean; message?: string } = {};
-		try {
-			const res = await fetch(o.ajaxMoveURL, { method: 'POST', body, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-			data = await res.json();
-		} catch (err) {
-			data = { error: true, message: o.ajaxUnknownError };
-		}
-		spin.remove();
-		li.classList.remove('PageListSortItem');
-		if (data && data.error) alertMsg(data.message || '');
-		if (origin && origin !== list) {
-			const fromItem = prev(origin, '.PageListItem');
-			let n = numOf(fromItem);
-			if (n > 0) { n--; adjustTotal(fromItem, -1); } else origin.remove();
-			if (fromItem) { setNum(fromItem, n, false); forceReload(fromItem); }
-			const toItem = prev(list, '.PageListItem');
-			if (toItem) { adjustTotal(toItem, 1); setNum(toItem, numOf(toItem) + 1, false); forceReload(toItem); }
-		}
-		root.classList.remove('PageListSortSaving');
-		li.dispatchEvent(new CustomEvent('pageMoved', { bubbles: true }));
+		return out;
 	};
-
-	// dragging the item that is moving: placed before or after the item under the pointer
-	let dragId = -1;
-	root.addEventListener('pointerdown', e => {
-		if (!moving || e.button !== 0) return;
-		const t = e.target as HTMLElement;
-		if (!moving.contains(t) || t.closest('.PageListMoveNote a')) return;
-		e.preventDefault();
-		dragId = e.pointerId;
-		moving.classList.add('PageListSortPlaceholder');
-		root.setPointerCapture(dragId);
+	const select = makeSelectable(root, {
+		items: '.PageListItem',
+		ignore: '.PageListActions, .PageListMoveNote, ul[data-pagination], input, button, select, textarea',
+		marqueeFromItems: true,
+		canSelect: li => !li.classList.contains('PageListPlaceholderItem') && !li.classList.contains('PageListID1')
+			&& !(li.parentElement && li.parentElement.classList.contains('PageListRootHidden')),
+		normalize: list => { const set = new Set(list); return list.filter(li => !ancestors(li).some(a => set.has(a))); },
+		enabled: () => !legacyLoaded() && !root.classList.contains('PageListSorting') && !root.classList.contains('PageListSortSaving'),
 	});
-	root.addEventListener('pointermove', e => {
-		if (!moving || e.pointerId !== dragId) return;
-		e.preventDefault();
-		const under = document.elementFromPoint(e.clientX, e.clientY);
-		const target = under ? (under as HTMLElement).closest<HTMLElement>('.PageListItem') : null;
-		if (!target || target === moving || !root.contains(target) || target.closest('.PageListRootHidden > .PageListItem') === target) return;
-		if (!target.closest('.PageListSortingList') && !target.classList.contains('PageListPlaceholderItem')) return;
-		if (target.classList.contains('PageListPlaceholderItem')) { target.insertAdjacentElement('beforebegin', moving); return; }
-		const r = target.getBoundingClientRect();
-		const after = e.clientY > r.top + r.height / 2;
-		if (!after) { target.insertAdjacentElement('beforebegin', moving); return; }
-		// below an open item is its child list: the item goes first in there, never between the two
-		const childList = next(target, '.PageList');
-		if (target.classList.contains('PageListItemOpen') && childList) {
-			const first = kids(childList, '.PageListItem')[0];
-			if (first) first.insertAdjacentElement('beforebegin', moving); else childList.appendChild(moving);
-		} else {
-			target.insertAdjacentElement('afterend', moving);
-		}
-	});
-	const drop = (e: PointerEvent): void => {
-		if (!moving || e.pointerId !== dragId) return;
-		dragId = -1;
-		try { root.releasePointerCapture(e.pointerId); } catch (err) { /* released */ }
-		const li = moving;
-		li.classList.remove('PageListSortPlaceholder');
-		void stopMove(li);
-	};
-	root.addEventListener('pointerup', drop);
-	root.addEventListener('pointercancel', drop);
+	// Move: its own chunk, loaded when the pointer or the focus first reaches the tree, so a click on
+	// Move finds it in place
+	let mover: Promise<{ clickMove(a: HTMLAnchorElement): void }> | null = null;
+	const loadMove = (): Promise<{ clickMove(a: HTMLAnchorElement): void }> => mover || (mover = import('./pagelist-move').then(m => m.installMove({
+		root, container, o, icons, el, kids, next, prev, pageId, numOf, setNum, adjustTotal, forceReload, toggleItem,
+		spinner, alertMsg, ignoreClicks: () => ignoreClicks, select,
+	})));
+	const clickMove = (a: HTMLAnchorElement): void => { void loadMove().then(m => m.clickMove(a)); };
+	const early = (): void => { void loadMove(); };
+	container.addEventListener('pointerover', early, { once: true });
+	container.addEventListener('focusin', early, { once: true });
 
 	/* events ****************************************************************************************/
 

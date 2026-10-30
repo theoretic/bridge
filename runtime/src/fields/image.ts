@@ -12,6 +12,10 @@
  * - Edit panel (grid and left modes): .gridImage__edit opens it below the row of its image and
  *   moves the item's .ImageData children into it (back when it closes); a click elsewhere, the
  *   close button or another image closes it.
+ * - Select several images (util/selection.ts: Ctrl/Cmd+click, Shift+click, a rubber band from the
+ *   field's background) and drag them together; the trash of a selected image sets every selected
+ *   image (0.14.0, ADR 0018). Images also leave the field onto another file or image field of the
+ *   page (fields/files-move.ts through file.ts dragOut()), the single image field included.
  * - Sort by dragging (renumbers input.InputfieldFileSort, `sorted` on the Inputfield), trash
  *   toggles the delete box (double click: every image), click to rename (input.InputfieldFileRename),
  *   action select note, focus point (fields/image-focus.ts), full-size view in a lightbox.
@@ -29,17 +33,19 @@ import { makeSortable } from '../util/sortable';
 import { openLightbox, LightboxItem } from '../util/lightbox';
 import { legacyLoaded } from '../legacy';
 import { uploadAllowed } from './upload';
-import { initFileTags } from './file';
+import { initFileTags, dragOut, groupOf } from './file';
+import { makeSelectable, Selectable } from '../util/selection';
 import { onRemoval } from '../util/removal';
 import { esc } from '../util/html';
 
 type Focus = { top: number; left: number; zoom: number };
 type Settings = { size: number; listSize: number; mode: string };
-type FieldState = { abort: AbortController; unsort: (() => void) | null; list: HTMLElement };
+type FieldState = { abort: AbortController; unsort: (() => void) | null; list: HTMLElement; select: Selectable | null };
 
 const fields = new Map<HTMLElement, FieldState>();
+const drop = (st: FieldState): void => { st.abort.abort(); if (st.unsort) st.unsort(); if (st.select) st.select.destroy(); };
 // per-element state, dropped when its element leaves the page (audit R6)
-const prune = (): void => fields.forEach((st, f) => { if (!f.isConnected) { st.abort.abort(); if (st.unsort) st.unsort(); fields.delete(f); } });
+const prune = (): void => fields.forEach((st, f) => { if (!f.isConnected) { drop(st); fields.delete(f); } });
 onRemoval(prune);
 const ACTIVE = 'InputfieldImageListToggle--active';
 let sliding = false;
@@ -395,6 +401,14 @@ function setupDocument(): void {
 				e.preventDefault();
 				box.checked = !box.checked;
 				box.dispatchEvent(new Event('change', { bubbles: true }));
+				// the trash of a selected image sets every selected image of its field
+				const item = trash.closest('.gridImage.pw-selected');
+				const grid = item ? item.parentElement : null;
+				if (grid) grid.querySelectorAll<HTMLInputElement>(':scope > .gridImage.pw-selected .gridImage__deletebox').forEach(other => {
+					if (other === box || other.checked === box.checked) return;
+					other.checked = box.checked;
+					other.dispatchEvent(new Event('change', { bubbles: true }));
+				});
 			}
 			return;
 		}
@@ -517,8 +531,7 @@ function setupDocument(): void {
 	document.addEventListener('pw-legacy-handover', () => {
 		fields.forEach((state, inputfield) => {
 			closeEdit(inputfield, null);
-			state.abort.abort();
-			if (state.unsort) state.unsort();
+			drop(state);
 			inputfield.querySelectorAll('.InputfieldImageListToggle, .InputfieldImageSizeSlider').forEach(el => el.remove());
 			inputfield.classList.remove('InputfieldImageInit');
 			inputfield.querySelectorAll('.InputfieldImageInitUpload, .InputfieldImageDropzoneInit, .gridImagesInitDropInPlace').forEach(el =>
@@ -575,8 +588,8 @@ export function init(inputfield: HTMLElement): void {
 	// fields an in-place save replaced
 	prune();
 	const old = fields.get(inputfield);
-	if (old) { old.abort.abort(); if (old.unsort) old.unsort(); }
-	const state: FieldState = { abort: new AbortController(), unsort: null, list: grid };
+	if (old) drop(old);
+	const state: FieldState = { abort: new AbortController(), unsort: null, list: grid, select: null };
 	fields.set(inputfield, state);
 	const signal = state.abort.signal;
 	const renderValue = inputfield.classList.contains('InputfieldRenderValueMode');
@@ -584,9 +597,16 @@ export function init(inputfield: HTMLElement): void {
 	const maxFiles = max ? parseInt(max.value, 10) || 0 : 0;
 	inputfield.classList.add('InputfieldImageInit');
 	if (!renderValue) {
-		if (maxFiles === 1) {
-			inputfield.classList.add('InputfieldImageMax1');
-		} else {
+		if (maxFiles === 1) inputfield.classList.add('InputfieldImageMax1');
+		else state.select = makeSelectable(content, {
+			items: '.gridImage',
+			ignore: '.InputfieldImageEdit, .focusArea, .focusCircle, .gridImage__trash, input, textarea, select, button, [contenteditable], .selectize-control',
+			canSelect: li => !li.matches('.gridImagePlaceholder, .gridImageUploading, .pw-drop-placeholder'),
+			enabled: () => !legacyLoaded(),
+		});
+		{
+			// the single image field gets it too: one tile does not sort, but it may leave the field
+			const out = dragOut(inputfield, grid);
 			state.unsort = makeSortable(grid, {
 				items: '.gridImage',
 				axis: 'xy',
@@ -595,8 +615,13 @@ export function init(inputfield: HTMLElement): void {
 				cancel: '.InputfieldImageEdit, .focusArea, input, textarea, button, select, option, [contenteditable]',
 				controls: '',
 				enabled: () => !legacyLoaded(),
-				start: () => { closeEdit(grid, null); grid.classList.add('InputfieldImageSorting'); },
-				stop: item => {
+				group: groupOf(state),
+				outside: out.outside,
+				start: () => { out.load(); closeEdit(grid, null); grid.classList.add('InputfieldImageSorting'); },
+				stop: (item, end, group) => {
+					grid.classList.remove('InputfieldImageSorting');
+					out.end(end, group);
+					if (end.outside || end.cancelled) return;
 					Array.from(grid.querySelectorAll<HTMLElement>(':scope > li.gridImage')).forEach((li, n) => {
 						const sort = li.querySelector<HTMLInputElement>('.InputfieldFileSort');
 						if (sort && sort.value !== String(n)) {
@@ -604,7 +629,6 @@ export function init(inputfield: HTMLElement): void {
 							sort.dispatchEvent(new Event('change', { bubbles: true }));
 						}
 					});
-					grid.classList.remove('InputfieldImageSorting');
 					item.querySelectorAll('.Inputfield').forEach(li => li.dispatchEvent(new CustomEvent('sort-stop', { bubbles: true })));
 				},
 				update: item => grid.dispatchEvent(new CustomEvent('sorted', { bubbles: true, detail: { item } })),

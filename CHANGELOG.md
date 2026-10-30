@@ -1,5 +1,18 @@
 # Changelog
 
+## AdminThemeBridge 0.14.0: select several items, drag them together or to another field (2026-10-30)
+
+Decision in `docs/decisions/0018-multiselect-and-moves-between-fields.md`.
+
+- **Select several items** of a file field, an image field or the page tree, as in a file manager: Ctrl+click (Cmd+click on a Mac) adds or removes one, Shift+click selects a range, a rubber band from the empty part of the list selects what it touches. Esc or a click outside clears the selection, Ctrl+A selects the whole list. A plain click still does what it did (an image's editor, opening a page in the tree).
+- **Drag the selection together**: files and images sort as one block, in their order. The delete box or trash of a selected item marks every selected one. Alt+Arrow on a focused item moves its selection too (file rows; image tiles take no keyboard focus yet).
+- **Move several pages at once** in the page tree: Move on a selected page moves all selected pages. A page the server refuses (a parent that takes no children, a missing permission) goes back where it was, and you are told once why.
+- **Drag files and images to another field of the same page**: the field under the pointer shows whether it takes them (a ring), takes some of them (an amber ring) or none (a red ring). Where they would land is marked. The move is saved at once, with the files' unsaved descriptions and tags; files keep their names and dates. A field takes what it would take as an upload: its file types, its number of files, an image field's minimum size (larger images are resized, or refused where the field says so). An image moved to a file field becomes a plain file; a file that is an image can go to an image field.
+- When not everything simply moves, a dialog says what happens to each item first. A single-file field that holds a file offers Replace (the old one is deleted), Swap (it goes to the other field) or Leave.
+- Fields inside one repeater item exchange files the same way. Moves between the page and a repeater item are not offered yet.
+- For module authors: `AdminThemeBridge::moveFiles()` does a move from PHP; `moveFileAllowed()` can refuse one; `filesMoved()` runs after one (`InputfieldFile::fileAdded` does not). Fields send `pw-files-moved`.
+- Fixes found on the way: a cancelled drag (Esc) restores the order; the page tree puts a refused move back instead of leaving it in the wrong place.
+
 ## AdminThemeBridge 0.13.3: no dotted or dashed borders (2026-10-30)
 
 The dotted and dashed lines the admin still drew are gone; each element got its own look:

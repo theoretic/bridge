@@ -173,6 +173,97 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const order2 = await serverOrder();
 	check('G moving it back restores the order', order2.slice(0, 3).join() === order0.slice(0, 3).join(), JSON.stringify(order2.slice(0, 3)));
 
+	// H (0.14.0, ADR 0018): rows selected and moved together; a page the server refuses goes back.
+	// The branch's order is put back through page/sort/ at the end.
+	await open('page/');
+	if(!(await page.locator(T + '.PageListItemOpen').count())) await toggle(T);
+	await waitFor((t) => document.querySelectorAll(t + ' + .PageList > .PageListItem').length >= 50, T);
+	const hRow = (n) => T + ` + .PageList > .PageListItem:nth-of-type(${n})`;
+	const hSelected = () => page.$$eval('.PageListRoot .PageListItem.pw-selected', l => l.map(li => li.getAttribute('data-page-id')));
+	const hDom = () => page.$$eval(T + ' + .PageList > .PageListItem', l => l.slice(0, 8).map(li => li.getAttribute('data-page-id')));
+	const serverIds = () => page.evaluate(async ([admin, id]) => {
+		const r = await fetch(admin + 'page/list/?id=' + id + '&render=JSON&start=0&mode=actions', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+		return (await r.json()).children.map(c => String(c.id));
+	}, [ADMIN, TREE]);
+	const alerts = [];
+	page.on('dialog', d => alerts.push(d.message()));
+	const ctrlClick = async (sel) => { await page.$eval(sel, el => el.scrollIntoView({ block: 'center' })); await page.click(sel + ' > a.PageListPage', { modifiers: ['Control'] }); };
+	const h0 = await serverIds();
+	await ctrlClick(hRow(1));
+	await ctrlClick(hRow(3));
+	check('H Ctrl+click selects two rows and opens neither', (await hSelected()).join() === [h0[0], h0[2]].join()
+		&& !(await page.locator(hRow(1) + '.PageListItemOpen, ' + hRow(3) + '.PageListItemOpen').count()), JSON.stringify(await hSelected()));
+	await ctrlClick(T);
+	check('H selecting their parent leaves the parent alone selected', (await hSelected()).join() === TREE, JSON.stringify(await hSelected()));
+	await page.keyboard.press('Escape');
+	check('H Escape clears the selection', !(await hSelected()).length);
+	const groupMove = async (leadN, dropSel, below) => {
+		const lead = hRow(leadN);
+		await page.hover(lead + ' > a.PageListPage');
+		await page.waitForTimeout(500);
+		await page.click(lead + ' > .PageListActions .PageListActionMove > a');
+		await waitFor(() => !!document.querySelector('.PageListSorting'), null, 5000);
+		const note = await page.$eval('.PageListSortItem .PageListMoveNote', n => n.textContent).catch(() => '');
+		const hidden = await page.$$eval('.PageListRoot .pw-drag-member', l => l.length);
+		const a = await (await page.$(lead + ' > a.PageListPage')).boundingBox();
+		const b = await (await page.$(dropSel)).boundingBox();
+		await page.mouse.move(a.x + 10, a.y + a.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(a.x + 10, a.y + a.height / 2 + 5, { steps: 3 });
+		await page.mouse.move(b.x + 10, below ? b.y + b.height - 3 : b.y + b.height / 2, { steps: 10 });
+		await page.mouse.up();
+		await waitFor(() => !document.querySelector('.PageListSortSaving'), null, 20000);
+		await page.waitForTimeout(500);
+		return { note, hidden };
+	};
+	await ctrlClick(hRow(1));
+	await ctrlClick(hRow(3));
+	const hm = await groupMove(3, hRow(5) + ' > a.PageListPage', true);
+	const h1 = await serverIds();
+	const want = [h0[1], h0[3], h0[4], h0[0], h0[2]];
+	check('H Move on a selected row names the count and hides the other', /2/.test(hm.note) && hm.hidden === 1, JSON.stringify(hm));
+	check('H both pages land after the drop row, in their order', h1.slice(0, 5).join() === want.join() && (await hDom()).slice(0, 5).join() === want.join(), JSON.stringify({ h0: h0.slice(0, 5), h1: h1.slice(0, 5) }));
+	check('H the selection is cleared after the move', !(await hSelected()).length);
+	// into a page whose template takes no children: refused, both rows back in place
+	const before = await hDom();
+	await page.$eval(hRow(7), el => el.scrollIntoView({ block: 'center' }));
+	await page.click(hRow(7) + ' > a.PageListPage');
+	await ctrlClick(hRow(1));
+	await ctrlClick(hRow(2));
+	alerts.length = 0;
+	await page.hover(hRow(2) + ' > a.PageListPage');
+	await page.waitForTimeout(500);
+	await page.click(hRow(2) + ' > .PageListActions .PageListActionMove > a');
+	await waitFor(() => !!document.querySelector('.PageListSorting'), null, 5000);
+	{
+		const a = await (await page.$(hRow(2) + ' > a.PageListPage')).boundingBox();
+		// the lower half of an open row puts the item first in its child list (here its placeholder)
+		const b = await (await page.$(hRow(7))).boundingBox();
+		await page.mouse.move(a.x + 10, a.y + a.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(a.x + 10, a.y + a.height / 2 + 5, { steps: 3 });
+		await page.mouse.move(b.x + 10, b.y + b.height * 0.8, { steps: 10 });
+		const into = await page.$eval('.PageListSortItem', li => li.parentElement.classList.contains('PageListPlaceholder'));
+		await page.mouse.up();
+		check('H the dragged row went into the open row\'s placeholder list', into);
+		await waitFor(() => !document.querySelector('.PageListSortSaving'), null, 20000);
+		await page.waitForTimeout(500);
+	}
+	check('H a refused move: both rows back where they were, one alert', (await hDom()).join() === before.join() && alerts.length === 1, JSON.stringify({ before, after: await hDom(), alerts }));
+	check('H a refused move changes nothing on the server', (await serverIds()).join() === h1.join());
+	// the branch's order as it was
+	await page.evaluate(async ([admin, tree, ids]) => {
+		const c = document.getElementById('PageListContainer');
+		const body = new URLSearchParams();
+		body.set('id', ids[0]);
+		body.set('parent_id', tree);
+		body.set('sort', ids.join(',') + ',');
+		body.set(c.getAttribute('data-token-name'), c.getAttribute('data-token-value'));
+		await fetch(admin + 'page/sort/', { method: 'POST', body, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+	}, [ADMIN, TREE, h0]);
+	check('H the order is back', (await serverIds()).join() === h0.join());
+	check('H still no jQuery', !(await jq()));
+
 	// I: pageListRefresh
 	await page.evaluate((id) => document.dispatchEvent(new CustomEvent('pageListRefresh', { detail: id })), TREE);
 	check('I pageListRefresh reloads the list holding the page', await waitFor((t) => !!document.querySelector(t), T, 10000));

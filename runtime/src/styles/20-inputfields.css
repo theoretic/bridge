@@ -123,8 +123,8 @@
 .Inputfields > .Inputfield.ui-state-error { border-color: transparent; }
 .Inputfields > .InputfieldFieldset.WireTab { outline: 0; box-shadow: none; background: none; }
 .InputfieldFieldset.WireTab > .InputfieldContent { padding-left: 0; padding-right: 0; }
-/* a file dragged over a file field: an inset ring on the card's rounded edge (was dashed) */
-.Inputfield.pw-drag-in-file { background-color: var(--accent); outline: var(--ring-width) solid var(--ring); outline-offset: calc(-1 * var(--ring-width)); }
+/* a file dragged over a file field, or items from another field that fit (0.14.0): an inset ring on the card's rounded edge */
+.Inputfield:is(.pw-drag-in-file, .pw-drop-ok) { background-color: var(--accent); outline: var(--ring-width) solid var(--ring); outline-offset: calc(-1 * var(--ring-width)); }
 .InputfieldContent :is(img, svg, video, canvas) { max-width: 100%; height: auto; }
 .langTabsOff .LanguageSupport { margin-bottom: 10px; }
 table.AdminDataTable .Inputfields { margin: 0; padding: 0; }

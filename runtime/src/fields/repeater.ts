@@ -650,10 +650,11 @@ function sortable(repeater: HTMLElement, list: HTMLElement): () => void {
 			if (h) h.classList.toggle('ui-state-error', depth > max);
 			if (h) h.classList.toggle('InputfieldRepeaterItemOOB', depth > max);
 		},
-		stop: (item, { dx }) => {
+		stop: (item, { dx, cancelled }) => {
 			const h = header(item);
 			if (max > 0) {
-				setDepth(item, startDepth + Math.round(dx / DEPTH), max);
+				// a cancelled drag (Esc) keeps the depth it started with
+				setDepth(item, startDepth + (cancelled ? 0 : Math.round(dx / DEPTH)), max);
 				if (h) h.classList.remove('ui-state-error', 'InputfieldRepeaterItemOOB');
 			}
 			if (kids.length) {

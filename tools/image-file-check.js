@@ -289,6 +289,213 @@ const PNG = makePng(48, 32, [40, 120, 220]);
 	check('M drag sorts the files', fa.join() === [fb[1], fb[0]].join() && await page.evaluate((s) => document.querySelector(s).classList.contains('InputfieldStateChanged'), FILES), JSON.stringify({ fb, fa }));
 	await open(NATIVE);
 
+	// R-U (0.14.0, ADR 0018): selecting several items, dragging them together, and moving them to
+	// another field of the page (bf_docs: txt pdf png jpg, two at most, no tags; bf_image: single).
+	// Everything the moves change is put back through the move endpoint at the end of U.
+	const DOCS = '#wrap_Inputfield_bf_docs';
+	const SINGLE = '#wrap_Inputfield_bf_image';
+	const tile = (n) => `${IMG} .gridImages > li.gridImage:nth-child(${n})`;
+	const row = (n) => `${FILES} .InputfieldFileList > li.InputfieldFileItem:nth-child(${n})`;
+	const selected = (s) => page.$$eval(s + ' .pw-selected', l => l.map(li => li.id));
+	const tileIds = () => page.$$eval(IMG + ' .gridImages > li.gridImage', l => l.map(li => li.id));
+	const fieldNames = (s) => page.$$eval(s + ' li[id^="file_"]', l => l.map(li => {
+		const a = li.querySelector('a.InputfieldFileName');
+		const img = li.querySelector('.gridImage__overflow img');
+		const u = (a && a.getAttribute('href')) || (img && img.getAttribute('data-original')) || '';
+		return decodeURIComponent(u.split('?')[0].split('/').pop());
+	}));
+	const allNames = async () => ({ images: await fieldNames(IMG), files: await fieldNames(FILES), docs: await fieldNames(DOCS), image: await fieldNames(SINGLE) });
+	const md5 = (s) => require('crypto').createHash('md5').update(s).digest('hex');
+	// the endpoint the drags use, called directly (restoring the fixture)
+	const apiMove = (from, to, names, index = -1, resolve = '', meta = null) => page.evaluate(async ([from, to, hashes, index, resolve, meta]) => {
+		const form = document.getElementById('wrap_Inputfield_' + to).closest('form');
+		const token = form.querySelector('input._post_token');
+		const body = new FormData();
+		body.append('bridgeFilesMove', '1');
+		body.append('from', from);
+		body.append('to', to);
+		body.append('index', String(index));
+		body.append(token.name, token.value);
+		const all = {};
+		hashes.forEach(h => {
+			body.append('ids[]', h);
+			if(resolve) body.append('resolve[' + h + ']', resolve);
+			if(meta) all[h] = meta;
+		});
+		body.append('meta', JSON.stringify(all));
+		const r = await fetch(form.getAttribute('action'), { method: 'POST', body, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+		return r.json();
+	}, [from, to, names.map(md5), index, resolve, meta]);
+	// a drag from one element to another, held over the target so the move chunk loads (first drag)
+	const dragTo = async (fromSel, toSel, fx = 0.5) => {
+		const a = await (await page.$(fromSel)).boundingBox();
+		const b = await (await page.$(toSel)).boundingBox();
+		await page.mouse.move(a.x + a.width * fx, a.y + a.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(a.x + a.width * fx + 10, a.y + a.height / 2 + 10, { steps: 3 });
+		await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 });
+		await page.waitForTimeout(700);
+		await page.mouse.move(b.x + b.width / 2 + 3, b.y + b.height / 2 + 3, { steps: 2 });
+		await page.waitForTimeout(200);
+		const during = await page.evaluate(() => {
+			const g = document.querySelector('.pw-drag-ghost');
+			const ids = (c) => [...document.querySelectorAll('.' + c)].map(f => f.id);
+			return { ghost: !!g, count: g ? g.getAttribute('data-pw-count') : null, ok: ids('pw-drop-ok'), partial: ids('pw-drop-partial'), no: ids('pw-drop-no'), placeholder: !!document.querySelector('.pw-drop-placeholder') };
+		});
+		await page.mouse.up();
+		return during;
+	};
+	// the dialog's close event starts the move a moment after the click
+	const settled = async () => { await page.waitForTimeout(400); return waitFor(() => !document.body.classList.contains('pw-uploading') && !document.querySelector('.pw-moving, .pw-drag-ghost'), null, 20000); };
+	await page.setViewportSize({ width: 1300, height: 2400 });
+
+	// R: selection
+	await open(NATIVE);
+	await page.$eval(IMG, el => el.scrollIntoView({ block: 'start' }));
+	const ids0 = await tileIds();
+	await page.click(tile(1), { modifiers: ['Control'] });
+	await page.click(tile(3), { modifiers: ['Control'] });
+	check('R Ctrl+click selects two images and opens nothing', (await selected(IMG)).join() === [ids0[0], ids0[2]].join()
+		&& await page.evaluate((s) => !document.querySelector(s + ' .InputfieldImageEdit--active') && !document.querySelector('dialog.pw-lightbox[open]') && document.querySelector(s + ' > .InputfieldContent').classList.contains('pw-has-selection'), IMG), JSON.stringify(await selected(IMG)));
+	await page.click(tile(2), { modifiers: ['Shift'] });
+	check('R Shift+click selects the range from the last one toggled', (await selected(IMG)).join() === [ids0[1], ids0[2]].join(), JSON.stringify(await selected(IMG)));
+	await page.keyboard.press('Escape');
+	check('R Escape clears the selection', !(await selected(IMG)).length);
+	await page.click(tile(1), { modifiers: ['Control'] });
+	await editItem(1);
+	check('R a plain click clears the selection and still opens the editor', !(await selected(IMG)).length && await page.evaluate((s) => !!document.querySelector(s + ' .InputfieldImageEdit--active'), IMG));
+	await open(NATIVE);
+	await page.$eval(IMG, el => el.scrollIntoView({ block: 'start' }));
+	{
+		const t2 = await (await page.$(tile(2))).boundingBox();
+		const t3 = await (await page.$(tile(3))).boundingBox();
+		// from the empty part of the grid right of the last image, left to the middle one
+		await page.mouse.move(t3.x + t3.width + 40, t3.y + t3.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(t3.x + t3.width + 30, t3.y + t3.height / 2 + 5, { steps: 3 });
+		await page.mouse.move(t2.x + t2.width / 2, t2.y + t2.height / 2 + 10, { steps: 8 });
+		const band = await page.evaluate(() => !!document.querySelector('.pw-marquee'));
+		await page.mouse.up();
+		check('R a rubber band from the grid\'s background selects the images it touches', band && (await selected(IMG)).join() === [ids0[1], ids0[2]].join(), JSON.stringify({ band, sel: await selected(IMG) }));
+		check('R the band opened no editor', await page.evaluate((s) => !document.querySelector(s + ' .InputfieldImageEdit--active') && !document.querySelector('.pw-marquee'), IMG));
+	}
+	await page.keyboard.press('Control+a');
+	check('R Ctrl+A selects every image of the field pressed last', (await selected(IMG)).length === 3, JSON.stringify(await selected(IMG)));
+	await page.mouse.click(5, 5);
+	check('R a press outside clears it', !(await selected(IMG)).length);
+
+	// S: group drag in a field, trash and delete boxes of a selection
+	await open(NATIVE);
+	await page.$eval(IMG, el => el.scrollIntoView({ block: 'start' }));
+	const sBefore = await names();
+	await page.evaluate(() => { window.__sorted = 0; document.addEventListener('sorted', () => { window.__sorted++; }); });
+	await page.click(tile(1), { modifiers: ['Control'] });
+	await page.click(tile(3), { modifiers: ['Control'] });
+	{
+		const t1 = await (await page.$(tile(1))).boundingBox();
+		const t3 = await (await page.$(tile(3))).boundingBox();
+		await page.mouse.move(t3.x + t3.width / 2, t3.y + t3.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(t3.x + t3.width / 2 - 20, t3.y + t3.height / 2, { steps: 3 });
+		await page.mouse.move(t1.x + t1.width * 0.2, t1.y + t1.height / 2, { steps: 10 });
+		const mid = await page.evaluate((s) => { const lead = document.querySelector(s + ' .pw-sorting'); return { count: lead ? lead.getAttribute('data-pw-count') : null, hidden: document.querySelectorAll(s + ' .pw-drag-member').length }; }, IMG);
+		await page.mouse.up();
+		await page.waitForTimeout(300);
+		const sAfter = await names();
+		const sorts = await page.$$eval(IMG + ' .gridImages > li.gridImage .InputfieldFileSort', s => s.map(x => x.value).join(','));
+		check('S two selected images drag together, in their order', sAfter.join() === [sBefore[0], sBefore[2], sBefore[1]].join() && sorts === '0,1,2', JSON.stringify({ sBefore, sAfter, sorts }));
+		check('S the lead shows the count, the other is hidden while dragging', mid.count === '2' && mid.hidden === 1, JSON.stringify(mid));
+		check('S one sorted event for the group', await page.evaluate(() => window.__sorted === 1), await page.evaluate(() => window.__sorted));
+	}
+	await open(NATIVE);
+	await page.$eval(IMG, el => el.scrollIntoView({ block: 'start' }));
+	{
+		const kBefore = await names();
+		await page.click(tile(1), { modifiers: ['Control'] });
+		await page.click(tile(2), { modifiers: ['Control'] });
+		// tiles take no focus (their edit link has no href): the key goes to the tile itself
+		await page.$eval(tile(1), li => li.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true, cancelable: true })));
+		const kAfter = await names();
+		check('S Alt+ArrowDown moves the selected pair past the next image', kAfter.join() === [kBefore[2], kBefore[0], kBefore[1]].join(), JSON.stringify({ kBefore, kAfter }));
+	}
+	await open(NATIVE);
+	await page.$eval(IMG, el => el.scrollIntoView({ block: 'start' }));
+	await page.click(tile(1), { modifiers: ['Control'] });
+	await page.click(tile(2), { modifiers: ['Control'] });
+	await page.hover(tile(1));
+	await page.click(tile(1) + ' .gridImage__trash');
+	check('S the trash of a selected image marks every selected image', JSON.stringify(await page.$$eval(IMG + ' .gridImage__deletebox', b => b.map(x => x.checked))) === '[true,true,false]',
+		JSON.stringify(await page.$$eval(IMG + ' .gridImage__deletebox', b => b.map(x => x.checked))));
+	await page.$eval(FILES, el => el.scrollIntoView({ block: 'center' }));
+	for(const n of [1, 2]) {
+		const r = await (await page.$(row(n) + ' .InputfieldFileInfo')).boundingBox();
+		await page.mouse.move(r.x + r.width * 0.6, r.y + r.height / 2);
+		await page.keyboard.down('Control');
+		await page.mouse.down();
+		await page.mouse.up();
+		await page.keyboard.up('Control');
+	}
+	check('S Ctrl+click selects file rows', (await selected(FILES)).length === 2, JSON.stringify(await selected(FILES)));
+	await page.click(row(1) + ' .InputfieldFileDelete');
+	check('S the delete box of a selected row sets every selected row', JSON.stringify(await page.$$eval(FILES + ' .InputfieldFileDelete input', b => b.map(x => x.checked))) === '[true,true]');
+
+	// T: moves between fields (each saved at the drop)
+	await open(NATIVE);
+	await page.$eval(IMG, el => el.scrollIntoView({ block: 'start' }));
+	const n0 = await allNames();
+	await page.evaluate(() => { window.__moved = []; document.addEventListener('pw-files-moved', e => { window.__moved.push(e.target.id); }); });
+	await page.fill(row(1) + ' input[name^="description_bf_files_"]', 'moved along');
+	const t1 = await dragTo(row(1) + ' .InputfieldFileInfo', DOCS + ' > .InputfieldContent', 0.6);
+	await settled();
+	check('T a file over another file field: ghost, ok ring, placeholder', t1.ghost && t1.ok.join() === 'wrap_Inputfield_bf_docs' && t1.placeholder, JSON.stringify(t1));
+	const nT1 = await allNames();
+	check('T dropping moves it at once: gone from Files, in Docs', nT1.docs.join() === n0.files[0] && nT1.files.join() === n0.files.slice(1).join(), JSON.stringify(nT1));
+	check('T pw-files-moved on both fields', await page.evaluate(() => window.__moved.join()) === 'wrap_Inputfield_bf_files,wrap_Inputfield_bf_docs', await page.evaluate(() => window.__moved.join()));
+	await open(NATIVE);
+	await page.$eval(IMG, el => el.scrollIntoView({ block: 'start' }));
+	const nT1b = await allNames();
+	check('T the move was saved, with the unsaved description', nT1b.docs.join() === n0.files[0] && await page.$eval(DOCS + ' input[name^="description_bf_docs_"]', i => i.value) === 'moved along', JSON.stringify(nT1b));
+	check('T still no jQuery', !(await jq()));
+	const t3 = await dragTo(tile(1), FILES + ' > .InputfieldContent');
+	await settled();
+	check('T an image over a field that takes no images: no ring, nothing moves', t3.no.join() === 'wrap_Inputfield_bf_files' && JSON.stringify(await allNames()) === JSON.stringify(nT1b), JSON.stringify(t3));
+	await page.click(tile(1), { modifiers: ['Control'] });
+	await page.click(tile(2), { modifiers: ['Control'] });
+	const t4 = await dragTo(tile(2), DOCS + ' > .InputfieldContent');
+	const ask = await waitFor(() => !!document.querySelector('dialog.pw-ask-move[open]'), null, 5000);
+	const askInfo = ask ? await page.evaluate(() => ({ rows: document.querySelectorAll('dialog.pw-ask-move li').length, button: document.querySelector('dialog.pw-ask-move button[value="ok"]').textContent })) : null;
+	check('T two images onto a field with room for one: partial, the dialog says one moves', t4.partial.join() === 'wrap_Inputfield_bf_docs' && t4.count === '2' && askInfo && askInfo.rows === 2 && /1/.test(askInfo.button), JSON.stringify({ t4, askInfo }));
+	if(ask) await page.click('dialog.pw-ask-move button[value="ok"]');
+	await settled();
+	const nT4 = await allNames();
+	check('T the first image moved into Docs, the other stayed', nT4.docs.length === 2 && nT4.docs.indexOf(n0.images[0]) > -1 && nT4.images.join() === n0.images.slice(1).join(), JSON.stringify(nT4));
+	const t5 = await dragTo(tile(1), SINGLE + ' > .InputfieldContent');
+	const ask5 = await waitFor(() => !!document.querySelector('dialog.pw-ask-move[open] select'), null, 5000);
+	check('T an image onto the single image field asks Replace or Swap', t5.partial.join() === 'wrap_Inputfield_bf_image' && ask5
+		&& JSON.stringify(await page.$$eval('dialog.pw-ask-move select option', o => o.map(x => x.value))) === '["replace","swap","skip"]', JSON.stringify(t5));
+	if(ask5) {
+		await page.selectOption('dialog.pw-ask-move select', 'swap');
+		await page.click('dialog.pw-ask-move button[value="ok"]');
+	}
+	await settled();
+	const nT5 = await allNames();
+	check('T Swap exchanges the two images', nT5.image.join() === n0.images[1] && nT5.images[0] === n0.image[0], JSON.stringify(nT5));
+	await open(NATIVE);
+	check('T the swap was saved', JSON.stringify(await allNames()) === JSON.stringify(nT5), JSON.stringify(await allNames()));
+	check('T still no jQuery, no page errors so far', !(await jq()) && !errors.length, errors.join(' | '));
+
+	// U: back to the fixture through the endpoint
+	const u1 = await apiMove('bf_docs', 'bf_images', [n0.images[0]], 0);
+	const u2 = await apiMove('bf_docs', 'bf_files', [n0.files[0]], 0, '', { description: '' });
+	const u3 = await apiMove('bf_images', 'bf_image', [n0.image[0]], -1, 'swap');
+	const u4 = await apiMove('bf_files', 'bf_images', [n0.files[1]]);
+	await open(NATIVE);
+	const nU = await allNames();
+	check('U the endpoint moves back, the fixture is as before', u1.ok && u2.ok && u3.ok && JSON.stringify(nU) === JSON.stringify(n0), JSON.stringify({ n0, nU }));
+	check('U the endpoint refuses a txt for an image field', !u4.ok && u4.errors.length === 1 && /txt/.test(u4.errors[0].message), JSON.stringify(u4));
+	await page.setViewportSize({ width: 1300, height: 950 });
+	await open(NATIVE);
+
 	// P: Crop opens the native dialog; the page and the field stay native (milestone 3.9; the
 	// window itself: tools/image-select-check.js)
 	await editItem(1);
