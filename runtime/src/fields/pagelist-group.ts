@@ -10,7 +10,9 @@
  * all. They act on every selected row that has them:
  * - Move: the selection becomes draggable as one (fields/pagelist-move.ts moveGroup());
  * - AJAX extras (hide, unpublish, lock, trash, ...): posted row by row as a single row's are
- *   (Trash asks first); the rows stay selected afterwards;
+ *   (Trash asks first); the rows stay selected afterwards. AJAX or not is each row's own: Copy is
+ *   AJAX for a page without children only, so those are copied first, then the others' copy
+ *   forms open in turn;
  * - the others (New, extras that open a page): the native dialog, one row after another, with a
  *   Next button in its footer (unsaved changes ask first); closing it ends the round. The opened
  *   rows' lists reload afterwards.
@@ -236,17 +238,18 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void }
 		const rows = entry.rows.filter(li => li.isConnected);
 		hide();
 		if (cn === 'Move') { c.moveGroup(selected.filter(li => li.isConnected)); return; }
-		if (entry.action.ajax) {
-			if (cn !== 'Trash') { void ajaxAll(cn, rows); return; }
-			void confirm({
-				title: label('trashPages', 'Move %d pages to the trash?').replace('%d', String(rows.length)),
-				message: label('warnTrashMany', 'They leave the site right away. You can restore them from the trash.'),
-				ok: label('warnVerbTrash', 'Move to trash'),
-				danger: true,
-			}).then(ok => { if (ok) void ajaxAll(cn, rows); });
-			return;
-		}
-		openAll(cn, entry.action.name, rows);
+		// per row, as its own link: Copy is AJAX for a page without children and core's copy form
+		// for one with children (ProcessPageClone), so one selection can hold both
+		const ajax = rows.filter(li => { const a = actionOf(li, cn); return !!a && !!a.ajax; });
+		const open = rows.filter(li => ajax.indexOf(li) < 0);
+		const run = (): void => { void (ajax.length ? ajaxAll(cn, ajax) : Promise.resolve()).then(() => { if (open.length) openAll(cn, entry.action.name, open); }); };
+		if (cn !== 'Trash') { run(); return; }
+		void confirm({
+			title: label('trashPages', 'Move %d pages to the trash?').replace('%d', String(rows.length)),
+			message: label('warnTrashMany', 'They leave the site right away. You can restore them from the trash.'),
+			ok: label('warnVerbTrash', 'Move to trash'),
+			danger: true,
+		}).then(ok => { if (ok) run(); });
 	});
 	menu.addEventListener('mouseenter', () => window.clearTimeout(hideTimer));
 	menu.addEventListener('mouseleave', later);

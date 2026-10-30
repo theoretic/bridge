@@ -745,6 +745,7 @@ if(isset($bridge) && $bridge) {
 	$groupSrc = (string) @file_get_contents($rt . 'fields/pagelist-group.ts');
 	check('several tree rows get one menu, without View and Edit (0.15.2), loaded when a second row is selected', strpos($groupSrc, "if (action.cn === 'View' || action.cn === 'Edit') return;") !== false
 		&& strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-group')") !== false);
+	check('the group menu decides AJAX or a dialog per row (Copy differs by children, 0.15.3)', strpos($groupSrc, 'const ajax = rows.filter(li => { const a = actionOf(li, cn); return !!a && !!a.ajax; });') !== false);
 	check('the group menu finds extras by cn, not by their key', strpos($groupSrc, 'Object.values(action.extras).find(x => x.cn === cn)') !== false);
 	check('Move from the group menu arms the whole selection', strpos((string) @file_get_contents($rt . 'fields/pagelist-move.ts'), 'const moveGroup = (rows: HTMLElement[]): void =>') !== false);
 	check('a press on the group menu keeps the selection', strpos((string) @file_get_contents($rt . 'util/selection.ts'), ".pw-drag-ghost, .pw-group-actions';") !== false);

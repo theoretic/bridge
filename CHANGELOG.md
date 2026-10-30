@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.15.3: Copy for several pages copies each of them (2026-10-30)
+
+- **Copy in the menu for several selected pages copies every one of them**, each as its own Copy would: a page without children is copied at once (an unpublished "(copy)" next to it), and for a page with children core's copy form opens (title, name, whether to copy the children), one page after another with Next page. The menu used to take the first selected page's kind for all, so a selection holding both kinds failed for some pages. Other actions are decided page by page the same way.
+
 ## AdminThemeBridge 0.15.2: no Edit in the menu for several pages (2026-10-30)
 
 - **The menu for several selected pages in the tree no longer offers Edit**: pages are edited one at a time. Edit a page from its own menu, or with a plain click on it. The other actions (Move, New, Hide, Unpublish, Trash and the other extras) stay.
