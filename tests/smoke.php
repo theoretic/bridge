@@ -8,6 +8,8 @@
  * The sandbox is produced by tools/sandbox-site.sh (own DB copy, own site copy).
  * Writes to the sandbox's own database copy only, and refuses any other (exit 2, audit SE5):
  * the files move round trip saves a fixture page, the probes write files to the cache directory.
+ * Needs the theme, BridgeCsp and the fixture pages (tools/sandbox-admin.php, tools/sandbox-fixture.php):
+ * without them the run fails rather than skipping what it cannot check (audit BG9).
  */
 
 $root = $argv[1] ?? (getenv('BRIDGE_SANDBOX') ?: '');
@@ -150,6 +152,8 @@ $classicDir = is_dir(dirname(__DIR__) . '/runtime/src/classic') ? dirname(__DIR_
 // notices from a page save time out (scripts/main.js); behaviour is checked in a browser
 $mainJs = (string) @file_get_contents($classicDir . 'main.js');
 check('theme script times out page-save notices', strpos($mainJs, 'this.setupNoticeTimeout();') !== false && strpos($mainJs, "addEventListener('pw-page-saved', arm)") !== false);
+// the checks below need the theme: a sandbox without it fails here instead of skipping them (BG9)
+check('AdminThemeBridge is installed in this sandbox (tools/sandbox-admin.php)', $modules->isInstalled('AdminThemeBridge'));
 if($modules->isInstalled('AdminThemeBridge')) {
 	$bridge = $modules->getModule('AdminThemeBridge', array('noInit' => true, 'noPermissionCheck' => true));
 	check('theme default variant is a preset', in_array($bridge->getVariant(), array('blue', 'vibrant', 'black', 'pink', 'green', 'custom'), true), $bridge->getVariant());
@@ -841,11 +845,11 @@ if(isset($bridge) && $bridge) {
 			check('SE3 moveFiles() restores output formatting when a hook throws', $threw && $np->of() === true);
 			$np->of(false);
 		} else {
-			warn('no bf_image with a file on the fixture page: the swap checks are skipped', 'tools/sandbox-fixture.php');
+			check('the fixture page has a file in bf_image (tools/sandbox-fixture.php)', false);
 		}
 		$wire->users->setCurrentUser($guest);
 	} else {
-		warn('no fixture page with bf_docs: the moveFiles round trip is skipped', 'tools/sandbox-fixture.php');
+		check('the sandbox has the fixture pages (tools/sandbox-fixture.php)', false);
 	}
 	$filesSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeFiles.php');
 	check('SE3 the move endpoint asks ProcessPageEdit::ajaxEditable() for the page and both fields', strpos($filesSrc, '!$process->ajaxEditable($page)') !== false
@@ -1098,7 +1102,7 @@ if(is_file($cspFile) && $modules->isInstalled('BridgeCsp')) {
 	check('CSP the sandbox installs BridgeCsp and junctions it', strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-admin.php'), "'BridgeCsp'") !== false
 		&& strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-site.sh'), 'for m in AdminThemeBridge BridgeDemo BridgeCsp; do') !== false);
 } else {
-	warn('BridgeCsp not installed in this sandbox (tools/sandbox-csp.php installs it)');
+	check('BridgeCsp is installed in this sandbox (tools/sandbox-csp.php installs it)', false);
 }
 check('CSP tools/csp-check.js ships', is_file(dirname(__DIR__) . '/tools/csp-check.js'));
 // audit SE2: fragments run only the scripts their response vouched for
@@ -1130,6 +1134,19 @@ check('TT core\'s inline confirm and click guard become data attributes, nothing
 	&& strpos($handlersOut, "<input type='checkbox' data-pw-noclick />") !== false && strpos($handlersOut, 'onclick="other()"') !== false
 	&& strpos($handlersOut, 'return confirm') === false, $handlersOut);
 check('TT the setup script asks for them with the theme\'s dialog', strpos($srcOf('classic/setup.js'), "closest('[data-pw-confirm], [data-pw-noclick]')") !== false);
+// 0.18.6: listeners that outlived their element, selectors built from values (audit BG7, BG8)
+check('BG7 a reloaded page tree\'s group menu listeners go with the old tree', strpos($srcOf('fields/pagelist-group.ts'), "{ capture: true, signal: gone.signal }") !== false);
+check('BG7 one ResizeObserver per frame in the setup screens', strpos($srcOf('classic/setup.js'), 'if(frame.pwFit) frame.pwFit.disconnect();') !== false);
+check('BG7 the image window takes its reloaded handler off the opener once used', strpos($srcOf('classic/image-select.js'), "pj('.Inputfield').off('reloaded.pwImageSelect')") !== false);
+check('BG7 a notice band\'s pause listeners are bound once', strpos($srcOf('classic/main.js'), 'notices.pwTimed = true;') !== false);
+$unescaped = array();
+foreach(array('classic/setup.js', 'classic/screens.js', 'classic/page-save.js', 'fields/pagename.ts') as $rel) {
+	if(preg_match('~\[(?:name|value)="\' \+ (?!CSS\.escape)|\[name="\$\{(?!CSS\.escape)~', $srcOf($rel))) $unescaped[] = $rel;
+}
+check('BG8 attribute selectors built from values are escaped', !count($unescaped), implode(', ', $unescaped));
+check('BG8 Enter in the image window is blocked only where it would submit', strpos($srcOf('classic/image-select.js'), "e.target.matches('input:not([type=button]):not([type=submit]), select')") !== false);
+check('BG6 a closed notice may be said again', strpos($srcOf('util/notice.ts'), 'if ((shown && shown.isConnected) || !document.body) return;') !== false);
+
 // 0.18.5: runtime failures that left a screen stuck (audit BG6)
 check('BG6 a classic save stopped by the browser\'s validation leaves no bypass behind', strpos($srcOf('classic/page-save.js'), "\t\t\t} finally {\n\t\t\t\tbypass = false;") !== false);
 check('BG6 the Lister drops an answer older than the last request', strpos($srcOf('classic/lister.js'), 'var seq = ProcessLister.seq = (ProcessLister.seq || 0) + 1;') !== false

@@ -99,7 +99,7 @@ function initAddTitle(): void {
 
 /** A title with its own name field and delimiter (upstream InputfieldPageTitleCustom()) */
 function initCustomTitle(wrap: HTMLElement): void {
-	const nameInput = document.querySelector<HTMLInputElement>(`input[name="${wrap.getAttribute('data-name-field') || ''}"]`);
+	const nameInput = document.querySelector<HTMLInputElement>(`input[name="${CSS.escape(wrap.getAttribute('data-name-field') || '')}"]`);
 	if (!nameInput || nameInput.value.length) return;
 	const delimiter = wrap.getAttribute('data-name-delimiter') || '';
 	const titleInput = wrap.querySelector<HTMLInputElement>('input');

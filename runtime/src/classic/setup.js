@@ -339,7 +339,7 @@
 			for(var i = 0; i < editRoles.length; i++) {
 				var c = editRoles[i];
 				if(c.disabled) break;
-				var create = $('input.createRoles[value="' + c.value + '"]');
+				var create = $('input.createRoles[value="' + CSS.escape(c.value) + '"]');
 				if(c.checked) {
 					num++;
 					if(create) create.disabled = false;
@@ -595,7 +595,7 @@
 		var typeOption = type && type.selectedIndex > -1 ? type.options[type.selectedIndex] : null;
 		var label = $('#field_label', doc);
 		var add = function(value, text, desc, status) {
-			if(select.querySelector('option[value="' + value + '"]')) return;
+			if(select.querySelector('option[value="' + CSS.escape(value) + '"]')) return;
 			var o = document.createElement('option');
 			o.value = value;
 			o.textContent = text;
@@ -799,7 +799,12 @@
 		frame.addEventListener('load', function() {
 			fit();
 			try {
-				if(window.ResizeObserver && frame.contentDocument && frame.contentDocument.body) new ResizeObserver(fit).observe(frame.contentDocument.body);
+				// one observer per frame: the one of the previous document goes (audit BG7)
+				if(frame.pwFit) frame.pwFit.disconnect();
+				if(window.ResizeObserver && frame.contentDocument && frame.contentDocument.body) {
+					frame.pwFit = new ResizeObserver(fit);
+					frame.pwFit.observe(frame.contentDocument.body);
+				}
 			} catch(e) { /* another origin */ }
 		}, handover.bind());
 		fit();

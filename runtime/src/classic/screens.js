@@ -92,7 +92,7 @@
 			if(!template) return;
 			var publish;
 			if(template.tagName === 'SELECT') {
-				var option = template.querySelector('option[value="' + template.value + '"]');
+				var option = template.querySelector('option[value="' + CSS.escape(template.value) + '"]');
 				publish = !!option && option.getAttribute('data-publish') === '1';
 			} else {
 				publish = template.getAttribute('data-publish') === '1';
@@ -149,7 +149,7 @@
 		// templates without languages hide the language tabs
 		if(template && $('.langTabs')) {
 			var langs = function() {
-				var option = template.querySelector('option[value="' + template.value + '"]');
+				var option = template.querySelector('option[value="' + CSS.escape(template.value) + '"]');
 				if(option && parseInt(option.getAttribute('data-nolang'), 10) > 0) hideLanguageTabs(); else unhideLanguageTabs();
 			};
 			if(template.tagName === 'SELECT') { template.addEventListener('change', langs, handover.bind()); langs(); }

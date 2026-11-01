@@ -7,10 +7,12 @@
 import { label } from './labels';
 import { toHTML } from './trusted';
 
-const noticed = new Set<string>();
+// the same text twice at once is one notice; once the band showing it was closed, it may come again
+// (audit BG6: it was never said again on that page)
+const noticed = new Map<string, HTMLElement>();
 export function notice(text: string): void {
-	if (noticed.has(text) || !document.body) return;
-	noticed.add(text);
+	const shown = noticed.get(text);
+	if ((shown && shown.isConnected) || !document.body) return;
 	// the markup core's AdminThemeFramework::renderNotices() prints (in the theme's place for it)
 	let list = document.querySelector<HTMLElement>('#notices');
 	if (!list) {
@@ -31,6 +33,7 @@ export function notice(text: string): void {
 	icon.className = 'fa fa-fw fa-exclamation-circle';
 	icon.setAttribute('aria-hidden', 'true');
 	li.append(icon, ' ', text);
+	noticed.set(text, li);
 	if (!list.querySelector('.pw-notice-remove, .notice-remove')) {
 		// the theme script's delegated handler closes the band (scripts/main.js, as for the server's)
 		const close = document.createElement('a');

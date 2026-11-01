@@ -800,6 +800,9 @@ var ProcessWireAdminTheme = {
 		var arm = function() {
 			var notices = document.getElementById('notices');
 			if(!notices || !notices.querySelector('li') || notices.querySelector('.NoticeError, .pw-notice-error')) return;
+			// once per band: the in-place save puts a new one in (audit BG7)
+			if(notices.pwTimed) return;
+			notices.pwTimed = true;
 			var left = delay, started = 0, timer = null, hover = false, focus = false;
 			var run = function() {
 				if(timer || hover || focus) return;

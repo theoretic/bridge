@@ -263,10 +263,19 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 		showTimer = window.setTimeout(() => show(li), c.hoverDelay);
 	});
 	root.addEventListener('mouseleave', later);
-	// the menu is placed for where the rows were: any scroll or resize takes it away
-	window.addEventListener('scroll', () => { if (!menu.hidden) hide(); }, true);
-	window.addEventListener('resize', () => { if (!menu.hidden) hide(); });
-	document.addEventListener('pw-legacy-handover', () => { hide(); menu.remove(); });
+	// the menu is placed for where the rows were: any scroll or resize takes it away. These
+	// listeners go with the tree: a reloaded tree (the editor's Children tab) installs its own,
+	// and the old ones remove themselves and the old menu at the next event (audit BG7)
+	const gone = new AbortController();
+	const alive = (): boolean => {
+		if (root.isConnected) return true;
+		gone.abort();
+		menu.remove();
+		return false;
+	};
+	window.addEventListener('scroll', () => { if (alive() && !menu.hidden) hide(); }, { capture: true, signal: gone.signal });
+	window.addEventListener('resize', () => { if (alive() && !menu.hidden) hide(); }, { signal: gone.signal });
+	document.addEventListener('pw-legacy-handover', () => { hide(); menu.remove(); gone.abort(); }, { signal: gone.signal });
 
 	return {
 		hide,

@@ -1,5 +1,18 @@
 # Changelog
 
+## AdminThemeBridge 0.18.6: listeners that outstayed their elements, escaped selectors (2026-11-01)
+
+From the 2026-11-01 audit (BG6 to BG9).
+
+- **The page tree's menu for several pages no longer leaves listeners behind** when the tree is reloaded (the editor's Children tab): each reload used to add another scroll and resize listener to the window.
+- **The setup screens' embedded frames keep one size observer each**, instead of one more on every page loaded in them.
+- **The image window takes its listener off the editor's fields once it ran.** It stayed on every field of the editor after each image insert.
+- **Enter in the image window is blocked only where it would submit the form.** It now adds a line in a description and activates a focused link or button; upstream blocks it everywhere.
+- A notice band's pause on hover and focus is set up once per band.
+- A request failure that was closed in the notice band is shown again when it happens again; it used to be said once per page.
+- Selectors built from a value (a field or option name) are escaped, so a quote in the value no longer throws.
+- For developers: `tests/smoke.php` fails on a sandbox without the theme, Bridge CSP or the fixture pages instead of skipping the checks that need them. `docs/contract.md` says how requiredIf marks a field: the `required` class, as upstream.
+
 ## AdminThemeBridge 0.18.5: no screen stuck after a failure (2026-11-01)
 
 From the 2026-11-01 audit (BG6).

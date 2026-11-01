@@ -251,7 +251,7 @@ Events (bubbling `CustomEvent`) on `li.Inputfield`: `opened`, `closed`, `reloade
 
 AJAX-loaded field content (milestone 3.1): its inline scripts run after insertion, as with upstream's jQuery `html()`; content marked `data-bridge-legacy` runs them once the stack is loaded. A WireTab whose content is AJAX-collapsed (`collapsed10`) loads when its tab opens (`pw-wiretabs-change`), as upstream `inputfields.js` does on `wiretabclick`.
 
-Classes the runtime writes: `InputfieldStateToggle`, `InputfieldStateCollapsed`, `InputfieldStateWasCollapsed`, `InputfieldAjaxLoading`, `InputfieldStateHidden`, `InputfieldStateRequired` + `input.required`.
+Classes the runtime writes: `InputfieldStateToggle`, `InputfieldStateCollapsed`, `InputfieldStateWasCollapsed`, `InputfieldAjaxLoading`, `InputfieldStateHidden`, `InputfieldStateRequired` with a `required` class on its inputs, as upstream's inputfields.js marks a requiredIf field (the attribute stays as the server printed it). Like upstream, a dependency selector is split at every comma, quoted or not.
 
 Custom elements shipped by the runtime (light DOM, Bridge-owned markup):
 

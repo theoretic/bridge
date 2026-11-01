@@ -116,7 +116,8 @@
 			else api.close();
 		};
 		var pj = openerJquery();
-		if(pj) pj('.Inputfield').on('reloaded', done);
+		// namespaced and taken off once it ran: it was left on every field of the opener (BG7)
+		if(pj) pj('.Inputfield').on('reloaded.pwImageSelect', function() { pj('.Inputfield').off('reloaded.pwImageSelect'); done(); });
 		else d.addEventListener('reloaded', done, { once: true });
 		var selector = wrap.id ? '#' + wrap.id : wrap;
 		api.reloadField(selector);
@@ -649,8 +650,11 @@
 			setupVariations();
 		}
 		api.enableButtons();
-		// Enter never submits these forms
-		window.addEventListener('keydown', function(e) { if(e.key === 'Enter') e.preventDefault(); });
+		// Enter never submits these forms; in a textarea, on a link or a button it does what it does
+		// (upstream blocks it window-wide, which also took away newlines and keyboard activation)
+		window.addEventListener('keydown', function(e) {
+			if(e.key === 'Enter' && e.target && e.target.matches && e.target.matches('input:not([type=button]):not([type=submit]), select')) e.preventDefault();
+		});
 	}
 
 	window.ProcessWireAdminTheme = window.ProcessWireAdminTheme || {};

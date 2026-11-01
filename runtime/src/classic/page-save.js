@@ -399,7 +399,7 @@
 			top: el.getBoundingClientRect().top,
 			find: function() {
 				if(id) return document.getElementById(id);
-				return name && formId ? document.querySelector('#' + formId + ' [name="' + name + '"]') : null;
+				return name && formId ? document.querySelector('#' + CSS.escape(formId) + ' [name="' + CSS.escape(name) + '"]') : null;
 			}
 		};
 	}
