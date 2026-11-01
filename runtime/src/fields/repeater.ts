@@ -43,7 +43,9 @@ const repeaters = new Map<HTMLElement, () => void>();
 // per-element state, dropped when its element leaves the page (audit R6)
 const prune = (): void => repeaters.forEach((unsort, r) => { if (!r.isConnected) { unsort(); repeaters.delete(r); } });
 onRemoval(prune);
-let adding = false;
+/** repeaters adding an item now: one add at a time each, others free (audit BG6) */
+const adding = new WeakSet<HTMLElement>();
+const addingFor = (el: Element | null): boolean => { const r = el ? repeaterOf(el) : null; return !!r && adding.has(r); };
 let toggleTimer = 0;
 let insertTimer = 0;
 
@@ -344,6 +346,8 @@ async function loadItem(item: HTMLElement): Promise<void> {
 	if (context) rid = rid.replace(context, '');
 	try {
 		const doc = await getHtml(itemUrl(repeater, extra));
+		// the item went while it loaded (deleted, the field reloaded): nothing to fill
+		if (!item.isConnected) return;
 		const source = doc.getElementById(rid);
 		const wrappers = source ? source.querySelectorAll<HTMLElement>(':scope > .InputfieldContent > .Inputfields > .InputfieldRepeaterItem > .InputfieldContent > .Inputfields > .InputfieldWrapper') : [];
 		const added: HTMLElement[] = [];
@@ -371,10 +375,10 @@ async function loadItem(item: HTMLElement): Promise<void> {
 }
 
 async function addItem(link: HTMLElement): Promise<void> {
-	adding = true;
 	const repeater = repeaterOf(link);
 	const list = repeater ? listOf(repeater) : null;
-	if (!repeater || !list) { adding = false; return; }
+	if (!repeater || !list) return;
+	adding.add(repeater);
 	const qty = link.parentElement ? link.parentElement.querySelector<HTMLInputElement>(':scope > input') : null;
 	const useAjax = !(link.getAttribute('data-noajax') || '').length;
 	let cloneID: string | null = link.getAttribute('data-clone');
@@ -421,7 +425,7 @@ async function addItem(link: HTMLElement): Promise<void> {
 			if (qty) qty.value = String(total);
 			checkMinMax(repeater);
 		}
-		adding = false;
+		adding.delete(repeater);
 		return;
 	}
 	const spinner = link.parentElement ? link.parentElement.querySelector<HTMLElement>('.InputfieldRepeaterSpinner') : null;
@@ -436,7 +440,7 @@ async function addItem(link: HTMLElement): Promise<void> {
 		const doc = await getHtml(itemUrl(repeater, extra, pageID || inputfieldPageID));
 		if (spinner) { spinner.classList.remove(...on); spinner.classList.add(...off); }
 		const found = doc.querySelector<HTMLElement>('.InputfieldRepeaterItemRequested');
-		if (!found) { dropPlaceholders(list); adding = false; return; }
+		if (!found) { dropPlaceholders(list); adding.delete(repeater); return; }
 		const item = document.importNode(found, true) as HTMLElement;
 		place(item);
 		initContent(item, 'InputfieldRepeaterItemAdd');
@@ -460,7 +464,7 @@ async function addItem(link: HTMLElement): Promise<void> {
 		dropPlaceholders(list);
 		failed('repeater add', err);
 	}
-	window.setTimeout(() => { adding = false; }, 500);
+	window.setTimeout(() => { adding.delete(repeater); }, 500);
 }
 
 /** the spinner placeholders an insert, clone or paste put in the list, when no item replaced them */
@@ -533,12 +537,13 @@ async function copyClonePaste(item: HTMLElement): Promise<void> {
 }
 
 function insert(item: HTMLElement, before: boolean): void {
-	if (adding) return;
-	adding = true;
+	const repeater = repeaterOf(item);
+	if (!repeater || adding.has(repeater)) return;
+	adding.add(repeater);
 	window.clearTimeout(insertTimer);
 	const depth = insertDepth(item, before);
 	const ph = placeholderFor(item, before, 'placeholder');
-	if (!ph) { adding = false; return; }
+	if (!ph) { adding.delete(repeater); return; }
 	ph.classList.remove('hov');
 	const h = header(ph);
 	if (h) h.innerHTML = toHTML("<i class='fa fa-spin fa-spinner'></i>");
@@ -551,9 +556,9 @@ function insert(item: HTMLElement, before: boolean): void {
 		void addItem(links[0]);
 	} else if (links.length > 1) {
 		item.dispatchEvent(new CustomEvent('repeaterinsert', { bubbles: true, detail: { insertItem: ph, item, before } }));
-		adding = false;
+		adding.delete(repeater);
 	} else {
-		adding = false;
+		adding.delete(repeater);
 	}
 }
 
@@ -799,16 +804,16 @@ function setupDocument(): void {
 	});
 	// hovering insert before / after shows where the new item would go (after a second)
 	document.addEventListener('mouseover', e => {
-		if (legacyLoaded() || adding) return;
+		if (legacyLoaded()) return;
 		const action = (e.target as HTMLElement).closest<HTMLElement>('.InputfieldRepeaterInsertBefore, .InputfieldRepeaterInsertAfter');
-		if (!action) return;
+		if (!action || addingFor(action)) return;
 		const item = action.closest<HTMLElement>('.InputfieldRepeaterItem');
 		if (!item || action.classList.contains('hov')) return;
 		const before = action.classList.contains('InputfieldRepeaterInsertBefore');
 		action.classList.add('hov');
 		window.clearTimeout(insertTimer);
 		insertTimer = window.setTimeout(() => {
-			if (!action.classList.contains('hov') || adding) return;
+			if (!action.classList.contains('hov') || addingFor(action)) return;
 			const ph = placeholderFor(item, before, 'insert');
 			if (!ph) return;
 			ph.querySelectorAll<HTMLElement>('.InputfieldRepeaterItemControls').forEach(c => { c.style.display = 'none'; });
@@ -822,7 +827,7 @@ function setupDocument(): void {
 	});
 	document.addEventListener('mouseout', e => {
 		const action = (e.target as HTMLElement).closest<HTMLElement>('.InputfieldRepeaterInsertBefore, .InputfieldRepeaterInsertAfter');
-		if (!action || adding) return;
+		if (!action || addingFor(action)) return;
 		action.classList.remove('hov');
 		window.clearTimeout(insertTimer);
 	});

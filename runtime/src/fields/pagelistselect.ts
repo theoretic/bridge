@@ -86,7 +86,7 @@ function setup(input: HTMLInputElement, multiple: boolean): void {
 
 	const current = parseInt(input.value || '0', 10);
 	if (!multiple && current > 0) {
-		void getJSON(url(current, 0, 0)).then(data => {
+		getJSON(url(current, 0, 0)).then(data => {
 			if (!data.page) return;
 			let path = '';
 			if (showPath) {
@@ -94,7 +94,7 @@ function setup(input: HTMLInputElement, multiple: boolean): void {
 				path = '<span class="detail">' + path.substring(0, path.lastIndexOf('/') + 1) + '</span> ';
 			}
 			name.innerHTML = toHTML(path + data.page.label);
-		});
+		}).catch(err => failed('page list select', err));
 	}
 
 	const closeTree = (): void => {

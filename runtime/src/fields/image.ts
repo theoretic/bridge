@@ -38,6 +38,7 @@ import { makeSelectable, Selectable } from '../util/selection';
 import { onRemoval } from '../util/removal';
 import { esc } from '../util/html';
 import { toHTML } from '../util/trusted';
+import { failed } from '../util/fail';
 
 type Focus = { top: number; left: number; zoom: number };
 type Settings = { size: number; listSize: number; mode: string };
@@ -450,7 +451,7 @@ function setupDocument(): void {
 		const focusButton = t.closest<HTMLElement>('.InputfieldImageButtonFocus');
 		if (focusButton) {
 			const container = focusButton.closest<HTMLElement>('.InputfieldImageEdit, .gridImage');
-			if (container) void focus().then(m => m.toggleFocus(container, focusButton));
+			if (container) focus().then(m => m.toggleFocus(container, focusButton)).catch(err => failed('image focus', err));
 			return;
 		}
 		const name = t.closest<HTMLElement>('.InputfieldImageEdit__name');
@@ -644,5 +645,5 @@ export function init(inputfield: HTMLElement): void {
 		signal.addEventListener('abort', () => ro.disconnect());
 	}
 	// upload: its own chunk, loaded where uploads are possible
-	if (!renderValue && uploadAllowed()) void import('./image-upload').then(m => { if (!signal.aborted) m.setupUpload(inputfield, content, grid, signal); });
+	if (!renderValue && uploadAllowed()) import('./image-upload').then(m => { if (!signal.aborted) m.setupUpload(inputfield, content, grid, signal); }).catch(err => failed('image upload', err));
 }

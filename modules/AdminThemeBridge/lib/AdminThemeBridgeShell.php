@@ -229,6 +229,7 @@ trait AdminThemeBridgeShell {
 			'partFailed' => __('A part of this screen failed to load. Reload the page to try again.', __FILE__),
 			'saveNoAnswer' => __('The save got no answer from the server. Check the page and save again if needed.', __FILE__),
 			'saveWaiting' => __('Waiting for the uploads to finish, then saving. Click again to save now, Esc to stop.', __FILE__),
+			'saveWaitStopped' => __('Stopped: the page was not saved.', __FILE__),
 			// multi-select and moves between fields (0.14.0); %d and %s are filled in by the runtime
 			'selectedCount' => __('%d selected', __FILE__),
 			'moveTo' => __('Move to %s', __FILE__), // the dialog's title, %s is the field's label

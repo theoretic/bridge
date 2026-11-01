@@ -20,6 +20,7 @@ import { attachAutocomplete } from '../util/autocomplete';
 import { initWidgets } from './registry';
 import { on } from '../legacy';
 import { toHTML } from '../util/trusted';
+import { fetchOk, failed } from '../util/fail';
 
 const SPINNER = "<i class='fa fa-lg fa-spin fa-spinner'></i>";
 // per builder (two on one page do not suppress each other's preview and count): the last
@@ -105,11 +106,16 @@ function setupAutocomplete(input: HTMLInputElement, field: string, name: string)
 		minLength: 2,
 		source: async term => {
 			if (counter) counter.innerHTML = toHTML(SPINNER);
-			const res = await fetch('./?InputfieldSelector=autocomplete&field=' + encodeURIComponent(field) + '&name=' + encodeURIComponent(name) + '&q=' + encodeURIComponent(term),
-				{ credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-			const data = await res.json() as { items: Array<{ label: string; value: string }> };
-			if (counter) counter.replaceChildren();
-			return (data.items || []).map(i => ({ label: i.label, value: String(i.value) }));
+			try {
+				const res = await fetchOk('./?InputfieldSelector=autocomplete&field=' + encodeURIComponent(field) + '&name=' + encodeURIComponent(name) + '&q=' + encodeURIComponent(term));
+				const data = await res.json() as { items: Array<{ label: string; value: string }> };
+				return (data.items || []).map(i => ({ label: i.label, value: String(i.value) }));
+			} catch (err) {
+				failed('selector autocomplete', err);
+				return [];
+			} finally {
+				if (counter) counter.replaceChildren();
+			}
 		},
 		select: item => {
 			const value = input.parentElement ? input.parentElement.querySelector<HTMLInputElement>(':scope > .input-value') : null;

@@ -121,6 +121,8 @@ async function loadAjax(li: HTMLElement, placeholder: HTMLElement): Promise<void
 		// an error (a status, or admin.php's JSON message) is never put in the field, as upstream's
 		// $.get(..., 'html') success callback never sees one
 		if (!res.ok || html.trim().indexOf('{') === 0) throw new Error('HTTP ' + res.status + ' ' + html.trim().slice(0, 200));
+		// the field went while it loaded (a repeater item removed, a tab reloaded): nothing to fill
+		if (!li.isConnected || !placeholder.isConnected) return;
 		const tpl = document.createElement('template');
 		tpl.innerHTML = toHTML(html);
 		li.classList.remove('InputfieldAjaxLoading', 'InputfieldStateCollapsed');

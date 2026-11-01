@@ -16,5 +16,5 @@ export async function fetchOk(url: string, init: RequestInit = {}): Promise<Resp
 /** Log a failure and show one translated notice for it */
 export function failed(context: string, err: unknown): void {
 	console.error('Bridge: ' + context, err);
-	void import('./notice').then(m => m.notice(label('requestFailed', 'A request to the server failed. Reload the page and try again.')));
+	import('./notice').then(m => m.notice(label('requestFailed', 'A request to the server failed. Reload the page and try again.'))).catch(() => {});
 }

@@ -14,6 +14,7 @@
 import { setValue } from '../util/events';
 import { on } from '../legacy';
 import { adminUrl } from '../util/pw';
+import { failed } from '../util/fail';
 
 type Match = { id: number; name: string; [key: string]: unknown };
 
@@ -104,10 +105,10 @@ function initSelector(input: HTMLInputElement): void {
 		}
 		if (!source) continue;
 		const from = source;
-		on(from, 'change', () => { void reloadOptions(from, target, selector, formatName, labelField, part, true); });
+		on(from, 'change', () => { reloadOptions(from, target, selector, formatName, labelField, part, true).catch(err => failed('dependent page select', err)); });
 		const hasChoices = Array.from(target.options).some(o => o.value !== '');
 		if (valueOf(from) && !target.value && !hasChoices) {
-			window.setTimeout(() => { void reloadOptions(from, target, selector, formatName, labelField, part, false); }, 100);
+			window.setTimeout(() => { reloadOptions(from, target, selector, formatName, labelField, part, false).catch(err => failed('dependent page select', err)); }, 100);
 		}
 	}
 }

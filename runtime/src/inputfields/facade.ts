@@ -15,6 +15,7 @@ import { installGlobal } from '../util/stubs';
 import { legacyLoaded } from '../legacy';
 import { runScripts, responseNonce } from '../util/scripts';
 import { parseHTML, toHTML } from '../util/trusted';
+import { failed } from '../util/fail';
 
 type Target = string | Element | ArrayLike<Element> | null | undefined;
 
@@ -166,13 +167,13 @@ export const InputfieldsFacade = {
 					const found = doc.getElementById(li.id) || (item ? doc.getElementById('wrap_Inputfield_' + name) : null);
 					const content = found ? found.querySelector(':scope > .InputfieldContent') : null;
 					const mine = li.querySelector(':scope > .InputfieldContent');
-					if (!content || !mine) return;
+					if (!content || !mine || !li.isConnected) return;
 					mine.innerHTML = toHTML(content.innerHTML);
 					return runScripts(mine, { legacy: !!li.querySelector('[data-bridge-legacy]'), nonce }).then(() => {
 						li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'reload' } }));
 					});
 				})
-				.catch(err => console.error('Bridge: reload failed for', url, err));
+				.catch(err => failed('reload of ' + url, err));
 		});
 	},
 };

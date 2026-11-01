@@ -239,12 +239,15 @@
 			if(rowIDs.length) { data.append('row_page_id', rowIDs.join(',')); ProcessLister.resetTotal = false; }
 			ProcessLister.inAjax = true;
 			ProcessLister.spin(true);
+			// answers in the order of their requests: a slower older one is dropped (audit BG6)
+			var seq = ProcessLister.seq = (ProcessLister.seq || 0) + 1;
 			var nonce = '';
 			fetch(url, { method: 'POST', body: data, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
 				// an error page is never put in the results (nor are its scripts run)
 				.then(function(res) { if(!res.ok) throw new Error('HTTP ' + res.status); nonce = res.headers.get('X-Bridge-Nonce') || ''; return res.text(); })
-				.then(function(html) { ProcessLister._submitSuccess(html, nonce); })
+				.then(function(html) { if(seq === ProcessLister.seq) ProcessLister._submitSuccess(html, nonce); })
 				.catch(function(err) {
+					if(seq !== ProcessLister.seq) return;
 					ProcessLister.inAjax = false;
 					ProcessLister.spin(false);
 					// the theme's words, the error as text (audit SE6, UX6)

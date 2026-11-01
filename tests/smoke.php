@@ -756,7 +756,7 @@ if(isset($bridge) && $bridge) {
 	check('file and image fields select and drag out', strpos((string) @file_get_contents($rt . 'fields/file.ts'), 'export function dragOut(') !== false && strpos((string) @file_get_contents($rt . 'fields/image.ts'), 'dragOut(inputfield, grid)') !== false);
 	$movesSrc = (string) @file_get_contents($rt . 'fields/files-move.ts');
 	check('files-move posts bridgeFilesMove, meta as JSON', strpos($movesSrc, "body.append('bridgeFilesMove', '1')") !== false && strpos($movesSrc, "body.append('meta', JSON.stringify(meta))") !== false);
-	check('the page tree\'s moves are their own chunk, loaded with the tree', is_file($rt . 'fields/pagelist-move.ts') && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-move')") !== false && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "root, 0, true).then(() => { void loadMove(); });") !== false);
+	check('the page tree\'s moves are their own chunk, loaded with the tree', is_file($rt . 'fields/pagelist-move.ts') && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-move')") !== false && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "root, 0, true).then(() => loadMove())") !== false);
 	check('the tree takes an empty sort answer as success', strpos((string) @file_get_contents($rt . 'fields/pagelist-move.ts'), 'if (!text && res.ok) return {};') !== false);
 	// 0.14.1: one band and one menu for several selected tree rows
 	$groupSrc = (string) @file_get_contents($rt . 'fields/pagelist-group.ts');
@@ -921,7 +921,7 @@ if(isset($bridge) && $bridge) {
 	foreach(array('drop', 'change', 'click', 'submit') as $type) {
 		check("guards: a capture listener on window for $type", strpos($guardsSrc, "window.addEventListener('$type', on") !== false);
 	}
-	check('the guards load only while the setting is on', strpos((string) @file_get_contents($rt . 'index.ts'), "dangerWarn) void import('./guards')") !== false);
+	check('the guards load only while the setting is on', strpos((string) @file_get_contents($rt . 'index.ts'), "dangerWarn) import('./guards')") !== false);
 	$left = array();
 	foreach(array('fields/pagelist-group.ts', 'fields/repeater.ts', 'classic/page-edit.js', 'classic/lister.js', 'classic/setup.js') as $file) {
 		if(strpos((string) @file_get_contents($rt . $file), 'window.confirm(') !== false) $left[] = $file;
@@ -1130,6 +1130,19 @@ check('TT core\'s inline confirm and click guard become data attributes, nothing
 	&& strpos($handlersOut, "<input type='checkbox' data-pw-noclick />") !== false && strpos($handlersOut, 'onclick="other()"') !== false
 	&& strpos($handlersOut, 'return confirm') === false, $handlersOut);
 check('TT the setup script asks for them with the theme\'s dialog', strpos($srcOf('classic/setup.js'), "closest('[data-pw-confirm], [data-pw-noclick]')") !== false);
+// 0.18.5: runtime failures that left a screen stuck (audit BG6)
+check('BG6 a classic save stopped by the browser\'s validation leaves no bypass behind', strpos($srcOf('classic/page-save.js'), "\t\t\t} finally {\n\t\t\t\tbypass = false;") !== false);
+check('BG6 the Lister drops an answer older than the last request', strpos($srcOf('classic/lister.js'), 'var seq = ProcessLister.seq = (ProcessLister.seq || 0) + 1;') !== false
+	&& strpos($srcOf('classic/lister.js'), 'if(seq === ProcessLister.seq) ProcessLister._submitSuccess(html, nonce);') !== false);
+check('BG6 the page tree takes clicks again whatever its answer', strpos($srcOf('fields/pagelist.ts'), "\t\t} finally {\n\t\t\tloading.remove();\n\t\t\tignoreClicks = false;") !== false);
+check('BG6 Escape stops a held save only outside a dialog, and says so', strpos($srcOf('classic/save-wait.js'), "document.querySelector('dialog[open]')") !== false
+	&& isset($bridge) && $bridge && isset($bridge->runtimeLabels()['saveWaitStopped']));
+check('BG6 one repeater adding an item does not lock the others', strpos($srcOf('fields/repeater.ts'), 'const adding = new WeakSet<HTMLElement>();') !== false && strpos($srcOf('fields/repeater.ts'), 'let adding') === false);
+$voids = array();
+foreach(array('index.ts', 'fields/page.ts', 'fields/pagelistselect.ts', 'fields/image.ts', 'fields/pagelist.ts') as $rel) {
+	if(preg_match('~void (import\(|focus\(\)|reloadOptions\(|getJSON\(|loadGroup\()~', $srcOf($rel))) $voids[] = $rel;
+}
+check('BG6 no promise that can reject is left without a catch', !count($voids), implode(', ', $voids));
 check('TT the handlers are rewritten only where the setup script runs', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeLegacy.php'), "in_array('scripts/setup.js', \$this->processScripts(\$process->className()), true)") !== false);
 
 // audit 2026-11-01, R0: the tools

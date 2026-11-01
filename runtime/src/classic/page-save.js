@@ -134,9 +134,15 @@
 	// next tick: requestSubmit() is ignored while the form is still firing its submit event
 	function classic(form, submitter) {
 		setTimeout(function() {
+			// the submit event fires inside requestSubmit(), or not at all when the browser's own
+			// validation stops it: either way the next save is judged afresh (audit BG6)
 			bypass = true;
-			if(form.requestSubmit) form.requestSubmit(submitter);
-			else submitter.click();
+			try {
+				if(form.requestSubmit) form.requestSubmit(submitter);
+				else submitter.click();
+			} finally {
+				bypass = false;
+			}
 		}, 0);
 	}
 

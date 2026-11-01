@@ -1,5 +1,18 @@
 # Changelog
 
+## AdminThemeBridge 0.18.5: no screen stuck after a failure (2026-11-01)
+
+From the 2026-11-01 audit (BG6).
+
+- **A save the browser's own validation stops no longer turns the next save into a classic one.** The in-place save let the next submit through the classic way and forgot to take that back when no submit happened.
+- **The Lister shows the answer to the last request.** A slow earlier answer arriving after a newer one used to replace it.
+- **The page tree takes clicks again after an answer it cannot use.** A well-formed answer without the expected children left it ignoring clicks until a reload.
+- **Escape stops a save that waits for uploads only when no dialog is open**, and the status then says the page was not saved. Closing a dialog with Escape used to stop the save without a word.
+- **Adding an item to one repeater no longer blocks the others** for half a second.
+- Content that went away while its request ran (a repeater item removed, a field reloaded) is left alone when the answer arrives.
+- A field reload that fails is said in the notice band, not only in the console. The selector field's autocomplete clears its spinner whatever happens.
+- Promises that could fail without a handler (lazy chunks, dependent page selects, the page list select's label) now report through the same notice.
+
 ## AdminThemeBridge 0.18.4: Trusted Types, an enforced policy on native screens (2026-11-01)
 
 The Trusted Types part of ADR 0020, with the runtime items of the 2026-11-01 audit (SE6). Sites without a policy see no change.

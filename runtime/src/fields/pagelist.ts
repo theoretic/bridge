@@ -34,6 +34,7 @@ import { setCookie } from '../util/cookie';
 import { legacyLoaded } from '../legacy';
 import { makeSelectable } from '../util/selection';
 import { toHTML } from '../util/trusted';
+import { failed } from '../util/fail';
 
 type Action = { cn: string; name: string; url: string; extras?: Record<string, Action>; ajax?: boolean };
 type Child = {
@@ -257,50 +258,59 @@ function setupTree(container: HTMLElement): void {
 	async function loadChildren(id: number, target: HTMLElement, start: number, begin: boolean, paginate = true, replace = false): Promise<void> {
 		const loading = spinner();
 		if (!replace) target.appendChild(loading);
-		const key = id + '-' + start;
-		const cached = o.openPageData[key] && !target.classList.contains('PageListID' + o.trashPageID) && !target.classList.contains('PageListForceReload');
-		const data = cached ? o.openPageData[key] : await fetchData(id, start);
-		loading.remove();
-		if (!data || data.error) {
-			alertMsg((data && data.message) || o.ajaxUnknownError);
+		// whatever the answer, the tree takes clicks again and the spinner goes (audit BG6: a JSON
+		// answer without children left ignoreClicks on and the tree stopped responding)
+		try {
+			const key = id + '-' + start;
+			const cached = o.openPageData[key] && !target.classList.contains('PageListID' + o.trashPageID) && !target.classList.contains('PageListForceReload');
+			const data = cached ? o.openPageData[key] : await fetchData(id, start);
+			loading.remove();
+			if (!data || data.error) {
+				alertMsg((data && data.message) || o.ajaxUnknownError);
+				ignoreClicks = false;
+				return;
+			}
+			const list = listChildren(data.children);
+			const nextStart = data.start + data.limit;
+			if (target.classList.contains('PageListItem')) setNum(target, data.page.numChildren, data.page.numTotal);
+			if (data.page.numChildren > nextStart) {
+				const more = el('ul', 'PageListActions actions');
+				const li = el('li', 'PageListActionMore');
+				const a = el('a', '', o.moreLabel);
+				a.href = String(nextStart);
+				a.setAttribute('data-page-id', String(id));
+				li.appendChild(a);
+				more.appendChild(li);
+				list.appendChild(more);
+			}
+			if (paginate && (data.page.numChildren > nextStart || data.start > 0)) list.insertBefore(pagination(id, data.start, data.limit, data.page.numChildren), list.firstChild);
+			let added: HTMLElement = list;
+			if (begin) {
+				const top = listChildren([data.page]);
+				const topItem = kids(top, '.PageListItem')[0];
+				if (o.showRootPage) topItem.classList.add('PageListItemOpen');
+				else { topItem.style.display = 'none'; top.classList.add('PageListRootHidden'); }
+				top.appendChild(list);
+				target.appendChild(top);
+			} else if (target.classList.contains('PageList')) {
+				if (replace) kids(target, '.PageListItem, .PageListActions').forEach(x => x.remove());
+				kids(list, '.PageListItem, .PageListActions').forEach(x => target.appendChild(x));
+				added = target;
+			} else {
+				target.insertAdjacentElement('afterend', list);
+				target.setAttribute('data-start', String(data.start));
+			}
+			data.list = target;
+			data.item = prev(target, '.PageListItem');
 			ignoreClicks = false;
-			return;
+			triggerOpen(added);
+			container.dispatchEvent(new CustomEvent('pageListChildrenDone', { bubbles: true, detail: data }));
+		} catch (err) {
+			failed('page tree', err);
+		} finally {
+			loading.remove();
+			ignoreClicks = false;
 		}
-		const list = listChildren(data.children);
-		const nextStart = data.start + data.limit;
-		if (target.classList.contains('PageListItem')) setNum(target, data.page.numChildren, data.page.numTotal);
-		if (data.page.numChildren > nextStart) {
-			const more = el('ul', 'PageListActions actions');
-			const li = el('li', 'PageListActionMore');
-			const a = el('a', '', o.moreLabel);
-			a.href = String(nextStart);
-			a.setAttribute('data-page-id', String(id));
-			li.appendChild(a);
-			more.appendChild(li);
-			list.appendChild(more);
-		}
-		if (paginate && (data.page.numChildren > nextStart || data.start > 0)) list.insertBefore(pagination(id, data.start, data.limit, data.page.numChildren), list.firstChild);
-		let added: HTMLElement = list;
-		if (begin) {
-			const top = listChildren([data.page]);
-			const topItem = kids(top, '.PageListItem')[0];
-			if (o.showRootPage) topItem.classList.add('PageListItemOpen');
-			else { topItem.style.display = 'none'; top.classList.add('PageListRootHidden'); }
-			top.appendChild(list);
-			target.appendChild(top);
-		} else if (target.classList.contains('PageList')) {
-			if (replace) kids(target, '.PageListItem, .PageListActions').forEach(x => x.remove());
-			kids(list, '.PageListItem, .PageListActions').forEach(x => target.appendChild(x));
-			added = target;
-		} else {
-			target.insertAdjacentElement('afterend', list);
-			target.setAttribute('data-start', String(data.start));
-		}
-		data.list = target;
-		data.item = prev(target, '.PageListItem');
-		ignoreClicks = false;
-		triggerOpen(added);
-		container.dispatchEvent(new CustomEvent('pageListChildrenDone', { bubbles: true, detail: data }));
 	}
 
 	const forceReload = (item: HTMLElement | null, reloadNow = false): void => {
@@ -462,7 +472,7 @@ function setupTree(container: HTMLElement): void {
 		// several rows: their own action menus give way to one for all (pagelist-group.ts, loaded then)
 		onChange: rows => {
 			root.classList.toggle('pw-multi-selection', rows.length > 1);
-			if (rows.length > 1 || grouper) void loadGroup().then(g => g.update(rows));
+			if (rows.length > 1 || grouper) loadGroup().then(g => g.update(rows)).catch(err => failed('page tree selection', err));
 		},
 	});
 	type Grouper = { update(rows: HTMLElement[]): void; hide(): void };
@@ -576,7 +586,7 @@ function setupTree(container: HTMLElement): void {
 		});
 	}
 
-	void loadChildren(o.rootPageID > 0 ? o.rootPageID : 1, root, 0, true).then(() => { void loadMove(); });
+	void loadChildren(o.rootPageID > 0 ? o.rootPageID : 1, root, 0, true).then(() => loadMove()).catch(err => failed('page tree moves', err));
 }
 
 let handover = false;

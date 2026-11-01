@@ -147,8 +147,13 @@
 	// on window: before the in-place save's listener stops it
 	w.addEventListener('submit', function() { submitted = true; }, true);
 
+	// Escape stops the wait, unless it is closing a dialog or a menu; the status says the page was not
+	// saved (audit BG6: any Escape stopped it without a word)
 	document.addEventListener('keydown', function(e) {
-		if(e.key === 'Escape') stop();
+		if(e.key !== 'Escape' || !waiting || e.defaultPrevented || document.querySelector('dialog[open]')) return;
+		stop();
+		var status = document.getElementById('pw-save-wait');
+		if(status) status.textContent = (theme.config().labels || {}).saveWaitStopped || '';
 	});
 
 	theme.saveWait = {

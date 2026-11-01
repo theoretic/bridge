@@ -15,6 +15,7 @@ import { replay } from './util/stubs';
 import { load as loadComponent, loadFrom as loadComponentsFrom, loadProcess, loaded as loadedComponents } from './components';
 import type { AskOptions } from './util/ask';
 import { pwConfig } from './util/pw';
+import { failed } from './util/fail';
 
 export const version = '1.0.0';
 
@@ -42,7 +43,7 @@ export const Bridge = {
 		defineTabs();
 		defineDialog();
 		setupModalLinks();
-		if (pwConfig<{ dangerWarn?: boolean }>('AdminThemeBridge').dangerWarn) void import('./guards').then(m => m.start());
+		if (pwConfig<{ dangerWarn?: boolean }>('AdminThemeBridge').dangerWarn) import('./guards').then(m => m.start()).catch(err => failed('risky-action warnings', err));
 		Inputfields.init(document);
 		void loadProcess();
 		void loadComponentsFrom(document);
