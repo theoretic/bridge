@@ -21,6 +21,8 @@
  *   `pageMoved` on each moved item.
  * - A drop where the rows were posts nothing. Esc or a cancelled pointer puts them back; the window
  *   scrolls near its edges while dragging.
+ * - Keyboard (audit UX2): Alt+Arrow Up / Down on a row's title moves it, with the selected rows of
+ *   its list, one place among its siblings, saved as a drop there would be.
  */
 
 import { gather, edgeScroll, swallowClick } from '../util/sortable';
@@ -269,6 +271,29 @@ export function installMove(c: TreeCtx): void {
 		}
 		// no text selection and no browser drag of the link: the press is a click or this drag
 		e.preventDefault();
+	});
+	root.addEventListener('keydown', e => {
+		if (!e.altKey || e.ctrlKey || e.metaKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || moving || pending || busy()) return;
+		const a = (e.target as HTMLElement).closest?.<HTMLElement>('a.PageListPage');
+		const li = a ? a.parentElement : null;
+		if (!a || !li || !li.classList.contains('PageListItem') || !root.contains(li) || !c.canMove(li)) return;
+		const list = li.parentElement as HTMLElement;
+		const rows = (c.select.isSelected(li) ? c.select.selected().filter(c.canMove) : [li]).filter(x => x.parentElement === list);
+		if (rows.indexOf(li) < 0) rows.splice(0, rows.length, li);
+		const sibs = items(list);
+		const up = e.key === 'ArrowUp';
+		let n = sibs.indexOf(up ? rows[0] : rows[rows.length - 1]);
+		let other: HTMLElement | undefined;
+		do { n += up ? -1 : 1; other = sibs[n]; } while (other && rows.indexOf(other) > -1);
+		e.preventDefault();
+		if (!other) return;
+		prepare(rows);
+		moving = li;
+		const anchor = other;
+		// down: past the other row's child list when it is open (placeholders included)
+		const after = up ? null : (next(anchor, '.PageList') || anchor);
+		if (after) after.insertAdjacentElement('afterend', li); else anchor.insertAdjacentElement('beforebegin', li);
+		void stopMove(li).then(() => { if (a.isConnected) a.focus(); });
 	});
 	// touch: the hold made it a drag, so the finger no longer scrolls or opens the link's menu
 	root.addEventListener('touchmove', e => { if (moving) e.preventDefault(); }, { passive: false });

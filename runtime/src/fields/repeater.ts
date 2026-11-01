@@ -24,6 +24,7 @@
  */
 
 import { makeSortable } from '../util/sortable';
+import { animate, smooth } from '../util/motion';
 import { getCookie, setCookie } from '../util/cookie';
 import { choose } from '../util/choose';
 import { legacyLoaded } from '../legacy';
@@ -216,7 +217,7 @@ function toggleFamily(item: HTMLElement, open: boolean): void {
 function scrollToItem(item: HTMLElement): void {
 	const repeater = repeaterOf(item);
 	if (repeater && repeater.classList.contains('InputfieldRepeaterNoScroll')) return;
-	window.scrollTo({ top: item.getBoundingClientRect().top + window.scrollY - 10, behavior: 'smooth' });
+	window.scrollTo({ top: item.getBoundingClientRect().top + window.scrollY - 10, behavior: smooth() });
 }
 
 /** {text} parts of a label are secondary; #n follows the item's position for new items */
@@ -530,7 +531,7 @@ async function copyClonePaste(item: HTMLElement): Promise<void> {
 	if (action === 'copy') {
 		setCookie(copyName(repeater), { page: parseInt(repeater.getAttribute('data-page') || '0', 10), item: parseInt(id || '0', 10), field: repeater.getAttribute('data-name') });
 		repeater.classList.add('InputfieldRepeaterCanPaste');
-		item.animate([{ opacity: 1 }, { opacity: .3 }, { opacity: 1 }], { duration: 400 });
+		animate(item, [{ opacity: 1 }, { opacity: .3 }, { opacity: 1 }], { duration: 400 });
 	} else if (action === 'clone-before' || action === 'clone-after') {
 		cloneItem(item, action === 'clone-before', null);
 	} else if ((action === 'paste-before' || action === 'paste-after') && copied) {

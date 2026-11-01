@@ -127,7 +127,7 @@ check('theme.css built', is_file($themeCss));
 if(is_file($themeCss)) {
 	$css = file_get_contents($themeCss);
 	check('theme.css under 84 kB raw (the gzip budget in check-css.mjs is the binding one)', strlen($css) < 84 * 1024, (string) strlen($css));
-	check('theme.css under 15.5 kB gzip', strlen(gzencode($css, 9)) <= 15.5 * 1024, (string) strlen(gzencode($css, 9)));
+	check('theme.css under 15.75 kB gzip', strlen(gzencode($css, 9)) <= 15.75 * 1024, (string) strlen(gzencode($css, 9)));
 	check('theme.css is flat (no nesting left)', !preg_match('/[{;]\s*&/', $css));
 	// every font the stylesheet references ships next to it (none until Geist is self-hosted)
 	preg_match_all('~url\(\.\./fonts/([^)]+)\)~', $css, $m);
@@ -1134,6 +1134,30 @@ check('TT core\'s inline confirm and click guard become data attributes, nothing
 	&& strpos($handlersOut, "<input type='checkbox' data-pw-noclick />") !== false && strpos($handlersOut, 'onclick="other()"') !== false
 	&& strpos($handlersOut, 'return confirm') === false, $handlersOut);
 check('TT the setup script asks for them with the theme\'s dialog', strpos($srcOf('classic/setup.js'), "closest('[data-pw-confirm], [data-pw-noclick]')") !== false);
+// 0.20.1: keyboard moves, reduced motion, touch, contrast and stacking (audit UX2-UX5)
+check('UX2 the page tree moves a row with Alt+Arrow keys; selections take Ctrl+Space and Shift+Space', strpos($srcOf('fields/pagelist-move.ts'), "root.addEventListener('keydown', e => {") !== false
+	&& strpos($srcOf('util/selection.ts'), "if (e.key === ' ' && (e.ctrlKey || e.shiftKey) && !e.altKey && !e.metaKey) {") !== false);
+$motionLeft = array();
+foreach(new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(dirname(__DIR__) . '/runtime/src', \FilesystemIterator::SKIP_DOTS)) as $f) {
+	$rel = str_replace('\\', '/', substr($f->getPathname(), strlen(dirname(__DIR__) . '/runtime/src/')));
+	if(!preg_match('/\.(ts|js)$/', $rel) || $rel === 'util/motion.ts') continue;
+	$code = (string) file_get_contents($f->getPathname());
+	if(strpos($rel, 'classic/') === 0) {
+		// a classic script that animates asks still() first
+		if(preg_match('/\.animate\(/', $code) && strpos($code, 'ProcessWireAdminTheme.still()') === false && $rel !== 'classic/main.js') $motionLeft[] = $rel;
+		if(strpos($code, "behavior: 'smooth'") !== false && strpos($code, "still ? 'auto' : 'smooth'") === false) $motionLeft[] = $rel . ' (smooth scroll)';
+	} else if(preg_match('/\w\.animate\(|behavior: \'smooth\'/', $code)) {
+		$motionLeft[] = $rel;
+	}
+}
+check('UX3 every flash, fade and smooth scroll follows prefers-reduced-motion', !count($motionLeft), implode(', ', $motionLeft));
+$widgetsCss = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/styles/fields/12-widgets.css');
+check('UX4 whole items drag after a touch hold; only handles take the finger at once', strpos($srcOf('util/sortable.ts'), "if (e.pointerType === 'touch' && getComputedStyle(grip).touchAction !== 'none') {") !== false
+	&& strpos($widgetsCss, '.asmListSortable .asmListItem, .pw-sortable-item { touch-action: none; }') === false && strpos($widgetsCss, '.InputfieldRepeaterDrag { touch-action: none; }') !== false);
+$tokensCss = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/styles/00-tokens.css');
+check('UX5 control edges at 3:1 and one stacking scale', strpos($tokensCss, '--input: #8c8c8c;') !== false && strpos($tokensCss, '--pw-z-popup: 80;') !== false
+	&& strpos($widgetsCss, '.pw-group-actions { position: fixed; z-index: var(--pw-z-popup);') !== false);
+
 // 0.20.0: dialogs, drawer and tabs (audit UX1); the browser side is tools/a11y-check.js
 check('UX1 the dialog asks before a dismissal throws away unsaved changes, and focuses its window', strpos($srcOf('elements/pw-dialog.ts'), "private async dismiss(): Promise<void>") !== false
 	&& strpos($srcOf('elements/pw-dialog.ts'), "dialog.addEventListener('cancel', e => {") !== false

@@ -47,7 +47,7 @@
 	background: var(--popover);
 	color: var(--popover-foreground);
 	box-shadow: var(--shadow-md);
-	z-index: 200 !important;
+	z-index: var(--pw-z-picker) !important;
 }
 .ui-datepicker .ui-datepicker-header { border: 0; border-radius: 0; background: none; color: var(--foreground); font-weight: 500; }
 .ui-datepicker .ui-datepicker-prev, .ui-datepicker .ui-datepicker-next { top: 2px; border: 1px solid var(--input); border-radius: var(--radius-md); }

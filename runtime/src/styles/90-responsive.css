@@ -18,7 +18,7 @@
 		height: calc(100dvh - var(--pw-masthead-h));
 		box-sizing: border-box;
 		width: min(350px, 85vw);
-		z-index: 100;
+		z-index: var(--pw-z-drawer);
 		background: var(--background);
 		border-right: 1px solid var(--border);
 		overflow-y: auto;
@@ -77,7 +77,7 @@ body.pw-nav-overflow .pw-nav {
 	height: calc(100dvh - var(--pw-masthead-h));
 	box-sizing: border-box;
 	width: min(350px, 85vw);
-	z-index: 100;
+	z-index: var(--pw-z-drawer);
 	background: var(--background);
 	border-right: 1px solid var(--border);
 	overflow-y: auto;

@@ -17,6 +17,7 @@
  */
 
 import { legacyLoaded } from '../legacy';
+import { smooth } from '../util/motion';
 import { open as openInputfield, isCollapsed } from './collapse';
 
 const CONTROL = 'input, select, textarea';
@@ -123,7 +124,7 @@ export function setupFormEvents(): void {
 			e.stopImmediatePropagation();
 			const button = nearestButton(field, form);
 			if (button) {
-				button.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+				button.scrollIntoView({ block: 'nearest', behavior: smooth() });
 				button.focus();
 			}
 			return;

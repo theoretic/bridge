@@ -173,6 +173,56 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		toggle: !!document.activeElement && document.activeElement.matches('.pw-nav-toggle') }));
 	check('drawer: Escape closes it and focuses the toggle', !shut.open && shut.expanded === 'false' && shut.toggle, JSON.stringify(shut));
 
+	// 5. the page tree from the keyboard (0.20.1, audit UX2): Ctrl+Space selects, Alt+Arrow moves
+	await page.setViewportSize({ width: 1300, height: 950 });
+	await open('page/');
+	const T = '.PageListID' + TREE;
+	if(!(await page.locator(T + '.PageListItemOpen').count())) {
+		await page.$eval(T + ' > a.PageListPage', a => a.scrollIntoView({ block: 'center' }));
+		await page.click(T + ' > a.PageListPage');
+	}
+	await until(t => document.querySelectorAll(t + ' + .PageList > .PageListItem').length >= 50, T, 15000);
+	const serverOrder = () => page.evaluate(async ([admin, id]) => {
+		const r = await fetch(admin + 'page/list/?id=' + id + '&render=JSON&start=0&mode=actions', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+		return (await r.json()).children.map(c => c.label.replace(/<[^>]+>/g, ''));
+	}, [ADMIN, TREE]);
+	const row = (n) => T + ` + .PageList > .PageListItem:nth-of-type(${n}) > a.PageListPage`;
+	await page.focus(row(1));
+	await page.keyboard.press('Control+Space');
+	await page.waitForTimeout(150);
+	const sel1 = await page.evaluate(t => document.querySelectorAll(t + ' + .PageList > .PageListItem.pw-selected').length, T);
+	await page.keyboard.press('Control+Space');
+	await page.waitForTimeout(150);
+	const sel0 = await page.evaluate(t => document.querySelectorAll(t + ' + .PageList > .PageListItem.pw-selected').length, T);
+	check('tree: Ctrl+Space on a title selects its row, again unselects it', sel1 === 1 && sel0 === 0, JSON.stringify({ sel1, sel0 }));
+	const order0 = await serverOrder();
+	await page.focus(row(1));
+	await page.keyboard.press('Alt+ArrowDown');
+	await until(() => !document.querySelector('.PageListSortSaving'), null, 15000);
+	await page.waitForTimeout(400);
+	const order1 = await serverOrder();
+	const focusKept = await page.evaluate(() => !!document.activeElement && document.activeElement.matches('a.PageListPage'));
+	check('tree: Alt+Arrow Down moves a row one place and saves it', order1[0] === order0[1] && order1[1] === order0[0], JSON.stringify({ order0: order0.slice(0, 3), order1: order1.slice(0, 3) }));
+	check('tree: the moved row keeps the focus', focusKept);
+	await page.keyboard.press('Alt+ArrowUp');
+	await until(() => !document.querySelector('.PageListSortSaving'), null, 15000);
+	await page.waitForTimeout(400);
+	const order2 = await serverOrder();
+	check('tree: Alt+Arrow Up puts it back', order2.slice(0, 3).join() === order0.slice(0, 3).join(), JSON.stringify(order2.slice(0, 3)));
+
+	// 6. reduced motion (UX3) and touch (UX4)
+	const motion = await page.evaluate(() => typeof ProcessWireAdminTheme.still === 'function' && ProcessWireAdminTheme.still() === false);
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	const motionOff = await page.evaluate(() => ProcessWireAdminTheme.still() === true);
+	await page.emulateMedia({ reducedMotion: 'no-preference' });
+	check('reduced motion: the classic scripts see the preference', motion && motionOff);
+	await open(`page/edit/?id=${NATIVE}`);
+	const touch = await page.evaluate(() => {
+		const css = (sel) => { const el = document.querySelector(sel); return el ? getComputedStyle(el).touchAction : 'none-found'; };
+		return { asm: css('.asmListItem'), input: getComputedStyle(document.documentElement).getPropertyValue('--input').trim() };
+	});
+	check('touch: list items leave the page scroll to the finger (a hold drags them)', touch.asm !== 'none', JSON.stringify(touch));
+
 	check('no page errors', errors.length === 0, errors.join(' | '));
 	await consoleErrors.settle();
 	consoleErrors.check(check);

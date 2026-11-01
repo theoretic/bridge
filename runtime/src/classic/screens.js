@@ -27,7 +27,7 @@
 	function on(el, type, fn) { if(el) el.addEventListener(type, fn, handover.bind()); }
 	function show(el, yes) { if(el) el.style.display = yes ? '' : 'none'; }
 	function flash(el) {
-		if(!el || !el.animate) return;
+		if(!el || !el.animate || ProcessWireAdminTheme.still()) return;
 		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
 		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: 1000 });
 	}
@@ -262,7 +262,7 @@
 			if(ProcessLogger.pageNum !== 1) return;
 			$$('.ProcessLogNew').forEach(function(el) {
 				var tr = el.closest('tr');
-				if(tr && tr.animate) tr.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400 }).onfinish = function() { flash(tr); };
+				if(tr && tr.animate && !ProcessWireAdminTheme.still()) tr.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400 }).onfinish = function() { flash(tr); };
 				el.classList.remove('ProcessLogNew');
 			});
 		},

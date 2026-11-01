@@ -25,7 +25,7 @@
 	function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 	function fire(el, type) { if(el) el.dispatchEvent(new Event(type, { bubbles: true })); }
 	function flash(el) {
-		if(!el || !el.animate) return;
+		if(!el || !el.animate || ProcessWireAdminTheme.still()) return;
 		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
 		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: 500 });
 	}

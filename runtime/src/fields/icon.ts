@@ -7,6 +7,7 @@
  */
 
 import { on } from '../legacy';
+import { animate } from '../util/motion';
 import { toHTML } from '../util/trusted';
 import { esc } from '../util/html';
 
@@ -45,7 +46,7 @@ export function init(wrap: HTMLElement): void {
 				tmp.innerHTML = toHTML(fa6() ? iconHtml(val) : `<i class='fa fa-fw ${esc(val)}'></i>`);
 				const i = tmp.firstElementChild;
 				if (i) header.className = i.className;
-				if (header.parentElement && header.parentElement.animate) header.parentElement.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 500 });
+				if (header.parentElement) animate(header.parentElement, [{ opacity: .4 }, { opacity: 1 }], { duration: 500 });
 			}
 		}
 		select.classList.remove('on');

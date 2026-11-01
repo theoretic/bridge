@@ -1,5 +1,18 @@
 # Changelog
 
+## AdminThemeBridge 0.20.1: keyboard moves, less motion, touch, clearer edges (2026-11-01)
+
+From the 2026-11-01 audit (UX2 to UX5).
+
+- **The page tree from the keyboard**: Alt+Up and Alt+Down on a row's title move it one place among its siblings, with the selected rows of its list, and save it as a drop there would; the row keeps the focus.
+- **Selections from the keyboard**: with the focus on an item, or a link or button in it, Ctrl+Space adds or removes it and Shift+Space selects the range from the last item toggled (file rows, image tiles, page tree rows). Ctrl+A works in a list that has the focus, not only in the one last clicked.
+- **Reduced motion**: when the system asks for less motion, the runtime's flashes, fades and smooth scrolls are left out too, not only the CSS transitions (repeaters, asmSelect, icons, the page table, collapsed fields opened by a link, the Lister, logs, the template editor, link and image dialogs).
+- **Touch**: a finger starts a drag in a sortable list after a 400 ms hold, as in the page tree, so a swipe over a long list scrolls the page again (asmSelect lists blocked it). The repeater's drag handle still drags at once.
+- **Control edges at 3:1** against the background (WCAG 1.4.11): the `--input` token, the border of text inputs, selects and checkboxes, is darker in the light scheme (`#8c8c8c`) and lighter in the dark one. `--border`, used for dividers, is unchanged.
+- **One stacking scale** (`--pw-z-*` tokens): the menu of several selected page rows sits over the notices instead of under them; the date picker takes its level from the scale.
+- Field labels can be selected and copied again; only the headers that open and close their field are not selectable.
+- The `theme.css` gzip budget goes from 15.5 to 15.75 KiB for the stacking scale.
+
 ## AdminThemeBridge 0.20.0: dialogs, the drawer and tabs from the keyboard (2026-11-01)
 
 From the 2026-11-01 audit (UX1). Checked in a browser by the new `tools/a11y-check.js`.

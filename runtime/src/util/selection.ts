@@ -14,8 +14,10 @@
  *   unselected item clears it too, so a drag that follows moves that item alone; a press on a
  *   selected item keeps the selection for the drag.
  * - A press anywhere outside the container clears it (not inside dialogs, the lightbox, dropdowns).
- * - Esc clears every selection; Ctrl+A (Cmd+A) selects all items of the list last pressed, unless
- *   the focus is in a text control.
+ * - Esc clears every selection; Ctrl+A (Cmd+A) selects all items of the list last pressed or
+ *   focused, unless the focus is in a text control.
+ * - Keyboard (audit UX2): with the focus on an item or a link or button in it, Ctrl+Space adds or
+ *   removes that item and Shift+Space selects the range from the last item toggled, as the clicks do.
  *
  * State: `pw-selected` on the items, `pw-has-selection` and `data-pw-selectable` on the container;
  * the count is announced in a polite live region. Items that left the page drop out.
@@ -50,7 +52,9 @@ export type Selectable = {
 	destroy(): void;
 };
 
-type Instance = { container: HTMLElement; api: Selectable; selectAll(): void; strip(e: PointerEvent): boolean };
+type Instance = { container: HTMLElement; api: Selectable; selectAll(): void; strip(e: PointerEvent): boolean;
+	/** a key on this element: true when it selected (Ctrl: toggle, Shift: range) */
+	key(t: HTMLElement, range: boolean): boolean };
 
 const instances = new Set<Instance>();
 let lastActive: Instance | null = null;
@@ -89,7 +93,19 @@ function setupDocument(): void {
 			else if (!e.ctrlKey && !e.metaKey && !e.shiftKey) inst.api.clear();
 		});
 	}, true);
+	document.addEventListener('focusin', e => {
+		const t = e.target as HTMLElement;
+		instances.forEach(inst => { if (inst.container.contains(t)) lastActive = inst; });
+	});
 	document.addEventListener('keydown', e => {
+		if (e.key === ' ' && (e.ctrlKey || e.shiftKey) && !e.altKey && !e.metaKey) {
+			const t = e.target as HTMLElement;
+			if (!t.closest || t.closest(TEXT)) return;
+			for (const inst of Array.from(instances)) {
+				if (inst.container.isConnected && inst.key(t, e.shiftKey && !e.ctrlKey)) { e.preventDefault(); lastActive = inst; return; }
+			}
+			return;
+		}
 		if (e.key === 'Escape') {
 			if (document.querySelector('dialog[open]')) return;
 			instances.forEach(inst => inst.api.clear());
@@ -295,7 +311,14 @@ export function makeSelectable(container: HTMLElement, o: SelectableOptions): Se
 	container.addEventListener('pointercancel', onUp);
 	container.addEventListener('click', onClick, true);
 	container.addEventListener('dragstart', onNativeDrag);
-	const inst: Instance = { container, api, selectAll: () => apply(candidates()), strip };
+	const key = (t: HTMLElement, isRange: boolean): boolean => {
+		const item = itemOf(t);
+		if (!item || (o.enabled && !o.enabled()) || (o.ignore && t.closest(o.ignore)) || !can(item)) return false;
+		if (isRange) range(item, true);
+		else api.toggle(item);
+		return true;
+	};
+	const inst: Instance = { container, api, selectAll: () => apply(candidates()), strip, key };
 	instances.add(inst);
 	return api;
 }

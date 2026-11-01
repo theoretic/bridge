@@ -44,7 +44,7 @@
 .InputfieldHeader.InputfieldStateToggle:hover i.toggle-icon { opacity: 1; }
 .InputfieldHeader i.toggle-icon { float: right; opacity: .8; margin-top: 3px; color: var(--muted-foreground); transition: opacity var(--pw-transition); }
 .InputfieldHeader .InputfieldHeaderIcon { margin-right: 8px; color: var(--muted-foreground); }
-.InputfieldHeader { -webkit-user-select: none; user-select: none; }
+.InputfieldHeader.InputfieldStateToggle { -webkit-user-select: none; user-select: none; }
 .InputfieldHeader.InputfieldHeaderHidden { display: none; }
 .InputfieldStateCollapsed > .InputfieldHeader.InputfieldHeaderHidden { display: block; }
 .InputfieldHeaderHidden > .InputfieldContent, .InputfieldHeaderHidden + .InputfieldContent { padding-top: calc(var(--pw-field-pad) + 3px); }

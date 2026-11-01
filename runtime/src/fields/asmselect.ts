@@ -24,6 +24,7 @@
 import { makeSortable } from '../util/sortable';
 import { toHTML } from '../util/trusted';
 import { label as themeLabel } from '../util/labels';
+import { animate } from '../util/motion';
 
 type AsmOptions = {
 	listType: string; sortable: boolean; addable: boolean; deletable: boolean; highlight: boolean;
@@ -259,7 +260,7 @@ function setup(original: HTMLSelectElement): void {
 					if (a) a.textContent = desc.value; else if (target) target.textContent = desc.value;
 					updated = true;
 				}
-				if (item.animate) item.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 500 });
+				animate(item, [{ opacity: .4 }, { opacity: 1 }], { duration: 500 });
 				if (updated) item.dispatchEvent(new CustomEvent('asmItemUpdated', { bubbles: true }));
 			},
 		});

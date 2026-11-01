@@ -3,7 +3,7 @@
 .pw-masthead {
 	position: sticky;
 	top: 0;
-	z-index: 90;
+	z-index: var(--pw-z-masthead);
 	background: var(--pw-masthead-bg);
 	-webkit-backdrop-filter: blur(12px);
 	backdrop-filter: blur(12px);

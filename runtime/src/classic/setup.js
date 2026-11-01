@@ -58,7 +58,7 @@
 	function show(el, yes) { if(el) el.style.display = yes ? '' : 'none'; }
 	function shown(el) { return !!el && el.style.display !== 'none'; }
 	function flash(el) {
-		if(!el || !el.animate) return;
+		if(!el || !el.animate || ProcessWireAdminTheme.still()) return;
 		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
 		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: 1000 });
 	}

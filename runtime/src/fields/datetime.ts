@@ -239,7 +239,7 @@ function setupPicker(input: HTMLInputElement): void {
 	if (!inline) {
 		box.style.position = 'absolute';
 		box.style.display = 'none';
-		box.style.zIndex = '200';
+		box.style.zIndex = 'var(--pw-z-picker, 200)';
 		// in <body> only while open (audit R6): a picker per field, repeater item and selector row
 		// would otherwise leave a hidden popup behind for each
 	} else {

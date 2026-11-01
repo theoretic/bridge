@@ -6,7 +6,7 @@
 .pw-dropdown { position: relative; }
 .pw-dropdown-menu, ul.pw-button-dropdown {
 	position: absolute;
-	z-index: 120;
+	z-index: var(--pw-z-dropdown);
 	box-sizing: border-box;
 	min-width: 200px;
 	margin: 4px 0 0;

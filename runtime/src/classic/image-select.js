@@ -85,11 +85,12 @@
 		var item = d ? d.getElementById(fileID) : null;
 		if(item) {
 			if(isNew) {
-				item.scrollIntoView({ block: 'center', behavior: 'smooth' });
-				if(item.animate) item.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 900 });
+				var still = ProcessWireAdminTheme.still(); // reduced motion (audit UX3)
+				item.scrollIntoView({ block: 'center', behavior: still ? 'auto' : 'smooth' });
+				if(item.animate && !still) item.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 900 });
 			} else {
 				var img = $('img', item);
-				if(img && img.animate) img.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400 });
+				if(img && img.animate && !ProcessWireAdminTheme.still()) img.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400 });
 				setTimeout(function() {
 					var edit = $('.gridImage__edit', item);
 					if(edit) edit.click();

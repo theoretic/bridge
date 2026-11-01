@@ -777,12 +777,17 @@ var ProcessWireAdminTheme = {
 		return cfg.AdminThemeBridge || {};
 	},
 
+	/** The user prefers reduced motion: no flashes, fades or smooth scrolls (audit UX3) */
+	still: function() {
+		return !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	},
+
 	/**
 	 * Remove #notices with a short fade (none under prefers-reduced-motion).
 	 */
 	removeNotices: function(notices) {
 		if(!notices || !notices.parentNode) return;
-		if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return notices.remove();
+		if(this.still()) return notices.remove();
 		notices.style.transition = 'opacity 150ms';
 		notices.style.opacity = '0';
 		setTimeout(function() { notices.remove(); }, 160);

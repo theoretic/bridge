@@ -32,7 +32,7 @@
 	function $(sel, root) { return (root || document).querySelector(sel); }
 	function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 	function flash(el) {
-		if(!el || !el.animate) return;
+		if(!el || !el.animate || ProcessWireAdminTheme.still()) return;
 		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
 		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: 400 });
 	}
@@ -325,7 +325,7 @@
 				$$(sel).forEach(function(a) {
 					a.click();
 					var tr = a.closest('tr');
-					if(tr && tr.animate) tr.animate([{ opacity: .1 }, { opacity: 1 }], { duration: 350 });
+					if(tr && tr.animate && !ProcessWireAdminTheme.still()) tr.animate([{ opacity: .1 }, { opacity: 1 }], { duration: 350 });
 				});
 				ProcessLister.clickAfterRefresh = '';
 			}

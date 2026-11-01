@@ -16,6 +16,7 @@
  */
 
 import { makeSortable } from '../util/sortable';
+import { animate } from '../util/motion';
 import { legacyLoaded } from '../legacy';
 import { changed, setValue } from '../util/events';
 import { fetchOk, failed } from '../util/fail';
@@ -80,7 +81,7 @@ async function reload(container: HTMLElement, pageID: number): Promise<void> {
 	(del ? del.value.split('|') : []).filter(Boolean).forEach(id => {
 		container.querySelector(`tr[data-id="${CSS.escape(id)}"]`)?.classList.add('InputfieldPageTableDelete', 'ui-state-error-text', 'ui-state-disabled');
 	});
-	container.animate([{ backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa' }, { backgroundColor: 'transparent' }], { duration: 500 });
+	animate(container, [{ backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa' }, { backgroundColor: 'transparent' }], { duration: 500 });
 }
 
 function openEditor(trigger: HTMLElement): void {

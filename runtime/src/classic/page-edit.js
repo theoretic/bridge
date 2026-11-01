@@ -32,7 +32,7 @@
 	}
 
 	function flash(el) {
-		if(!el || !el.animate) return;
+		if(!el || !el.animate || ProcessWireAdminTheme.still()) return;
 		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
 		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: 500 });
 	}

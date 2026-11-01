@@ -59,8 +59,9 @@ div.InputfieldPageAutocomplete > ol { order: 1; margin: 0; padding: 0; }
 .InputfieldTextLengthNote { margin: 2px 0 0; }
 .InputfieldTextLengthError { color: var(--destructive); }
 
-/* native sorting (runtime/src/util/sortable.ts): handles take the pointer, not the page scroll */
-.asmListSortable .asmListItem, .pw-sortable-item { touch-action: none; }
+/* native sorting (runtime/src/util/sortable.ts): a handle takes the finger, not the page scroll; a
+   whole item drags after a hold, so a long list still scrolls under the finger (audit UX4) */
+.InputfieldRepeaterDrag { touch-action: none; }
 .pw-sorting { box-shadow: var(--shadow-md); position: relative; z-index: 1; }
 .pw-sorting-active { user-select: none; }
 /* PageAutocomplete: a page picked twice flashes in the list */
@@ -90,7 +91,7 @@ div.InputfieldPageAutocomplete > ol { order: 1; margin: 0; padding: 0; }
 
 /* several items selected (runtime util/selection.ts) and dragged together or onto another field
  * (util/sortable.ts groups, fields/files-move.ts, fields/pagelist-move.ts), ADR 0018 */
-.pw-marquee { position: fixed; z-index: 1000; pointer-events: none; background: var(--pw-primary-20); box-shadow: inset 0 0 0 1px var(--primary); border-radius: var(--radius-sm); }
+.pw-marquee { position: fixed; z-index: var(--pw-z-overlay); pointer-events: none; background: var(--pw-primary-20); box-shadow: inset 0 0 0 1px var(--primary); border-radius: var(--radius-sm); }
 .pw-marquee-active { user-select: none; }
 .InputfieldFileList > .InputfieldFileItem.pw-selected > .InputfieldFileInfo { background: var(--pw-primary-bg); box-shadow: inset 0 0 0 var(--ring-width) var(--ring); }
 .gridImage.pw-selected { box-shadow: var(--shadow-sm), 0 0 0 var(--ring-width) var(--card), 0 0 0 calc(2 * var(--ring-width)) var(--ring); }
@@ -103,7 +104,7 @@ div.InputfieldPageAutocomplete > ol { order: 1; margin: 0; padding: 0; }
 .PageList .PageListItem.pw-selected + .PageListItem.pw-selected:has(+ .PageListItem.pw-selected) { box-shadow: inset 1px 0 var(--pw-sel-line), inset -1px 0 var(--pw-sel-line); }
 /* several rows selected: one menu for all of them (fields/pagelist-group.ts), not each row's own */
 .PageListRoot.pw-multi-selection .PageListItem.pw-selected > .PageListActions { display: none !important; }
-.pw-group-actions { position: fixed; z-index: 20; display: flex; align-items: center; margin: 0; padding: 0; list-style: none; }
+.pw-group-actions { position: fixed; z-index: var(--pw-z-popup); display: flex; align-items: center; margin: 0; padding: 0; list-style: none; }
 .pw-group-actions[hidden] { display: none; }
 .pw-group-actions > li { margin: 0 3px 0 0; padding: 0; border: 0; }
 .pw-group-count { margin-left: 2px; color: var(--muted-foreground); font-weight: 400; }

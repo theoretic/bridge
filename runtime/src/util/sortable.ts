@@ -22,6 +22,10 @@
  *
  * Keyboard (audit R7): Alt+ArrowUp / Alt+ArrowDown moves the item that holds the focus one place
  * (with its group), with the same start, stop and update calls as a drag.
+ *
+ * Touch (audit UX4): a finger starts a drag after a 400 ms hold, as in the page tree, so a swipe
+ * over a long list still scrolls the page; moving before the hold is that scroll. A handle whose
+ * CSS says `touch-action: none` (the repeater's) drags at once.
  */
 
 export type DragEnd = { dx: number; dy: number; outside: boolean; cancelled: boolean };
@@ -60,6 +64,9 @@ export type SortableOptions = {
 };
 
 const CONTROLS = 'a, button, input, select, textarea, label, [contenteditable]';
+// a finger's hold before a drag, and how far it may move meanwhile
+const HOLD = 400;
+const SLOP = 8;
 
 let scrollStep = 0;
 let scrollFrame = 0;
@@ -112,6 +119,8 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 	let snapshot: Element[] = [];
 	let startOrder: HTMLElement[] = [];
 	let away = false;
+	let holdTimer = 0;
+	let holding = false;
 	const threshold = options.threshold || 0;
 
 	const items = (): HTMLElement[] =>
@@ -134,6 +143,20 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 		pointerId = e.pointerId;
 		startX = e.clientX;
 		startY = e.clientY;
+		const grip = options.handle ? target.closest(options.handle) || item : item;
+		if (e.pointerType === 'touch' && getComputedStyle(grip).touchAction !== 'none') {
+			// a hold makes it a drag; until then the finger scrolls (audit UX4)
+			pending = item;
+			holding = true;
+			window.clearTimeout(holdTimer);
+			holdTimer = window.setTimeout(() => {
+				if (pending !== item) return;
+				pending = null;
+				holding = false;
+				begin(item);
+			}, HOLD);
+			return;
+		}
 		if (threshold > 0) {
 			// wait for movement: until then the press may still be a click
 			pending = item;
@@ -176,6 +199,11 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 	};
 
 	const onMove = (e: PointerEvent): void => {
+		if (pending && e.pointerId === pointerId && holding) {
+			// moved before the hold: a scroll, not a drag
+			if (Math.abs(e.clientX - startX) > SLOP || Math.abs(e.clientY - startY) > SLOP) drop();
+			return;
+		}
 		if (pending && e.pointerId === pointerId) {
 			if (Math.abs(e.clientX - startX) < threshold && Math.abs(e.clientY - startY) < threshold) return;
 			const item = pending;
@@ -240,14 +268,21 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 		if (!outside && !cancelled && options.update && now.some((el, n) => el !== startOrder[n])) options.update(item);
 	};
 
+	/** a press that will not become a drag */
+	const drop = (): void => {
+		window.clearTimeout(holdTimer);
+		pending = null;
+		holding = false;
+	};
+
 	const onUp = (e: PointerEvent): void => {
-		if (pending && e.pointerId === pointerId) pending = null;
+		if (pending && e.pointerId === pointerId) drop();
 		if (!dragging || e.pointerId !== pointerId) return;
 		finish(e, false);
 	};
 
 	const onCancel = (e: PointerEvent): void => {
-		if (pending && e.pointerId === pointerId) pending = null;
+		if (pending && e.pointerId === pointerId) drop();
 		if (!dragging || e.pointerId !== pointerId) return;
 		finish(e, true);
 	};
@@ -286,13 +321,21 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 	list.addEventListener('keydown', onKey);
 	// an image or link inside an item would start the browser's own drag and swallow the pointer
 	const onNativeDrag = (e: DragEvent): void => { if (pending || dragging) e.preventDefault(); };
+	// touch: once the hold made it a drag the finger no longer scrolls, nor opens a link's menu
+	const onTouchMove = (e: TouchEvent): void => { if (dragging) e.preventDefault(); };
+	const onMenu = (e: Event): void => { if (pending || dragging) e.preventDefault(); };
+	list.addEventListener('touchmove', onTouchMove, { passive: false });
+	list.addEventListener('contextmenu', onMenu);
 	list.addEventListener('dragstart', onNativeDrag);
 	list.addEventListener('pointerdown', onDown);
 	list.addEventListener('pointermove', onMove);
 	list.addEventListener('pointerup', onUp);
 	list.addEventListener('pointercancel', onCancel);
 	return () => {
+		drop();
 		list.removeEventListener('keydown', onKey);
+		list.removeEventListener('touchmove', onTouchMove);
+		list.removeEventListener('contextmenu', onMenu);
 		list.removeEventListener('dragstart', onNativeDrag);
 		list.removeEventListener('pointerdown', onDown);
 		list.removeEventListener('pointermove', onMove);

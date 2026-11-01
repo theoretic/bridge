@@ -10,6 +10,7 @@
  */
 
 import { open, close, toggle, isCollapsed } from './collapse';
+import { animate, smooth } from '../util/motion';
 import { isHidden } from './dependencies';
 import { installGlobal } from '../util/stubs';
 import { legacyLoaded } from '../legacy';
@@ -92,7 +93,7 @@ export const InputfieldsFacade = {
 			if (isCollapsed(p)) open(p);
 		}
 		const c = control(li);
-		li.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		li.scrollIntoView({ block: 'center', behavior: smooth() });
 		if (c) window.setTimeout(() => c.focus(), 0);
 	},
 	/** find(): bring the field into view, opened, as upstream does before highlighting it */
@@ -102,7 +103,7 @@ export const InputfieldsFacade = {
 	/** highlight(): flash the field's background, as upstream does */
 	highlight(target: Target): void {
 		resolve(target).forEach(li => {
-			if (li.animate) li.animate([{ backgroundColor: 'var(--pw-highlight, #ffffaa)' }, { backgroundColor: 'transparent' }], { duration: 1500 });
+			animate(li, [{ backgroundColor: 'var(--pw-highlight, #ffffaa)' }, { backgroundColor: 'transparent' }], { duration: 1500 });
 		});
 	},
 	/** hashAction('find-name' | 'focus-name' | 'highlight-name'): upstream's URL fragment actions */

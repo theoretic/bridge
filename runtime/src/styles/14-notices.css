@@ -19,7 +19,7 @@ body:not(.modal):not(.ProcessLogin) #notices {
 	top: calc(var(--pw-masthead-h) + var(--pw-notice-gap));
 	left: 0;
 	right: 0;
-	z-index: 60;
+	z-index: var(--pw-z-notices);
 	margin: 0 auto; /* centred like .pw-container when the theme's max width is set (_head.php) */
 }
 body:not(.modal):not(.ProcessLogin) #notices li { box-shadow: var(--shadow-sm); }
