@@ -18,6 +18,11 @@
  * resized as an upload is). All file fields of a page share its files directory, so a file moves by
  * reference: no copy, no new name, variations kept (dropped when an image becomes a plain file).
  *
+ * The request is checked as upstream's AJAX save checks its own (0.18.2, audit SE3): demo mode,
+ * the page's lock, ProcessPageEdit::ajaxEditable() for the page and for each of the two fields
+ * (hookable: a site that narrows AJAX edits narrows moves too), then the CSRF token. A swap checks
+ * the file going back as a move the other way (moveFileAllowed() included).
+ *
  */
 trait AdminThemeBridgeFiles {
 
@@ -32,12 +37,24 @@ trait AdminThemeBridgeFiles {
 		if(!$input->post('bridgeFilesMove')) return;
 		$event->replace = true;
 		$page = $event->arguments(0);
+		/** @var ProcessPageEdit $process */
+		$process = $event->object;
 		$result = array('ok' => false, 'moved' => array(), 'swapped' => array(), 'errors' => array(), 'message' => '');
 		try {
 			if(!$page instanceof Page || !$page->id) throw new WireException(__('No page to move files on', __FILE__));
-			$result = $this->filesMoveRequest($page);
-		} catch(\Exception $e) {
+			$result = $this->filesMoveRequest($page, $process);
+		} catch(WirePermissionException $e) {
+			http_response_code(403);
 			$result['message'] = $e->getMessage();
+		} catch(\Throwable $e) {
+			// the theme's own messages (WireException, translated) as they are; anything else (a
+			// database or path error, a TypeError) goes to the log, not to the browser (audit SE3)
+			if(get_class($e) === WireException::class) {
+				$result['message'] = $e->getMessage();
+			} else {
+				$this->wire()->log->error('AdminThemeBridge files move: ' . get_class($e) . ': ' . $e->getMessage());
+				$result['message'] = __('The move failed; the error is in the logs.', __FILE__);
+			}
 		}
 		header('Content-Type: application/json');
 		// admin.php buffers AJAX output and sends it as the answer
@@ -48,20 +65,31 @@ trait AdminThemeBridgeFiles {
 	 * Read and check a files move request, then move
 	 *
 	 * @param Page $page
+	 * @param ProcessPageEdit|null $process The editor taking the request: its ajaxEditable() decides
 	 * @return array
 	 * @throws WireException
+	 * @throws WirePermissionException
 	 *
 	 */
-	protected function filesMoveRequest(Page $page) {
+	protected function filesMoveRequest(Page $page, $process = null) {
 		$input = $this->wire()->input;
 		$sanitizer = $this->wire()->sanitizer;
 		if($this->wire()->config->demo) throw new WireException(__('Moving files is off in demo mode', __FILE__));
+		if($page->hasStatus(Page::statusLocked)) throw new WireException(__('This page is locked', __FILE__));
+		// as ProcessPageEdit::___ajaxSave() asks before its own saves (protected and hookable: called
+		// through the hook system, as core calls it)
+		if($process instanceof ProcessPageEdit && !$process->ajaxEditable($page)) {
+			throw new WirePermissionException(__('You may not edit this page', __FILE__));
+		}
 		$this->wire()->session->CSRF->validate(); // throws when invalid
 		$fieldgroup = $page->template->fieldgroup;
 		$from = $fieldgroup->getFieldContext($sanitizer->fieldName((string) $input->post('from')));
 		$to = $fieldgroup->getFieldContext($sanitizer->fieldName((string) $input->post('to')));
 		if(!$from || !$to || $from->id == $to->id || !$from->type instanceof FieldtypeFile || !$to->type instanceof FieldtypeFile) {
 			throw new WireException(__('These fields cannot exchange files', __FILE__));
+		}
+		if($process instanceof ProcessPageEdit && (!$process->ajaxEditable($page, $from->name) || !$process->ajaxEditable($page, $to->name))) {
+			throw new WirePermissionException(__('You may not edit these fields', __FILE__));
 		}
 		$byHash = array();
 		foreach($page->getUnformatted($from->name) as $pagefile) $byHash[$pagefile->hash] = $pagefile;
@@ -111,17 +139,37 @@ trait AdminThemeBridgeFiles {
 	 */
 	public function ___moveFiles(Page $page, Field $from, Field $to, array $basenames, array $options = array()) {
 		$options = array_merge(array('index' => -1, 'meta' => array(), 'resolve' => array()), $options);
-		$result = array('ok' => false, 'moved' => array(), 'swapped' => array(), 'errors' => array(), 'message' => '');
 		if($page->hasStatus(Page::statusLocked)) throw new WireException(__('This page is locked', __FILE__));
 		if(!$page->editable($from->name) || !$page->editable($to->name)) {
 			throw new WirePermissionException(__('You may not edit these fields', __FILE__));
 		}
 		$of = $page->of();
 		$page->of(false);
+		// output formatting comes back whatever happens below, a hook that throws included (SE3)
+		try {
+			return $this->moveFilesUnformatted($page, $from, $to, $basenames, $options);
+		} finally {
+			$page->of($of);
+		}
+	}
+
+	/**
+	 * moveFiles() with the page's output formatting off
+	 *
+	 * @param Page $page
+	 * @param Field $from
+	 * @param Field $to
+	 * @param array $basenames
+	 * @param array $options
+	 * @return array
+	 * @throws WireException
+	 *
+	 */
+	protected function moveFilesUnformatted(Page $page, Field $from, Field $to, array $basenames, array $options) {
+		$result = array('ok' => false, 'moved' => array(), 'swapped' => array(), 'errors' => array(), 'message' => '');
 		$src = $page->get($from->name);
 		$dst = $page->get($to->name);
 		if(!$src instanceof Pagefiles || !$dst instanceof Pagefiles) {
-			$page->of($of);
 			throw new WireException(__('These fields cannot exchange files', __FILE__));
 		}
 		$rules = $this->moveRules($page, $to);
@@ -147,7 +195,9 @@ trait AdminThemeBridgeFiles {
 				if(count($dst)) {
 					$current = $dst->first();
 					if($how === 'swap') {
+						// the file going back is a move the other way: the source's rules and the hook
 						$why = $this->moveReason($current, $back);
+						if(!$why) $why = (string) $this->moveFileAllowed($page, $from, $current);
 						if($why) { $fail($f, sprintf(__('No swap: %s', __FILE__), $why)); continue; }
 					} else if($how !== 'replace') {
 						$fail($f, __('This field holds one file: replace it or swap them', __FILE__));
@@ -170,6 +220,7 @@ trait AdminThemeBridgeFiles {
 					$dst->removeQuietly($current);
 					$back2 = $this->moveRetype($current, $src);
 					$this->moveInsert($src, $back2, $srcIndex);
+					if($back['image'] && $back2 instanceof Pageimage) $this->moveFit($back2, $back);
 					$result['swapped'][] = array('hash' => $back2->hash, 'basename' => $back2->basename);
 				} else {
 					$dst->delete($current);
@@ -188,7 +239,6 @@ trait AdminThemeBridgeFiles {
 			$page->save($to->name);
 			$this->filesMoved($page, $from, $to, $moved);
 		}
-		$page->of($of);
 		$result['ok'] = count($moved) > 0;
 		if(!$result['ok'] && !$result['message']) $result['message'] = __('Nothing was moved', __FILE__);
 		return $result;

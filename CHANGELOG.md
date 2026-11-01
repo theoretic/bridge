@@ -1,5 +1,14 @@
 # Changelog
 
+## AdminThemeBridge 0.18.2: moves between file fields ask what saves ask (2026-11-01)
+
+From the 2026-11-01 audit (security, SE3).
+
+- **A move between file fields is checked as core's own AJAX saves are.** Besides the editable fields, demo mode, the lock and the token, it now asks `ProcessPageEdit::ajaxEditable()` for the page and for both fields. A site that narrows AJAX edits with a hook narrows moves too.
+- **A swap checks the file going back** as a move the other way: `moveFileAllowed()` is asked for it as well, and an image going back to an image field is resized to that field's maximum as an upload would be.
+- **A hook that throws in the middle of a move leaves the page's output formatting as it was.**
+- **The answer no longer carries raw error text.** A refused move says why in the theme's words; a database or file error goes to the log, and the editor says the move failed. A refusal by permission answers with status 403.
+
 ## AdminThemeBridge 0.18.1: the nonce means what it says (2026-11-01)
 
 From the 2026-11-01 audit (security, SE1 and SE2). Sites without a Content-Security-Policy see no change.

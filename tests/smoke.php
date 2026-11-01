@@ -814,10 +814,43 @@ if(isset($bridge) && $bridge) {
 			$r = $bridge->moveFiles($np, $fg->getFieldContext('bf_files'), $fg->getFieldContext('bf_images'), array($name));
 			check('moveFiles refuses what an upload would refuse (a .txt for an image field)', !$r['ok'] && count($r['errors']) === 1 && $np->bf_files->getFile($name), json_encode($r));
 		}
+		// audit SE3: a swap asks moveFileAllowed() for the file going back too
+		$img = $np->template->hasField('bf_image') && $np->template->hasField('bf_images') ? $np->bf_images->first() : null;
+		if($img && $np->bf_image->count()) {
+			$before = $np->bf_images->implode(',', 'basename') . '|' . $np->bf_image->implode(',', 'basename');
+			$refuse = $bridge->addHookAfter('moveFileAllowed', function(HookEvent $e) {
+				if($e->arguments(1)->name === 'bf_images') $e->return = 'smoke: not back';
+			});
+			$r = $bridge->moveFiles($np, $fg->getFieldContext('bf_images'), $fg->getFieldContext('bf_image'), array($img->basename), array('resolve' => array($img->basename => 'swap')));
+			$bridge->removeHook($refuse);
+			$pages->uncache($np);
+			$np = $pages->get($np->id);
+			$np->of(false);
+			$after = $np->bf_images->implode(',', 'basename') . '|' . $np->bf_image->implode(',', 'basename');
+			check('SE3 a swap asks moveFileAllowed() for the file going back', !$r['ok'] && count($r['errors']) === 1 && strpos($r['errors'][0]['message'], 'smoke: not back') !== false && $after === $before, json_encode($r));
+			// output formatting comes back when a hook throws in the middle of a move
+			$throw = $bridge->addHookBefore('moveFileAllowed', function(HookEvent $e) { throw new WireException('smoke: thrown'); });
+			$np->of(true);
+			$threw = false;
+			try {
+				$bridge->moveFiles($np, $fg->getFieldContext('bf_images'), $fg->getFieldContext('bf_image'), array($img->basename), array('resolve' => array($img->basename => 'swap')));
+			} catch(WireException $e) {
+				$threw = $e->getMessage() === 'smoke: thrown';
+			}
+			$bridge->removeHook($throw);
+			check('SE3 moveFiles() restores output formatting when a hook throws', $threw && $np->of() === true);
+			$np->of(false);
+		} else {
+			warn('no bf_image with a file on the fixture page: the swap checks are skipped', 'tools/sandbox-fixture.php');
+		}
 		$wire->users->setCurrentUser($guest);
 	} else {
 		warn('no fixture page with bf_docs: the moveFiles round trip is skipped', 'tools/sandbox-fixture.php');
 	}
+	$filesSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeFiles.php');
+	check('SE3 the move endpoint asks ProcessPageEdit::ajaxEditable() for the page and both fields', strpos($filesSrc, '!$process->ajaxEditable($page)') !== false
+		&& strpos($filesSrc, '!$process->ajaxEditable($page, $from->name) || !$process->ajaxEditable($page, $to->name)') !== false);
+	check('SE3 the move endpoint answers no raw exception text', strpos($filesSrc, "catch(\\Throwable \$e)") !== false && strpos($filesSrc, "get_class(\$e) === WireException::class") !== false);
 }
 
 // 0.15.0: risky action warnings (ADR 0019)
