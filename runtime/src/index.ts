@@ -9,6 +9,7 @@
 import { Inputfields } from './inputfields/index';
 import { defineTabs } from './elements/pw-tabs';
 import { defineDialog, setupModalLinks, sharedDialog, DialogOptions } from './elements/pw-dialog';
+import type { SortableOptions } from './util/sortable';
 import type { LightboxItem } from './util/lightbox';
 import { legacyLoaded, legacyPending, loadLegacy, onLegacyLoaded } from './legacy';
 import { replay } from './util/stubs';
@@ -29,12 +30,16 @@ export const Bridge = {
 		close: (abort = false) => sharedDialog().close(abort),
 	},
 	legacy: { loaded: legacyLoaded, load: loadLegacy },
+	/** Opt in to a core File/Image widget without changing a subclass's native declaration. */
+	files: { init: (field: HTMLElement, kind: 'file' | 'image'): Promise<void> => import('./util/widgets').then(m => m.file(field, kind)) },
 	// on demand: the image field and the Lister load it with their own chunks
 	lightbox: (items: LightboxItem[], index?: number): Promise<void> => import('./util/lightbox').then(m => m.openLightbox(items, index)),
 	// sort a data table by a column (0-based), as a header click does; the table chunk loads on demand
 	tables: {
 		sort: (table: HTMLTableElement, column: number, dir: 'asc' | 'desc' = 'asc'): Promise<void> => import('./fields/datatable').then(m => m.sort(table, column, dir)),
 	},
+	/** Native sorting for component-owned lists; resolves to the listener cleanup function. */
+	sortable: (list: HTMLElement, options: SortableOptions): Promise<() => void> => import('./util/widgets').then(m => m.sortable(list, options)),
 	// a themed confirm (always asks) and a risky action's warning (asks while the setting is on,
 	// ADR 0019); a promise, and callbacks for classic scripts calling through the stand-in
 	confirm: (opts: AskOptions | string, onOk?: () => void, onCancel?: () => void): Promise<boolean> => import('./util/danger').then(m => m.callbacks(m.confirm(opts), onOk, onCancel)),

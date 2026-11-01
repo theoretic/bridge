@@ -111,7 +111,8 @@ trait AdminThemeBridgeRewrites {
 	}
 
 	/**
-	 * Hook after InputfieldWrapper::render (forms and the repeater's AJAX item included): run
+	 * Hook after InputfieldWrapper::render and InputfieldFile::renderItem (forms, uploads
+	 * and the repeater's AJAX item included): run
 	 * LanguageTabs' inline setup only where jQuery is, and give the request's nonce to the core
 	 * inline scripts a native screen keeps: that one, the repeater item's config
 	 * (`ProcessWire.config['…'] = …`, InputfieldRepeater.module), the Lister's bookmark line

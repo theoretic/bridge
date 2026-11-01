@@ -64,6 +64,37 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		check('gate: no legacy reasons', reasonList.length === 0, reasonList.join(', '));
 	}
 
+	// Component-owned lists and File/Image subclasses use only the public runtime API.
+	if (!env.jquery) {
+		const component = await page.evaluate(() => (async () => {
+			const root = document.createElement('div');
+			root.id = 'component-api-probe';
+			root.innerHTML = ProcessWireAdminTheme.trusted.html('<div id="component-outer"><section class="probe-outer" data-key="outer-a"><button type="button" class="outer-handle">Outer A</button><ul id="component-sort"><li class="probe-item" data-key="a"><button type="button" class="probe-handle">A</button></li><li class="probe-item" data-key="b"><button type="button" class="probe-handle">B</button></li></ul></section><section class="probe-outer" data-key="outer-b"><button type="button" class="outer-handle">Outer B</button></section></div><ul class="Inputfields"><li id="component-file" class="Inputfield InputfieldFile" data-bridge-component="InputfieldComponentFile"><label class="InputfieldHeader">Component file</label><div class="InputfieldContent"><ul class="InputfieldFileList"></ul></div></li><li id="component-image" class="Inputfield InputfieldFile InputfieldImage" data-bridge-component="InputfieldComponentImage"><label class="InputfieldHeader">Component image</label><div class="InputfieldContent"><ul class="InputfieldImageList gridImages"></ul><input type="hidden" class="InputfieldImageMaxFiles" value="1"></div></li></ul>');
+			document.body.append(root);
+			const list = root.querySelector('#component-sort');
+			const outer = root.querySelector('#component-outer');
+			const cleanup = await Bridge.sortable(list, {items:'.probe-item',handle:'.probe-handle',enabled:()=>!list.hasAttribute('data-disabled')});
+			const outerCleanup = await Bridge.sortable(outer, {items:'.probe-outer',handle:'.outer-handle'});
+			await Bridge.files.init(root.querySelector('#component-file'), 'file');
+			await Bridge.files.init(root.querySelector('#component-image'), 'image');
+			const media = !!root.querySelector('#component-file [data-pw-file]') && !!root.querySelector('#component-image [data-pw-image]');
+			const identity = root.querySelector('#component-file').dataset.bridgeComponent === 'InputfieldComponentFile' && root.querySelector('#component-image').dataset.bridgeComponent === 'InputfieldComponentImage';
+			const press = () => list.querySelector('[data-key="a"] button').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',altKey:true,bubbles:true,cancelable:true}));
+			press();
+			const sorted = Array.from(list.children, el=>el.dataset.key).join(',') === 'b,a';
+			const isolated = outer.firstElementChild.dataset.key === 'outer-a';
+			list.setAttribute('data-disabled','');
+			list.querySelector('[data-key="b"] button').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',altKey:true,bubbles:true,cancelable:true}));
+			const disabled = Array.from(list.children, el=>el.dataset.key).join(',') === 'b,a';
+			list.removeAttribute('data-disabled'); cleanup(); outerCleanup();
+			list.querySelector('[data-key="b"] button').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',altKey:true,bubbles:true,cancelable:true}));
+			const destroyed = Array.from(list.children, el=>el.dataset.key).join(',') === 'b,a';
+			root.remove();
+			return {media,identity,sorted,isolated,disabled,destroyed,native:typeof jQuery === 'undefined' && !ProcessWireAdminTheme.legacy.loaded};
+		})());
+		Object.entries(component).forEach(([name, ok]) => check('component API: ' + name, ok));
+	}
+
 	// collapse: plain
 	await page.click('#wrap_Inputfield_lab_collapsed > .InputfieldHeader');
 	await page.waitForTimeout(400);

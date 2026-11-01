@@ -1,0 +1,1 @@
+import{_ as t}from"./index-CwWb9OqZ.js";import{m as n}from"./sortable-nXqLrF5V.js";async function a(i,o){(o==="image"?await t(()=>import("./image-BJCj6iKw.js"),[],import.meta.url):await t(()=>import("./file-CDNfnXlw.js").then(r=>r.h),[],import.meta.url)).init(i)}export{a as file,n as sortable};

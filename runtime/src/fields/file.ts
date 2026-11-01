@@ -56,7 +56,9 @@ export function dragOut(inputfield: HTMLElement, list: HTMLElement): {
 	let loading = false;
 	return {
 		load: () => {
-			if (mover || loading || !uploadAllowed()) return;
+			// Cross-field moves use the core FieldtypeFile endpoint. A component reusing this
+			// widget can own another persistence/transport contract and must not use it.
+			if (mover || loading || !uploadAllowed() || !inputfield.matches('[data-bridge-component="InputfieldFile"], [data-bridge-component="InputfieldImage"]')) return;
 			loading = true;
 			void import('./files-move').then(m => { mover = m.mover(inputfield, list); }).catch(() => { loading = false; });
 		},

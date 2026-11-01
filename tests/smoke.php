@@ -78,7 +78,7 @@ check('modules paths: core first', isset($modulePaths[0]) && $modulePaths[0] ===
 check('modules paths: site modules second', isset($modulePaths[1]) && $modulePaths[1] === $expectSite . 'modules/', json_encode($modulePaths));
 check('core module resolves under wire', strpos((string) $modules->getModuleFile('ProcessPageEdit'), $expectWire) === 0, (string) $modules->getModuleFile('ProcessPageEdit'));
 $siteModule = '';
-foreach(array('AdminThemeBoss', 'SettingsFactory', 'StaticPages', 'WireMailSmtp') as $name) {
+foreach(array('AdminThemeBoss', 'SettingsFactory', 'StaticPages', 'WireMailSmtp', 'ProcessBridgeDemo') as $name) {
 	if($modules->isInstalled($name)) { $siteModule = $name; break; }
 }
 check('a site module is installed', $siteModule !== '');
@@ -1426,5 +1426,10 @@ if(is_file($upstreamHt)) {
 } else {
 	warn('upstream htaccess.txt not found: set BRIDGE_HTACCESS to check the generator against it');
 }
+// Public widget entry points stay lazy; component-owned media still uses the core nonce rules.
+$componentEntry = (string) file_get_contents(dirname(__DIR__) . '/runtime/src/index.ts');
+check('component API: sorting delegates to a lazy native widget', strpos($componentEntry, "m.sortable(list, options)") !== false);
+check('component API: media delegates to lazy core widgets', strpos($componentEntry, "m.file(field, kind)") !== false);
+check('component media items get the same nonce handling as wrappers', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "addHookAfter('InputfieldFile::renderItem'") !== false);
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

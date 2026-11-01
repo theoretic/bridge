@@ -541,6 +541,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// the repeater's AJAX item is one: its config script and the Lister's bookmark line get the
 		// request's nonce there (ADR 0020)
 		$this->addHookAfter('InputfieldWrapper::render', $this, 'hookFormRender', array('priority' => 200));
+		// An uploaded File/Image item can render outside a wrapper (also in component-owned transports).
+		$this->addHookAfter('InputfieldFile::renderItem', $this, 'hookFormRender', array('priority' => 200));
 		// the page editor (milestone 3.1): its inline init call falls back to the native editor, and
 		// the page tree in its Children tab stays legacy until the page tree is native (3.4)
 		$this->addHookAfter('ProcessPageEdit::execute', $this, 'hookPageEditExecute');

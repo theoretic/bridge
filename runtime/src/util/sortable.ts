@@ -309,6 +309,7 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 		do { n += up ? -1 : 1; other = all[n]; } while (other && block.indexOf(other) > -1);
 		if (!other) return;
 		e.preventDefault();
+		e.stopPropagation(); // a handled inner sort must not also move a containing list
 		if (options.start) options.start(item, block);
 		const order = items();
 		if (up) other.insertAdjacentElement('beforebegin', item);
