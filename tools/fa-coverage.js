@@ -21,7 +21,8 @@ const screens = Array.isArray(src) ? src.map(x => x.url || x.screen) : Object.ke
 const faCss = fs.readFileSync(path.join(__dirname, '..', 'modules', 'AdminThemeBridge', 'assets', 'fonts', 'fa-' + VERSION, 'fa.css'), 'utf8');
 const subset = {};
 for(const m of faCss.matchAll(/@font-face\{font-family:"([^"]+)";font-style:normal;(?:font-weight:(\d+);)?font-display:block;src:url\(([^)]+)\)[^;]*;unicode-range:([^}]+)\}/g)) {
-	if(!/-subset\.woff2/.test(m[3])) continue;
+	// the subset's name carries a content hash (fa-subset.mjs, audit PP2): -subset.<hash>.woff2
+	if(!/-subset(\.[0-9a-f]+)?\.woff2/.test(m[3])) continue;
 	const key = m[1] + '|' + (m[2] || '400');
 	subset[key] = subset[key] || new Set();
 	for(const part of m[4].split(',')) {

@@ -1145,6 +1145,7 @@ $inRange = function($cp) use($solidRange) {
 	}
 	return false;
 };
+check('PF3 tools/fa-coverage.js reads the hashed subset names', strpos((string) file_get_contents(dirname(__DIR__) . '/tools/fa-coverage.js'), '/-subset(\.[0-9a-f]+)?\.woff2/') !== false);
 check('PF3 the scale buttons\' icons (search-minus, search-plus) are in the solid subset', $faCssShipped === '' || ($solidRange !== '' && $inRange(0xf010) && $inRange(0xf00e)));
 
 // docs that follow the code (audit BG10)
