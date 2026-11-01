@@ -244,6 +244,14 @@ trait AdminThemeBridgeShell {
 			'nextPage' => __('Next page', __FILE__), // the dialog that opens several selected pages in turn
 			'discardChanges' => __('This page has unsaved changes. Leave it?', __FILE__),
 			'trashPages' => __('Move %d pages to the trash?', __FILE__),
+			// names of controls that show only an icon or a sign (0.20.0)
+			'image' => __('Image', __FILE__), // the lightbox, an image without a title
+			'remove' => __('Remove', __FILE__),
+			'moreActions' => __('More actions', __FILE__), // the arrow next to a Save button
+			'imageViewList' => __('Show as a list with details', __FILE__),
+			'imageViewLeft' => __('Show as a list with thumbnails', __FILE__),
+			'imageViewGrid' => __('Show as a grid', __FILE__),
+			'pickDate' => __('Choose a date', __FILE__), // the calendar button next to a date input
 			// risky action warnings (0.15.0, ADR 0019): a title, the risk, the OK button's verb;
 			// each %s or %d is filled in order by the runtime
 			'warnThisField' => __('This field', __FILE__), // a field without a label

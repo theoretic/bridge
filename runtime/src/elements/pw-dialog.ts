@@ -13,6 +13,8 @@
  * { dialog, abort } (abort: closed by its close button, the backdrop or Escape).
  * Scripts can open it with options (Bridge.dialog.open, the page table): onLoad runs after each
  * page load in the window, onClose when it closes, autoclose may be a function of the button.
+ * Keyboard and focus (audit UX1): the window's page gets the focus when it first loads; the close
+ * button, the backdrop and Escape ask first when the window holds a form with unsaved changes.
  */
 
 import { legacyLoaded } from '../legacy';
@@ -51,6 +53,10 @@ export class PwDialog extends HTMLElement {
 	private options: DialogOptions = {};
 	private closeOnLoad = false;
 	private abort = true;
+	/** the window's first page has had the focus since this opening */
+	private focused = false;
+	/** a dismissal is asking about unsaved changes */
+	private asking = false;
 
 	connectedCallback(): void {
 		if (this.dialog) return;
@@ -68,7 +74,7 @@ export class PwDialog extends HTMLElement {
 		closeBtn.className = 'pw-dialog-close';
 		closeBtn.setAttribute('aria-label', label('close', 'Close'));
 		closeBtn.textContent = '×';
-		closeBtn.addEventListener('click', () => this.close(true));
+		closeBtn.addEventListener('click', () => { void this.dismiss(); });
 		bar.append(title, closeBtn);
 		const frame = this.makeFrame();
 		const footer = document.createElement('div');
@@ -82,9 +88,17 @@ export class PwDialog extends HTMLElement {
 			this.options = {};
 			this.closed(opts, this.abort);
 		});
-		dialog.addEventListener('cancel', () => { this.abort = true; }); // Escape
+		// Escape: asks first, as the close button does
+		dialog.addEventListener('cancel', e => {
+			this.abort = true;
+			e.preventDefault();
+			void this.dismiss();
+		});
+		// the backdrop: a click on the dialog element outside its box, not on its padding (audit UX1)
 		dialog.addEventListener('click', e => {
-			if (e.target === dialog) this.close(true); // backdrop
+			if (e.target !== dialog) return;
+			const r = dialog.getBoundingClientRect();
+			if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) void this.dismiss();
 		});
 		this.appendChild(dialog);
 		this.dialog = dialog;
@@ -146,6 +160,7 @@ export class PwDialog extends HTMLElement {
 		this.options = options;
 		this.closeOnLoad = false;
 		this.abort = true;
+		this.focused = false;
 		if (this.footer) this.footer.replaceChildren();
 		this.setTitle(options.title || '');
 		this.frame.src = (/[?&]modal=/.test(url) ? url : `${url}${sep}modal=1`) + hash;
@@ -160,6 +175,27 @@ export class PwDialog extends HTMLElement {
 		if (!this.dialog?.open) return;
 		this.abort = abort;
 		this.dialog.close();
+	}
+
+	/**
+	 * Closed by the user (close button, backdrop, Escape): a form in the window with unsaved
+	 * changes asks first, as leaving the page would (audit UX1). The window's own leave warning
+	 * is then switched off, so the blank page it goes to asks nothing more.
+	 */
+	private async dismiss(): Promise<void> {
+		if (this.asking || !this.dialog?.open) return;
+		const doc = this.document();
+		const forms = doc ? Array.from(doc.querySelectorAll('form.InputfieldFormConfirm:not(.InputfieldFormSubmitted)'))
+			.filter(f => f.querySelector('.InputfieldStateChanged')) : [];
+		if (forms.length) {
+			this.asking = true;
+			const { confirm } = await import('../util/danger');
+			const ok = await confirm({ title: label('discardChanges', 'This page has unsaved changes. Leave it?'), danger: true });
+			this.asking = false;
+			if (!ok) return;
+			forms.forEach(f => f.classList.add('InputfieldFormSubmitted'));
+		}
+		this.close(true);
 	}
 
 	/** the page in the window, when it is ours to read */
@@ -198,6 +234,15 @@ export class PwDialog extends HTMLElement {
 		}
 		if (!opts.title) this.setTitle(doc.title || '');
 		if (opts.onLoad) opts.onLoad(doc, this);
+		// Escape in the window's page closes the dialog as it does outside it (the page holds the
+		// focus, so the dialog never hears the key), unless something in the page used it or a
+		// control or a dialog of its own has the focus (audit UX1)
+		doc.addEventListener('keydown', e => {
+			const t = e.target as Element;
+			if (e.key !== 'Escape' || e.defaultPrevented || doc.querySelector('dialog[open]') || (t && t.closest && t.closest('input, select, textarea, [contenteditable]'))) return;
+			e.preventDefault();
+			void this.dismiss();
+		});
 		doc.addEventListener('click', e => {
 			const t = e.target as Element;
 			if (t && t.closest && t.closest('.pw-modal-cancel')) {
@@ -206,6 +251,15 @@ export class PwDialog extends HTMLElement {
 			}
 		});
 		this.setButtons(doc);
+		// the keyboard goes into the window when its first page is there, unless the user has
+		// moved the focus out of the dialog's bar meanwhile (audit UX1)
+		if (!this.focused) {
+			this.focused = true;
+			const active = document.activeElement;
+			if (!active || active === document.body || active === this.dialog || active.classList.contains('pw-dialog-close')) {
+				try { this.frame?.contentWindow?.focus(); } catch { /* another origin */ }
+			}
+		}
 	}
 
 	private setButtons(doc: Document): void {

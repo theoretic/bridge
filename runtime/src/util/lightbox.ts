@@ -43,6 +43,8 @@ export function openLightbox(items: LightboxItem[], index = 0): void {
 		img.alt = items[n].title || '';
 		caption.textContent = items[n].title || '';
 		caption.style.display = items[n].title ? '' : 'none';
+		// named by the image's title, else "Image", with its place in a gallery (audit UX1)
+		d.setAttribute('aria-label', (items[n].title || label('image', 'Image')) + (items.length > 1 ? ` (${n + 1}/${items.length})` : ''));
 	};
 	const step = (by: number): void => { n = (n + by + items.length) % items.length; show(); };
 	prev.style.display = next.style.display = items.length > 1 ? '' : 'none';

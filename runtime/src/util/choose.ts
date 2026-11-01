@@ -22,6 +22,10 @@ export function choose(message: string, choices: Choice[], noteHtml = ''): Promi
 			'</select>' + (noteHtml ? `<div class="pw-ask-note detail">${noteHtml}</div>` : '') +
 			`<div class="pw-ask-buttons"><button type="submit" value="ok" class="ui-button pw-button">${esc(label('ok', 'OK'))}</button>` +
 			`<button type="submit" value="cancel" class="ui-button pw-button ui-priority-secondary">${esc(label('cancel', 'Cancel'))}</button></div></form>`);
+		// named by its message (audit UX1)
+		const title = d.querySelector('.pw-ask-message') as HTMLElement;
+		title.id = 'pw-choose-' + Date.now();
+		d.setAttribute('aria-labelledby', title.id);
 		document.body.appendChild(d);
 		d.addEventListener('close', () => {
 			const select = d.querySelector('select') as HTMLSelectElement;

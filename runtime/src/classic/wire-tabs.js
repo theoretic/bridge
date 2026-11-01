@@ -92,6 +92,10 @@
 			if(o.id) list.id = o.id;
 		}
 
+		// tab roles (audit UX1): the list, its tabs and their panels; a plain link (the View tab)
+		// stays a link
+		list.setAttribute('role', 'tablist');
+
 		// state lives on the target: a re-init (in-place save swaps the form's children) reuses it
 		var state = target.pwWireTabs || (target.pwWireTabs = { lastTabID: '', submitBound: false });
 		state.options = o;
@@ -126,8 +130,31 @@
 				link.pwWireTab = true;
 				link.addEventListener('click', onClick);
 			}
+			if(contentFor(link) === item) {
+				link.setAttribute('role', 'tab');
+				link.setAttribute('aria-controls', item.id);
+				link.setAttribute('aria-selected', 'false');
+				link.tabIndex = -1;
+				if(link.parentNode && link.parentNode.tagName === 'LI') link.parentNode.setAttribute('role', 'presentation');
+				item.setAttribute('role', 'tabpanel');
+				item.setAttribute('aria-labelledby', link.id);
+			}
 			item.style.display = 'none';
 		});
+		// Left / Right, Home / End move between the tabs and open them, as <pw-tabs> does
+		if(!list.pwWireKeys) {
+			list.pwWireKeys = true;
+			list.addEventListener('keydown', function(e) {
+				var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));
+				var i = tabs.indexOf(e.target);
+				var n = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+				if(i < 0 || n === undefined) return;
+				e.preventDefault();
+				var to = tabs[(n + tabs.length) % tabs.length];
+				to.focus();
+				to.click();
+			});
+		}
 		if(generate) target.insertBefore(list, target.firstChild);
 
 		function onClick(e) {
@@ -140,6 +167,10 @@
 			var oldContent = old && old !== link ? contentFor(old) : null;
 			if(old) old.classList.remove(active);
 			link.classList.add(active);
+			Array.prototype.forEach.call(list.querySelectorAll('[role="tab"]'), function(tab) {
+				tab.setAttribute('aria-selected', tab === link ? 'true' : 'false');
+				tab.tabIndex = tab === link ? 0 : -1;
+			});
 			if(o.liActiveClass) {
 				var on = list.querySelector('li.' + o.liActiveClass);
 				if(on) on.classList.remove(o.liActiveClass);

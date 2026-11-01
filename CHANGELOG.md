@@ -1,5 +1,15 @@
 # Changelog
 
+## AdminThemeBridge 0.20.0: dialogs, the drawer and tabs from the keyboard (2026-11-01)
+
+From the 2026-11-01 audit (UX1). Checked in a browser by the new `tools/a11y-check.js`.
+
+- **The dialog** gives its page the focus once it has loaded, so Tab starts inside it. Its close button, Escape and a click on the backdrop now ask first when the page in it holds a form with unsaved changes; the page's own leave warning then stays quiet. Escape pressed while the focus is in the page closes the dialog too; it did nothing before. A click on the dialog's padding no longer counts as the backdrop.
+- **Every dialog has a name**: the choice dialog (the repeater's copy and paste), the files move dialog, the lightbox (the image's title, else "Image", with its place in a gallery) and the Debug Mode Tools panel. The panel's sections open from the keyboard too.
+- **The mobile menu** is a disclosure: opening it focuses its first link, Escape closes it and gives the focus back to the menu button, and the focus leaving it closes it.
+- **WireTabs** (the page editor's tabs and every Process that uses them) and **language tabs** are tab lists for screen readers: tab roles, the selected tab, the panels they control. Left and Right, Home and End move between the tabs and open them, as in `<pw-tabs>`.
+- **Names for controls that show only an icon**: the image field's three view buttons (pressed while on), the arrow next to a Save button, the remove sign of an asmSelect item, the tag remove sign, the date picker's calendar button, the page table's trash icons; the repeater's drag icon is hidden from screen readers (Alt+Up and Down sort the items), and its controls keep a name when the field's labels are missing. The tag input is a combobox with its list of suggestions.
+- New runtime labels, translatable with the theme: `image`, `remove`, `moreActions`, `imageViewList`, `imageViewLeft`, `imageViewGrid`, `pickDate`.
 ## AdminThemeBridge 0.19.0: faster on the server (2026-11-01)
 
 From the 2026-11-01 audit (PF1, PF2). Profiled with Xdebug on the atispro sandbox: Bridge drew far less in the browser than Uikit, but took longer on the server. Most of that was the main menu, built from every admin page and module on each request.

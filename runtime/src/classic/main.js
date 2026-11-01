@@ -1018,16 +1018,31 @@ var ProcessWireAdminTheme = {
 			e.preventDefault();
 			self.removeNotices(remove.closest('#notices'));
 		});
-		// mobile nav toggle: theme-owned, works with and without jQuery
+		// mobile nav toggle: theme-owned, works with and without jQuery. The drawer is a disclosure
+		// (audit UX1): opening it focuses its first link; Escape closes it and focuses the toggle;
+		// the focus leaving it, or a click elsewhere, closes it
+		var drawer = function(open, focus) {
+			var toggle = document.querySelector('.pw-nav-toggle');
+			document.body.classList.toggle('pw-nav-open', open);
+			if(toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+			var to = !focus ? null : open ? document.querySelector('#pw-nav a[href]') : toggle;
+			if(to) to.focus();
+		};
+		var drawerOpen = function() { return document.body.classList.contains('pw-nav-open'); };
 		document.addEventListener('click', function(e) {
-			var navToggle = e.target.closest('.pw-nav-toggle');
-			if(navToggle) {
+			if(e.target.closest('.pw-nav-toggle')) {
 				e.preventDefault();
-				var open = document.body.classList.toggle('pw-nav-open');
-				navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-			} else if(document.body.classList.contains('pw-nav-open') && !e.target.closest('.pw-nav')) {
-				document.body.classList.remove('pw-nav-open');
+				drawer(!drawerOpen(), true);
+			} else if(drawerOpen() && !e.target.closest('.pw-nav')) {
+				drawer(false);
 			}
+		});
+		document.addEventListener('keydown', function(e) {
+			if(e.key === 'Escape' && drawerOpen() && !document.querySelector('dialog[open]')) drawer(false, true);
+		});
+		document.addEventListener('focusout', function(e) {
+			var to = e.relatedTarget;
+			if(drawerOpen() && to && e.target.closest && e.target.closest('#pw-nav') && !to.closest('#pw-nav, .pw-nav-toggle')) drawer(false);
 		});
 		// dropdowns (native pages only: with the stack, upstream main.js owns .pw-dropdown-toggle).
 		// Hover opens like upstream; click toggles; .pw-dropdown-toggle-click is click-only. On touch
@@ -1909,7 +1924,9 @@ if(!ProcessWireAdminTheme.upstream() && !window.InputfieldSubmitDropdown) {
 			if(button.classList.contains('ui-priority-secondary')) toggle.classList.add('ui-priority-secondary');
 			if(button.classList.contains('pw-head-button')) toggle.classList.add('pw-head-button');
 			toggle.setAttribute('aria-haspopup', 'menu');
-			toggle.innerHTML = ProcessWireAdminTheme.trusted.html("<span class='ui-button-text'><i class='fa fa-angle-down'></i></span>");
+			// named: its text is an arrow (audit UX1)
+			toggle.setAttribute('aria-label', ((ProcessWire.config.AdminThemeBridge || {}).labels || {}).moreActions || 'More actions');
+			toggle.innerHTML = ProcessWireAdminTheme.trusted.html("<span class='ui-button-text'><i class='fa fa-angle-down' aria-hidden='true'></i></span>");
 			wrap.appendChild(toggle);
 			ul.classList.add('pw-dropdown-menu', 'pw-dropdown-menu-rounded', 'pw-button-dropdown-init');
 			ul.style.display = 'none';

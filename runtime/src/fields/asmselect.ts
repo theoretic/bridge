@@ -23,6 +23,7 @@
 
 import { makeSortable } from '../util/sortable';
 import { toHTML } from '../util/trusted';
+import { label as themeLabel } from '../util/labels';
 
 type AsmOptions = {
 	listType: string; sortable: boolean; addable: boolean; deletable: boolean; highlight: boolean;
@@ -356,6 +357,8 @@ function setup(original: HTMLSelectElement): void {
 			remove.href = '#';
 			remove.className = options.removeClass;
 			remove.innerHTML = toHTML(options.removeLabel);
+			// named: its text is a × (audit UX1)
+			remove.setAttribute('aria-label', themeLabel('remove', 'Remove') + ': ' + (label.textContent || '').trim());
 			remove.addEventListener('click', e => {
 				e.preventDefault();
 				dropListItem(optionId);

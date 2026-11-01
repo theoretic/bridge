@@ -419,7 +419,8 @@ function setupPicker(input: HTMLInputElement): void {
 		trigger = document.createElement('a');
 		trigger.className = 'pw-ui-datepicker-trigger';
 		trigger.href = '#';
-		trigger.innerHTML = toHTML("<i class='fa fa-calendar'></i>");
+		trigger.innerHTML = toHTML("<i class='fa fa-calendar' aria-hidden='true'></i>");
+		trigger.setAttribute('aria-label', label('pickDate', 'Choose a date')); // a bare icon (audit UX1)
 		input.insertAdjacentElement('afterend', trigger);
 		on(trigger, 'mousedown', e => e.preventDefault());
 		on(trigger, 'click', e => {

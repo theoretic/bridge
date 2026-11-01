@@ -53,7 +53,10 @@ function cfg(): Cfg {
 	const pw = (window as unknown as { ProcessWire?: { config?: Record<string, unknown> } }).ProcessWire;
 	return ((pw && pw.config && pw.config.InputfieldRepeater) || {}) as Cfg;
 }
-const label = (key: string): string => (cfg().labels || {})[key] || '';
+// the field's own labels (InputfieldRepeater's config); English names when they are missing, so
+// no control is left unnamed (audit UX1)
+const FALLBACK: Record<string, string> = { toggle: 'Turn on or off', remove: 'Delete', clone: 'Copy, clone or paste', settings: 'Settings', insertAfter: 'Insert after', insertBefore: 'Insert before' };
+const label = (key: string): string => (cfg().labels || {})[key] || FALLBACK[key] || '';
 function pageVersion(): number {
 	const pw = (window as unknown as { ProcessWire?: { config?: { PagesVersions?: { version?: number } } } }).ProcessWire;
 	return (pw && pw.config && pw.config.PagesVersions && pw.config.PagesVersions.version) || 0;
@@ -254,7 +257,9 @@ function initHeader(h: HTMLElement, repeater: HTMLElement, renderValue: boolean)
 		h.classList.add('ui-priority-secondary');
 	}
 	h.classList.add('ui-state-default', 'InputfieldRepeaterHeaderInit');
-	h.insertBefore(icon('fa-fw ' + ic + ' InputfieldRepeaterDrag', ''), h.firstChild);
+	const drag = icon('fa-fw ' + ic + ' InputfieldRepeaterDrag', '');
+	drag.setAttribute('aria-hidden', 'true'); // the pointer's handle; Alt+Up / Down sort from the keyboard
+	h.insertBefore(drag, h.firstChild);
 	if (!renderValue) {
 		const controls = document.createElement('span');
 		controls.className = 'InputfieldRepeaterItemControls';

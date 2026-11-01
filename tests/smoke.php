@@ -1134,6 +1134,24 @@ check('TT core\'s inline confirm and click guard become data attributes, nothing
 	&& strpos($handlersOut, "<input type='checkbox' data-pw-noclick />") !== false && strpos($handlersOut, 'onclick="other()"') !== false
 	&& strpos($handlersOut, 'return confirm') === false, $handlersOut);
 check('TT the setup script asks for them with the theme\'s dialog', strpos($srcOf('classic/setup.js'), "closest('[data-pw-confirm], [data-pw-noclick]')") !== false);
+// 0.20.0: dialogs, drawer and tabs (audit UX1); the browser side is tools/a11y-check.js
+check('UX1 the dialog asks before a dismissal throws away unsaved changes, and focuses its window', strpos($srcOf('elements/pw-dialog.ts'), "private async dismiss(): Promise<void>") !== false
+	&& strpos($srcOf('elements/pw-dialog.ts'), "dialog.addEventListener('cancel', e => {") !== false
+	&& strpos($srcOf('elements/pw-dialog.ts'), 'this.frame?.contentWindow?.focus()') !== false);
+check('UX1 every dialog is named', strpos($srcOf('util/choose.ts'), "d.setAttribute('aria-labelledby', title.id);") !== false
+	&& strpos($srcOf('fields/files-move.ts'), "d.setAttribute('aria-labelledby', message.id);") !== false
+	&& strpos($srcOf('util/lightbox.ts'), "d.setAttribute('aria-label',") !== false
+	&& strpos($srcOf('classic/debug-tools.js'), "dialog.setAttribute('aria-labelledby', 'pw-debug-title');") !== false);
+check('UX1 the drawer closes on Escape and gives the focus back', strpos($srcOf('classic/main.js'), "if(e.key === 'Escape' && drawerOpen() && !document.querySelector('dialog[open]')) drawer(false, true);") !== false);
+check('UX1 WireTabs and language tabs are tablists with arrow keys', strpos($srcOf('classic/wire-tabs.js'), "list.setAttribute('role', 'tablist');") !== false
+	&& strpos($srcOf('classic/wire-tabs.js'), "ArrowRight: i + 1") !== false
+	&& strpos($srcOf('inputfields/langtabs.ts'), "if (ul) ul.setAttribute('role', 'tablist');") !== false);
+if(isset($bridge) && $bridge) {
+	$labels = $bridge->runtimeLabels();
+	$missing = array_diff(array('image', 'remove', 'moreActions', 'imageViewList', 'imageViewLeft', 'imageViewGrid', 'pickDate'), array_keys($labels));
+	check('UX1 the new names are runtime labels', !count($missing), implode(', ', $missing));
+}
+
 // 0.19.0: performance (audit PF1, PF2)
 if(isset($bridge) && $bridge) {
 	$shellSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');

@@ -21,6 +21,7 @@ import { changed, setValue } from '../util/events';
 import { fetchOk, failed } from '../util/fail';
 import { onRemoval } from '../util/removal';
 import { toHTML } from '../util/trusted';
+import { label } from '../util/labels';
 
 const sortables = new Map<HTMLElement, () => void>();
 // per-element state, dropped when its element leaves the page (audit R6)
@@ -39,6 +40,11 @@ function updateSort(tbody: HTMLElement): void {
 }
 
 function makeRowsSortable(container: HTMLElement): void {
+	// the rows' trash icons are named: they show no text (audit UX1)
+	container.querySelectorAll<HTMLElement>('a.InputfieldPageTableDelete:not([aria-label])').forEach(a => {
+		a.setAttribute('aria-label', label('warnVerbDelete', 'Delete'));
+		a.setAttribute('role', 'button');
+	});
 	if (container.closest('.InputfieldRenderValueMode')) return;
 	const old = sortables.get(container);
 	if (old) old();

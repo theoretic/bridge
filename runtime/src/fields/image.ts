@@ -39,6 +39,7 @@ import { onRemoval } from '../util/removal';
 import { esc } from '../util/html';
 import { toHTML } from '../util/trusted';
 import { failed } from '../util/fail';
+import { label } from '../util/labels';
 
 type Focus = { top: number; left: number; zoom: number };
 type Settings = { size: number; listSize: number; mode: string };
@@ -324,16 +325,27 @@ function setupHeader(inputfield: HTMLElement, signal: AbortSignal): void {
 	if (!header || header.querySelector('.InputfieldImageListToggle')) return;
 	const set = settings(inputfield);
 	const toggles: HTMLAnchorElement[] = [];
+	const names: Record<string, string> = {
+		list: label('imageViewList', 'Show as a list with details'),
+		left: label('imageViewLeft', 'Show as a list with thumbnails'),
+		grid: label('imageViewGrid', 'Show as a grid'),
+	};
+	// named, and pressed while on (audit UX1)
+	const press = (): void => toggles.forEach(t => t.setAttribute('aria-pressed', t.classList.contains(ACTIVE) ? 'true' : 'false'));
 	for (const [mode, icon] of [['list', 'fa-th-list'], ['left', 'fa-tasks'], ['grid', 'fa-th']]) {
 		const a = document.createElement('a');
 		a.className = 'InputfieldImageListToggle';
 		a.href = mode;
-		a.innerHTML = toHTML(`<i class='fa ${icon}'></i>`);
+		a.innerHTML = toHTML(`<i class='fa ${icon}' aria-hidden='true'></i>`);
+		a.setAttribute('role', 'button');
+		a.setAttribute('aria-label', names[mode]);
+		a.title = names[mode];
 		a.addEventListener('click', e => {
 			e.preventDefault();
 			if (legacyLoaded()) return;
 			const prev = toggles.find(t => t.classList.contains(ACTIVE));
 			toggles.forEach(t => t.classList.toggle(ACTIVE, t === a));
+			press();
 			setMode(inputfield, mode, prev ? prev.getAttribute('href') || '' : '');
 			a.blur();
 		}, { signal });
@@ -342,6 +354,7 @@ function setupHeader(inputfield: HTMLElement, signal: AbortSignal): void {
 	}
 	const current = toggles.find(t => t.getAttribute('href') === set.mode) || toggles[2];
 	current.classList.add(ACTIVE);
+	press();
 	if (set.mode === 'list') setMode(inputfield, 'list');
 	else if (set.mode === 'left') setMode(inputfield, 'left');
 

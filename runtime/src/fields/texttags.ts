@@ -21,6 +21,7 @@ import { makeSortable } from '../util/sortable';
 import { on } from '../legacy';
 import { esc } from '../util/html';
 import { toHTML } from '../util/trusted';
+import { label } from '../util/labels';
 
 export type Opts = {
 	delimiter?: string; closeAfterSelect?: boolean; createOnBlur?: boolean; maxItems?: number;
@@ -76,6 +77,19 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 	content.className = 'selectize-dropdown-content';
 	dropdown.appendChild(content);
 	control.append(box, dropdown);
+	// a combobox with its listbox (audit UX1)
+	const listId = (text.id || 'pw-tags-' + Math.random().toString(36).slice(2)) + '-list';
+	content.id = listId;
+	content.setAttribute('role', 'listbox');
+	text.setAttribute('role', 'combobox');
+	text.setAttribute('aria-autocomplete', 'list');
+	text.setAttribute('aria-controls', listId);
+	text.setAttribute('aria-expanded', 'false');
+	const shown = (show: boolean): void => {
+		dropdown.style.display = show ? 'block' : 'none';
+		text.setAttribute('aria-expanded', show ? 'true' : 'false');
+		if (!show) text.removeAttribute('aria-activedescendant');
+	};
 	original.insertAdjacentElement('afterend', control);
 	original.classList.add('selectized');
 	original.style.display = 'none';
@@ -115,7 +129,9 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 			const div = document.createElement('div');
 			div.className = 'item';
 			div.setAttribute('data-value', t.value);
-			div.innerHTML = toHTML(esc(t.label) + (single ? '' : '<a href="#" class="remove" tabindex="-1" title="Remove">×</a>'));
+			// the remove link stays out of the tab order (Backspace removes from the keyboard), named (audit UX1)
+			const rm = esc(label('remove', 'Remove'));
+			div.innerHTML = toHTML(esc(t.label) + (single ? '' : `<a href="#" class="remove" tabindex="-1" title="${rm}" aria-label="${rm}: ${esc(t.label)}">×</a>`));
 			box.insertBefore(div, text);
 		});
 		const full = !!max && items.length >= max;
@@ -144,12 +160,12 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 		const list = candidates();
 		const q = text.value.trim();
 		let html = '';
-		if (canCreate(q)) html += '<div class="create" data-selectable data-value="' + esc(q) + '">' + (o.addLabel || 'Add') + ' <strong>' + esc(q) + '</strong>&hellip;</div>';
-		list.forEach(t => { html += '<div class="option" data-selectable data-value="' + esc(t.value) + '">' + esc(t.label) + '</div>'; });
+		if (canCreate(q)) html += '<div class="create" role="option" data-selectable data-value="' + esc(q) + '">' + (o.addLabel || 'Add') + ' <strong>' + esc(q) + '</strong>&hellip;</div>';
+		list.forEach(t => { html += '<div class="option" role="option" data-selectable data-value="' + esc(t.value) + '">' + esc(t.label) + '</div>'; });
 		content.innerHTML = toHTML(html);
 		active = -1;
 		const show = html.length > 0 && document.activeElement === text;
-		dropdown.style.display = show ? 'block' : 'none';
+		shown(show);
 		box.classList.toggle('dropdown-active', show);
 		if (show) {
 			dropdown.style.width = control.offsetWidth + 'px';
@@ -164,8 +180,14 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 
 	const setActive = (n: number): void => {
 		const opts = content.querySelectorAll<HTMLElement>('[data-selectable]');
-		opts.forEach((el, i) => el.classList.toggle('active', i === n));
+		opts.forEach((el, i) => {
+			el.classList.toggle('active', i === n);
+			el.id = listId + '-' + i;
+			el.setAttribute('aria-selected', i === n ? 'true' : 'false');
+		});
 		active = n;
+		if (opts[n]) text.setAttribute('aria-activedescendant', opts[n].id);
+		else text.removeAttribute('aria-activedescendant');
 		if (opts[n]) opts[n].scrollIntoView({ block: 'nearest' });
 	};
 
@@ -181,7 +203,7 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 		renderItems();
 		sync();
 		if (o.closeAfterSelect !== false || single) {
-			dropdown.style.display = 'none';
+			shown(false);
 			box.classList.remove('dropdown-active');
 			if (single) text.blur();
 		} else {
@@ -260,7 +282,7 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 	});
 	on(text, 'blur', () => {
 		box.classList.remove('focus', 'input-active', 'dropdown-active');
-		dropdown.style.display = 'none';
+		shown(false);
 		const q = text.value.trim();
 		if (q && o.createOnBlur && canCreate(q)) add(q);
 		else if (!isSelect && q && allowCreate) add(q); // a free-tag input keeps what was typed
@@ -300,7 +322,7 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 		} else if (e.key === 'Backspace' && !text.value && items.length) {
 			remove(items[items.length - 1].value);
 		} else if (e.key === 'Escape') {
-			dropdown.style.display = 'none';
+			shown(false);
 			box.classList.remove('dropdown-active');
 		}
 	});

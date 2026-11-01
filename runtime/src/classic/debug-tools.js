@@ -24,11 +24,25 @@
 			dialog.className = 'pw-dialog pw-dialog-large';
 			dialog.innerHTML = window.ProcessWireAdminTheme.trusted.html("<div class='pw-dialog-bar'><span></span><button type='button' class='pw-dialog-close'>×</button></div><div class='pw-dialog-content'></div>");
 			dialog.firstChild.firstChild.textContent = link.getAttribute('data-tab-text');
+			// named by its title (audit UX1)
+			dialog.firstChild.firstChild.id = 'pw-debug-title';
+			dialog.setAttribute('aria-labelledby', 'pw-debug-title');
 			// translated by the theme (audit U4)
 			dialog.firstChild.lastChild.setAttribute('aria-label', ((ProcessWire.config.AdminThemeBridge || {}).labels || {}).close || 'Close');
 			// the close button and the backdrop
 			dialog.addEventListener('click', function(e) {
-				if(e.target === dialog || e.target.className === 'pw-dialog-close') dialog.close();
+				var r = dialog.getBoundingClientRect();
+				var outside = e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+				if((e.target === dialog && outside) || e.target.className === 'pw-dialog-close') dialog.close();
+			});
+			// the accordion's headings open from the keyboard too (audit UX1)
+			Array.prototype.forEach.call(panel.querySelectorAll('.container > h3'), function(h) {
+				h.tabIndex = 0;
+				h.setAttribute('role', 'button');
+				h.setAttribute('aria-expanded', 'false');
+				h.addEventListener('keydown', function(e) {
+					if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); h.click(); }
+				});
 			});
 			dialog.lastChild.appendChild(panel);
 			document.body.appendChild(dialog);
@@ -49,8 +63,11 @@
 			var on = !box.classList.contains('pw-debug-open');
 			Array.prototype.forEach.call(document.querySelectorAll('#debug .pw-debug-open'), function(other) {
 				other.classList.remove('pw-debug-open');
+				var h = other.querySelector(':scope > h3');
+				if(h) h.setAttribute('aria-expanded', 'false');
 			});
 			box.classList.toggle('pw-debug-open', on);
+			head.setAttribute('aria-expanded', on ? 'true' : 'false');
 		}
 	});
 })();

@@ -181,6 +181,10 @@ function ask(field: HTMLElement, src: HTMLElement, rows: Row[]): Promise<Record<
 		};
 		d.addEventListener('change', count);
 		count();
+		// named by its title (audit UX1)
+		const message = d.querySelector('.pw-ask-message') as HTMLElement;
+		message.id = 'pw-move-' + Date.now();
+		d.setAttribute('aria-labelledby', message.id);
 		document.body.appendChild(d);
 		d.addEventListener('close', () => {
 			resolve(d.returnValue === 'ok' ? choices() : null);

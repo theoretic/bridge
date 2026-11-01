@@ -38,6 +38,10 @@ function activate(link: HTMLElement): void {
 	const ul = link.closest('ul');
 	const active = cfg().liActiveClass || 'uk-active';
 	if (ul) {
+		ul.querySelectorAll<HTMLElement>(':scope > li > a.langTabLink').forEach(a => {
+			a.setAttribute('aria-selected', a === link ? 'true' : 'false');
+			a.tabIndex = a === link ? 0 : -1;
+		});
 		ul.querySelectorAll(':scope > li').forEach(li => li.classList.remove(active, 'uk-active'));
 		const li = link.closest('li');
 		if (li) li.classList.add(active);
@@ -74,6 +78,21 @@ function setup(tabs: HTMLElement): void {
 	}
 	const links = Array.from(tabs.querySelectorAll<HTMLElement>('a.langTabLink, a[data-lang]'));
 	links.forEach(a => a.classList.add('langTabLink'));
+	// tab roles (audit UX1): the list, its tabs and the language panels
+	const ul = tabs.querySelector(':scope > ul');
+	if (ul) ul.setAttribute('role', 'tablist');
+	links.forEach(a => {
+		const href = a.getAttribute('href') || '';
+		const panel = href.indexOf('#') > -1 ? document.getElementById(href.slice(href.indexOf('#') + 1)) : null;
+		a.setAttribute('role', 'tab');
+		if (a.parentElement) a.parentElement.setAttribute('role', 'presentation');
+		if (!a.id) a.id = 'langTab-' + (panel ? panel.id : Math.random().toString(36).slice(2));
+		if (panel) {
+			a.setAttribute('aria-controls', panel.id);
+			panel.setAttribute('role', 'tabpanel');
+			panel.setAttribute('aria-labelledby', a.id);
+		}
+	});
 	const first = links[cfg().activeTab || 0] || links[0];
 	if (first) activate(first);
 }
@@ -132,6 +151,20 @@ let ready = false;
 export function setupLanguageTabEvents(): void {
 	if (ready) return;
 	ready = true;
+	// Left / Right, Home / End move between a field's language tabs and open them (audit UX1)
+	document.addEventListener('keydown', e => {
+		const link = (e.target as HTMLElement).closest?.<HTMLElement>('.langTabs[data-pw-native] a.langTabLink');
+		const ul = link ? link.closest('ul') : null;
+		if (!link || !ul) return;
+		const tabs = Array.from(ul.querySelectorAll<HTMLElement>(':scope > li > a.langTabLink'));
+		const i = tabs.indexOf(link);
+		const n = ({ ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 } as Record<string, number>)[e.key];
+		if (n === undefined) return;
+		e.preventDefault();
+		const to = tabs[(n + tabs.length) % tabs.length];
+		to.focus();
+		activate(to);
+	});
 	document.addEventListener('click', e => {
 		const target = e.target as HTMLElement;
 		if (!target || !target.closest) return;
