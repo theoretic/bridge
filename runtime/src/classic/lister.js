@@ -29,13 +29,8 @@
 	// listeners end when upstream's own script for this screen takes over (main.js handover)
 	var handover = (theme && theme.handover) || { over: false, bind: function(o) { return o; } };
 
-	function $(sel, root) { return (root || document).querySelector(sel); }
-	function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
-	function flash(el) {
-		if(!el || !el.animate || ProcessWireAdminTheme.still()) return;
-		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
-		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: 400 });
-	}
+	var $ = ProcessWireAdminTheme.$, $$ = ProcessWireAdminTheme.$$; // shared (audit AR2)
+	function flash(el) { ProcessWireAdminTheme.flash(el, 400); }
 	// code from the results' ProcessListerScript part, run as that element (its nonce kept: with a
 	// page nonce it runs only when the response vouched for it, audit SE2)
 	function runScript(code, from, nonce) {
@@ -103,7 +98,8 @@
 	var ProcessLister = window.ProcessLister = {
 		native: true,
 		inInit: true,
-		inTimeout: false,
+		inTimeout: /** @type {any} */ (false), // false, or the pending submit's timer
+		seq: 0, // the newest request's number: an older answer is dropped (audit BG6)
 		inAjax: false,
 		numSubmits: 0,
 		results: null,

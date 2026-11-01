@@ -3,11 +3,8 @@
 /**
  * <head> contents: styles and scripts
  *
- * Script order mirrors upstream so legacy Inputfield scripts find the same globals:
- * JqueryCore and JqueryUI (registered by wire/core/admin.php) are already in $config->scripts,
- * then inputfields.js and main.js from wire/templates-admin, then module scripts, then the
- * theme's own script. In auto mode without legacy needs, the legacy part is not printed but
- * handed to the client in ProcessWire.config.AdminThemeBridge.legacyScripts, in order.
+ * Prints AdminThemeBridge::assetPlan() (lib/AdminThemeBridgeHead.php, audit AR1): which assets,
+ * in which order, deferred or not, is decided there; this file escapes and prints.
  *
  * FileCompiler=0
  */
@@ -18,12 +15,13 @@ if(!defined("PROCESSWIRE")) die();
 /** @var AdminThemeBridge $adminTheme */
 /** @var string $layout */
 
-// what to print, in which order, and the client config: AdminThemeBridge::headPlan()
-// (lib/AdminThemeBridgeHead.php, audit PA1)
-extract($adminTheme->headPlan($layout));
+$plan = $adminTheme->assetPlan($layout);
 // the request's Content-Security-Policy nonce (ADR 0020): on every <style>, <script> and
 // modulepreload link below, and in the meta the scripts read it from; nothing without one
 $nonce = $adminTheme->nonceAttr();
+// URLs printed into attributes are escaped (audit B10)
+$sanitizer = $adminTheme->wire()->sanitizer;
+$attr = function($url) use($sanitizer) { return $sanitizer->entities((string) $url); };
 
 ?>
 	<?php echo $adminTheme->cspMeta(); ?>
@@ -64,57 +62,14 @@ $nonce = $adminTheme->nonceAttr();
 		})(document.documentElement);
 	</script>
 <?php
-// the fonts every screen paints with, fetched alongside the stylesheets instead of after them
-// (same URLs as theme.css and fa.css ask for, crossorigin as font requests are)
-$preloads = array('assets/fonts/geist-latin-wght-normal.woff2');
-// the solid subset's name carries a content hash (fa-subset.mjs): from the build's manifest, else
-// read from fa.css, whose @font-face rules come first (audit PP2)
-$fontPreloads = $adminTheme->manifest('fontPreloads');
-if(is_array($fontPreloads) && $iconVersion && !empty($fontPreloads[$iconVersion])) {
-	$preloads[] = $fontPreloads[$iconVersion];
-} else if(!empty($faCss) && is_file($themeDir . $faCss)) {
-	$faHead = (string) file_get_contents($themeDir . $faCss, false, null, 0, 16384);
-	if(preg_match('/url\((fa-solid-900-subset(?:\.[0-9a-f]+)?\.woff2)\)/', $faHead, $m)) $preloads[] = dirname($faCss) . '/' . $m[1];
-}
-// URLs printed into attributes are escaped (audit B10)
-$sanitizer = $adminTheme->wire()->sanitizer;
-$attr = function($url) use($sanitizer) { return $sanitizer->entities((string) $url); };
-foreach($preloads as $font) {
-	if(is_file($themeDir . $font)) echo "\n\t<link rel='preload' href='" . $attr($themeUrl . $font) . "' as='font' type='font/woff2' crossorigin />";
-}
-foreach($adminTheme->assetUrls($styles) as $file) {
-	if($adminTheme->isOtherThemeAsset($file)) continue;
-	echo "\n\t<link type='text/css' href='" . $attr($file) . "' rel='stylesheet' />";
-}
-// the UIkit layer is one cascade layer (@layer uikit): every unlayered stylesheet wins over it
-if($useUikit) echo "\n\t<link type='text/css' href='" . $attr($uikitCss) . "' rel='stylesheet' data-pw-uikit />";
-echo "\n\t<link type='text/css' href='" . $attr($themeCss) . "' rel='stylesheet' data-pw-theme />";
-echo "\n\t<link type='text/css' href='" . $attr($fieldsCss) . "' rel='stylesheet' data-pw-fields />";
-if($adminTheme->getMaxWidth()) {
-	echo "\n\t<style data-pw-keep$nonce>.pw-container, #notices { max-width:" . $adminTheme->getMaxWidth() . "px; }</style>";
-}
-// the runtime module and the chunk it imports statically, fetched while the page parses instead
-// of after main.js imports it at the end of the body (audit B21, C32); same URL as that import()
-$runtimeFile = $themeDir . 'assets/dist/runtime.js';
-if(is_file($runtimeFile)) {
-	echo "\n\t<link rel='modulepreload' href='" . $attr($bridgeJs['runtimeUrl']) . "'$nonce />";
-	$chunks = $adminTheme->manifest('runtimeChunks');
-	if(!is_array($chunks)) {
-		$chunks = preg_match_all('~from\s*["\']\./(chunks/[\w.-]+\.js)["\']~', (string) file_get_contents($runtimeFile), $m) ? array_unique($m[1]) : array();
-	}
-	foreach($chunks as $chunk) echo "\n\t<link rel='modulepreload' href='" . $attr("{$themeUrl}assets/dist/$chunk") . "'$nonce />";
-}
-// theme scripts that no inline code calls while the page parses run deferred (in order, before
-// DOMContentLoaded); main.js (stand-ins, InputfieldSubmitDropdown), lister.js
-// (ProcessLister.initialized), page-edit.js and wire-tabs.js (the editor's inline init) do not
-$deferrable = array('scripts/setup.js', 'scripts/screens.js', 'scripts/link.js', 'scripts/image-select.js', 'scripts/save-wait.js', 'scripts/page-save.js');
-foreach($printScripts as $file) {
-	if($adminTheme->isOtherThemeAsset($file)) continue;
-	$defer = '';
-	if(strpos($file, $themeUrl) === 0) {
-		$rel = preg_replace('/\?.*$/', '', substr($file, strlen($themeUrl)));
-		if(in_array($rel, $deferrable, true)) $defer = ' defer';
-	}
-	echo "\n\t<script type='text/javascript' src='" . $attr($file) . "'$defer$nonce></script>";
+foreach($plan->fontPreloads as $font) echo "\n\t<link rel='preload' href='" . $attr($font) . "' as='font' type='font/woff2' crossorigin />";
+foreach($plan->styles as $file) echo "\n\t<link type='text/css' href='" . $attr($file) . "' rel='stylesheet' />";
+if($plan->uikitCss) echo "\n\t<link type='text/css' href='" . $attr($plan->uikitCss) . "' rel='stylesheet' data-pw-uikit />";
+echo "\n\t<link type='text/css' href='" . $attr($plan->themeCss) . "' rel='stylesheet' data-pw-theme />";
+echo "\n\t<link type='text/css' href='" . $attr($plan->fieldsCss) . "' rel='stylesheet' data-pw-fields />";
+if($plan->maxWidth) echo "\n\t<style data-pw-keep$nonce>.pw-container, #notices { max-width:" . (int) $plan->maxWidth . "px; }</style>";
+foreach($plan->modulePreloads as $url) echo "\n\t<link rel='modulepreload' href='" . $attr($url) . "'$nonce />";
+foreach($plan->scripts as $script) {
+	echo "\n\t<script type='text/javascript' src='" . $attr($script['url']) . "'" . ($script['defer'] ? ' defer' : '') . "$nonce></script>";
 }
 echo "\n";

@@ -45,8 +45,7 @@
 		});
 	}, true);
 
-	function $(sel, root) { return (root || document).querySelector(sel); }
-	function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+	var $ = ProcessWireAdminTheme.$, $$ = ProcessWireAdminTheme.$$; // shared (audit AR2)
 	function on(el, type, fn) { if(el) el.addEventListener(type, fn, handover.bind()); }
 	// document listeners bind once: init() runs again after a save without reload (milestone 3.8)
 	var docBound = {};
@@ -57,11 +56,7 @@
 	}
 	function show(el, yes) { if(el) el.style.display = yes ? '' : 'none'; }
 	function shown(el) { return !!el && el.style.display !== 'none'; }
-	function flash(el) {
-		if(!el || !el.animate || ProcessWireAdminTheme.still()) return;
-		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
-		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: 1000 });
-	}
+	function flash(el) { ProcessWireAdminTheme.flash(el, 1000); }
 	function submitForm(form) {
 		if(!form) return;
 		if(form.requestSubmit) form.requestSubmit(); else form.submit();
@@ -190,13 +185,13 @@
 			input.setAttribute('data-pw-slider', '');
 			var range = document.createElement('input');
 			range.type = 'range';
-			range.min = 10;
-			range.max = 100;
+			range.min = '10';
+			range.max = '100';
 			range.className = 'InputfieldColumnWidthSlider';
 			range.setAttribute('aria-label', window.Inputfields && Inputfields.label ? Inputfields.label(input) || 'Column width' : 'Column width');
 			var val = parseInt(input.value, 10) || 100;
 			input.value = val + '%';
-			range.value = val;
+			range.value = String(val);
 			input.insertAdjacentElement('afterend', range);
 			range.addEventListener('input', function() {
 				input.value = range.value + '%';
@@ -209,7 +204,7 @@
 				if(v > 100) v = 100;
 				if(v < 10) v = 10;
 				input.value = v + '%';
-				range.value = v;
+				range.value = String(v);
 			}, handover.bind());
 		});
 
@@ -222,7 +217,7 @@
 			var id = $('#Inputfield_id');
 			var href = './edit?id=' + (id ? id.value : '');
 			if(this.value > 0) href += '&fieldgroup_id=' + this.value;
-			window.location = href;
+			window.location.href = href;
 		});
 		$$('a.fieldFlag').forEach(function(a) {
 			a.addEventListener('click', function(e) { if(a.getAttribute('href') === '#') e.preventDefault(); }, handover.bind());
@@ -371,7 +366,7 @@
 	 */
 	function setupRows() {
 		var items = $$('#wrap_fieldgroup_fields .asmListItem');
-		var last = null, lastWidth = 0, total = 0, rows = 0;
+		var last = /** @type {HTMLElement|null} */ (null), lastWidth = 0, total = 0, rows = 0;
 		items.forEach(function(item) {
 			item.classList.remove('rowItem', 'rowStart', 'rowStop', 'rowError');
 			var cw = $('.columnWidth', item);

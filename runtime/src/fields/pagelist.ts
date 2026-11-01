@@ -34,6 +34,7 @@ import { setCookie } from '../util/cookie';
 import { legacyLoaded } from '../legacy';
 import { makeSelectable } from '../util/selection';
 import { toHTML } from '../util/trusted';
+import { el } from '../util/dom';
 import { failed } from '../util/fail';
 
 type Action = { cn: string; name: string; url: string; extras?: Record<string, Action>; ajax?: boolean };
@@ -60,12 +61,7 @@ function pw(): { config: Record<string, unknown>; icon?: (name: string, extra?: 
 	return ((window as unknown as { ProcessWire?: ReturnType<typeof pw> }).ProcessWire) || { config: {} };
 }
 function alertMsg(m: string): void { const p = pw(); if (p.alert) p.alert(m); else window.alert(m); }
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''): HTMLElementTagNameMap[K] {
-	const e = document.createElement(tag);
-	if (cls) e.className = cls;
-	if (html) e.innerHTML = toHTML(html);
-	return e;
-}
+
 const kids = (e: Element | null, sel: string): HTMLElement[] => e ? Array.from(e.children).filter(c => c.matches(sel)) as HTMLElement[] : [];
 const next = (e: Element, sel: string): HTMLElement | null => { const n = e.nextElementSibling; return n && n.matches(sel) ? n as HTMLElement : null; };
 const prev = (e: Element, sel: string): HTMLElement | null => { const n = e.previousElementSibling; return n && n.matches(sel) ? n as HTMLElement : null; };

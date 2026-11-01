@@ -28,6 +28,7 @@ import { notice } from '../util/notice';
 import { failed } from '../util/fail';
 import { label } from '../util/labels';
 import { esc } from '../util/html';
+import { fileName } from '../util/dom';
 import { guard, fill } from '../util/danger';
 import { parseHTML, toHTML } from '../util/trusted';
 
@@ -65,12 +66,8 @@ const nameOf = (field: Element): string => (field.id || '').replace(/^wrap_Input
 const extensions = (field: Element): string[] => { const up = uploadOf(field); return up ? uploadTarget(up).extensions.split(/\s+/).filter(Boolean) : []; };
 const extOf = (name: string): string => (name.split('.').pop() || '').toLowerCase();
 
-function basename(li: HTMLElement): string {
-	const link = li.querySelector('a.InputfieldFileName');
-	const img = li.querySelector('.gridImage__overflow img');
-	const url = (link && link.getAttribute('href')) || (img && (img.getAttribute('data-original') || img.getAttribute('src'))) || '';
-	try { return decodeURIComponent(url.split('?')[0].split('/').pop() || ''); } catch (err) { return url.split('?')[0].split('/').pop() || ''; }
-}
+const basename = fileName;
+
 
 function rowOf(li: HTMLElement): Row {
 	const name = basename(li);

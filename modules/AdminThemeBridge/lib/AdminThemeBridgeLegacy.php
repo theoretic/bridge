@@ -222,7 +222,7 @@ trait AdminThemeBridgeLegacy {
 			if(!$forConfig && in_array($url, $before, true)) continue;
 			if($own && strpos($url, $own) === 0) continue;
 			if(!$this->isJqueryScript($url)) continue;
-			$path = preg_replace('/[?#].*$/', '', $url);
+			$path = self::stripQuery($url);
 			$dir = $this->siteModuleDir($path);
 			$reason = $this->scriptReason($path);
 			// a field module's script (added as its Inputfield renders) has the Inputfield's reason,
@@ -337,12 +337,25 @@ trait AdminThemeBridgeLegacy {
 	 *
 	 */
 	public function getNativeOverrides() {
-		if($this->nativeOverridesCache !== null) return $this->nativeOverridesCache;
-		$this->nativeOverridesCache = array();
-		foreach(preg_split('/\r?\n/', (string) $this->get('nativeOverrides')) as $line) {
-			if(preg_match('/^\s*([A-Z][A-Za-z0-9_]*)\s*=\s*(native|legacy)\s*$/', $line, $m)) $this->nativeOverridesCache[$m[1]] = $m[2];
-		}
+		if($this->nativeOverridesCache === null) $this->nativeOverridesCache = $this->parseNativeOverrides()['ok'];
 		return $this->nativeOverridesCache;
+	}
+
+	/**
+	 * The nativeOverrides setting, read once for both its users (audit AR2): blank lines and
+	 * `#` comments skipped
+	 *
+	 * @return array ok: class => 'native'|'legacy'; bad: the other lines, trimmed
+	 *
+	 */
+	protected function parseNativeOverrides() {
+		$out = array('ok' => array(), 'bad' => array());
+		foreach(preg_split('/\r?\n/', (string) $this->get('nativeOverrides')) as $line) {
+			if(trim($line) === '' || strpos(ltrim($line), '#') === 0) continue;
+			if(preg_match('/^\s*([A-Z][A-Za-z0-9_]*)\s*=\s*(native|legacy)\s*$/', $line, $m)) $out['ok'][$m[1]] = $m[2];
+			else $out['bad'][] = trim($line);
+		}
+		return $out;
 	}
 
 	/**
@@ -352,12 +365,7 @@ trait AdminThemeBridgeLegacy {
 	 *
 	 */
 	public function nativeOverrideErrors() {
-		$bad = array();
-		foreach(preg_split('/\r?\n/', (string) $this->get('nativeOverrides')) as $line) {
-			if(trim($line) === '' || strpos(ltrim($line), '#') === 0) continue;
-			if(!preg_match('/^\s*[A-Z][A-Za-z0-9_]*\s*=\s*(native|legacy)\s*$/', $line)) $bad[] = trim($line);
-		}
-		return $bad;
+		return $this->parseNativeOverrides()['bad'];
 	}
 
 	/**
@@ -509,7 +517,7 @@ trait AdminThemeBridgeLegacy {
 			if(isset($this->settledNeeds[$part]) || empty($this->renderedNeeds[$when])) continue;
 			foreach($this->assetUrls($this->wire()->config->scripts) as $url) {
 				$url = (string) $url;
-				$path = preg_replace('/[?#].*$/', '', $url);
+				$path = self::stripQuery($url);
 				if(strpos($path, $part) === false) continue;
 				$this->settledNeeds[$part] = true;
 				if($this->isJqueryScript($url)) $this->needLegacy($this->scriptReason($path));
@@ -553,7 +561,7 @@ trait AdminThemeBridgeLegacy {
 	 *
 	 */
 	public function isScriptNeedsScript($url) {
-		$path = preg_replace('/[?#].*$/', '', (string) $url);
+		$path = self::stripQuery($url);
 		foreach($this->getScriptNeeds() as $part => $when) {
 			if($part !== '' && strpos($path, $part) !== false) return true;
 		}

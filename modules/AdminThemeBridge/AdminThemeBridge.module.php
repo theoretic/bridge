@@ -12,6 +12,7 @@ require_once(__DIR__ . '/lib/AdminThemeBridgeTables.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeUikit.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeComponents.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeConfig.php');
+require_once(__DIR__ . '/lib/AdminThemeBridgeAssetPlan.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeHead.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgePageAdd.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeFiles.php');
@@ -53,7 +54,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.20.2',
+			'version' => '0.21.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -353,6 +354,73 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		'InputfieldSelect' => array('pw-select', ''),
 	);
 
+	/**
+	 * renderNativeLogo() for this request
+	 *
+	 * @var string|null
+	 *
+	 */
+	protected $nativeLogo = null;
+
+	/**
+	 * manifest() data for this request
+	 *
+	 * @var array|null
+	 *
+	 */
+	protected $manifestData = null;
+
+	/**
+	 * True when this request loaded the theme at boot instead of on admin pages only
+	 *
+	 * @var bool
+	 *
+	 */
+	protected $loadedAtBoot = false;
+
+	/**
+	 * assetUrls() answers
+	 *
+	 * @var array
+	 *
+	 */
+	protected $urlsMemo = array();
+
+	/**
+	 * Per-request memos (audit PF1): componentClass() by class, urlToFile() by path and its
+	 * URL/path pairs
+	 *
+	 */
+	protected $componentClasses = array();
+	protected $urlFiles = array();
+	protected $urlPairs = null;
+
+	/**
+	 * isOtherThemeModule() answers for this request: module name => bool
+	 *
+	 * @var array
+	 */
+	protected $otherThemeModules = array();
+
+	/**
+	 * cspNonce() for this request, once asked (null before; ADR 0020)
+	 *
+	 * @var string|null
+	 *
+	 */
+	protected $nonceValue = null;
+
+	/**
+	 * Theme scripts printed with `defer` (assetPlan()): no inline code calls them while the page
+	 * parses, so they run in order before DOMContentLoaded. main.js (stand-ins,
+	 * InputfieldSubmitDropdown), lister.js (ProcessLister.initialized), page-edit.js and wire-tabs.js
+	 * (the editor's inline init) are not among them
+	 *
+	 * @var array paths relative to the theme's directory
+	 *
+	 */
+	protected $deferrableScripts = array('scripts/setup.js', 'scripts/screens.js', 'scripts/link.js', 'scripts/image-select.js', 'scripts/save-wait.js', 'scripts/page-save.js');
+
 	public function __construct() {
 		parent::__construct();
 		$this->set('legacyStack', self::legacyAuto);
@@ -384,30 +452,6 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			'dl' => 'pw-dl',
 		));
 	}
-
-	/**
-	 * renderNativeLogo() for this request
-	 *
-	 * @var string|null
-	 *
-	 */
-	protected $nativeLogo = null;
-
-	/**
-	 * manifest() data for this request
-	 *
-	 * @var array|null
-	 *
-	 */
-	protected $manifestData = null;
-
-	/**
-	 * True when this request loaded the theme at boot instead of on admin pages only
-	 *
-	 * @var bool
-	 *
-	 */
-	protected $loadedAtBoot = false;
 
 	public function ___install() {
 		parent::___install();
@@ -510,37 +554,5 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		if($key === 'printScripts') $this->printScriptsList = null;
 		return parent::set($key, $value);
 	}
-
-	/**
-	 * assetUrls() answers
-	 *
-	 * @var array
-	 *
-	 */
-	protected $urlsMemo = array();
-
-	/**
-	 * Per-request memos (audit PF1): componentClass() by class, urlToFile() by path and its
-	 * URL/path pairs
-	 *
-	 */
-	protected $componentClasses = array();
-	protected $urlFiles = array();
-	protected $urlPairs = null;
-
-	/**
-	 * isOtherThemeModule() answers for this request: module name => bool
-	 *
-	 * @var array
-	 */
-	protected $otherThemeModules = array();
-
-	/**
-	 * cspNonce() for this request, once asked (null before; ADR 0020)
-	 *
-	 * @var string|null
-	 *
-	 */
-	protected $nonceValue = null;
 
 }

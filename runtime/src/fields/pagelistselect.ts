@@ -21,6 +21,7 @@ import { makeSortable } from '../util/sortable';
 import { fetchOk, failed } from '../util/fail';
 import { adminUrl } from '../util/pw';
 import { toHTML } from '../util/trusted';
+import { el } from '../util/dom';
 import { label } from '../util/labels';
 
 type Child = {
@@ -30,12 +31,7 @@ type Child = {
 type ListData = { page: Child; children: Child[]; start: number; limit: number; error?: number; message?: string };
 
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''): HTMLElementTagNameMap[K] {
-	const e = document.createElement(tag);
-	if (cls) e.className = cls;
-	if (html) e.innerHTML = toHTML(html);
-	return e;
-}
+
 
 function setup(input: HTMLInputElement, multiple: boolean): void {
 	const initClass = multiple ? 'InputfieldPageListSelectMultipleInit' : 'InputfieldPageListSelectInit';

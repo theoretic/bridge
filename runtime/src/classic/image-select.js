@@ -30,8 +30,7 @@
 (function() {
 	'use strict';
 
-	function $(sel, root) { return (root || document).querySelector(sel); }
-	function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+	var $ = ProcessWireAdminTheme.$, $$ = ProcessWireAdminTheme.$$; // shared (audit AR2)
 	// as jQuery's show(): an element the stylesheet hides gets its tag's default display
 	var INLINE = { A: 1, SPAN: 1, I: 1, B: 1, EM: 1, STRONG: 1, LABEL: 1, IMG: 1, SMALL: 1 };
 	function show(el, yes) {
@@ -640,7 +639,7 @@
 			pageId.addEventListener('pageSelected', function(e) {
 				var d = e.detail || {};
 				if(!d.id || String(d.id) === String(current)) return;
-				window.location = './?id=' + d.id + '&modal=1';
+				window.location.href = './?id=' + d.id + '&modal=1';
 			});
 		}
 		var img = $('#selected_image');

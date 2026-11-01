@@ -77,7 +77,7 @@
 		var k;
 		for(k = 0; k < KEYS.length; k++) if(typeof cfg[KEYS[k]] !== 'undefined') o[KEYS[k]] = cfg[KEYS[k]];
 		for(k in customOptions || {}) o[k] = customOptions[k];
-		o.rememberTabs = parseInt(o.rememberTabs, 10) || 0;
+		o.rememberTabs = parseInt(String(o.rememberTabs), 10) || 0;
 
 		var items = toArray(o.items);
 		if(!target || !items.length) return null;
@@ -87,7 +87,7 @@
 		if(!list) {
 			var tmp = document.createElement('div');
 			tmp.innerHTML = theme.trusted.html('<ul' + (o.ulAttrs ? ' ' + o.ulAttrs : '') + '></ul>');
-			list = tmp.firstChild;
+			list = /** @type {HTMLElement} */ (tmp.firstChild);
 			String(o.ulClass).split(/\s+/).forEach(function(c) { if(c) list.classList.add(c); });
 			if(o.id) list.id = o.id;
 		}

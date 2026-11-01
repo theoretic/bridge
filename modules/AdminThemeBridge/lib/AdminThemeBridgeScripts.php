@@ -76,24 +76,66 @@ trait AdminThemeBridgeScripts {
 	 *
 	 */
 	public function isJqueryScript($url) {
-		$config = $this->wire()->config;
-		$path = preg_replace('/[?#].*$/', '', (string) $url);
-		if(strpos($path, '/') !== 0 || strpos($path, '//') === 0 || substr($path, -3) !== '.js') return false;
-		if(strpos($path, $this->url()) === 0) return false;
+		$path = self::localScriptPath($url);
+		if($path === '' || strpos($path, $this->url()) === 0) return false;
 		foreach($this->printScriptsList() as $needle) if(strpos($path, $needle) !== false) return false;
+		return $this->scriptVerdict($path, 'jquery');
+	}
+
+	/**
+	 * A URL without its query string and fragment (audit AR2)
+	 *
+	 * @param string $url
+	 * @return string
+	 *
+	 */
+	public static function stripQuery($url) {
+		return (string) preg_replace('/[?#].*$/', '', (string) $url);
+	}
+
+	/**
+	 * The path of a local root-relative .js URL, '' for anything else (isJqueryScript(), isUikitUser())
+	 *
+	 * @param string $url
+	 * @return string
+	 *
+	 */
+	public static function localScriptPath($url) {
+		$path = self::stripQuery($url);
+		return strpos($path, '/') !== 0 || strpos($path, '//') === 0 || substr($path, -3) !== '.js' ? '' : $path;
+	}
+
+	/**
+	 * Does the script at this local path need jQuery ('jquery', needsJquery()) or name UIkit
+	 * ('uikit', needsUikit())? One path for both (audit AR2): the file's source, comments out, the
+	 * verdict kept per file, modification time and size in WireCache (A14)
+	 *
+	 * @param string $path localScriptPath()
+	 * @param string $kind 'jquery' or 'uikit'
+	 * @return bool
+	 *
+	 */
+	protected function scriptVerdict($path, $kind) {
 		$file = $this->urlToFile($path);
 		if($file === '') return false;
 		$key = $file . '|' . filemtime($file) . '|' . filesize($file);
-		if($this->jqueryVerdicts === null) $this->loadVerdicts();
-		if(!isset($this->jqueryVerdicts[$key])) {
-			$verdict = self::needsJquery((string) file_get_contents($file, false, null, 0, 512 * 1024));
-			// a pattern that failed (backtrack limit) answers "needs it" for this request only: a
-			// verdict kept forever must come from a complete scan (audit BG1)
-			if(preg_last_error() !== PREG_NO_ERROR) return $verdict;
+		if($this->jqueryVerdicts === null || $this->uikitVerdicts === null) $this->loadVerdicts();
+		$jquery = $kind === 'jquery';
+		$known = $jquery ? $this->jqueryVerdicts : $this->uikitVerdicts;
+		if(isset($known[$key])) return (bool) $known[$key];
+		$source = (string) file_get_contents($file, false, null, 0, 512 * 1024);
+		$verdict = $jquery ? self::needsJquery($source) : self::needsUikit($source);
+		// a pattern that failed (backtrack limit) answers "needs it" for this request only: a
+		// verdict kept forever must come from a complete scan (audit BG1)
+		if(preg_last_error() !== PREG_NO_ERROR) return $verdict;
+		if($jquery) {
 			$this->jqueryVerdicts[$key] = $verdict;
 			$this->jqueryVerdictsChanged = true;
+		} else {
+			$this->uikitVerdicts[$key] = $verdict;
+			$this->uikitVerdictsChanged = true;
 		}
-		return (bool) $this->jqueryVerdicts[$key];
+		return $verdict;
 	}
 
 	/**
@@ -128,7 +170,7 @@ trait AdminThemeBridgeScripts {
 	 */
 	public function urlToFile($url) {
 		$config = $this->wire()->config;
-		$path = rawurldecode((string) preg_replace('/[?#].*$/', '', (string) $url));
+		$path = rawurldecode((string) self::stripQuery($url));
 		if(strpos($path, '/') !== 0 || strpos($path, '//') === 0 || strpos($path, '..') !== false) return '';
 		if(isset($this->urlFiles[$path])) return $this->urlFiles[$path];
 		// the URL/path pairs once per request, longest first (audit PF1: rebuilt and sorted per call)

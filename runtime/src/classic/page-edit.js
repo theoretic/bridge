@@ -31,11 +31,7 @@
 		Array.prototype.forEach.call(list, fn);
 	}
 
-	function flash(el) {
-		if(!el || !el.animate || ProcessWireAdminTheme.still()) return;
-		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
-		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: 500 });
-	}
+	function flash(el) { ProcessWireAdminTheme.flash(el, 500); }
 
 	theme.pageEdit = {
 		bound: false,
@@ -141,7 +137,7 @@
 			if(menu && !menu.style.display) menu.style.display = 'none';
 			if(toggle) toggle.style.color = getComputedStyle(link).color;
 			link.addEventListener('click', function(e) {
-				if(toggle && toggle.contains(e.target)) return;
+				if(toggle && toggle.contains(/** @type {Node} */ (e.target))) return;
 				var action = link.getAttribute('data-action') || '';
 				if(action === 'this' || action === 'new' || !action.length || !menu) return;
 				var item = menu.querySelector('.page-view-action-' + action + ' > a');

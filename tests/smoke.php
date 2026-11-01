@@ -213,7 +213,7 @@ check('the head preloads the runtime module', strpos($headPhp, "rel='moduleprelo
 // 0.9.5: the UIkit layer (ADR 0017; behaviour: Showcase's UIkit page, lazy load and stand-in)
 $uikitCss = (string) @file_get_contents($themeDir . 'assets/dist/uikit.css');
 check('the UIkit layer is built, in one cascade layer, with its covered-class list', strpos($uikitCss, '@layer uikit{') !== false && is_file($themeDir . 'assets/dist/uikit-covered.json'));
-check('the UIkit stand-in is printed before every module script', strpos($themeSource, '$uikitLayer = array($themeUrl . "scripts/uikit-layer.js') !== false);
+check('the UIkit stand-in is printed before every module script', strpos($themeSource, '$uikitLayer = array($this->themeAssetUrl(\'scripts/uikit-layer.js\'));') !== false);
 $faCssFile = glob($themeDir . 'assets/fonts/fa-*/fa.css');
 $faCssText = $faCssFile ? (string) file_get_contents($faCssFile[0]) : '';
 check('Font Awesome subsets carry a content hash', $faCssText === '' || (bool) preg_match('/url\(fa-solid-900-subset\.[0-9a-f]{8}\.woff2\)/', $faCssText));
@@ -740,7 +740,8 @@ if(isset($bridge) && $bridge) {
 	$pageEditJs = (string) @file_get_contents($themeDir . 'scripts/page-edit.js');
 	$saveWaitJs = (string) @file_get_contents($themeDir . 'scripts/save-wait.js');
 	check('a save waits for the page\'s requests', strpos($saveWaitJs, 'pw-uploading') !== false && strpos($saveWaitJs, 'gridImageUploading') !== false && strpos($saveWaitJs, 'submit_delete') !== false && strpos($saveWaitJs, 'loadend') !== false);
-	check('save-wait.js is printed for the edit screens, deferred', strpos((string) @file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), 'scripts/save-wait.js?v=') !== false && strpos($headPhp, "'scripts/save-wait.js'") !== false);
+	check('save-wait.js is printed for the edit screens, deferred', strpos((string) @file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), "themeAssetUrl('scripts/save-wait.js')") !== false
+		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "'scripts/save-wait.js', 'scripts/page-save.js'") !== false);
 	check('the native upload confirm leaves a waiting save alone', strpos($pageEditJs, 'saveWait.claims(') !== false);
 	check("runtime label 'saveWaiting' exists", isset($bridge->runtimeLabels()['saveWaiting']));
 	$fieldsCss = (string) @file_get_contents($themeDir . 'assets/dist/fields.css');
@@ -883,7 +884,7 @@ if(isset($bridge) && $bridge) {
 	$second = $list->invoke($bridge);
 	$bridge->set('printScripts', $printScriptsWas);
 	check('BG2 a new printScripts value drops the parsed list', $first === array('/a.js') && $second === array('/b.js'), json_encode(array($first, $second)));
-	check('BG2 the head prints the clamped maximum width', strpos((string) file_get_contents($themeDir . '_head.php'), '$adminTheme->getMaxWidth()') !== false
+	check('BG2 the head prints the clamped maximum width', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), '$plan->maxWidth = (int) $this->getMaxWidth();') !== false
 		&& strpos((string) file_get_contents($themeDir . '_head.php'), '(int) $adminTheme->maxWidth') === false);
 	check('BG3 the breadcrumbs compare the Process by name, as core does', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php'), '$process = (string) $this->wire()->page->process;') !== false);
 	$serverWas = $_SERVER;
@@ -1134,6 +1135,47 @@ check('TT core\'s inline confirm and click guard become data attributes, nothing
 	&& strpos($handlersOut, "<input type='checkbox' data-pw-noclick />") !== false && strpos($handlersOut, 'onclick="other()"') !== false
 	&& strpos($handlersOut, 'return confirm') === false, $handlersOut);
 check('TT the setup script asks for them with the theme\'s dialog', strpos($srcOf('classic/setup.js'), "closest('[data-pw-confirm], [data-pw-noclick]')") !== false);
+// 0.21.0: architecture (audit AR1, AR2, AR3, AR5)
+$themeLib = $themeDir . 'lib/';
+$traitMembers = array();
+foreach(glob($themeLib . 'AdminThemeBridge*.php') as $f) {
+	if(basename($f) === 'AdminThemeBridgeAssetPlan.php') continue;
+	if(preg_match_all('/^\t(?:(?:protected|public|private)(?:\s+static)?\s+\$\w+|const\s+\w+)/m', (string) file_get_contents($f), $m)) $traitMembers[] = basename($f) . ': ' . implode(', ', $m[0]);
+}
+check('AR1 the traits declare no properties or constants: they stay in the module file', !count($traitMembers), implode(' | ', $traitMembers));
+$moduleSrc = (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php');
+$firstMethod = strpos($moduleSrc, "\n\tpublic function __construct()");
+check('AR1 the module file declares its properties before its methods', $firstMethod !== false
+	&& !preg_match('/^\t(?:protected|public|private)\s+\$\w+/m', substr($moduleSrc, $firstMethod)));
+$headSrc = (string) file_get_contents($themeDir . '_head.php');
+check('AR1 _head.php prints the asset plan and decides nothing', strpos($headSrc, '$plan = $adminTheme->assetPlan($layout);') !== false
+	&& strpos($headSrc, 'extract(') === false && strpos($headSrc, 'is_file(') === false && strpos($headSrc, 'manifest(') === false);
+if(isset($bridge) && $bridge) {
+	$plan = $bridge->assetPlan('');
+	check('AR1 assetPlan() returns the plan with the theme stylesheet and script', $plan instanceof AdminThemeBridgeAssetPlan
+		&& strpos($plan->themeCss, 'assets/dist/theme.css?v=') !== false
+		&& count(array_filter($plan->scripts, function($s) { return strpos($s['url'], 'scripts/main.js?v=') !== false && !$s['defer']; })) === 1);
+	check('AR2 stripQuery() and one verdict path for jQuery and UIkit scripts', AdminThemeBridge::stripQuery('/a/b.js?v=1#x') === '/a/b.js'
+		&& AdminThemeBridge::localScriptPath('//cdn.example/x.js') === '' && AdminThemeBridge::localScriptPath('/site/x.js?v=2') === '/site/x.js'
+		&& strpos((string) file_get_contents($themeLib . 'AdminThemeBridgeUikit.php'), "return \$this->scriptVerdict(\$path, 'uikit');") !== false);
+	$bridge->set('nativeOverrides', "ProcessFoo=native\n# a comment\nnot a rule\nProcessBar = legacy");
+	check('AR2 one parser for the native overrides setting', $bridge->getNativeOverrides() === array('ProcessFoo' => 'native', 'ProcessBar' => 'legacy')
+		&& $bridge->nativeOverrideErrors() === array('not a rule'));
+	$bridge->set('nativeOverrides', '');
+}
+check('AR2 the classic scripts share $, $$ and flash() from the theme object', strpos($srcOf('classic/main.js'), "flash: function(el, ms) {") !== false
+	&& strpos($srcOf('classic/setup.js'), 'function $(sel, root)') === false && strpos($srcOf('classic/lister.js'), 'function $(sel, root)') === false);
+check('AR2 one el() and one file name reader in the runtime', strpos($srcOf('util/dom.ts'), 'export function el<') !== false
+	&& strpos($srcOf('fields/pagelist.ts'), 'function el<') === false && strpos($srcOf('guards.ts'), 'function basename(') === false);
+$runtimeDir = dirname(__DIR__) . '/runtime/';
+check('AR3 the classic scripts are type-checked in the build', strpos((string) @file_get_contents($runtimeDir . 'package.json'), 'tsc -p tsconfig.classic.json') !== false
+	&& is_file($runtimeDir . 'types/classic.d.ts') && strpos((string) @file_get_contents($runtimeDir . 'tsconfig.classic.json'), '"checkJs": true') !== false);
+check('AR5 tools/ci.sh runs every step and fails on any', is_file(dirname(__DIR__) . '/tools/ci.sh')
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/tools/ci.sh'), 'exit ${#failed[@]}') !== false);
+check('AR5 conformance fails when no screen rendered under either theme, and gate1 sees a server under MSYS_NO_PATHCONV',
+	strpos((string) file_get_contents(dirname(__DIR__) . '/conformance/run.php'), '$noneRendered = $total && $siteFails === $total;') !== false
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/tools/gate1.sh'), "curl -s -o /dev/null") === false);
+
 // 0.20.2: the runtime's own words translated, one rule for asking (audit UX6, UX7)
 $englishLeft = array();
 foreach(array('fields/image.ts' => "setAttribute('aria-label', 'Thumbnail size')", 'fields/upload.ts' => 'is a invalid file extension', 'fields/datetime.ts' => 'aria-label="month"',

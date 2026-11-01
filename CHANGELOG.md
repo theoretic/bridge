@@ -1,5 +1,16 @@
 # Changelog
 
+## AdminThemeBridge 0.21.0: one asset plan, shared helpers, type-checked classic scripts (2026-11-01)
+
+From the 2026-11-01 audit (AR1, AR2, AR3, AR5). No change in what a page gets: the head of five screens was compared byte for byte before and after.
+
+- **The head is an asset plan**: `AdminThemeBridge::assetPlan()` returns an `AdminThemeBridgeAssetPlan` with every URL in print order, the font and module preloads and which scripts are deferred; `_head.php` only escapes and prints it. `headPlan()` is now three steps (`headStyles()`, `headScripts()`, `headClientConfig()`) and keeps its array for copies of `_head.php` in `/site/templates/AdminThemeBridge/`. New `themeAssetUrl()` gives a built file's URL with its cache buster.
+- **Properties in one place**: the module file declares every property before its methods, the deferred script list among them; the smoke test fails when a trait declares a property or a constant.
+- **Shared helpers**: `stripQuery()` and `localScriptPath()`; one cached verdict path (`scriptVerdict()`) for "needs jQuery" and "names UIkit"; one parser for the native overrides setting; one place for an image field's portrait size limits. In the browser, the classic scripts take `$`, `$$` and `flash()` from `ProcessWireAdminTheme` instead of six copies, and the runtime has one `el()` and one file name reader (`util/dom.ts`).
+- **The classic scripts are type-checked**: `runtime/tsconfig.classic.json` checks `src/classic/*.js` with their shared globals declared in `runtime/types/classic.d.ts`, as a build step. The fixes it asked for change no behaviour (string values for range inputs, `location.href`, declared fields).
+- **`tools/ci.sh`** runs PHP lint, the runtime build, the smoke test, the browser checks (with `PW` set) and the conformance suite, and exits with the number of failed steps. `tools/lib/sandbox-ids.php` gives it the fixture pages' ids. The enforced CSP pass (`tools/csp-check.js --enforce`) is one of its browser checks, as ADR 0020 asked.
+- Tools: `conformance/run.php` fails a run in which no screen rendered under either theme (another program's server on the port passed as 241 "same failures"); `tools/gate1.sh` no longer takes a running server for a dead one when `MSYS_NO_PATHCONV=1` is set.
+
 ## AdminThemeBridge 0.20.2: translated words, one rule for asking (2026-11-01)
 
 From the 2026-11-01 audit (UX6, UX7).

@@ -136,7 +136,7 @@ trait AdminThemeBridgeUikit {
 	 *
 	 */
 	protected function siteRelative($url) {
-		$path = preg_replace('/[?#].*$/', '', (string) $url);
+		$path = self::stripQuery($url);
 		$root = $this->wire()->config->urls->root;
 		return strpos($path, $root) === 0 ? substr($path, strlen($root)) : $path;
 	}
@@ -154,22 +154,9 @@ trait AdminThemeBridgeUikit {
 	 *
 	 */
 	public function isUikitUser($url) {
-		$config = $this->wire()->config;
-		$path = preg_replace('/[?#].*$/', '', (string) $url);
-		if(strpos($path, '/') !== 0 || strpos($path, '//') === 0 || substr($path, -3) !== '.js') return false;
-		if(strpos($path, $this->url()) === 0 || strpos($path, $config->urls->wire) === 0) return false;
-		$file = $this->urlToFile($path);
-		if($file === '') return false;
-		$key = $file . '|' . filemtime($file) . '|' . filesize($file);
-		if($this->uikitVerdicts === null) $this->loadVerdicts();
-		if(!isset($this->uikitVerdicts[$key])) {
-			$verdict = self::needsUikit((string) file_get_contents($file, false, null, 0, 512 * 1024));
-			// a failed pattern: "needs it" for this request only, never kept (audit BG1)
-			if(preg_last_error() !== PREG_NO_ERROR) return $verdict;
-			$this->uikitVerdicts[$key] = $verdict;
-			$this->uikitVerdictsChanged = true;
-		}
-		return (bool) $this->uikitVerdicts[$key];
+		$path = self::localScriptPath($url);
+		if($path === '' || strpos($path, $this->url()) === 0 || strpos($path, $this->wire()->config->urls->wire) === 0) return false;
+		return $this->scriptVerdict($path, 'uikit');
 	}
 
 	/**

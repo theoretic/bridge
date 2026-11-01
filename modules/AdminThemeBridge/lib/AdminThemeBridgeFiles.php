@@ -313,14 +313,10 @@ trait AdminThemeBridgeFiles {
 		if(!$rules['image'] || $ext === 'svg') return '';
 		list($w, $h) = $this->moveSize($f);
 		if(!$w) return __('Not an image this field can show', __FILE__);
-		$portrait = $rules['byAspect'] && $w < $h;
-		$minW = $portrait ? $rules['minHeight'] : $rules['minWidth'];
-		$minH = $portrait ? $rules['minWidth'] : $rules['minHeight'];
+		list($minW, $minH, $maxW, $maxH) = self::sizeLimits($rules, $w, $h);
 		if(($minW && $w < $minW) || ($minH && $h < $minH)) {
 			return sprintf(__('Smaller than this field takes (%s)', __FILE__), "{$minW}×{$minH}");
 		}
-		$maxW = $portrait ? $rules['maxHeight'] : $rules['maxWidth'];
-		$maxH = $portrait ? $rules['maxWidth'] : $rules['maxHeight'];
 		if($rules['maxReject'] && (($maxW && $w > $maxW) || ($maxH && $h > $maxH))) {
 			return sprintf(__('Larger than this field takes (%s)', __FILE__), "{$maxW}×{$maxH}");
 		}
@@ -417,9 +413,7 @@ trait AdminThemeBridgeFiles {
 	protected function moveFit(Pageimage $image, array $rules) {
 		if($image->ext() === 'svg' || $rules['maxReject']) return;
 		list($w, $h) = $this->moveSize($image);
-		$portrait = $rules['byAspect'] && $w < $h;
-		$maxW = $portrait ? $rules['maxHeight'] : $rules['maxWidth'];
-		$maxH = $portrait ? $rules['maxWidth'] : $rules['maxHeight'];
+		list(, , $maxW, $maxH) = self::sizeLimits($rules, $w, $h);
 		if(!(($maxW && $w > $maxW) || ($maxH && $h > $maxH))) return;
 		$files = $this->wire()->files;
 		$image->removeVariations();
@@ -429,5 +423,22 @@ trait AdminThemeBridgeFiles {
 			$files->rename($sized->filename, $image->filename);
 		}
 		$image->getImageInfo(true);
+	}
+
+	/**
+	 * An image field's size limits for an image of this size: with byAspect, a portrait image is
+	 * held to the limits turned a quarter (core's InputfieldImage does the same; audit AR2)
+	 *
+	 * @param array $rules moveRules() of the field
+	 * @param int $w
+	 * @param int $h
+	 * @return array minWidth, minHeight, maxWidth, maxHeight, each 0 for none
+	 *
+	 */
+	protected static function sizeLimits(array $rules, $w, $h) {
+		$portrait = $rules['byAspect'] && $w < $h;
+		return $portrait
+			? array($rules['minHeight'], $rules['minWidth'], $rules['maxHeight'], $rules['maxWidth'])
+			: array($rules['minWidth'], $rules['minHeight'], $rules['maxWidth'], $rules['maxHeight']);
 	}
 }

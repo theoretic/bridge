@@ -30,6 +30,7 @@
 import { guard, fill } from './util/danger';
 import { label } from './util/labels';
 import { pwConfig } from './util/pw';
+import { fileName } from './util/dom';
 import type { AskOptions } from './util/ask';
 
 const FIELD = '.Inputfield:is(.InputfieldFile, .InputfieldImage):not(.InputfieldRenderValueMode)';
@@ -42,13 +43,8 @@ const passes = (o: object): boolean => (skip.has(o) ? (skip.delete(o), true) : f
 const text = (el: Element | null): string => (el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : '');
 const headerOf = (field: Element): string => text(field.querySelector(':scope > .InputfieldHeader'));
 
-function basename(li: Element): string {
-	const link = li.querySelector('a.InputfieldFileName');
-	const img = li.querySelector('.gridImage__overflow img');
-	const url = (link && link.getAttribute('href')) || (img && (img.getAttribute('data-original') || img.getAttribute('src'))) || '';
-	const last = url.split('?')[0].split('/').pop() || '';
-	try { return decodeURIComponent(last); } catch (err) { return last; }
-}
+const basename = fileName;
+
 
 const marked = (li: Element): boolean => !!li.querySelector('.InputfieldFileDelete input:checked, input.gridImage__deletebox:checked');
 

@@ -284,7 +284,7 @@ var ProcessWireAdminTheme = {
 			var o = null;
 			try { o = JSON.parse(window.localStorage.getItem(this.key()) || 'null'); } catch(e) {}
 			if(!o || typeof o !== 'object') {
-				o = {};
+				o = /** @type {any} */ ({});
 				// 0.10.x and earlier: one scheme for the whole browser
 				try { var old = window.localStorage.getItem('pwScheme'); if(old) o.scheme = old; } catch(e) {}
 			}
@@ -535,9 +535,10 @@ var ProcessWireAdminTheme = {
 		fillIn(document);
 		// fields loaded later (AJAX fields, repeater items, an in-place save)
 		document.addEventListener('pw-page-saved', function() { fillIn(document); });
+		var reloadedBound = false;
 		var bindReloaded = function() {
-			if(!window.jQuery || bindReloaded.done) return;
-			bindReloaded.done = true;
+			if(!window.jQuery || reloadedBound) return;
+			reloadedBound = true;
 			jQuery(document).on('reloaded', '.Inputfield', function() { fillIn(this); });
 		};
 		bindReloaded();
@@ -782,6 +783,17 @@ var ProcessWireAdminTheme = {
 		return !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	},
 
+	/** One element, and every element as an array: the classic scripts' shared lookups (audit AR2) */
+	$: function(sel, root) { return (root || document).querySelector(sel); },
+	$$: function(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); },
+
+	/** A short highlight of an element's background, none under reduced motion */
+	flash: function(el, ms) {
+		if(!el || !el.animate || ProcessWireAdminTheme.still()) return;
+		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
+		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: ms || 500 });
+	},
+
 	/**
 	 * Remove #notices with a short fade (none under prefers-reduced-motion).
 	 */
@@ -824,7 +836,7 @@ var ProcessWireAdminTheme = {
 			notices.addEventListener('mouseleave', function() { hover = false; run(); });
 			notices.addEventListener('focusin', function() { focus = true; pause(); });
 			notices.addEventListener('focusout', function(e) {
-				if(e.relatedTarget && notices.contains(e.relatedTarget)) return;
+				if(e.relatedTarget && notices.contains(/** @type {Node} */ (e.relatedTarget))) return;
 				focus = false;
 				run();
 			});
@@ -1438,7 +1450,7 @@ var ProcessWireAdminTheme = {
 			return h.origType === 'mouseleave' && h.selector === sel && !h.namespace;
 		}).forEach(function(h) { $(document).off('mouseleave', sel, h.handler); });
 		$(document).on('mouseleave.pwbridge', sel, function() {
-			var a = this, $a = $(a), $ul = $a.data('pw-dropdown-ul');
+			var a = /** @type {HTMLElement} */ (this), $a = $(a), $ul = $a.data('pw-dropdown-ul');
 			var opening = $a.data('pw-dropdown-timeout');
 			if(opening) clearTimeout(opening);
 			clearTimeout(a.pwLeaveTimer);
@@ -1465,7 +1477,7 @@ var ProcessWireAdminTheme = {
 		this.patchClickLeave();
 		jQuery(document).on('pw-show-dropdown', '.pw-dropdown-menu', function() {
 			var ul = this;
-			var toggle = null;
+			var toggle = /** @type {HTMLElement|null} */ (null);
 			jQuery('.pw-dropdown-toggle.hover, .pw-dropdown-toggle-open').each(function() {
 				var data = jQuery(this).data('pw-dropdown-ul');
 				if(data && data[0] === ul) toggle = this;
@@ -1780,7 +1792,7 @@ var ProcessWireAdminTheme = {
 		 * holds legacy markup that needs the stack, else the legacy field it was inserted into (an
 		 * AJAX-collapsed field's content arrives as bare nodes inside its already marked wrapper).
 		 *
-		 * @param {Node} node
+		 * @param {Element} node
 		 * @returns {Element|null}
 		 */
 		legacyTarget: function(node) {

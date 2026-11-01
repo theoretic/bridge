@@ -21,14 +21,9 @@
 	var pw = window.ProcessWire;
 	if(!theme || theme.link || !pw || !pw.config || !pw.config.ProcessPageEditLink) return;
 
-	function $(sel, root) { return (root || document).querySelector(sel); }
-	function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+	var $ = ProcessWireAdminTheme.$, $$ = ProcessWireAdminTheme.$$; // shared (audit AR2)
 	function fire(el, type) { if(el) el.dispatchEvent(new Event(type, { bubbles: true })); }
-	function flash(el) {
-		if(!el || !el.animate || ProcessWireAdminTheme.still()) return;
-		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
-		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: 500 });
-	}
+	function flash(el) { ProcessWireAdminTheme.flash(el, 500); }
 
 	var cfg = pw.config.ProcessPageEditLink;
 

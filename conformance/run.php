@@ -515,4 +515,8 @@ if($jsonOut) {
 	echo "digests written to $jsonOut\n";
 }
 if(!$total) echo "FAIL no screen ran" . ($only !== '' ? " (--only=$only matched none)" : '') . "\n";
-exit(($fails || $diffs || !$total) ? 1 : 0);
+// every screen failing the same way under both themes is no comparison: another server on the
+// port, or a broken sandbox (a whole run of "same failure" passed before)
+$noneRendered = $total && $siteFails === $total;
+if($noneRendered) echo "FAIL no screen rendered under either theme: is the server on --base this sandbox's?\n";
+exit(($fails || $diffs || !$total || $noneRendered) ? 1 : 0);

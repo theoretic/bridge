@@ -22,15 +22,10 @@
 	// listeners end when upstream's own script for this screen takes over (main.js handover)
 	var handover = (theme && theme.handover) || { over: false, bind: function(o) { return o; } };
 
-	function $(sel, root) { return (root || document).querySelector(sel); }
-	function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+	var $ = ProcessWireAdminTheme.$, $$ = ProcessWireAdminTheme.$$; // shared (audit AR2)
 	function on(el, type, fn) { if(el) el.addEventListener(type, fn, handover.bind()); }
 	function show(el, yes) { if(el) el.style.display = yes ? '' : 'none'; }
-	function flash(el) {
-		if(!el || !el.animate || ProcessWireAdminTheme.still()) return;
-		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
-		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: 1000 });
-	}
+	function flash(el) { ProcessWireAdminTheme.flash(el, 1000); }
 	function getJSON(url) {
 		return fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
 			.then(function(res) { return res.json(); });

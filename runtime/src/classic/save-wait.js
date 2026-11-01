@@ -56,7 +56,8 @@
 	var fetch = w.fetch;
 	if(typeof fetch === 'function') w.fetch = function(input) {
 		var p = fetch.apply(w, arguments);
-		if(ours(input && input.url ? input.url : input)) {
+		var req = /** @type {any} */ (input);
+		if(ours(req && req.url ? req.url : input)) {
 			active++;
 			// settles with the headers: the caller reads the body and inserts it in the quiet time
 			p.then(end, end);
@@ -108,7 +109,7 @@
 
 	function wait(form, button) {
 		var quiet = 0;
-		waiting = { button: button, since: Date.now() };
+		waiting = { button: button, since: Date.now(), timer: 0 };
 		mark(button, true);
 		waiting.timer = setInterval(function() {
 			if(busy(form)) { quiet = 0; return; }
