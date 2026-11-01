@@ -7,11 +7,12 @@
   "license": "MIT",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build && node scripts/prune-chunks.mjs && node scripts/build-classic.mjs && node scripts/fa-subset.mjs && node scripts/build-uikit.mjs && node scripts/manifest.mjs && node scripts/check-css.mjs",
+    "build": "tsc --noEmit && node scripts/check-sinks.mjs && vite build && node scripts/prune-chunks.mjs && node scripts/build-classic.mjs && node scripts/fa-subset.mjs && node scripts/build-uikit.mjs && node scripts/manifest.mjs && node scripts/check-css.mjs",
     "watch": "vite build --watch",
     "watch:classic": "node scripts/build-classic.mjs --watch",
     "classic": "node scripts/build-classic.mjs",
     "size": "node scripts/check-css.mjs",
+    "sinks": "node scripts/check-sinks.mjs",
     "fa-subset": "node scripts/fa-subset.mjs",
     "uikit": "node scripts/build-uikit.mjs"
   },

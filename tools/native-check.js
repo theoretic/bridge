@@ -472,8 +472,9 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		li.className = 'Inputfield InputfieldMarkup InputfieldStateCollapsed';
 		li.id = 'wrap_probe_' + (ph ? 'placeholder' : 'content');
 		li.setAttribute('data-bridge-legacy', 'Inputfield:Probe');
-		li.innerHTML = '<label class="InputfieldHeader">Probe</label><div class="InputfieldContent">' +
-			(ph ? '<div class="renderInputfieldAjax"><input type="hidden" value="./?probe=1"></div>' : '<p>content</p>') + '</div>';
+		// through the theme's Trusted Types policy: the check also runs under an enforced policy
+		li.innerHTML = ProcessWireAdminTheme.trusted.html('<label class="InputfieldHeader">Probe</label><div class="InputfieldContent">' +
+			(ph ? '<div class="renderInputfieldAjax"><input type="hidden" value="./?probe=1"></div>' : '<p>content</p>') + '</div>');
 		list.appendChild(li);
 	}, withPlaceholder);
 	await insert(true);

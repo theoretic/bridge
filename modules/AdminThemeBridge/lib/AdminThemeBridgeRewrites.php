@@ -37,6 +37,9 @@ trait AdminThemeBridgeRewrites {
 			// deferLegacyInline(): the head's core inline scripts (ADR 0020)
 			'modules/Jquery/JqueryUI/JqueryUI.module' => array("\"<script>\" .\n\t\t\t\"vex.defaultOptions.className='vex-theme-default';\" ."),
 			'core/Admin/AdminTheme.php' => array("\$parts['head'] .= \"<\$script>\" . \n\t\t\t\t\"window.CKEDITOR_BASEPATH='\""),
+			// nativeInlineHandlers(): core's inline confirm and click guard on native screens (ADR 0020)
+			'modules/Process/ProcessModule/ProcessModule.module' => array("\$confirmDeleteJS = \"return confirm('\" . sprintf(", "\$confirmInstallJS = \"return confirm('\" . sprintf(", "onclick=\\\"\$confirmDeleteJS\\\"", "\$buttonWarning = \" onclick=\\\"\$confirmInstallJS\\\"\";"),
+			'modules/Process/ProcessRole/ProcessRole.module' => array("\$disabled = \$disabled ? 'onclick=\"return false\"' : '';"),
 			// _masthead.php names the search landmark by these (audit SU4, BG5)
 			'modules/Process/ProcessPageSearch/ProcessPageSearch.module' => array("<form id='ProcessPageSearchForm'", "id='ProcessPageSearchQuery'"),
 			// _footer.php moves the debug panel into a dialog (scripts/debug-tools.js)
@@ -178,6 +181,31 @@ trait AdminThemeBridgeRewrites {
 			return $this->nonceKnownScript($m[1], $m[2]) . $code . $m[3];
 		}, $out);
 		return is_string($result) ? $result : $out;
+	}
+
+	/**
+	 * Core's inline event handlers on a native screen, as data attributes (ADR 0020 decision 7):
+	 * a Content-Security-Policy without 'unsafe-inline' drops `onclick` without a word, and the
+	 * module list's Delete and Install would then act without asking. `onclick="return confirm('…')"`
+	 * (ProcessModule's Delete, and Install with requirements missing) becomes `data-pw-confirm="…"`,
+	 * `onclick="return false"` (ProcessRole's inherited permissions) `data-pw-noclick`; a delegated
+	 * listener in scripts/setup.js asks with the theme's dialog and keeps the click from acting.
+	 * Only those two exact forms; any other handler stays as it is.
+	 *
+	 * @param string $out
+	 * @return string
+	 *
+	 */
+	public function nativeInlineHandlers($out) {
+		if(strpos($out, 'onclick=') === false) return $out;
+		$sanitizer = $this->wire()->sanitizer;
+		$result = preg_replace_callback("~\\sonclick=\"return confirm\\('([^'\"\\\\]*)'\\)\"~", function($m) use($sanitizer) {
+			// the message as core put it in the attribute (entities decoded once, escaped once again)
+			$text = html_entity_decode($m[1], ENT_QUOTES, 'UTF-8');
+			return " data-pw-confirm=\"" . $sanitizer->entities($text) . "\"";
+		}, $out);
+		if(!is_string($result)) return $out;
+		return str_replace('onclick="return false"', 'data-pw-noclick', $result);
 	}
 
 	/**

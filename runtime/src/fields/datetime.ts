@@ -21,6 +21,7 @@
 import { on } from '../legacy';
 import { label } from '../util/labels';
 import { esc } from '../util/html';
+import { toHTML } from '../util/trusted';
 
 type Regional = {
 	monthNames: string[]; monthNamesShort: string[]; dayNames: string[]; dayNamesShort: string[];
@@ -252,6 +253,9 @@ function setupPicker(input: HTMLInputElement): void {
 		input.dispatchEvent(new Event('change', { bubbles: true }));
 	};
 
+	// the localised names and labels (config or data-datepicker) as text: entities stay entities
+	// (jQuery UI's own defaults carry some), but no tag and no quote that ends an attribute (SE6)
+	const t = (s: unknown): string => String(s ?? '').replace(/[<>"]/g, c => (c === '<' ? '&lt;' : c === '>' ? '&gt;' : '&quot;'));
 	const render = (): void => {
 		const y = view.getFullYear();
 		const m = view.getMonth();
@@ -259,9 +263,9 @@ function setupPicker(input: HTMLInputElement): void {
 		let title = '';
 		if (o.changeMonth) {
 			title += '<select class="ui-datepicker-month" aria-label="month">' + o.monthNamesShort.map((n, i) =>
-				'<option value="' + i + '"' + (i === m ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>';
+				'<option value="' + i + '"' + (i === m ? ' selected' : '') + '>' + t(n) + '</option>').join('') + '</select>';
 		} else {
-			title += '<span class="ui-datepicker-month">' + o.monthNames[m] + '</span>';
+			title += '<span class="ui-datepicker-month">' + t(o.monthNames[m]) + '</span>';
 		}
 		if (o.changeYear) {
 			let years = '';
@@ -273,7 +277,7 @@ function setupPicker(input: HTMLInputElement): void {
 		let head = '';
 		for (let i = 0; i < 7; i++) {
 			const d = (i + o.firstDay) % 7;
-			head += '<th' + (d === 0 || d === 6 ? ' class="ui-datepicker-week-end"' : '') + '><span title="' + o.dayNames[d] + '">' + o.dayNamesMin[d] + '</span></th>';
+			head += '<th' + (d === 0 || d === 6 ? ' class="ui-datepicker-week-end"' : '') + '><span title="' + t(o.dayNames[d]) + '">' + t(o.dayNamesMin[d]) + '</span></th>';
 		}
 		const first = new Date(y, m, 1);
 		const lead = (first.getDay() - o.firstDay + 7) % 7;
@@ -314,15 +318,15 @@ function setupPicker(input: HTMLInputElement): void {
 		}
 		const panel = o.showButtonPanel || timeFormat
 			? '<div class="ui-datepicker-buttonpane ui-widget-content"><button type="button" class="ui-datepicker-current ui-state-default ui-priority-secondary ui-corner-all">' +
-				o.currentText + '</button>' + (inline ? '' : '<button type="button" class="ui-datepicker-close ui-state-default ui-priority-primary ui-corner-all">' + o.closeText + '</button>') + '</div>'
+				t(o.currentText) + '</button>' + (inline ? '' : '<button type="button" class="ui-datepicker-close ui-state-default ui-priority-primary ui-corner-all">' + t(o.closeText) + '</button>') + '</div>'
 			: '';
-		box.innerHTML =
+		box.innerHTML = toHTML(
 			'<div class="ui-datepicker-header ui-widget-header ui-helper-clearfix ui-corner-all">' +
-			'<a class="ui-datepicker-prev ui-corner-all" href="#" title="' + o.prevText + '" aria-label="' + o.prevText + '"><i class="fa fa-angle-left"></i></a>' +
-			'<a class="ui-datepicker-next ui-corner-all" href="#" title="' + o.nextText + '" aria-label="' + o.nextText + '"><i class="fa fa-angle-right"></i></a>' +
+			'<a class="ui-datepicker-prev ui-corner-all" href="#" title="' + t(o.prevText) + '" aria-label="' + t(o.prevText) + '"><i class="fa fa-angle-left"></i></a>' +
+			'<a class="ui-datepicker-next ui-corner-all" href="#" title="' + t(o.nextText) + '" aria-label="' + t(o.nextText) + '"><i class="fa fa-angle-right"></i></a>' +
 			'<div class="ui-datepicker-title">' + title + '</div></div>' +
 			'<table class="ui-datepicker-calendar"><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table>' +
-			timeRow + panel;
+			timeRow + panel);
 	};
 
 	const position = (): void => {
@@ -415,7 +419,7 @@ function setupPicker(input: HTMLInputElement): void {
 		trigger = document.createElement('a');
 		trigger.className = 'pw-ui-datepicker-trigger';
 		trigger.href = '#';
-		trigger.innerHTML = "<i class='fa fa-calendar'></i>";
+		trigger.innerHTML = toHTML("<i class='fa fa-calendar'></i>");
 		input.insertAdjacentElement('afterend', trigger);
 		on(trigger, 'mousedown', e => e.preventDefault());
 		on(trigger, 'click', e => {
@@ -475,7 +479,7 @@ function extendYears(select: HTMLSelectElement): void {
 		to = from - 1;
 		from -= span;
 		for (let n = to; n >= from; n--) select.insertBefore(new Option(String(n), String(n)), select.firstChild);
-		option.innerHTML = '&lt; ' + from;
+		option.textContent = '< ' + from;
 		select.insertBefore(option, select.firstChild);
 		if (blank) select.insertBefore(blank, select.firstChild);
 		select.value = String(to);
@@ -484,7 +488,7 @@ function extendYears(select: HTMLSelectElement): void {
 		from = to + 1;
 		to += span;
 		for (let n = from; n <= to; n++) select.appendChild(new Option(String(n), String(n)));
-		option.innerHTML = '&gt; ' + to;
+		option.textContent = '> ' + to;
 		select.appendChild(option);
 		select.value = String(from);
 		select.setAttribute('data-to-year', String(to));

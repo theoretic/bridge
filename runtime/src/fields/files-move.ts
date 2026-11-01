@@ -29,6 +29,7 @@ import { failed } from '../util/fail';
 import { label } from '../util/labels';
 import { esc } from '../util/html';
 import { guard, fill } from '../util/danger';
+import { parseHTML, toHTML } from '../util/trusted';
 
 type Outcome = 'ok' | 'ext' | 'room' | 'single';
 type Row = { li: HTMLElement; hash: string; name: string; ext: string; thumb: string; outcome: Outcome };
@@ -116,7 +117,7 @@ function fieldUrl(field: HTMLElement): string {
 /** The field's items as the server renders them now, by hash */
 async function freshItems(field: HTMLElement): Promise<Map<string, HTMLElement>> {
 	const res = await fetch(fieldUrl(field), { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-	const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+	const doc = parseHTML(await res.text());
 	const found = doc.getElementById(field.id) || doc.getElementById('wrap_Inputfield_' + nameOf(field));
 	const map = new Map<string, HTMLElement>();
 	if (found) found.querySelectorAll<HTMLElement>('li.InputfieldFileItem[id^="file_"], li.gridImage[id^="file_"]').forEach(li => map.set(li.id.slice(5), li));
@@ -165,7 +166,7 @@ function ask(field: HTMLElement, src: HTMLElement, rows: Row[]): Promise<Record<
 		html += '</ul><div class="pw-ask-buttons">' +
 			'<button type="submit" value="ok" class="ui-button pw-button"></button>' +
 			`<button type="submit" value="cancel" class="ui-button pw-button ui-priority-secondary">${esc(label('cancel', 'Cancel'))}</button></div></form>`;
-		d.innerHTML = html;
+		d.innerHTML = toHTML(html);
 		const button = d.querySelector('button[value="ok"]') as HTMLButtonElement;
 		const choices = (): Record<string, string> => {
 			const out: Record<string, string> = {};
@@ -217,7 +218,7 @@ export function mover(src: HTMLElement, list: HTMLElement): Mover {
 		const g = document.createElement('div');
 		g.className = 'pw-drag-ghost';
 		const r = rowOf(lead);
-		g.innerHTML = (r.thumb ? `<img src="${esc(r.thumb)}" alt="">` : '') + `<span>${esc(r.name)}</span>`;
+		g.innerHTML = toHTML((r.thumb ? `<img src="${esc(r.thumb)}" alt="">` : '') + `<span>${esc(r.name)}</span>`);
 		if (group.length > 1) g.setAttribute('data-pw-count', String(group.length));
 		document.body.appendChild(g);
 		return g;
@@ -232,7 +233,7 @@ export function mover(src: HTMLElement, list: HTMLElement): Mover {
 			if (target.classList.contains('gridImages')) {
 				const size = (target.getAttribute('data-size') || '130') + 'px';
 				placeholder.className = 'ImageOuter gridImage gridImagePlaceholder pw-drop-placeholder';
-				placeholder.innerHTML = '<div class="gridImage__overflow"></div>';
+				placeholder.innerHTML = toHTML('<div class="gridImage__overflow"></div>');
 				const o = placeholder.firstElementChild as HTMLElement;
 				o.style.width = grid ? size : '100%';
 				o.style.height = grid ? size : '8px';

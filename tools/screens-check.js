@@ -208,7 +208,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const fits = await wide.evaluate(() => document.body.classList.contains('pw-nav-overflow'));
 	await wide.evaluate(() => {
 		const list = document.querySelector('.pw-primary-nav');
-		for(let i = 0; i < 8; i++) { const li = document.createElement('li'); li.className = 'pw-nav-item pw-nav-item-top'; li.innerHTML = '<a href="#">Section with a long name ' + i + '</a>'; list.appendChild(li); }
+		for(let i = 0; i < 8; i++) { const li = document.createElement('li'); li.className = 'pw-nav-item pw-nav-item-top'; const a = document.createElement('a'); a.href = '#'; a.textContent = 'Section with a long name ' + i; li.appendChild(a); list.appendChild(li); }
 		window.dispatchEvent(new Event('resize'));
 	});
 	await wide.waitForTimeout(300);

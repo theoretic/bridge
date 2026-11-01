@@ -106,13 +106,37 @@ To uninstall: switch your profile back to Uikit, then uninstall the module.
   script works without jQuery, add a part of its URL (the module's directory name) here.
 - **Legacy script stack:** load on demand (default) or always.
 
+### Content-Security-Policy
+
+Bridge runs under a nonce-based policy with Trusted Types on every screen it renders without the
+legacy stack (0.18.4, ADR 0020). A site with a policy of its own hooks `AdminThemeBridge::nonce`
+to hand the theme the request's nonce; the optional **Bridge CSP** module (`modules/BridgeCsp/`)
+makes one and sends the policy itself, off, report only or enforced, next to any policy the site
+sends. Enforced, it applies to screens without the legacy stack and stays report only on the
+others, the login screen among them. The directives the admin needs:
+
+```
+script-src 'nonce-<nonce>' 'strict-dynamic'; object-src 'none'; base-uri 'self';
+require-trusted-types-for 'script'; trusted-types bridge;
+```
+
+- `trusted-types bridge`: the one policy name the theme and the runtime use.
+- `style-src`: keep `'unsafe-inline'` (or `'unsafe-hashes'`): core and the runtime write `style`
+  attributes (column widths, upload progress), which a nonce cannot cover.
+- Screens that load the legacy stack (jQuery, jQuery UI, CKEditor, TinyMCE, most third-party
+  Inputfields) write HTML strings of their own and break under an enforced policy. Run report only
+  there, or enforce where every screen in use is native: the browser console lists what it would
+  block, and `tools/csp-check.js` lists it by screen (`--enforce` for the enforced pass).
+
 ## For module authors
 
 Implement the `BridgeComponent` interface and your Inputfield or Process runs natively; the
 interface can be declared without the theme installed. Otherwise nothing changes: your module
 gets the legacy stack, as today. A module can also add its own classes to the theme's native
 map with a hook on `AdminThemeBridge::nativeMap`. Both are described in
-[docs/contract.md](docs/contract.md).
+[docs/contract.md](docs/contract.md). An inline `<script>` on admin pages takes
+`$adminTheme->nonceAttr()`, also in markup loaded over AJAX, and HTML written from JavaScript goes
+through `ProcessWireAdminTheme.trusted` (contract 2.1 and 4.1).
 
 ## Development
 

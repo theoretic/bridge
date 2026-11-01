@@ -9,6 +9,7 @@
 
 import { legacyLoaded } from '../legacy';
 import { esc } from '../util/html';
+import { toHTML } from '../util/trusted';
 
 type Labels = { word1: string; words: string; char1: string; chars: string; min: string; max: string };
 
@@ -78,7 +79,7 @@ export function updateCounter(input: HTMLInputElement | HTMLTextAreaElement): vo
 		input.insertAdjacentElement('afterend', el);
 	}
 	const html = "<small class='detail'>" + note + '</small>';
-	if (el.innerHTML !== html) el.innerHTML = html; // unchanged text: no DOM write
+	if (el.innerHTML !== html) el.innerHTML = toHTML(html); // unchanged text: no DOM write
 }
 
 function counted(target: EventTarget | null): HTMLInputElement | HTMLTextAreaElement | null {

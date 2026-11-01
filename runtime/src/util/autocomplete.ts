@@ -64,7 +64,7 @@ export function attachAutocomplete(input: HTMLInputElement, options: Autocomplet
 
 	const render = (list: Suggestion[]): void => {
 		items = list;
-		menu.innerHTML = '';
+		menu.replaceChildren();
 		if (!list.length) {
 			close();
 			return;

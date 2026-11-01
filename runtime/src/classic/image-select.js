@@ -221,16 +221,18 @@
 		var container = document.createElement('div');
 		container.className = 'cropper-container';
 		container.style.cssText = 'position:relative;width:' + dispW + 'px;height:' + dispH + 'px;touch-action:none;user-select:none';
-		container.innerHTML =
-			"<div class='cropper-canvas' style='position:absolute;inset:0'><img src='" + img.getAttribute('src') + "' style='width:100%;height:100%' alt=''></div>" +
+		container.innerHTML = window.ProcessWireAdminTheme.trusted.html(
+			"<div class='cropper-canvas' style='position:absolute;inset:0'><img style='width:100%;height:100%' alt=''></div>" +
 			"<div class='cropper-modal' style='position:absolute;inset:0'></div>" +
 			"<div class='cropper-crop-box' style='position:absolute'>" +
-				"<span class='cropper-view-box' style='display:block;overflow:hidden;width:100%;height:100%'><img src='" + img.getAttribute('src') + "' style='position:absolute;max-width:none' alt=''></span>" +
+				"<span class='cropper-view-box' style='display:block;overflow:hidden;width:100%;height:100%'><img style='position:absolute;max-width:none' alt=''></span>" +
 				"<span class='cropper-dashed dashed-h'></span><span class='cropper-dashed dashed-v'></span>" +
 				"<span class='cropper-face' data-drag='all'></span>" +
 				['e', 'n', 'w', 's'].map(function(d) { return "<span class='cropper-line line-" + d + "' data-drag='" + d + "'></span>"; }).join('') +
 				['e', 'n', 'w', 's', 'ne', 'nw', 'sw', 'se'].map(function(d) { return "<span class='cropper-point point-" + d + "' data-drag='" + d + "'></span>"; }).join('') +
-			"</div>";
+			"</div>");
+		// the image's address by property: an attribute value is never pasted into markup (audit SE6)
+		$$('img', container).forEach(function(i) { i.src = img.getAttribute('src'); });
 		img.style.display = 'none';
 		img.parentNode.insertBefore(container, img.nextSibling);
 		var box = $('.cropper-crop-box', container);

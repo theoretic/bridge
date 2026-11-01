@@ -5,6 +5,7 @@
  */
 
 import { label } from './labels';
+import { toHTML } from './trusted';
 
 const noticed = new Set<string>();
 export function notice(text: string): void {
@@ -37,7 +38,7 @@ export function notice(text: string): void {
 		close.href = '#';
 		close.title = label('close', 'Close');
 		close.setAttribute('aria-label', close.title);
-		close.innerHTML = "<i class='fa fa-times' aria-hidden='true'></i>";
+		close.innerHTML = toHTML("<i class='fa fa-times' aria-hidden='true'></i>");
 		li.prepend(close);
 	}
 	list.appendChild(li);

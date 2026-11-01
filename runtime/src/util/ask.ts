@@ -7,6 +7,7 @@
 
 import { label } from './labels';
 import { esc } from './html';
+import { toHTML } from './trusted';
 
 export type AskOptions = {
 	title: string;
@@ -21,13 +22,13 @@ export function ask(opts: AskOptions): Promise<boolean> {
 		const d = document.createElement('dialog');
 		d.className = 'pw-ask' + (opts.danger ? ' pw-ask-danger' : '');
 		d.setAttribute('role', 'alertdialog');
-		d.innerHTML = '<form method="dialog">' +
+		d.innerHTML = toHTML('<form method="dialog">' +
 			`<p class="pw-ask-message">${opts.danger ? "<i class='fa fa-warning' aria-hidden='true'></i> " : ''}${esc(opts.title)}</p>` +
 			(opts.message ? `<p class="pw-ask-risk">${esc(opts.message)}</p>` : '') +
 			(opts.items && opts.items.length ? '<ul class="pw-ask-items">' + opts.items.map(s => `<li>${esc(s)}</li>`).join('') + '</ul>' : '') +
 			'<div class="pw-ask-buttons">' +
 			`<button type="submit" value="ok" class="ui-button pw-button${opts.danger ? ' pw-button-danger' : ''}">${esc(opts.ok || label('ok', 'OK'))}</button>` +
-			`<button type="submit" value="cancel" class="ui-button pw-button ui-priority-secondary">${esc(label('cancel', 'Cancel'))}</button></div></form>`;
+			`<button type="submit" value="cancel" class="ui-button pw-button ui-priority-secondary">${esc(label('cancel', 'Cancel'))}</button></div></form>`);
 		const title = d.querySelector('.pw-ask-message') as HTMLElement;
 		title.id = 'pw-ask-' + Date.now();
 		d.setAttribute('aria-labelledby', title.id);

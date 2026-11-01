@@ -29,6 +29,22 @@
 	// listeners end when upstream's own script for this screen takes over (main.js handover)
 	var handover = (theme && theme.handover) || { over: false, bind: function(o) { return o; } };
 
+	// core's inline confirm and click guard, which the theme turns into data attributes on a native
+	// screen (AdminThemeBridge::nativeInlineHandlers(), ADR 0020): asked with the theme's dialog,
+	// OK clicks again. Bound once, for the page's life: these buttons ask under a late legacy stack too
+	document.addEventListener('click', function(e) {
+		var el = e.target.closest ? e.target.closest('[data-pw-confirm], [data-pw-noclick]') : null;
+		if(!el) return;
+		if(el.hasAttribute('data-pw-noclick')) { e.preventDefault(); return; }
+		if(el.pwConfirmed) { el.pwConfirmed = false; return; }
+		e.preventDefault();
+		e.stopImmediatePropagation();
+		theme.confirm({ title: el.getAttribute('data-pw-confirm'), danger: true }, function() {
+			el.pwConfirmed = true;
+			el.click();
+		});
+	}, true);
+
 	function $(sel, root) { return (root || document).querySelector(sel); }
 	function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 	function on(el, type, fn) { if(el) el.addEventListener(type, fn, handover.bind()); }
@@ -122,14 +138,14 @@
 				var p = select.closest('p');
 				var sections = p && p.parentElement ? $$(':scope > .modules_section', p.parentElement) : [];
 				sections.forEach(function(s) { show(s, section === '' || s.classList.contains('modules_' + section)); });
-				document.cookie = select.getAttribute('name') + '=' + section;
+				theme.setCookie(select.getAttribute('name'), section);
 			};
 			select.addEventListener('change', apply, handover.bind());
 			apply();
 		});
 		onDocument('modules-check', 'click', function(e) {
 			// "Check for new modules" leads to the New tab
-			if(e.target.closest && e.target.closest('#head_button a')) document.cookie = 'WireTabs=tab_new_modules';
+			if(e.target.closest && e.target.closest('#head_button a')) theme.setCookie('WireTabs', 'tab_new_modules');
 		});
 		on($('#Inputfield_new_seconds'), 'change', function() {
 			var btn = $('#submit_check');
@@ -487,7 +503,7 @@
 			if(old) old.remove();
 			var bar = document.createElement('div');
 			bar.className = 'columnWidthBar';
-			bar.innerHTML = "<span class='columnWidthBarPct'></span>";
+			bar.innerHTML = theme.trusted.html("<span class='columnWidthBarPct'></span>");
 			bar.firstChild.textContent = current + '%';
 			bar.style.width = current + '%';
 			item.appendChild(bar);
@@ -613,7 +629,7 @@
 		importExport();
 		$$('#import_form table td:not(:first-child)').forEach(function(td) {
 			var html = td.innerHTML;
-			if(html.charAt(0) === '{') td.innerHTML = '<pre>' + html.replace(/<br>/g, '') + '</pre>';
+			if(html.charAt(0) === '{') td.innerHTML = theme.trusted.html('<pre>' + html.replace(/<br>/g, '') + '</pre>');
 		});
 		templateFields();
 		fieldCreator();
@@ -644,7 +660,7 @@
 				if(alert) { alert.remove(); return; }
 				alert = document.createElement('span');
 				alert.className = 'ui-state-error-text';
-				alert.innerHTML = '&nbsp;(' + cfg.notEditableAlert + ')';
+				alert.textContent = '\u00a0(' + cfg.notEditableAlert + ')';
 				label.appendChild(alert);
 				setTimeout(function() { alert.remove(); }, 2000);
 			}, handover.bind());

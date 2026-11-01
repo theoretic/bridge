@@ -1,5 +1,21 @@
 # Changelog
 
+## AdminThemeBridge 0.18.4: Trusted Types, an enforced policy on native screens (2026-11-01)
+
+The Trusted Types part of ADR 0020, with the runtime items of the 2026-11-01 audit (SE6). Sites without a policy see no change.
+
+- **Every HTML string the theme and the runtime write goes through one Trusted Types policy, `bridge`.** About 130 writes (innerHTML, insertAdjacentHTML, parsed documents, script text and script URLs) now pass `ProcessWireAdminTheme.trusted`, or the runtime's `util/trusted.ts`, which uses it. The policy lets everything through for now, so a sanitiser has one place to go. Without Trusted Types, or where the site's `trusted-types` directive does not list `bridge`, nothing changes. Clearing an element no longer writes an empty string, and text is written as text.
+- **An enforced policy works on every screen without the legacy stack.** `tools/csp-check.js --enforce` passes in Chromium and Firefox on the page tree, the page editor, the Lister, Add New, fields, templates, logs, modules, users, roles and the profile. The browser checks of the page editor, saves, files and images, repeaters, the page tree, Setup, the image window and the other screens pass with Bridge CSP enforcing. Screens that load the legacy stack still break under an enforced policy, as the README's new Content-Security-Policy section says, and so does a legacy field that loads it late on a native screen.
+- **The module list's Delete and Install ask in the theme's dialog.** Core asks with inline `onclick` handlers, which an enforced policy drops without a word, so Delete would remove a module's files without asking. On screens with the theme's setup script they become data attributes, and one listener asks before the click acts. ProcessRole's inherited permissions keep refusing a click the same way.
+- **No `document.write` any more.** When a save answers with something other than the screen (an error page, a confirmation), the page shows the answer without running its scripts.
+- Values that went into markup unescaped are escaped: the date picker's month and day names and button labels, the image upload's labels and preview address, the icon picker's option value, the image editor's crop preview address. HTML in a message is stripped in an inert document, where an `<img onerror>` cannot run.
+- The dialog opens web pages only: a `javascript:` or `data:` address is refused.
+- The theme's cookies (tabs, the module list's section) are encoded and `SameSite=Lax`, `Secure` on https.
+- The selector field's inline `onclick` and the tag field's `javascript:` link are gone.
+- For module authors: `ProcessWireAdminTheme.trusted` (`html`, `script`, `scriptURL`, `parse`, `text`) and `ProcessWireAdminTheme.setCookie()` (`docs/contract.md` 4.1).
+- For developers: `npm run build` runs `runtime/scripts/check-sinks.mjs`, which fails on a sink written past the policy, a `document.write`, an inline handler or a `javascript:` URL in the sources. `tools/csp-check.js` fails on inline handlers and Trusted Types violations on native screens, and takes `--enforce`. The size budgets of `runtime.js` (14848 B), `page-save.js` (4 kB) and the classic scripts (43.5 kB) are raised for the wrapped writes.
+- **Bridge CSP 0.1.2 enforces only where it can.** In enforce mode a screen that loads the legacy stack, the login screen among them, gets the policy report only, so an enforced policy cannot lock anyone out; the policy now goes out once the Process ran. Its settings say where enforcing still breaks.
+
 ## AdminThemeBridge 0.18.3: smaller fixes on the server side (2026-11-01)
 
 From the 2026-11-01 audit (SE6, BG2 to BG5).

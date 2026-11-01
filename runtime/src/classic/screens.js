@@ -114,7 +114,7 @@
 			var ajaxURL = form.getAttribute('data-ajax-url') || './';
 			var dupNote = document.createElement('p');
 			dupNote.className = 'notes';
-			dupNote.innerHTML = form.getAttribute('data-dup-note') || '';
+			dupNote.innerHTML = theme.trusted.html(form.getAttribute('data-dup-note') || '');
 			dupNote.style.display = 'none';
 			nameInput.insertAdjacentElement('afterend', dupNote);
 			var status = document.createElement('span');
@@ -131,7 +131,7 @@
 				fetch(ajaxURL + 'exists?parent_id=' + encodeURIComponent(parentId) + '&name=' + encodeURIComponent(name), { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
 					.then(function(res) { return res.text(); })
 					.then(function(html) {
-						status.innerHTML = ' ' + html;
+						status.innerHTML = theme.trusted.html(' ' + html);
 						status.style.display = 'inline';
 						var taken = !!status.querySelector('.taken');
 						nameInput.classList.toggle('ui-state-error-text', taken);
@@ -228,13 +228,13 @@
 			getJSON('./?' + params.toString()).then(function(data) {
 				var entries = $('#ProcessLogEntries');
 				if(entries && (!updateOnlyNew || (data.qty > -1 && ProcessLogger.pageNum === 1))) {
-					entries.innerHTML = data.out;
+					entries.innerHTML = theme.trusted.html(data.out);
 					if(!updateOnlyNew) flash(entries);
 				}
 				if(data.note && data.note.length) {
 					if(window.Notifications && Notifications.message) Notifications.message(data.note, '', 'tree');
 					var notes = $('#ProcessLogHeadline .notes');
-					if(notes) notes.innerHTML = '+ ' + data.note;
+					if(notes) notes.innerHTML = theme.trusted.html('+ ' + data.note);
 				}
 				ProcessLogger.setupLogEntries();
 				ProcessLogger.stopSpinner(!updateOnlyNew);
@@ -274,7 +274,7 @@
 			ProcessLogger.startSpinner(true);
 			getJSON(a.getAttribute('href')).then(function(data) {
 				var entries = $('#ProcessLogEntries');
-				if(entries) entries.innerHTML = data.out;
+				if(entries) entries.innerHTML = theme.trusted.html(data.out);
 				ProcessLogger.setupLogEntries();
 				ProcessLogger.stopSpinner(true);
 			}).catch(function() { ProcessLogger.stopSpinner(true); });

@@ -12,6 +12,8 @@
  *   500 ms after the last one, as upstream does.
  */
 
+import { toHTML } from '../util/trusted';
+
 export type UploadResult = { error?: boolean | number; message?: string; markup?: string; replace?: boolean; overwrite?: boolean; file?: string };
 
 export type UploadTarget = {
@@ -139,7 +141,7 @@ export function send(file: File, target: UploadTarget, options: { body?: Blob | 
 /** Parse server markup for a new item into an element */
 export function toElement(markup: string): HTMLElement | null {
 	const tpl = document.createElement('template');
-	tpl.innerHTML = markup.trim();
+	tpl.innerHTML = toHTML(markup.trim());
 	return tpl.content.firstElementChild as HTMLElement | null;
 }
 

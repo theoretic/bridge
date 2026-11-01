@@ -20,6 +20,7 @@
 import { makeSortable } from '../util/sortable';
 import { on } from '../legacy';
 import { esc } from '../util/html';
+import { toHTML } from '../util/trusted';
 
 export type Opts = {
 	delimiter?: string; closeAfterSelect?: boolean; createOnBlur?: boolean; maxItems?: number;
@@ -114,7 +115,7 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 			const div = document.createElement('div');
 			div.className = 'item';
 			div.setAttribute('data-value', t.value);
-			div.innerHTML = esc(t.label) + (single ? '' : '<a href="javascript:void(0)" class="remove" tabindex="-1" title="Remove">×</a>');
+			div.innerHTML = toHTML(esc(t.label) + (single ? '' : '<a href="#" class="remove" tabindex="-1" title="Remove">×</a>'));
 			box.insertBefore(div, text);
 		});
 		const full = !!max && items.length >= max;
@@ -145,7 +146,7 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 		let html = '';
 		if (canCreate(q)) html += '<div class="create" data-selectable data-value="' + esc(q) + '">' + (o.addLabel || 'Add') + ' <strong>' + esc(q) + '</strong>&hellip;</div>';
 		list.forEach(t => { html += '<div class="option" data-selectable data-value="' + esc(t.value) + '">' + esc(t.label) + '</div>'; });
-		content.innerHTML = html;
+		content.innerHTML = toHTML(html);
 		active = -1;
 		const show = html.length > 0 && document.activeElement === text;
 		dropdown.style.display = show ? 'block' : 'none';

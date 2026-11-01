@@ -52,7 +52,7 @@
 	}
 
 	function setCookie(name, value) {
-		document.cookie = name + '=' + encodeURIComponent(value);
+		theme.setCookie(name, value);
 	}
 
 	function contentFor(link) {
@@ -86,7 +86,7 @@
 		var generate = !list;
 		if(!list) {
 			var tmp = document.createElement('div');
-			tmp.innerHTML = '<ul' + (o.ulAttrs ? ' ' + o.ulAttrs : '') + '></ul>';
+			tmp.innerHTML = theme.trusted.html('<ul' + (o.ulAttrs ? ' ' + o.ulAttrs : '') + '></ul>');
 			list = tmp.firstChild;
 			String(o.ulClass).split(/\s+/).forEach(function(c) { if(c) list.classList.add(c); });
 			if(o.id) list.id = o.id;
@@ -106,7 +106,8 @@
 				link = document.createElement('a');
 				link.href = '#' + item.id;
 				link.id = '_' + item.id;
-				link.innerHTML = title;
+				// markup, as upstream's WireTabs puts the title in with html()
+				link.innerHTML = theme.trusted.html(title);
 				var li = document.createElement('li');
 				li.appendChild(link);
 				list.appendChild(li);

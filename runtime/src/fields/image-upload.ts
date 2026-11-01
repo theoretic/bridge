@@ -11,6 +11,7 @@ import { uploadTarget, rejectReason, send, toElement, initItem, filesOf, UploadR
 import { initFileTags, updateCount } from './file';
 import { legacyLoaded } from '../legacy';
 import { settings, labels, setGridSize, setListSize, panelOf, closeEdit, openEdit, updateGrid, esc, pw } from './image';
+import { toHTML, toScriptURL } from '../util/trusted';
 
 type Replace = { file: string; item: HTMLElement | null; panel: HTMLElement | null };
 const replace: Replace = { file: '', item: null, panel: null };
@@ -37,7 +38,7 @@ function loadResizer(): Promise<void> {
 	const urls = (cfg.legacyScripts || []).filter(u => /\/InputfieldImage\/(piexif|PWImageResizer)(\.min)?\.js/.test(u));
 	resizerLoading = urls.reduce((p, url) => p.then(() => new Promise<void>((resolve, reject) => {
 		const s = document.createElement('script');
-		s.src = url;
+		s.src = toScriptURL(url);
 		s.onload = () => resolve();
 		s.onerror = () => reject(new Error('failed to load ' + url));
 		document.head.appendChild(s);
@@ -51,14 +52,14 @@ function progressItem(file: File, url: string, inputfield: HTMLElement): { li: H
 	const size = Math.floor(file.size / 1024) + '&nbsp;kB';
 	const li = document.createElement('li');
 	li.className = 'gridImage gridImageUploading';
-	li.innerHTML = '<div class="gridImage__tooltip"><table><tbody>' +
-		`<tr><th>${l.dimensions || ''}</th><td class="dimensions">${l.na || ''}</td></tr>` +
-		`<tr><th>${l.filesize || ''}</th><td>${size}</td></tr><tr><th>${l.variations || ''}</th><td>0</td></tr></tbody></table></div>` +
-		`<div class="gridImage__overflow"><img height="${set.size}" alt="" src="${url}" data-original="${url}"></div>` +
+	li.innerHTML = toHTML('<div class="gridImage__tooltip"><table><tbody>' +
+		`<tr><th>${esc(l.dimensions || '')}</th><td class="dimensions">${esc(l.na || '')}</td></tr>` +
+		`<tr><th>${esc(l.filesize || '')}</th><td>${size}</td></tr><tr><th>${esc(l.variations || '')}</th><td>0</td></tr></tbody></table></div>` +
+		`<div class="gridImage__overflow"><img height="${set.size}" alt="" src="${esc(url)}" data-original="${esc(url)}"></div>` +
 		`<div class='gridImage__hover'><div class='gridImage__inner'><a class="gridImage__edit" title="${esc(file.name)}"><span>&nbsp;</span></a>` +
 		'<div class="gridImage__resize" style="display:none"><i class="fa fa-spinner fa-spin fa-2x fa-fw"></i></div>' +
 		"<progress class='gridImage__progress' min='-1' max='100' value='0'></progress></div></div>" +
-		`<div class="ImageData"><h2 class="InputfieldImageEdit__name">${esc(file.name)}</h2><span class="InputfieldImageEdit__info">${size}</span></div>`;
+		`<div class="ImageData"><h2 class="InputfieldImageEdit__name">${esc(file.name)}</h2><span class="InputfieldImageEdit__info">${size}</span></div>`);
 	const overflow = li.querySelector<HTMLElement>('.gridImage__overflow') as HTMLElement;
 	const data = li.querySelector<HTMLElement>('.ImageData') as HTMLElement;
 	if (inputfield.classList.contains('InputfieldImageEditAll')) {
@@ -70,7 +71,7 @@ function progressItem(file: File, url: string, inputfield: HTMLElement): { li: H
 	const probe = new Image();
 	probe.onload = () => {
 		const dims = li.querySelector('.dimensions');
-		if (dims) dims.innerHTML = probe.width + '&nbsp;&times;&nbsp;' + probe.height;
+		if (dims) dims.textContent = probe.width + '\u00a0\u00d7\u00a0' + probe.height;
 		const img = overflow.querySelector('img') as HTMLImageElement;
 		const factor = Math.min(probe.width, probe.height) / set.size;
 		img.width = probe.width / factor;
@@ -95,7 +96,7 @@ export function setupUpload(inputfield: HTMLElement, content: HTMLElement, grid:
 
 	const error = (message: string, name?: string): void => {
 		if (!errors) return;
-		errors.insertAdjacentHTML('beforeend', `<li><i class='fa fa-fw fa-warning'></i> ${name ? '<b>' + esc(name) + ':</b> ' : ''}${esc(message)}</li>`);
+		errors.insertAdjacentHTML('beforeend', toHTML(`<li><i class='fa fa-fw fa-warning'></i> ${name ? '<b>' + esc(name) + ':</b> ' : ''}${esc(message)}</li>`));
 	};
 
 	const place = (results: UploadResult[], row: HTMLElement): void => {
@@ -225,7 +226,7 @@ export function setupUpload(inputfield: HTMLElement, content: HTMLElement, grid:
 			const size = (grid.getAttribute('data-size') || '130') + 'px';
 			placeholder = document.createElement('li');
 			placeholder.className = 'ImageOuter gridImage gridImagePlaceholder';
-			placeholder.innerHTML = '<div class="gridImage__overflow"></div>';
+			placeholder.innerHTML = toHTML('<div class="gridImage__overflow"></div>');
 			const o = placeholder.firstElementChild as HTMLElement;
 			o.style.width = grid.closest('.InputfieldImageEditAll') ? '100%' : size;
 			o.style.height = size;

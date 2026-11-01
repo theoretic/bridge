@@ -14,6 +14,7 @@ import { isHidden } from './dependencies';
 import { installGlobal } from '../util/stubs';
 import { legacyLoaded } from '../legacy';
 import { runScripts, responseNonce } from '../util/scripts';
+import { parseHTML, toHTML } from '../util/trusted';
 
 type Target = string | Element | ArrayLike<Element> | null | undefined;
 
@@ -161,12 +162,12 @@ export const InputfieldsFacade = {
 				.then(r => { nonce = responseNonce(r); return r.text(); })
 				.then(html => {
 					if (html.indexOf('{') === 0) return;
-					const doc = new DOMParser().parseFromString(html, 'text/html');
+					const doc = parseHTML(html);
 					const found = doc.getElementById(li.id) || (item ? doc.getElementById('wrap_Inputfield_' + name) : null);
 					const content = found ? found.querySelector(':scope > .InputfieldContent') : null;
 					const mine = li.querySelector(':scope > .InputfieldContent');
 					if (!content || !mine) return;
-					mine.innerHTML = content.innerHTML;
+					mine.innerHTML = toHTML(content.innerHTML);
 					return runScripts(mine, { legacy: !!li.querySelector('[data-bridge-legacy]'), nonce }).then(() => {
 						li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'reload' } }));
 					});

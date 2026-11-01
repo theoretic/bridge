@@ -10,6 +10,7 @@
  */
 
 import { legacyLoaded, loadLegacy } from '../legacy';
+import { toScript, toScriptURL } from './trusted';
 
 export interface RunOptions {
 	legacy?: boolean;
@@ -51,9 +52,12 @@ export function runScripts(rootOrScripts: ParentNode | HTMLScriptElement[], opti
 			// the same rule as the theme's runner (audit SE2)
 			if (page && (!options.nonce || (old.nonce || old.getAttribute('nonce') || '') !== options.nonce)) { skipped++; continue; }
 			const live = document.createElement('script');
-			for (const attr of Array.from(old.attributes)) if (attr.name !== 'nonce') live.setAttribute(attr.name, attr.value);
+			// src and text through the Trusted Types policy, never as plain strings (ADR 0020)
+			for (const attr of Array.from(old.attributes)) if (attr.name !== 'nonce' && attr.name !== 'src') live.setAttribute(attr.name, attr.value);
 			if (page) live.nonce = page;
-			live.text = old.text;
+			const src = old.getAttribute('src');
+			if (src) live.src = toScriptURL(src);
+			else live.text = toScript(old.text);
 			old.replaceWith(live);
 		}
 		if (skipped) console.warn(`Bridge: ${skipped} script(s) without the response's nonce not run (Content-Security-Policy)`);

@@ -17,6 +17,7 @@ import { legacyLoaded } from '../legacy';
 import { runScripts, responseNonce } from '../util/scripts';
 import { label } from '../util/labels';
 import { failed } from '../util/fail';
+import { toHTML } from '../util/trusted';
 
 const HEADER = '.InputfieldHeader, .ui-widget-header';
 
@@ -121,7 +122,7 @@ async function loadAjax(li: HTMLElement, placeholder: HTMLElement): Promise<void
 		// $.get(..., 'html') success callback never sees one
 		if (!res.ok || html.trim().indexOf('{') === 0) throw new Error('HTTP ' + res.status + ' ' + html.trim().slice(0, 200));
 		const tpl = document.createElement('template');
-		tpl.innerHTML = html;
+		tpl.innerHTML = toHTML(html);
 		li.classList.remove('InputfieldAjaxLoading', 'InputfieldStateCollapsed');
 		li.classList.add('InputfieldStateWasCollapsed');
 		syncIcon(li, false);

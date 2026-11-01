@@ -11,7 +11,10 @@
  *  - off: nothing is sent, the theme prints no nonce (the default after install)
  *  - report-only: the policy goes out as Content-Security-Policy-Report-Only; the admin works as
  *    before and the browser reports what the policy would block
- *  - enforce: the policy goes out as Content-Security-Policy
+ *  - enforce: the policy goes out as Content-Security-Policy on screens that run without the legacy
+ *    stack, and as Content-Security-Policy-Report-Only on those that load it (the login screen,
+ *    CKEditor, TinyMCE, most third-party fields): jQuery and the scripts written against it write
+ *    HTML strings that Trusted Types refuse, and an enforced login screen would lock everyone out
  *
  * The policy is a template: `{nonce}` becomes the request's nonce. The extra report-only policy
  * goes out as Content-Security-Policy-Report-Only in both modes other than off (for directives a
@@ -30,7 +33,7 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge CSP',
-			'version' => '0.1.1',
+			'version' => '0.1.2',
 			'summary' => 'Nonce-based Content-Security-Policy and Trusted Types for the Bridge admin (report-only or enforced).',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -81,8 +84,8 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 		$this->addHookAfter('AdminThemeBridge::nonce', function(HookEvent $event) use($nonce) {
 			$event->return = $nonce;
 		});
-		// sent once the admin theme is known: under another theme nothing goes out
-		$this->addHookBefore('ProcessController::execute', $this, 'sendPolicy');
+		// sent once the Process ran: the theme knows by then whether the screen needs the legacy stack
+		$this->addHookAfter('ProcessController::execute', $this, 'sendPolicy');
 	}
 
 	/**
@@ -118,7 +121,10 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 	}
 
 	/**
-	 * Hook before ProcessController::execute: send the headers when the page is the Bridge theme's
+	 * Hook after ProcessController::execute: send the headers when the page is the Bridge theme's
+	 *
+	 * In enforce mode a screen that needs the legacy stack gets the policy report only (0.1.2): the
+	 * screen keeps working and the browser still reports what the policy would block.
 	 *
 	 * @param HookEvent|null $event
 	 *
@@ -129,12 +135,24 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 		if(!$theme || $theme->className() !== 'AdminThemeBridge') return;
 		$policy = $this->policyFor($this->get('policy'));
 		if($policy !== '') {
-			$name = $this->get('mode') === self::modeEnforce ? 'Content-Security-Policy' : 'Content-Security-Policy-Report-Only';
+			$enforce = $this->get('mode') === self::modeEnforce && !$this->legacyScreen($theme);
+			$name = $enforce ? 'Content-Security-Policy' : 'Content-Security-Policy-Report-Only';
 			// next to any policy the site sends, never in its place (audit SE6)
 			header("$name: $policy", false);
 		}
 		$report = $this->policyFor($this->get('reportPolicy'));
 		if($report !== '') header("Content-Security-Policy-Report-Only: $report", false);
+	}
+
+	/**
+	 * Does this screen load the legacy stack? (The theme decided while the Process rendered.)
+	 *
+	 * @param AdminTheme $theme
+	 * @return bool
+	 *
+	 */
+	public function legacyScreen($theme) {
+		return method_exists($theme, 'useLegacyStack') ? (bool) $theme->useLegacyStack() : true;
 	}
 
 	/**
@@ -151,7 +169,7 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 		$f->attr('name', 'mode');
 		$f->label = $this->_('Mode');
 		$f->description = $this->_('Report only first: the admin works as before and the browser console lists what the policy would block. Enforce once the screens you use report nothing. A policy the site sends itself stays: this one goes out next to it, and the browser applies both.');
-		$f->notes = $this->_('Not ready to enforce yet (Bridge 0.18.0): the theme\'s scripts still trip Trusted Types, and core\'s module list asks before Delete and Install through inline handlers that an enforced policy blocks, so those buttons would act without asking.');
+		$f->notes = $this->_('Enforce applies to screens without the legacy stack; screens that load it (the login screen, CKEditor, TinyMCE, most third-party fields) get the policy report only. A legacy field that loads the stack later on an enforced screen does not work: use report only while you rely on one.');
 		$f->addOption(self::modeOff, $this->_('Off'));
 		$f->addOption(self::modeReport, $this->_('Report only'));
 		$f->addOption(self::modeEnforce, $this->_('Enforce'));

@@ -37,6 +37,15 @@
 
 	var cfg = (window.ProcessWire && ProcessWire.config && ProcessWire.config.AdminThemeBridge) || {};
 	if(!cfg.pageSave || typeof window.fetch !== 'function' || typeof window.DOMParser === 'undefined') return;
+	var T = window.ProcessWireAdminTheme.trusted;
+
+	// an answer that is not the screen we posted from (an error page, a confirmation) shown as it came,
+	// in place of this document and without running its scripts: no document.write (ADR 0020
+	// decision 4), and posting again the classic way could repeat a save that happened
+	function showAnswer(html) {
+		var doc = T.parse(html);
+		document.replaceChild(document.adoptNode(doc.documentElement), document.documentElement);
+	}
 
 	var SUBMITTERS = ['submit_save', 'submit_publish', 'submit_save_unpublished'];
 	// other edit forms by id: their save buttons (by name), the URL parameter naming what is edited,
@@ -176,9 +185,7 @@
 			// no redirect: not saved (CSRF or form landmark failed), a server error, or a hook that
 			// answered itself. Show the answer as it came, as doneForm() does: posting the form again
 			// the classic way repeated a save that had happened (a 500 after the save, a hook's 200)
-			document.open();
-			document.write(html);
-			document.close();
+			showAnswer(html);
 			return;
 		}
 		var url = new URL(res.url, location.href);
@@ -207,14 +214,12 @@
 		var url = new URL(res.url, location.href);
 		var here = new URL(location.href);
 		var formId = form.getAttribute('id');
-		var doc = new DOMParser().parseFromString(html, 'text/html');
+		var doc = T.parse(html);
 		var same = res.ok && samePath(url, here) && (!rule.key || url.searchParams.get(rule.key) === here.searchParams.get(rule.key));
 		if(res.redirected && !same) return location.assign(res.url);
 		if(!res.ok || !doc.getElementById(formId) || !doc.getElementById('pw-content-body')) {
 			// not the screen we posted from (an error page, a confirmation): show it as it came
-			document.open();
-			document.write(html);
-			document.close();
+			showAnswer(html);
 			return;
 		}
 		try {
@@ -239,7 +244,7 @@
 		// Debug Mode Tools (scripts/debug-tools.js): the saved page's request, wherever the panel is
 		var debug = document.getElementById('debug');
 		var newDebug = doc.getElementById('debug');
-		if(debug && newDebug) debug.innerHTML = newDebug.innerHTML;
+		if(debug && newDebug) debug.replaceChildren.apply(debug, Array.prototype.slice.call(newDebug.childNodes).map(function(n) { return document.adoptNode(n); }));
 	}
 
 	function swapForm(form, doc, url, submitter) {
@@ -268,7 +273,7 @@
 	}
 
 	function swap(form, html, url, submitter) {
-		var doc = new DOMParser().parseFromString(html, 'text/html');
+		var doc = T.parse(html);
 		var newForm = doc.getElementById('ProcessPageEdit');
 		var newBody = doc.getElementById('pw-content-body');
 		var body = document.getElementById('pw-content-body');

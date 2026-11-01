@@ -80,14 +80,14 @@
 	}
 
 	function mark(button, on) {
-		if(!document.getElementById('pw-save-wait')) document.body.insertAdjacentHTML('beforeend', "<span id='pw-save-wait' class='pw-sr-only' role='status'></span>");
+		if(!document.getElementById('pw-save-wait')) document.body.insertAdjacentHTML('beforeend', theme.trusted.html("<span id='pw-save-wait' class='pw-sr-only' role='status'></span>"));
 		document.getElementById('pw-save-wait').textContent = on ? ((theme.config().labels || {}).saveWaiting || '') : '';
 		document.body.classList.toggle('pw-save-waiting', on);
 		[button, button.id ? document.getElementById(button.id + '_copy') : null].forEach(function(b) {
 			if(!b) return;
 			var spin = b.querySelector('.pw-save-spinner');
 			if(on && !spin) {
-				(b.querySelector('.ui-button-text') || b).insertAdjacentHTML('beforeend', "<i class='fa fa-fw fa-spin fa-spinner pw-save-spinner'></i>");
+				(b.querySelector('.ui-button-text') || b).insertAdjacentHTML('beforeend', theme.trusted.html("<i class='fa fa-fw fa-spin fa-spinner pw-save-spinner'></i>"));
 			} else if(!on && spin) {
 				spin.remove();
 			}

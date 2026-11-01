@@ -16,7 +16,7 @@ SITES=("$@")
 [ ${#SITES[@]} -gt 0 ] || SITES=(atispro:8089 davinci:8090 ofsla:8091 livingston:8092 paraavis:8093 tandem-chegem:8094 testfly:8095 sla.events:8096 txm:8097)
 
 # a PHP response of any status: the server is up (a 404 or a login redirect is a running server)
-up() { curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://localhost:$1/" | grep -q '^[1-5][0-9][0-9]$'; }
+up() { curl -s -o /dev/null -w '%{http_code}' --max-time 20 "http://localhost:$1/" | grep -q '^[1-5][0-9][0-9]$'; }
 
 case_ok() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] && [[ "$2" =~ ^[0-9]+$ ]]; }
 

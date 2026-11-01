@@ -19,6 +19,7 @@
 import { attachAutocomplete } from '../util/autocomplete';
 import { initWidgets } from './registry';
 import { on } from '../legacy';
+import { toHTML } from '../util/trusted';
 
 const SPINNER = "<i class='fa fa-lg fa-spin fa-spinner'></i>";
 // per builder (two on one page do not suppress each other's preview and count): the last
@@ -55,7 +56,7 @@ function addRow(context: Element): void {
 	if (!list || !template) return;
 	const row = template.cloneNode(true) as HTMLElement;
 	row.classList.remove('selector-template-row');
-	row.querySelectorAll('.opval').forEach(o => { o.innerHTML = ''; });
+	row.querySelectorAll('.opval').forEach(o => { o.replaceChildren(); });
 	const select = row.querySelector<HTMLSelectElement>('.select-field');
 	if (select) select.value = '';
 	row.querySelectorAll<HTMLOptionElement>('option:disabled').forEach(o => { o.hidden = true; });
@@ -84,10 +85,10 @@ function toggleNamesLabels(select: HTMLSelectElement): void {
 		sel.querySelectorAll('option').forEach(option => {
 			const name = option.getAttribute('data-name');
 			if (!name) {
-				if (option.value === 'toggle-names-labels') option.innerHTML = option.getAttribute('data-' + current) || option.innerHTML;
+				if (option.value === 'toggle-names-labels') option.innerHTML = toHTML(option.getAttribute('data-' + current) || option.innerHTML);
 				return;
 			}
-			option.innerHTML = current === 'labels' ? name : (option.getAttribute('data-label') || name);
+			option.innerHTML = toHTML(current === 'labels' ? name : (option.getAttribute('data-label') || name));
 		});
 	});
 	root.classList.remove('InputfieldSelector_' + current);
@@ -103,11 +104,11 @@ function setupAutocomplete(input: HTMLInputElement, field: string, name: string)
 	attachAutocomplete(input, {
 		minLength: 2,
 		source: async term => {
-			if (counter) counter.innerHTML = SPINNER;
+			if (counter) counter.innerHTML = toHTML(SPINNER);
 			const res = await fetch('./?InputfieldSelector=autocomplete&field=' + encodeURIComponent(field) + '&name=' + encodeURIComponent(name) + '&q=' + encodeURIComponent(term),
 				{ credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
 			const data = await res.json() as { items: Array<{ label: string; value: string }> };
-			if (counter) counter.innerHTML = '';
+			if (counter) counter.replaceChildren();
 			return (data.items || []).map(i => ({ label: i.label, value: String(i.value) }));
 		},
 		select: item => {
@@ -141,7 +142,7 @@ async function changeField(select: HTMLSelectElement): Promise<void> {
 	if (!row || !root) return;
 	let action = 'opval';
 	const opval = row.querySelector<HTMLElement>(':scope > .opval');
-	if (opval) opval.innerHTML = '';
+	if (opval) opval.replaceChildren();
 	select.setAttribute('data-selected', field);
 	const hidden = root.querySelector<HTMLInputElement>('.selector-value');
 	const name = hidden ? hidden.name : '';
@@ -155,11 +156,11 @@ async function changeField(select: HTMLSelectElement): Promise<void> {
 		type = 'selector';
 	} else if (select.classList.contains('select-field')) {
 		const sub = row.querySelector(':scope > .subfield');
-		if (sub) sub.innerHTML = '';
+		if (sub) sub.replaceChildren();
 		row.classList.remove('has-subfield');
 	}
 	const spinner = document.createElement('span');
-	spinner.innerHTML = SPINNER;
+	spinner.innerHTML = toHTML(SPINNER);
 	row.appendChild(spinner);
 	let data = '';
 	try {
@@ -175,7 +176,7 @@ async function changeField(select: HTMLSelectElement): Promise<void> {
 	}
 	const fill = (target: Element | null, html: string): void => {
 		if (!target) return;
-		target.innerHTML = html;
+		target.innerHTML = toHTML(html);
 		target.querySelectorAll<HTMLElement>(':scope > :not(.input-or)').forEach(fadeIn);
 	};
 	if (action === 'subfield-opval') {
@@ -327,12 +328,12 @@ function changeAny(item: Element): void {
 	if (init) init += ', ';
 	if (selector.length && selector !== lastSelector.get(root) && preview) {
 		if (!preview.classList.contains('selector-preview-disabled')) {
-			preview.innerHTML = '<code>' + entities(init + selector) + '</code>';
+			preview.innerHTML = toHTML('<code>' + entities(init + selector) + '</code>');
 			fadeIn(preview);
 		}
 		const counter = preview.parentElement ? preview.parentElement.querySelector<HTMLElement>(':scope > .selector-counter') : null;
 		if (counter && !counter.classList.contains('selector-counter-disabled')) {
-			counter.innerHTML = SPINNER;
+			counter.innerHTML = toHTML(SPINNER);
 			lastSelector.set(root, selector);
 			const seq = (testSeq.get(root) || 0) + 1;
 			testSeq.set(root, seq);
@@ -343,9 +344,9 @@ function changeAny(item: Element): void {
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				return r.text();
 			}).then(html => {
-				if (testSeq.get(root) === seq) counter.innerHTML = html;
+				if (testSeq.get(root) === seq) counter.innerHTML = toHTML(html);
 			}).catch(err => {
-				if (testSeq.get(root) === seq) counter.innerHTML = '';
+				if (testSeq.get(root) === seq) counter.replaceChildren();
 				console.error('Bridge selector: count failed', err);
 			});
 		}
@@ -355,7 +356,7 @@ function changeAny(item: Element): void {
 		if (!selector.length && preview) {
 			hide(preview);
 			const counter = preview.parentElement ? preview.parentElement.querySelector<HTMLElement>(':scope > .selector-counter') : null;
-			if (counter) counter.innerHTML = '';
+			if (counter) counter.replaceChildren();
 		}
 		hidden.dispatchEvent(new Event('change', { bubbles: true }));
 	}
@@ -380,7 +381,14 @@ function setupEvents(): void {
 		window.clearTimeout(timer);
 		if (t.classList.contains('input-value-subselect') && valueHasOperator(t.value)) {
 			const preview = (t.closest('.InputfieldContent') || document).querySelector<HTMLElement>('.selector-preview');
-			if (preview) preview.innerHTML = 'Subselect detected: when done <a href="#" onclick="return false">click here to commit your change</a>.';
+			if (preview) {
+				// a listener, not an onclick attribute: a policy without 'unsafe-inline' drops those
+				const a = document.createElement('a');
+				a.href = '#';
+				a.textContent = 'click here to commit your change';
+				a.addEventListener('click', ev => ev.preventDefault());
+				preview.replaceChildren('Subselect detected: when done ', a, '.');
+			}
 			return;
 		}
 		timer = window.setTimeout(() => changeAny(t), 100);
@@ -411,7 +419,7 @@ export function init(root: HTMLElement): void {
 	root.querySelectorAll<HTMLElement>('.selector-preview').forEach(preview => {
 		const value = (preview.textContent || '').trim();
 		if (!value || preview.classList.contains('selector-preview-disabled')) { hide(preview); return; }
-		preview.innerHTML = '<code>' + entities(value) + '</code>';
+		preview.innerHTML = toHTML('<code>' + entities(value) + '</code>');
 	});
 	const hidden = root.querySelector<HTMLInputElement>('input.selector-value');
 	const name = hidden ? hidden.name : '';

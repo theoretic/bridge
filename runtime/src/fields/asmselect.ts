@@ -22,6 +22,7 @@
  */
 
 import { makeSortable } from '../util/sortable';
+import { toHTML } from '../util/trusted';
 
 type AsmOptions = {
 	listType: string; sortable: boolean; addable: boolean; deletable: boolean; highlight: boolean;
@@ -87,7 +88,7 @@ function optionsFor(original: HTMLSelectElement): AsmOptions {
 
 function html(markup: string): Element | null {
 	const t = document.createElement('template');
-	t.innerHTML = markup.trim();
+	t.innerHTML = toHTML(markup.trim());
 	return t.content.firstElementChild;
 }
 
@@ -192,7 +193,7 @@ function setup(original: HTMLSelectElement): void {
 		const source = originalOption(optionId);
 		if (!source) return;
 		const option = document.createElement('option');
-		option.innerHTML = source.innerHTML;
+		option.innerHTML = toHTML(source.innerHTML);
 		option.value = source.value;
 		option.setAttribute('rel', optionId);
 		if (source.classList.contains(options.optionParentClass)) option.classList.add(options.optionParentClass);
@@ -220,7 +221,7 @@ function setup(original: HTMLSelectElement): void {
 		span.className = options.highlightClass;
 		span.id = options.highlightClass + index;
 		const itemLabel = item ? item.querySelector('.' + options.listItemLabelClass) : null;
-		span.innerHTML = label;
+		span.innerHTML = toHTML(label);
 		if (itemLabel) span.appendChild(document.createTextNode(itemLabel.textContent || ''));
 		select.insertAdjacentElement('afterend', span);
 		if (remain) {
@@ -247,7 +248,7 @@ function setup(original: HTMLSelectElement): void {
 				const status = find(options.listItemStatusClass);
 				if (status) {
 					const target = item.querySelector('.' + options.listItemStatusClass);
-					if (target) target.innerHTML = status.value;
+					if (target) target.innerHTML = toHTML(status.value);
 					updated = true;
 				}
 				const desc = find(options.listItemDescClass);
@@ -265,9 +266,9 @@ function setup(original: HTMLSelectElement): void {
 
 	function editLinkFor(label: string, href: string): HTMLAnchorElement {
 		const a = document.createElement('a');
-		a.innerHTML = label;
+		a.innerHTML = toHTML(label);
 		a.href = href;
-		a.insertAdjacentHTML('beforeend', options.editLabel);
+		a.insertAdjacentHTML('beforeend', toHTML(options.editLabel));
 		if (options.editLinkModal === 'longclick') {
 			a.classList.add('asmEditLinkModalLongclick');
 			let timer = 0;
@@ -310,7 +311,7 @@ function setup(original: HTMLSelectElement): void {
 					item.classList.add('asmFieldset', 'asmFieldsetStart');
 					break;
 				}
-				if (prevSpan) prevSpan.insertAdjacentHTML('afterbegin', '<span class="asmFieldsetIndent"></span>');
+				if (prevSpan) prevSpan.insertAdjacentHTML('afterbegin', toHTML('<span class="asmFieldsetIndent"></span>'));
 			}
 		});
 	}
@@ -332,7 +333,7 @@ function setup(original: HTMLSelectElement): void {
 		label.className = options.listItemLabelClass;
 		const status = document.createElement('span');
 		status.className = options.listItemStatusClass;
-		if (source.getAttribute('data-status')) status.innerHTML = source.getAttribute('data-status') as string;
+		if (source.getAttribute('data-status')) status.innerHTML = toHTML(source.getAttribute('data-status') as string);
 		const desc = document.createElement('span');
 		desc.className = options.listItemDescClass;
 		if (options.editLink.length > 0 && (source.selected || !options.editLinkOnlySelected)) {
@@ -345,16 +346,16 @@ function setup(original: HTMLSelectElement): void {
 				desc.appendChild(editLinkFor(d, href));
 			}
 		} else {
-			label.innerHTML = source.innerHTML;
+			label.innerHTML = toHTML(source.innerHTML);
 			const d = source.getAttribute('data-desc');
-			if (d) desc.innerHTML = d;
+			if (d) desc.innerHTML = toHTML(d);
 		}
 		item.append(label, desc, status);
 		if (options.deletable) {
 			const remove = document.createElement('a');
 			remove.href = '#';
 			remove.className = options.removeClass;
-			remove.innerHTML = options.removeLabel;
+			remove.innerHTML = toHTML(options.removeLabel);
 			remove.addEventListener('click', e => {
 				e.preventDefault();
 				dropListItem(optionId);
@@ -442,7 +443,7 @@ function setup(original: HTMLSelectElement): void {
 			const plainIndent = html('<span>' + options.optionChildIndent + '</span>');
 			const indentText = plainIndent ? plainIndent.textContent || '' : '';
 			children.forEach(child => {
-				if ((child.textContent || '').indexOf(indentText) !== 0) child.innerHTML = indent + child.innerHTML;
+				if ((child.textContent || '').indexOf(indentText) !== 0) child.innerHTML = toHTML(indent + child.innerHTML);
 			});
 			showSelectOptions(children, option);
 			Array.from(select.selectedOptions).forEach(o => { o.selected = false; });
@@ -459,7 +460,7 @@ function setup(original: HTMLSelectElement): void {
 			setHighlight(null, options.optionParentLabel, true);
 			options.highlight = keep;
 		}
-		option.innerHTML = label;
+		option.innerHTML = toHTML(label);
 	}
 
 	function buildSelect(): void {
@@ -510,9 +511,9 @@ function setup(original: HTMLSelectElement): void {
 
 	original.addEventListener('change', () => {
 		if (ignoreOriginalChange) return;
-		select.innerHTML = '';
-		if (select2) select2.innerHTML = '';
-		ol.innerHTML = '';
+		select.replaceChildren();
+		if (select2) select2.replaceChildren();
+		ol.replaceChildren();
 		buildSelect();
 		if (options.fieldset) setupFieldsets();
 	});

@@ -1,6 +1,7 @@
 # ADR 0020: Trusted Types and a nonce-based Content-Security-Policy in the admin
 
-Status: accepted, 2026-11-01. Implementation plan for
+Status: accepted, 2026-11-01; built in 0.18.0, 0.18.1 and 0.18.4 (the 2026-11-01 audit moved the
+nonce fixes ahead of the Trusted Types sweep). Implementation plan for
 [theoretic/bridge#1](https://github.com/theoretic/bridge/issues/1) (adrianbj, 2026-10-28); the owner
 agrees with every suggestion in it. 0.18.0 done 2026-11-01 (see "0.18.0 as built" below);
 0.18.1 and 0.18.2 open.
@@ -187,6 +188,22 @@ rule of decision 3 (SE2). 0.18.1 fixes both: `knownInlineScripts()` matches each
 start to end, and both runners apply decision 3 with `responseNonce()`, with the budget raise of
 item 7 below. Items 1 (the runner part), 2 (`responseNonce()`), 3 (the fetch sites) and 7 are done;
 the Trusted Types sweep below moves to 0.18.4.
+
+### 0.18.4 as built (2026-11-01)
+
+Items 1 to 6 and 8 to 10 below are done, with these differences:
+- The runtime helpers are `toHTML()`, `toScript()`, `toScriptURL()`, `parseHTML()` and
+  `htmlText()` in `util/trusted.ts` (variables named `html` are common in the widgets); the
+  classic scripts call `ProcessWireAdminTheme.trusted.html()` and its siblings.
+- Decision 4: a save answer that is not the screen replaces the document with the parsed answer
+  (inert) instead of navigating, so an error page keeps its message.
+- The `ProcessModule` confirm handlers and ProcessRole's `return false` become `data-pw-confirm`
+  and `data-pw-noclick` (`nativeInlineHandlers()`), only on screens with `scripts/setup.js`.
+- Item 7: the budgets went to 14848 B (`runtime.js`), 12 kB (`main.js`), 4 kB (`page-save.js`)
+  and 43.5 kB (the classic total); about 80 wrapped writes cost more than the estimate.
+- `tools/csp-check.js --enforce` passes on every native screen in Chromium and Firefox (atispro
+  sandbox): no script, handler or Trusted Types violation, and the fragment probe runs only the
+  vouched script. `tools/gate1.sh` does not run it yet (it needs Playwright).
 
 ### 0.18.4 (was 0.18.1): Trusted Types in the scripts
 

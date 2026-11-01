@@ -33,6 +33,7 @@ import { legacyLoaded } from '../legacy';
 import { setValue } from '../util/events';
 import { onRemoval } from '../util/removal';
 import { esc } from '../util/html';
+import { toHTML } from '../util/trusted';
 
 type FieldState = { abort: AbortController; unsort: (() => void) | null; select: Selectable | null };
 const fields = new Map<HTMLElement, FieldState>();
@@ -185,20 +186,20 @@ function sortable(inputfield: HTMLElement, list: HTMLElement, state: FieldState)
 function progressRow(file: File): { li: HTMLElement; bar: HTMLElement } {
 	const li = document.createElement('li');
 	li.className = 'InputfieldFile ui-widget AjaxUpload';
-	li.innerHTML = '<p class="InputfieldFileInfo ui-widget ui-widget-header InputfieldItemHeader">' +
+	li.innerHTML = toHTML('<p class="InputfieldFileInfo ui-widget ui-widget-header InputfieldItemHeader">' +
 		"<i class='fa fa-fw fa-spin fa-spinner'></i> " +
 		'<span class="InputfieldFileName">' + esc(file.name) + '</span>' +
 		'<span class="InputfieldFileStats"> &bull; ' + Math.floor(file.size / 1024) + ' kb</span></p>' +
 		'<div class="ui-progressbar ui-widget ui-widget-content ui-corner-all" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
-		'<div class="ui-progressbar-value ui-widget-header InputfieldItemHeader ui-corner-left" style="width: 0%;"></div></div>';
+		'<div class="ui-progressbar-value ui-widget-header InputfieldItemHeader ui-corner-left" style="width: 0%;"></div></div>');
 	return { li, bar: li.querySelector('.ui-progressbar-value') as HTMLElement };
 }
 
 function errorRow(name: string, message: string): HTMLElement {
 	const li = document.createElement('li');
 	li.className = 'InputfieldFile ui-widget AjaxUpload';
-	li.innerHTML = '<p class="InputfieldFileInfo ui-widget ui-widget-header InputfieldItemHeader ui-state-error">&nbsp; ' + esc(name) +
-		' <span class="InputfieldFileStats"> &bull; ' + esc(message) + '</span></p>';
+	li.innerHTML = toHTML('<p class="InputfieldFileInfo ui-widget ui-widget-header InputfieldItemHeader ui-state-error">&nbsp; ' + esc(name) +
+		' <span class="InputfieldFileStats"> &bull; ' + esc(message) + '</span></p>');
 	return li;
 }
 
@@ -229,7 +230,7 @@ function setupUpload(inputfield: HTMLElement, content: HTMLElement, list: HTMLEl
 		send(file, target, {
 			onProgress: pct => {
 				bar.style.width = pct + '%';
-				if (pct > 4) bar.innerHTML = '<span>' + pct + '%</span>';
+				if (pct > 4) bar.innerHTML = toHTML('<span>' + pct + '%</span>');
 			},
 		}).then(results => {
 			results.forEach(r => placeResult(r, row));
@@ -263,10 +264,10 @@ function setupUpload(inputfield: HTMLElement, content: HTMLElement, list: HTMLEl
 			if (existing) {
 				const info = existing.querySelector('.InputfieldFileInfo');
 				const newInfo = item.querySelector('.InputfieldFileInfo');
-				if (info && newInfo) info.innerHTML = newInfo.innerHTML + "<i class='fa fa-check'></i>";
+				if (info && newInfo) info.innerHTML = toHTML(newInfo.innerHTML + "<i class='fa fa-check'></i>");
 				const link = existing.querySelector('.InputfieldFileLink');
 				const newLink = item.querySelector('.InputfieldFileLink');
-				if (link && newLink) link.innerHTML = newLink.innerHTML;
+				if (link && newLink) link.innerHTML = toHTML(newLink.innerHTML);
 				return;
 			}
 			item.classList.add('InputfieldFileItemExisting');

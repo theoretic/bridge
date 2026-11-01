@@ -26,6 +26,7 @@ import { legacyLoaded } from '../legacy';
 import { installGlobal } from '../util/stubs';
 import { label } from '../util/labels';
 import { changed } from '../util/events';
+import { toHTML } from '../util/trusted';
 
 const done = new WeakSet<HTMLTableElement>();
 const mobile = (): boolean => window.innerWidth <= 767;
@@ -149,7 +150,7 @@ function setupMobile(table: HTMLTableElement): void {
 		}
 		const th = document.createElement('div');
 		th.className = 'th';
-		th.innerHTML = names[n];
+		th.innerHTML = toHTML(names[n]);
 		cell.insertBefore(th, cell.firstChild);
 		cell.classList.add('ui-helper-clearfix');
 	})));

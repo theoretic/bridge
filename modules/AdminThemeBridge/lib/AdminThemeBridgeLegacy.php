@@ -137,7 +137,10 @@ trait AdminThemeBridgeLegacy {
 		$process = $controller->getProcess();
 		if(!$process) return;
 		if($this->recordProcess($process) && is_string($event->return)) {
-			$event->return = $this->nativeInlineScripts($event->return);
+			$out = $this->nativeInlineScripts($event->return);
+			// the handlers become attributes only where scripts/setup.js is there to act on them (ADR 0020)
+			if(in_array('scripts/setup.js', $this->processScripts($process->className()), true)) $out = $this->nativeInlineHandlers($out);
+			$event->return = $out;
 		}
 	}
 

@@ -40,7 +40,7 @@
 	// page nonce it runs only when the response vouched for it, audit SE2)
 	function runScript(code, from, nonce) {
 		var s = document.createElement('script');
-		s.text = code;
+		s.text = theme.trusted.script(code);
 		var own = from ? (from.nonce || from.getAttribute('nonce') || '') : '';
 		if(own) s.setAttribute('nonce', own);
 		window.ProcessWireAdminTheme.runScripts([s], { nonce: nonce });
@@ -84,8 +84,8 @@
 			var link = document.createElement('link');
 			link.rel = 'stylesheet';
 			link.href = href;
-			var theme = $('link[data-pw-theme]');
-			if(theme) theme.parentNode.insertBefore(link, theme); else document.head.appendChild(link);
+			var sheet = $('link[data-pw-theme]');
+			if(sheet) sheet.parentNode.insertBefore(link, sheet); else document.head.appendChild(link);
 			linked.push(href);
 			return all;
 		});
@@ -154,8 +154,8 @@
 			// the Refresh and Reset tabs are actions, not tabs: capture their clicks before WireTabs
 			var refreshTab = $('#_ProcessListerRefreshTab');
 			var resetTab = $('#_ProcessListerResetTab');
-			if(refreshTab) refreshTab.innerHTML = "<i class='fa fa-fw fa-refresh ui-priority-secondary'></i>";
-			if(resetTab) resetTab.innerHTML = "<i class='fa fa-fw fa-rotate-left ui-priority-secondary'></i>";
+			if(refreshTab) refreshTab.innerHTML = theme.trusted.html("<i class='fa fa-fw fa-refresh ui-priority-secondary'></i>");
+			if(resetTab) resetTab.innerHTML = theme.trusted.html("<i class='fa fa-fw fa-rotate-left ui-priority-secondary'></i>");
 			document.addEventListener('click', function(e) {
 				var a = e.target.closest('#_ProcessListerRefreshTab, #_ProcessListerResetTab');
 				if(!a) return;
@@ -213,7 +213,7 @@
 					return false;
 				}
 				var headline = results.querySelector('.lister_headline');
-				if(headline && !headline.querySelector('i.fa-spin')) headline.insertAdjacentHTML('beforeend', "<i class='fa fa-spin fa-spinner'></i>");
+				if(headline && !headline.querySelector('i.fa-spin')) headline.insertAdjacentHTML('beforeend', theme.trusted.html("<i class='fa fa-spin fa-spinner'></i>"));
 			} else {
 				refreshAll = false;
 			}
@@ -247,7 +247,10 @@
 				.catch(function(err) {
 					ProcessLister.inAjax = false;
 					ProcessLister.spin(false);
-					results.innerHTML = '<p>Error retrieving results: ' + err + '</p>';
+					// the theme's words, the error as text (audit SE6, UX6)
+					var p = document.createElement('p');
+					p.textContent = (((window.ProcessWire && ProcessWire.config.AdminThemeBridge) || {}).labels || {}).requestFailed || String(err);
+					results.replaceChildren(p);
 				});
 		},
 
@@ -259,7 +262,7 @@
 			var ids = ProcessLister.refreshRowPageIDs.filter(function(id) { return id; });
 			if(ids.length) {
 				refreshAll = false;
-				var doc = new DOMParser().parseFromString('<div>' + data + '</div>', 'text/html');
+				var doc = theme.trusted.parse('<div>' + data + '</div>');
 				ids.forEach(function(pageID) {
 					var oldToggle = document.getElementById('page' + pageID);
 					var oldRow = oldToggle ? oldToggle.closest('tr') : null;
@@ -274,7 +277,7 @@
 							var toggle = newRow.querySelector('.actions_toggle');
 							var note = document.createElement('span');
 							note.className = 'row_message notes';
-							note.innerHTML = message;
+							note.innerHTML = theme.trusted.html(message);
 							toggle.classList.add('row_message_on');
 							(toggle.closest('.col_preview, td') || toggle.parentNode).appendChild(note);
 							setTimeout(function() {
@@ -292,7 +295,7 @@
 			} else {
 				var sort = $('#lister_sort') ? $('#lister_sort').value : '';
 				results.style.opacity = '0';
-				results.innerHTML = data;
+				results.innerHTML = theme.trusted.html(data);
 				$$('table.ProcessListerTable > thead th', results).forEach(function(th) {
 					var b = th.querySelector('b');
 					var txt = b ? b.textContent : '';
@@ -301,9 +304,13 @@
 					var icon = th.querySelector('i');
 					if(icon) icon.remove();
 					var label = th.innerHTML;
-					if(txt === sort) th.innerHTML = '<u>' + label + '</u><span>&nbsp;&darr;</span><b>' + txt + '</b>';
-					else if(sort === '-' + txt) th.innerHTML = '<u>' + label + '</u><span>&nbsp;&uarr;</span><b>' + txt + '</b>';
-					else th.innerHTML = label + '<b>' + txt + '</b>';
+					// the header's own markup again, its sort key as text
+					var key = document.createElement('b');
+					key.textContent = txt;
+					if(txt === sort) th.innerHTML = theme.trusted.html('<u>' + label + '</u><span>&nbsp;&darr;</span>');
+					else if(sort === '-' + txt) th.innerHTML = theme.trusted.html('<u>' + label + '</u><span>&nbsp;&uarr;</span>');
+					else th.innerHTML = theme.trusted.html(label);
+					th.appendChild(key);
 					if(icon) th.insertBefore(icon, th.firstChild);
 				});
 				if(bridge()) bridge().Inputfields.init(results);
@@ -334,12 +341,12 @@
 
 			// found by its id, never by a character offset: upstream's offset assumes id='...' in
 			// quotes, and an output filter that drops them made it run ".getScript(..."
-			var parsed = new DOMParser().parseFromString('<div>' + data + '</div>', 'text/html');
+			var parsed = theme.trusted.parse('<div>' + data + '</div>');
 			var part = parsed.getElementById('ProcessListerScript');
 			if(part) runListerScript(part.textContent, part, nonce);
 			// inline scripts run as with upstream's .html(data): every one in fresh results (column
-			// and extension markup too), the field scripts of refreshed rows
-			var theme = window.ProcessWireAdminTheme;
+			// and extension markup too), the field scripts of refreshed rows (theme: this script's, a local
+			// of that name would hide it from the whole function)
 			if(refreshAll) theme.runScripts(results, { legacy: !!results.querySelector('[data-bridge-legacy]'), nonce: nonce });
 			else theme.runScripts($$('.Inputfield script', parsed), { nonce: nonce });
 		},
@@ -427,7 +434,7 @@
 			data.append('ProcessPageLister', '1');
 			if(token) data.append(token.name, token.value);
 			if(actions) {
-				actions.insertAdjacentHTML('afterend', "<i class='fa fa-spin fa-spinner ui-priority-secondary'></i>");
+				actions.insertAdjacentHTML('afterend', theme.trusted.html("<i class='fa fa-spin fa-spinner ui-priority-secondary'></i>"));
 				actions.style.display = 'none';
 			}
 			ProcessLister.inAjax = true;

@@ -2,27 +2,30 @@
 // AdminThemeBridge with BridgeCsp's policy (a nonce in script-src with 'strict-dynamic', Trusted
 // Types required, style-src reported) and lists every violation the browser reports, by screen.
 //
-// Mode report-only (the default, 0.18.0): the admin works as before; what the policy would block
-// is the baseline. Fails only when the nonce does not hold:
-//   - a screen without the X-Bridge-Nonce header, the policy header or the csp-nonce meta, or
-//     with a meta whose nonce is not the header's;
-//   - a blocked script element on a screen without the legacy stack (script-src-elem: what the
-//     theme prints and the rewrites it vouches for all carry the nonce there).
-// Inline event handlers (script-src-attr: core's `onclick="return confirm(…)"` on the module
-// list) cannot carry a nonce: they get a WARN line, and 0.18.1 replaces them. Firefox reports them
-// when the page parses, Chromium only when the handler runs. Trusted Types and style-src
-// violations are listed, not failed: the sweep of 0.18.1 removes the first, the second is
-// documented (style attributes). Screens with the legacy stack (jQuery loaded) are listed apart:
-// their violations are upstream's and third-party code's.
-// Only what runs while a screen loads is seen; interactions are the enforced pass's (0.18.1).
+// Mode report-only (the default): the admin works as before; what the policy would block is the
+// baseline. --enforce: the policy is enforced (0.18.4), so what it blocks does not run.
+// Either way it fails on a screen without the legacy stack (native) when:
+//   - the X-Bridge-Nonce header, the policy header or the csp-nonce meta is missing, or the meta's
+//     nonce is not the header's;
+//   - a script element is blocked (script-src-elem: what the theme prints and the core scripts it
+//     knows all carry the nonce);
+//   - an inline event handler is reported (script-src-attr: a nonce cannot cover one; the theme
+//     turns core's into data attributes since 0.18.4). Firefox reports them when the page parses,
+//     Chromium only when the handler runs;
+//   - a Trusted Types sink is written past the `bridge` policy (since 0.18.4);
+//   - with --enforce, a page error happens.
+// style-src violations are listed, not failed (style attributes; ADR 0020 decision 10). Screens
+// with the legacy stack (jQuery loaded) are listed apart: their violations are upstream's and
+// third-party code's, and under --enforce they may not work.
+// Only what runs while a screen loads is seen, plus the fragment probe (Setup > Bridge demo > csp/).
 //
-// The mode is BridgeCsp's (tools/sandbox-csp.php): set to report-only for the run and set back to
-// what it was at the end.
+// The mode is BridgeCsp's (tools/sandbox-csp.php): set for the run and set back to what it was at
+// the end.
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   [PW_STATE=<login state file>] PROBE_PASS=<sandbox bridge password> [PHP=<php>] [SANDBOX=<sandbox root>]
 //     [NATIVE_ID=<id>] [FIXTURE_ID=<id>] [SCREENS=<path>,<path>] node tools/csp-check.js <playwright-core dir>
-//     [chromium|firefox] [--json out.json]
+//     [chromium|firefox] [--enforce] [--json out.json]
 // Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url>.
 // Exit code 1 when a check fails.
 const path = require('path');
@@ -33,6 +36,7 @@ const browserName = (process.argv[3] && !process.argv[3].startsWith('--')) ? pro
 const sandbox = require('./lib/sandbox.cjs');
 const ADMIN = sandbox.adminUrl();
 const jsonOut = process.argv.indexOf('--json') > -1 ? process.argv[process.argv.indexOf('--json') + 1] : '';
+const MODE = process.argv.indexOf('--enforce') > -1 ? 'enforce' : 'report-only';
 const REPO = path.join(__dirname, '..');
 const SANDBOX = (process.env.SANDBOX || path.join(REPO, 'sandbox', 'atispro')).replace(/\\/g, '/');
 const PHP = process.env.PHP || 'php';
@@ -121,7 +125,9 @@ async function visit(page, url) {
 		const c = (window.ProcessWire && ProcessWire.config && ProcessWire.config.AdminThemeBridge) || {};
 		return {
 			meta: meta ? (meta.nonce || meta.getAttribute('nonce') || '') : null,
-			jquery: !!window.jQuery,
+			// a legacy screen: jQuery is there, or the server printed the stack (under an enforced
+			// policy jQuery itself may not start: its own innerHTML writes are Trusted Types sinks)
+			jquery: !!window.jQuery || c.legacy === true,
 			reasons: Object.keys(c.legacyReasons || {}),
 			login: !!document.getElementById('login_name'),
 			violations: window.__pwCsp || [],
@@ -144,7 +150,7 @@ async function visit(page, url) {
 
 (async () => {
 	const previous = sandboxMode('');
-	sandboxMode('report-only');
+	sandboxMode(MODE);
 	const browser = await pw[browserName].launch({ headless: true });
 	const visits = [];
 	try {
@@ -174,11 +180,15 @@ async function visit(page, url) {
 		if(await page.locator('#login_name').count()) throw new Error('login failed (throttled? wrong PROBE_PASS?)');
 
 		for(const screen of SCREENS) {
+			const before = errors.length;
 			const v = await visit(page, ADMIN + screen);
 			v.screen = screen || '(page tree)';
+			v.errors = errors.slice(before);
 			visits.push(v);
 		}
-		check('no page errors under the report-only policy', errors.length === 0, errors.slice(0, 4).join(' | '));
+		// page errors on native screens; a legacy screen's are upstream's and third-party code's
+		const nativeErrors = visits.filter(v => !v.jquery && v.errors && v.errors.length).map(v => `${v.screen}: ${v.errors[0]}`);
+		check(`no page errors on native screens under the ${MODE} policy`, nativeErrors.length === 0, nativeErrors.slice(0, 4).join(' | '));
 		// a fragment's scripts: with the nonce only the vouched one runs; without, both, as before
 		const probePage = await ctx.newPage(); // a tab of its own: the last screen may still navigate
 		const withNonce = await probe(probePage);
@@ -186,7 +196,7 @@ async function visit(page, url) {
 		sandboxMode('off');
 		const without = await probe(probePage);
 		check('fragment probe without a policy: both scripts ran', without.vouched === 1 && without.unvouched === 1, JSON.stringify(without));
-		sandboxMode('report-only');
+		sandboxMode(MODE);
 		await ctx.close();
 	} finally {
 		await browser.close();
@@ -195,7 +205,7 @@ async function visit(page, url) {
 
 	// per screen
 	const findings = new Map();
-	console.log(`${browserName}: BridgeCsp report-only (mode back to ${previous} after the run)\n`);
+	console.log(`${browserName}: BridgeCsp ${MODE} (mode back to ${previous} after the run)\n`);
 	const warnings = [];
 	console.log('screen'.padEnd(36) + 'status  stack   script  handler  tt   style  other');
 	for(const v of visits) {
@@ -229,8 +239,11 @@ async function visit(page, url) {
 			check(`${v.screen}: no blocked script element on a native screen`, scriptHits.length === 0,
 				scriptHits.slice(0, 3).map(x => `${x.directive} ${short(x.blocked)} ${short(x.source)}:${x.line} ${x.excerpt || x.sample}`).join(' | '));
 			const handlers = v.violations.filter(x => group(x.directive) === 'handler');
-			if(handlers.length) warnings.push(`${v.screen}: ${handlers.length} inline event handler(s), blocked when enforced: ` +
+			check(`${v.screen}: no inline event handler on a native screen`, handlers.length === 0,
 				Array.from(new Set(handlers.map(x => x.sample.slice(0, 40)))).slice(0, 3).join(' | '));
+			const tt = v.violations.filter(x => group(x.directive) === 'trusted-types');
+			check(`${v.screen}: every Trusted Types sink through the bridge policy`, tt.length === 0,
+				tt.slice(0, 3).map(x => `${short(x.source)}:${x.line} ${x.sample}`).join(' | '));
 		}
 	}
 
@@ -250,7 +263,7 @@ async function visit(page, url) {
 	console.log(`${passed}/${results.length} passed`);
 	const report = {
 		browser: browserName,
-		mode: 'report-only',
+		mode: MODE,
 		screens: visits.map(v => ({ screen: v.screen, status: v.status, legacy: !!v.jquery, reasons: v.reasons || [], counts: v.counts || null, violations: v.violations || [] })),
 		findings: list.map(f => Object.assign({}, f, { screens: Array.from(f.screens) })),
 		warnings,

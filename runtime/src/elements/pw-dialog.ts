@@ -17,6 +17,7 @@
 
 import { legacyLoaded } from '../legacy';
 import { label } from '../util/labels';
+import { toHTML } from '../util/trusted';
 
 export type DialogSize = 'small' | 'medium' | 'large' | 'full';
 
@@ -75,7 +76,7 @@ export class PwDialog extends HTMLElement {
 		dialog.append(bar, frame, footer);
 		dialog.addEventListener('close', () => {
 			if (this.frame) this.frame.src = 'about:blank';
-			footer.innerHTML = '';
+			footer.replaceChildren();
 			dialog.classList.remove('pw-dialog-busy');
 			const opts = this.options;
 			this.options = {};
@@ -120,6 +121,11 @@ export class PwDialog extends HTMLElement {
 
 	open(url: string, size: DialogSize = 'medium', options: DialogOptions = {}): void {
 		if (!this.dialog || !this.frame) return;
+		// a web page only: a javascript: (or data:) link would run in this origin (audit SE6)
+		if (!webUrl(url)) {
+			console.warn('Bridge: the dialog opens http(s) pages only, not', url.slice(0, 40));
+			return;
+		}
 		// the shared window is taken over while open: its first opener hears it closed (aborted),
 		// as it would if the window had been closed first (audit B16)
 		if (this.dialog.open) {
@@ -140,7 +146,7 @@ export class PwDialog extends HTMLElement {
 		this.options = options;
 		this.closeOnLoad = false;
 		this.abort = true;
-		if (this.footer) this.footer.innerHTML = '';
+		if (this.footer) this.footer.replaceChildren();
 		this.setTitle(options.title || '');
 		this.frame.src = (/[?&]modal=/.test(url) ? url : `${url}${sep}modal=1`) + hash;
 		// dimmed until the page arrives, as while a save closes it (audit U10)
@@ -206,7 +212,7 @@ export class PwDialog extends HTMLElement {
 		const footer = this.footer;
 		const opts = this.options;
 		if (!footer) return;
-		footer.innerHTML = '';
+		footer.replaceChildren();
 		const seen: string[] = [];
 		// jQuery's :visible (upstream asmSelect's button selector) as a filter
 		const visibleOnly = !!opts.buttons && opts.buttons.indexOf(':visible') > -1;
@@ -218,7 +224,7 @@ export class PwDialog extends HTMLElement {
 			const button = document.createElement('button');
 			button.type = 'button';
 			button.className = 'ui-button pw-button pw-dialog-button' + (original.classList.contains('ui-priority-secondary') ? ' ui-priority-secondary' : '');
-			button.innerHTML = html;
+			button.innerHTML = toHTML(html);
 			button.querySelectorAll('.ui-button-text').forEach(span => span.classList.remove('ui-button-text'));
 			button.addEventListener('click', () => {
 				const closeNow = !!opts.close && original.matches(opts.close);
@@ -240,7 +246,7 @@ export class PwDialog extends HTMLElement {
 			const button = document.createElement('button');
 			button.type = 'button';
 			button.className = 'ui-button pw-button pw-dialog-button' + (b.secondary ? ' ui-priority-secondary' : '');
-			button.innerHTML = b.html;
+			button.innerHTML = toHTML(b.html);
 			button.addEventListener('click', () => b.click());
 			footer.appendChild(button);
 		});
@@ -266,6 +272,15 @@ function sizeOf(el: HTMLElement): DialogSize {
 	if (el.classList.contains('pw-modal-small')) return 'small';
 	if (el.classList.contains('pw-modal-full')) return 'full';
 	return 'medium';
+}
+
+/** Is this an http(s) address, relative ones included? */
+function webUrl(url: string): boolean {
+	try {
+		return /^https?:$/.test(new URL(url, location.href).protocol);
+	} catch (err) {
+		return false;
+	}
 }
 
 function hrefOf(el: HTMLElement): string {

@@ -7,6 +7,7 @@
 
 import { label } from './labels';
 import { esc } from './html';
+import { toHTML } from './trusted';
 
 export type Choice = { value: string; label: string; disabled?: boolean; selected?: boolean };
 
@@ -15,12 +16,12 @@ export function choose(message: string, choices: Choice[], noteHtml = ''): Promi
 	return new Promise(resolve => {
 		const d = document.createElement('dialog');
 		d.className = 'pw-ask';
-		d.innerHTML = `<form method="dialog"><p class="pw-ask-message">${esc(message)}</p>` +
+		d.innerHTML = toHTML(`<form method="dialog"><p class="pw-ask-message">${esc(message)}</p>` +
 			'<select name="action" class="pw-select">' +
 			choices.map(c => `<option value="${esc(c.value)}"${c.disabled ? ' disabled' : ''}${c.selected ? ' selected' : ''}>${esc(c.label)}</option>`).join('') +
 			'</select>' + (noteHtml ? `<div class="pw-ask-note detail">${noteHtml}</div>` : '') +
 			`<div class="pw-ask-buttons"><button type="submit" value="ok" class="ui-button pw-button">${esc(label('ok', 'OK'))}</button>` +
-			`<button type="submit" value="cancel" class="ui-button pw-button ui-priority-secondary">${esc(label('cancel', 'Cancel'))}</button></div></form>`;
+			`<button type="submit" value="cancel" class="ui-button pw-button ui-priority-secondary">${esc(label('cancel', 'Cancel'))}</button></div></form>`);
 		document.body.appendChild(d);
 		d.addEventListener('close', () => {
 			const select = d.querySelector('select') as HTMLSelectElement;

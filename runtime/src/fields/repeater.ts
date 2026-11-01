@@ -35,6 +35,7 @@ import { onRemoval } from '../util/removal';
 import { keyButton } from '../util/keybutton';
 import { guard, confirm } from '../util/danger';
 import { label as lbl } from '../util/labels';
+import { toHTML, parseHTML } from '../util/trusted';
 
 const DEPTH = 50;
 type Cfg = { editorUrl?: string; labels?: Record<string, string> };
@@ -226,7 +227,7 @@ function adjustLabel(item: HTMLElement, increment: boolean): void {
 	while (html.indexOf('}') > -1) {
 		html = html.replace(/\{/, '<span class="ui-priority-secondary" style="font-weight:normal">').replace(/}/, '</span>');
 	}
-	if (html !== before) el.innerHTML = html;
+	if (html !== before) el.innerHTML = toHTML(html);
 }
 
 /* headers ****************************************************************************************/
@@ -288,7 +289,7 @@ const nonces = new WeakMap<Document, string>();
 
 async function getHtml(url: string): Promise<Document> {
 	const res = await fetchOk(url);
-	const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+	const doc = parseHTML(await res.text());
 	nonces.set(doc, responseNonce(res, doc));
 	return doc;
 }
@@ -493,7 +494,7 @@ function cloneItem(item: HTMLElement, before: boolean | undefined, paste: { page
 	const ph = placeholderFor(item, before, paste ? 'paste' : 'clone');
 	if (!ph) return;
 	const h = header(ph);
-	if (h) h.innerHTML = "<i class='fa fa-spin fa-spinner'></i>";
+	if (h) h.innerHTML = toHTML("<i class='fa fa-spin fa-spinner'></i>");
 	setDepth(ph, insertDepth(item, before));
 	ph.style.display = '';
 	add.setAttribute('data-clone', paste ? paste.page + ':' + paste.item : item.getAttribute('data-page') || '');
@@ -540,7 +541,7 @@ function insert(item: HTMLElement, before: boolean): void {
 	if (!ph) { adding = false; return; }
 	ph.classList.remove('hov');
 	const h = header(ph);
-	if (h) h.innerHTML = "<i class='fa fa-spin fa-spinner'></i>";
+	if (h) h.innerHTML = toHTML("<i class='fa fa-spin fa-spinner'></i>");
 	if (depth > 0) setDepth(ph, depth);
 	ph.style.display = '';
 	if (!before && !isCollapsed(item)) scrollToItem(ph);

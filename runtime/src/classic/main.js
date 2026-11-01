@@ -64,14 +64,16 @@ var ProcessWireAdminTheme = {
 					// parsed document has
 					if(page && (!want || (old.nonce || old.getAttribute('nonce') || '') !== want)) { skipped++; continue; }
 					var live = document.createElement('script');
-					Array.prototype.forEach.call(old.attributes, function(a) { if(a.name !== 'nonce') live.setAttribute(a.name, a.value); });
+					// src goes through the Trusted Types policy below, never as a plain attribute
+					Array.prototype.forEach.call(old.attributes, function(a) { if(a.name !== 'nonce' && a.name !== 'src') live.setAttribute(a.name, a.value); });
 					if(page) live.nonce = page;
 					var wait = null;
 					if(src) {
 						live.async = false;
 						wait = new Promise(function(resolve) { live.onload = live.onerror = function() { resolve(); }; });
+						live.src = self.trusted.scriptURL(src);
 					} else {
-						live.text = old.text || old.textContent || '';
+						live.text = self.trusted.script(old.text || old.textContent || '');
 					}
 					if(here) old.parentNode.replaceChild(live, old);
 					else document.body.appendChild(live);
@@ -97,6 +99,52 @@ var ProcessWireAdminTheme = {
 	nonce: function() {
 		var m = document.querySelector('meta[property="csp-nonce"]');
 		return (m && (m.nonce || m.getAttribute('nonce'))) || '';
+	},
+
+	/**
+	 * Trusted Types (ADR 0020): every HTML, script and script URL the theme and the runtime write
+	 * goes through one policy, `bridge`, created on first use and the same for the whole page.
+	 * Identity for now, so a sanitiser has one place to go. Without Trusted Types in the browser,
+	 * or where the page's policy does not list `bridge` (createPolicy throws), the helpers return
+	 * the string and nothing changes. The runtime's util/trusted.ts uses these.
+	 */
+	trusted: {
+		policy: undefined,
+		get: function() {
+			if(this.policy === undefined) {
+				this.policy = null;
+				var id = function(s) { return s; };
+				try {
+					if(window.trustedTypes && window.trustedTypes.createPolicy) {
+						this.policy = window.trustedTypes.createPolicy('bridge', { createHTML: id, createScript: id, createScriptURL: id });
+					}
+				} catch(e) {
+					if(window.console) console.warn('Bridge: no Trusted Types policy "bridge" (the page\'s trusted-types directive does not list it)');
+				}
+			}
+			return this.policy;
+		},
+		/** @param {string} s @returns {TrustedHTML|string} */
+		html: function(s) { var p = this.get(); return p ? p.createHTML(String(s)) : String(s); },
+		/** @param {string} s @returns {TrustedScript|string} */
+		script: function(s) { var p = this.get(); return p ? p.createScript(String(s)) : String(s); },
+		/** @param {string} s @returns {TrustedScriptURL|string} */
+		scriptURL: function(s) { var p = this.get(); return p ? p.createScriptURL(String(s)) : String(s); },
+		/** A document parsed from HTML: inert, its scripts never run, its images never load */
+		parse: function(s) { return new DOMParser().parseFromString(this.html(s), 'text/html'); },
+		/** The text of an HTML string, parsed inert (a div in this page would load an <img onerror>) */
+		text: function(s) { return this.parse(s).body.textContent || ''; },
+	},
+
+	/**
+	 * A cookie for this session's screens, as util/cookie.ts writes them: encoded, SameSite=Lax,
+	 * Secure on https (audit SE6). No path: the screen's own, as upstream's jQuery cookie has it.
+	 * @param {string} name
+	 * @param {string} value
+	 */
+	setCookie: function(name, value) {
+		var https = !!(window.ProcessWire && ProcessWire.config && ProcessWire.config.https);
+		document.cookie = name + '=' + encodeURIComponent(value) + '; SameSite=Lax' + (https ? '; Secure' : '');
 	},
 
 	/**
@@ -1126,7 +1174,7 @@ var ProcessWireAdminTheme = {
 						html += '<li' + (item.className ? ' class="' + esc(item.className) + '"' : '') + '><a' + href + '>' + label + '</a></li>';
 					}
 				});
-				ul.innerHTML = html;
+				ul.innerHTML = self.trusted.html(html);
 				ul.classList.add('navJSON');
 				// placed while still empty: place it again now that it has its size
 				if(a.parentNode.matches(':hover, :focus-within')) self.fitFlyout(a.parentNode);
@@ -1593,7 +1641,7 @@ var ProcessWireAdminTheme = {
 				var s = document.createElement('script');
 				var nonce = ProcessWireAdminTheme.nonce();
 				if(nonce) s.nonce = nonce;
-				s.src = url;
+				s.src = ProcessWireAdminTheme.trusted.scriptURL(url);
 				s.async = false;
 				s.onload = function() { resolve(url); };
 				s.onerror = function() { reject(new Error('Bridge: failed to load ' + url)); };
@@ -1793,7 +1841,8 @@ var ProcessWireAdminTheme = {
  */
 (function(pw) {
 	if(!pw || ProcessWireAdminTheme.upstream()) return;
-	var strip = function(s) { var d = document.createElement('div'); d.innerHTML = String(s); return d.textContent || ''; };
+	// parsed inert: markup in a message never runs (audit SE6)
+	var strip = function(s) { return ProcessWireAdminTheme.trusted.text(String(s)); };
 	if(!pw.alert) pw.alert = function(message, allowMarkup, expire, func) { window.alert(strip(message)); if(typeof func === 'function') func(); };
 	if(!pw.confirm) pw.confirm = function(message, funcOk, funcCancel) {
 		ProcessWireAdminTheme.confirm(strip(message), funcOk, funcCancel);
@@ -1857,7 +1906,7 @@ if(!ProcessWireAdminTheme.upstream() && !window.InputfieldSubmitDropdown) {
 			if(button.classList.contains('ui-priority-secondary')) toggle.classList.add('ui-priority-secondary');
 			if(button.classList.contains('pw-head-button')) toggle.classList.add('pw-head-button');
 			toggle.setAttribute('aria-haspopup', 'menu');
-			toggle.innerHTML = "<span class='ui-button-text'><i class='fa fa-angle-down'></i></span>";
+			toggle.innerHTML = ProcessWireAdminTheme.trusted.html("<span class='ui-button-text'><i class='fa fa-angle-down'></i></span>");
 			wrap.appendChild(toggle);
 			ul.classList.add('pw-dropdown-menu', 'pw-dropdown-menu-rounded', 'pw-button-dropdown-init');
 			ul.style.display = 'none';

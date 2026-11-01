@@ -22,6 +22,7 @@ import type { Selectable } from '../util/selection';
 import { label } from '../util/labels';
 import { confirm } from '../util/danger';
 import { esc } from '../util/html';
+import { toHTML, htmlText } from '../util/trusted';
 
 type Action = { cn: string; name: string; url: string; extras?: Record<string, Action>; ajax?: boolean };
 type Entry = { action: Action; rows: HTMLElement[] };
@@ -39,7 +40,7 @@ export type GroupCtx = {
 
 type Dialog = { open(url: string, size: string, options: Record<string, unknown>): void };
 
-const text = (html: string): string => { const d = document.createElement('div'); d.innerHTML = html; return (d.textContent || '').trim(); };
+const text = (html: string): string => htmlText(html);
 
 export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; hide(): void } {
 	const root = c.root;
@@ -95,14 +96,14 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 		a.setAttribute('data-cn', cn);
 		if (extra) a.setAttribute('data-extra', '1');
 		const count = cn !== 'Extras' && entry.rows.length < selected.length ? ` <span class="pw-group-count">${entry.rows.length}</span>` : '';
-		a.innerHTML = entry.action.name + count;
+		a.innerHTML = toHTML(entry.action.name + count);
 		li.appendChild(a);
 		return li;
 	};
 
 	const build = (): void => {
 		collect();
-		menu.innerHTML = '';
+		menu.replaceChildren();
 		primary.forEach((entry, cn) => menu.appendChild(item(cn, entry, false)));
 		const toggle = menu.querySelector('.PageListActionExtras');
 		if (toggle) menu.appendChild(toggle);

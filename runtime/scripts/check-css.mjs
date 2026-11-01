@@ -16,8 +16,9 @@ const FILES = [
 	// the component runtime: Inputfield behaviours without jQuery grow here in Phase 2 (ADR 0015);
 	// with the widgets split off, the entry is a stub re-exporting a shared chunk: the runtime is
 	// the entry plus every chunk it imports statically; raised from 12 kB to 14000 B by the owner on
-	// 2026-10-26, to 14336 B on 2026-11-01 for the CSP nonce rule in the script runner (ADR 0020, audit SE2)
-	{ name: 'runtime.js', budget: 14336, with: [] },
+	// 2026-10-26, to 14336 B on 2026-11-01 for the CSP nonce rule in the script runner (ADR 0020, audit SE2),
+	// to 14848 B the same day for the Trusted Types sweep (every HTML write through util/trusted.ts)
+	{ name: 'runtime.js', budget: 14848, with: [] },
 	// the UIkit layer (ADR 0017): stock UIkit minus Base, on tokens; only on pages that need UIkit
 	{ name: 'uikit.css', budget: 40 * 1024 },
 ];
@@ -79,9 +80,10 @@ for (const { name, budget, with: parts = [] } of FILES) {
 // its size at 0.9.0, and all of them together; printed in <head>, so they hold up the first paint.
 // debug-tools.js is not in the total: _footer.php prints it, and only for superusers in debug mode
 const scriptsDir = fileURLToPath(new URL('../../modules/AdminThemeBridge/scripts/', import.meta.url));
-// main.js 11.5 and the total 42.25 kB until 2026-11-01: the CSP nonce rule (ADR 0020, audit SE2)
+// main.js 11.5 and the total 42.25 kB until 2026-11-01: the CSP nonce rule (ADR 0020, audit SE2); the total
+// 43.5 and page-save.js 4 kB since the Trusted Types sweep the same day (0.18.4)
 const CLASSIC = {
-	'main.js': 12, 'setup.js': 7, 'image-select.js': 6, 'lister.js': 4.5, 'page-save.js': 3.75,
+	'main.js': 12, 'setup.js': 7, 'image-select.js': 6, 'lister.js': 4.5, 'page-save.js': 4,
 	'screens.js': 3.25, 'link.js': 3, 'wire-tabs.js': 2, 'page-edit.js': 1.75, 'save-wait.js': 1.5, 'uikit-layer.js': 2.5, 'debug-tools.js': 1,
 };
 let classicTotal = 0;
@@ -97,7 +99,7 @@ for (const f of existsSync(scriptsDir) ? readdirSync(scriptsDir).filter(f => f.e
 }
 // total raised from 40 to 42 KiB after the UIkit layer (owner's decision, 2026-10-22), and to
 // 42.25 KiB for scripts/save-wait.js (owner's decision, 2026-10-29)
-const CLASSIC_TOTAL = 43 * 1024;
+const CLASSIC_TOTAL = 43.5 * 1024;
 console.log(`classic scripts: ${classicTotal} B gzip (budget ${CLASSIC_TOTAL})`);
 if (classicTotal > CLASSIC_TOTAL) { console.error('classic scripts: over the total gzip budget'); failed = true; }
 

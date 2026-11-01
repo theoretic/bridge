@@ -1090,6 +1090,10 @@ if(is_file($cspFile) && $modules->isInstalled('BridgeCsp')) {
 			&& $csp->policyFor("script-src 'nonce-{nonce}';\n  object-src 'none';") === "script-src 'nonce-abc='; object-src 'none';");
 	}
 	check('CSP BridgeCsp sends its policy only under AdminThemeBridge', strpos((string) file_get_contents($cspFile), "\$theme->className() !== 'AdminThemeBridge'") !== false);
+	$cspSrc = (string) file_get_contents($cspFile);
+	check('TT BridgeCsp enforces only on screens without the legacy stack (the login screen stays report only)',
+		strpos($cspSrc, "\$enforce = \$this->get('mode') === self::modeEnforce && !\$this->legacyScreen(\$theme);") !== false
+		&& strpos($cspSrc, "addHookAfter('ProcessController::execute', \$this, 'sendPolicy')") !== false);
 	check('SE6 BridgeCsp adds its policy next to a site\'s own, never in its place', strpos((string) file_get_contents($cspFile), 'header("$name: $policy", false);') !== false);
 	check('CSP the sandbox installs BridgeCsp and junctions it', strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-admin.php'), "'BridgeCsp'") !== false
 		&& strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-site.sh'), 'for m in AdminThemeBridge BridgeDemo BridgeCsp; do') !== false);
@@ -1109,6 +1113,24 @@ $noNonce = array();
 foreach($loaders as $rel => $needle) if(strpos($srcOf($rel), $needle) === false) $noNonce[] = $rel;
 check('SE2 every fragment loader passes its response\'s nonce', !count($noNonce), implode(', ', $noNonce));
 check('SE2 the built theme script carries the rule', strpos((string) @file_get_contents($themeDir . 'scripts/main.js'), 'csp-nonce') !== false);
+
+// 0.18.4: Trusted Types (ADR 0020 decisions 1, 2, 4, 7, 8)
+$builtMain = (string) @file_get_contents($themeDir . 'scripts/main.js');
+check('TT the theme script creates the one bridge policy', strpos($builtMain, 'createPolicy("bridge"') !== false || strpos($builtMain, "createPolicy('bridge'") !== false);
+check('TT the runtime delegates to it and has its own only alone', strpos($srcOf('util/trusted.ts'), "createPolicy('bridge'") !== false && strpos($srcOf('util/trusted.ts'), 'ProcessWireAdminTheme') !== false);
+$built = '';
+foreach(array_merge((array) glob($themeDir . 'scripts/*.js'), (array) glob($themeDir . 'assets/dist/chunks/*.js'), array($themeDir . 'assets/dist/runtime.js')) as $file) $built .= (string) @file_get_contents($file);
+check('TT no document.write and no javascript: URL in the built scripts', strpos($built, 'document.write') === false && strpos($built, 'javascript:') === false);
+check('TT the build refuses a sink past the policy (check-sinks.mjs)', is_file(dirname(__DIR__) . '/runtime/scripts/check-sinks.mjs')
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/runtime/package.json'), 'node scripts/check-sinks.mjs') !== false);
+$handlersIn = "<button type='submit' name='delete' value='X' onclick=\"return confirm('Delete X?')\">Delete</button>" .
+	"<input type='checkbox' onclick=\"return false\" /><a onclick=\"other()\">o</a>";
+$handlersOut = isset($bridge) && $bridge ? $bridge->nativeInlineHandlers($handlersIn) : '';
+check('TT core\'s inline confirm and click guard become data attributes, nothing else does', strpos($handlersOut, 'data-pw-confirm="Delete X?"') !== false
+	&& strpos($handlersOut, "<input type='checkbox' data-pw-noclick />") !== false && strpos($handlersOut, 'onclick="other()"') !== false
+	&& strpos($handlersOut, 'return confirm') === false, $handlersOut);
+check('TT the setup script asks for them with the theme\'s dialog', strpos($srcOf('classic/setup.js'), "closest('[data-pw-confirm], [data-pw-noclick]')") !== false);
+check('TT the handlers are rewritten only where the setup script runs', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeLegacy.php'), "in_array('scripts/setup.js', \$this->processScripts(\$process->className()), true)") !== false);
 
 // audit 2026-11-01, R0: the tools
 $toolsDir = dirname(__DIR__) . '/tools/';

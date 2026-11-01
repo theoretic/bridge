@@ -30,7 +30,7 @@ async function reloadOptions(source: HTMLSelectElement | HTMLInputElement, targe
 	const v = valueOf(source);
 	if (!v) {
 		if (target.options.length) {
-			target.innerHTML = '';
+			target.replaceChildren();
 			target.dispatchEvent(new Event('change', { bubbles: true }));
 		}
 		return;
@@ -69,7 +69,7 @@ async function reloadOptions(source: HTMLSelectElement | HTMLInputElement, targe
 	if (!target.multiple) {
 		const blank = document.createElement('option');
 		blank.value = '';
-		blank.innerHTML = '&nbsp;';
+		blank.textContent = '\u00a0';
 		if (!selectedCount) blank.selected = true;
 		target.insertBefore(blank, target.firstChild);
 	}

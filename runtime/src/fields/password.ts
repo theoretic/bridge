@@ -16,6 +16,7 @@
  */
 
 import { on } from '../legacy';
+import { toHTML, toScriptURL } from '../util/trusted';
 
 const CHARSETS: Array<[number, number]> = [
 	[0x20, 0x20], [0x30, 0x39], [0x41, 0x5A], [0x61, 0x7A], [0x21, 0x2F], [0x3A, 0x40], [0x5B, 0x60], [0x7B, 0x7E],
@@ -49,7 +50,7 @@ function loadBanlist(): Promise<string[]> {
 	banlist = new Promise(resolve => {
 		if (!urls.length) { resolve([]); return; }
 		const s = document.createElement('script');
-		s.src = urls[0];
+		s.src = toScriptURL(urls[0]);
 		s.onload = () => resolve(w.COMPLEXIFY_BANLIST || []);
 		s.onerror = () => resolve([]);
 		document.head.appendChild(s);
@@ -155,7 +156,7 @@ export function init(wrap: HTMLElement): void {
 		}
 		if (!bad && cur) {
 			cur.querySelectorAll('small').forEach(s => s.remove());
-			cur.insertAdjacentHTML('beforeend', `<small style='margin-left:0.5em'>(${Math.floor(r.complexity)}%)</small>`);
+			cur.insertAdjacentHTML('beforeend', toHTML(`<small style='margin-left:0.5em'>(${Math.floor(r.complexity)}%)</small>`));
 		}
 		if (confirm && confirm.value.length) confirm.dispatchEvent(new Event('change', { bubbles: true }));
 	};
@@ -185,7 +186,7 @@ export function init(wrap: HTMLElement): void {
 			else if (v1.indexOf(v2) === 0) {
 				cur = confirms.querySelector(':scope > .confirm-qty');
 				const span = cur ? cur.querySelector('span') : null;
-				if (span) span.innerHTML = v2.length + '/' + v1.length;
+				if (span) span.textContent = v2.length + '/' + v1.length;
 			} else cur = confirms.querySelector(':scope > .confirm-no');
 			if (cur) { Array.from(confirms.children).forEach(c => c.classList.remove('on')); cur.classList.add('on'); }
 		};

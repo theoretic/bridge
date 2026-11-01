@@ -22,7 +22,7 @@
 		if(!dialog) {
 			dialog = document.createElement('dialog');
 			dialog.className = 'pw-dialog pw-dialog-large';
-			dialog.innerHTML = "<div class='pw-dialog-bar'><span></span><button type='button' class='pw-dialog-close'>×</button></div><div class='pw-dialog-content'></div>";
+			dialog.innerHTML = window.ProcessWireAdminTheme.trusted.html("<div class='pw-dialog-bar'><span></span><button type='button' class='pw-dialog-close'>×</button></div><div class='pw-dialog-content'></div>");
 			dialog.firstChild.firstChild.textContent = link.getAttribute('data-tab-text');
 			// translated by the theme (audit U4)
 			dialog.firstChild.lastChild.setAttribute('aria-label', ((ProcessWire.config.AdminThemeBridge || {}).labels || {}).close || 'Close');

@@ -37,6 +37,7 @@ import { initFileTags, dragOut, groupOf } from './file';
 import { makeSelectable, Selectable } from '../util/selection';
 import { onRemoval } from '../util/removal';
 import { esc } from '../util/html';
+import { toHTML } from '../util/trusted';
 
 type Focus = { top: number; left: number; zoom: number };
 type Settings = { size: number; listSize: number; mode: string };
@@ -326,7 +327,7 @@ function setupHeader(inputfield: HTMLElement, signal: AbortSignal): void {
 		const a = document.createElement('a');
 		a.className = 'InputfieldImageListToggle';
 		a.href = mode;
-		a.innerHTML = `<i class='fa ${icon}'></i>`;
+		a.innerHTML = toHTML(`<i class='fa ${icon}'></i>`);
 		a.addEventListener('click', e => {
 			e.preventDefault();
 			if (legacyLoaded()) return;

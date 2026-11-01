@@ -7,6 +7,8 @@
  */
 
 import { on } from '../legacy';
+import { toHTML } from '../util/trusted';
+import { esc } from '../util/html';
 
 type PW = { config?: { adminIcons?: { version?: string | number } }; icon?: (name: string, extra?: string) => string };
 
@@ -23,9 +25,9 @@ function iconHtml(value: string, extraClass = ''): string {
 	const p = pw();
 	if (fa6() && p.icon) {
 		const html = p.icon(value.replace(/^fa-/, ''), 'fw');
-		return extraClass ? html.replace(/'><\/i>$/, ` ${extraClass}' title='${value}'></i>`) : html;
+		return extraClass ? html.replace(/'><\/i>$/, ` ${esc(extraClass)}' title='${esc(value)}'></i>`) : html;
 	}
-	return `<i class='fa fw ${value}${extraClass ? ' ' + extraClass : ''}' title='${value}'></i>`;
+	return `<i class='fa fw ${esc(value)}${extraClass ? ' ' + esc(extraClass) : ''}' title='${esc(value)}'></i>`;
 }
 
 export function init(wrap: HTMLElement): void {
@@ -40,7 +42,7 @@ export function init(wrap: HTMLElement): void {
 			const header = wrap.querySelector<HTMLElement>('.InputfieldHeader > i:first-child');
 			if (header) {
 				const tmp = document.createElement('span');
-				tmp.innerHTML = fa6() ? iconHtml(val) : `<i class='fa fa-fw ${val}'></i>`;
+				tmp.innerHTML = toHTML(fa6() ? iconHtml(val) : `<i class='fa fa-fw ${esc(val)}'></i>`);
 				const i = tmp.firstElementChild;
 				if (i) header.className = i.className;
 				if (header.parentElement && header.parentElement.animate) header.parentElement.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 500 });
@@ -61,7 +63,7 @@ export function init(wrap: HTMLElement): void {
 		if (term.length < 3) { all.style.display = 'none'; return; }
 		if (!all.classList.contains('initialized')) {
 			all.classList.add('initialized');
-			all.insertAdjacentHTML('beforeend', Array.from(select.options).filter(o => o.value).map(o => iconHtml(o.value, 'InputfieldIconItem')).join(''));
+			all.insertAdjacentHTML('beforeend', toHTML(Array.from(select.options).filter(o => o.value).map(o => iconHtml(o.value, 'InputfieldIconItem')).join('')));
 			on(all, 'click', e => {
 				const i = (e.target as HTMLElement).closest('i');
 				if (!i) return;

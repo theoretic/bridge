@@ -74,11 +74,12 @@
 			fetch('./files?id=' + page.id, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
 				.then(function(res) { return res.json(); })
 				.then(function(data) {
-					fileSelect.innerHTML = '<option></option>';
+					fileSelect.replaceChildren(document.createElement('option'));
 					Object.keys(data || {}).forEach(function(key) {
 						var o = document.createElement('option');
 						o.value = key;
-						o.innerHTML = data[key];
+						// the file's label as the server wrote it (entity-encoded)
+						o.innerHTML = theme.trusted.html(data[key]);
 						fileSelect.appendChild(o);
 					});
 					var strong = wrap ? $('p.notes strong', wrap) : null;

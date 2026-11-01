@@ -20,6 +20,7 @@ import { legacyLoaded } from '../legacy';
 import { changed, setValue } from '../util/events';
 import { fetchOk, failed } from '../util/fail';
 import { onRemoval } from '../util/removal';
+import { toHTML } from '../util/trusted';
 
 const sortables = new Map<HTMLElement, () => void>();
 // per-element state, dropped when its element leaves the page (audit R6)
@@ -66,7 +67,7 @@ async function reload(container: HTMLElement, pageID: number): Promise<void> {
 		failed('page table reload', err);
 		return;
 	}
-	container.innerHTML = html;
+	container.innerHTML = toHTML(html);
 	container.querySelectorAll('.Inputfield').forEach(li => li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'InputfieldPageTable' } })));
 	makeRowsSortable(container);
 	const del = container.parentElement?.querySelector<HTMLInputElement>(':scope > input.InputfieldPageTableDelete');

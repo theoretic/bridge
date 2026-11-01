@@ -33,6 +33,7 @@
 import { setCookie } from '../util/cookie';
 import { legacyLoaded } from '../legacy';
 import { makeSelectable } from '../util/selection';
+import { toHTML } from '../util/trusted';
 
 type Action = { cn: string; name: string; url: string; extras?: Record<string, Action>; ajax?: boolean };
 type Child = {
@@ -61,7 +62,7 @@ function alertMsg(m: string): void { const p = pw(); if (p.alert) p.alert(m); el
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''): HTMLElementTagNameMap[K] {
 	const e = document.createElement(tag);
 	if (cls) e.className = cls;
-	if (html) e.innerHTML = html;
+	if (html) e.innerHTML = toHTML(html);
 	return e;
 }
 const kids = (e: Element | null, sel: string): HTMLElement[] => e ? Array.from(e.children).filter(c => c.matches(sel)) as HTMLElement[] : [];
@@ -133,7 +134,7 @@ function setupTree(container: HTMLElement): void {
 		else if (o.qtyType === 'total/children') label = numTotal > 0 && numTotal !== numChildren ? numTotal + slash + numChildren : numTotal;
 		else if (o.qtyType === 'children/total') label = numTotal > 0 && numTotal !== numChildren ? numChildren + slash + numTotal : numTotal;
 		else if (o.qtyType === 'id') label = pageId(item);
-		span.innerHTML = label ? String(label) : '';
+		span.innerHTML = toHTML(label ? String(label) : '');
 		if (addNew) item.appendChild(span);
 	};
 	const numOf = (item: HTMLElement | null, total = false): number => item ? parseInt(item.getAttribute(total ? 'data-numTotal' : 'data-numChild') || '0', 10) || 0 : 0;

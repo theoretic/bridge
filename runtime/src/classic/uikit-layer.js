@@ -61,7 +61,10 @@
 			var scripts = (cfg.scripts || []).map(function(url) {
 				return new Promise(function(resolve, reject) {
 					var s = doc.createElement('script');
-					s.src = url;
+					var theme = window.ProcessWireAdminTheme;
+					var nonce = theme && theme.nonce ? theme.nonce() : '';
+					if(nonce) s.nonce = nonce;
+					s.src = theme && theme.trusted ? theme.trusted.scriptURL(url) : url; // tt-ok: without the theme script there is no policy to ask
 					s.async = false;
 					s.onload = resolve;
 					s.onerror = function() { reject(new Error('Bridge: no ' + url)); };
