@@ -53,7 +53,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.18.6',
+			'version' => '0.19.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -463,6 +463,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			}
 		});
 
+		// the primary nav kept in the session goes when what it shows may have changed (PF1)
+		$this->wire()->pages->addHookAfter('saved', $this, 'hookClearNavCache');
+		foreach(array('refresh', 'install', 'uninstall') as $method) $this->wire()->modules->addHookAfter($method, $this, 'hookClearNavCache');
 		$this->addHookBefore('Inputfield::render', $this, 'hookInputfieldRender');
 		$this->addHookBefore('Inputfield::renderValue', $this, 'hookInputfieldRender');
 		// AJAX-collapsed fields are rendered as a placeholder without render(): mark them when
@@ -515,6 +518,15 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 *
 	 */
 	protected $urlsMemo = array();
+
+	/**
+	 * Per-request memos (audit PF1): componentClass() by class, urlToFile() by path and its
+	 * URL/path pairs
+	 *
+	 */
+	protected $componentClasses = array();
+	protected $urlFiles = array();
+	protected $urlPairs = null;
 
 	/**
 	 * isOtherThemeModule() answers for this request: module name => bool

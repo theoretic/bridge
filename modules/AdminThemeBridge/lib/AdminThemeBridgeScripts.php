@@ -130,16 +130,32 @@ trait AdminThemeBridgeScripts {
 		$config = $this->wire()->config;
 		$path = rawurldecode((string) preg_replace('/[?#].*$/', '', (string) $url));
 		if(strpos($path, '/') !== 0 || strpos($path, '//') === 0 || strpos($path, '..') !== false) return '';
-		$pairs = array();
-		foreach(array('siteModules', 'modules', 'adminTemplates', 'templates', 'assets', 'site', 'wire', 'root') as $key) {
-			$u = (string) $config->urls->get($key);
-			$p = (string) $config->paths->get($key);
-			if($u !== '' && $p !== '' && strpos($u, '/') === 0) $pairs[$u] = $p;
+		if(isset($this->urlFiles[$path])) return $this->urlFiles[$path];
+		// the URL/path pairs once per request, longest first (audit PF1: rebuilt and sorted per call)
+		if($this->urlPairs === null) {
+			$pairs = array();
+			foreach(array('siteModules', 'modules', 'adminTemplates', 'templates', 'assets', 'site', 'wire', 'root') as $key) {
+				$u = (string) $config->urls->get($key);
+				$p = (string) $config->paths->get($key);
+				if($u !== '' && $p !== '' && strpos($u, '/') === 0) $pairs[$u] = $p;
+			}
+			$alias = $config->urls->root . 'wire/';
+			if(!isset($pairs[$alias])) $pairs[$alias] = $config->paths->wire;
+			uksort($pairs, function($a, $b) { return strlen($b) - strlen($a); });
+			$this->urlPairs = $pairs;
 		}
-		$alias = $config->urls->root . 'wire/';
-		if(!isset($pairs[$alias])) $pairs[$alias] = $config->paths->wire;
-		uksort($pairs, function($a, $b) { return strlen($b) - strlen($a); });
-		foreach($pairs as $u => $p) {
+		return $this->urlFiles[$path] = $this->urlFileFor($path);
+	}
+
+	/**
+	 * urlToFile() for a clean path, without the memo
+	 *
+	 * @param string $path
+	 * @return string
+	 *
+	 */
+	protected function urlFileFor($path) {
+		foreach($this->urlPairs as $u => $p) {
 			if(strpos($path, $u) !== 0) continue;
 			$file = $p . substr($path, strlen($u));
 			if(is_file($file)) return $file;

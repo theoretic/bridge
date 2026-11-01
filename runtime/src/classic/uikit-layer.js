@@ -180,10 +180,13 @@
 		api.tooltips(doc.body);
 		var stop = theme.observe(function(records) {
 			if(api.loaded) { if(stop) stop(); return; }
+			// a node removed and added in the same batch only moved: scanned where it came from (PF2)
+			var moved = [];
+			for(var k = 0; k < records.length; k++) Array.prototype.push.apply(moved, records[k].removedNodes);
 			for(var i = 0; i < records.length; i++) {
 				var added = records[i].addedNodes;
 				for(var j = 0; j < added.length; j++) {
-					if(added[j].nodeType !== 1) continue;
+					if(added[j].nodeType !== 1 || moved.indexOf(added[j]) > -1) continue;
 					api.tooltips(added[j]);
 					if(cfg.mode !== 'never') api.scan(added[j]);
 				}

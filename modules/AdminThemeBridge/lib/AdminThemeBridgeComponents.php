@@ -17,8 +17,13 @@ trait AdminThemeBridgeComponents {
 	 *
 	 */
 	protected function componentClass($module) {
-		$method = new \ReflectionMethod($module, 'getBridgeComponent');
-		return $method->getDeclaringClass()->getName();
+		// once per class and request: asked on every render of a component field (audit PF1)
+		$class = get_class($module);
+		if(!isset($this->componentClasses[$class])) {
+			$method = new \ReflectionMethod($module, 'getBridgeComponent');
+			$this->componentClasses[$class] = $method->getDeclaringClass()->getName();
+		}
+		return $this->componentClasses[$class];
 	}
 
 	/**

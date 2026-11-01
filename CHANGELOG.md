@@ -1,5 +1,24 @@
 # Changelog
 
+## AdminThemeBridge 0.19.0: faster on the server (2026-11-01)
+
+From the 2026-11-01 audit (PF1, PF2). Profiled with Xdebug on the atispro sandbox: Bridge drew far less in the browser than Uikit, but took longer on the server. Most of that was the main menu, built from every admin page and module on each request.
+
+- **The main menu is kept in the session**, as AdminThemeUikit keeps its own, and dropped when an admin page is saved, the user's language changes, or modules are refreshed, installed or uninstalled. The current section is marked on each request.
+- **The runtime's labels are kept in the session** per language: about sixty translation lookups less per request.
+- Smaller savings on every request: the script-to-file lookups and the component class checks are remembered per request; a data table that cannot sort skips the backtrace that names its maker.
+- In the browser, a node that only moves (each step of a drag, a table sorted by its header) is no longer treated as new content: no re-initialisation of the fields around it, no clean-up pass, no UIkit scan.
+
+Server time to first byte, median of seven requests, sandbox server (PHP's built-in, single-threaded):
+
+| Screen | 0.18.6 | 0.19.0 | Uikit |
+|---|---|---|---|
+| Page editor | 316 ms | 285 ms | 249 ms |
+| Fields list | 204 ms | 171 ms | 150 ms |
+| Page tree | 112 ms | 93 ms | 86 ms |
+
+In the browser the same screens spend 1 to 7 ms on scripts under Bridge, and 30 to 83 ms under Uikit.
+
 ## AdminThemeBridge 0.18.6: listeners that outstayed their elements, escaped selectors (2026-11-01)
 
 From the 2026-11-01 audit (BG6 to BG9).

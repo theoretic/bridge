@@ -156,7 +156,7 @@ trait AdminThemeBridgeHead {
 			'covered' => $themeUrl . "assets/dist/uikit-covered.json?v=" . $themeAssetVersion('assets/dist/uikit-covered.json'),
 		);
 		// translated labels for the runtime's own dialogs and tables (util/labels.ts)
-		$bridgeJs['labels'] = $this->runtimeLabels();
+		$bridgeJs['labels'] = $this->sessionLabels();
 		// core's ProcessWire.alert/confirm/prompt (templates-admin/scripts/main.js) take the UIkit route
 		// whenever window.UIkit exists, the layer's stand-in included, and read AdminThemeUikit's labels
 		// there without checking for them: without these every dialog throws

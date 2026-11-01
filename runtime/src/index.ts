@@ -69,11 +69,15 @@ const INITIALISE = '.Inputfield, table.AdminDataTable';
 const LEAVES = new Set(['OPTION', 'OPTGROUP', 'SCRIPT', 'STYLE', 'BR', 'I', 'SVG', 'IMG']);
 
 export function contentAdded(records: MutationRecord[]): void {
+	// a node removed and added in the same batch only moved (each step of a drag, a table sorted
+	// in the browser): it was initialised where it came from (audit PF2)
+	const moved = new Set<Node>();
+	for (const record of records) record.removedNodes.forEach(node => moved.add(node));
 	const added = new Set<HTMLElement>();
 	for (const record of records) {
 		record.addedNodes.forEach(node => {
 			// leaves hold no fields: a widget building a select adds its options one by one (P2)
-			if (node.nodeType === 1 && node.isConnected && !LEAVES.has(node.nodeName)) added.add(node as HTMLElement);
+			if (node.nodeType === 1 && node.isConnected && !LEAVES.has(node.nodeName) && !moved.has(node)) added.add(node as HTMLElement);
 		});
 	}
 	if (!added.size) return;

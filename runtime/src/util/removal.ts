@@ -8,6 +8,7 @@ export function onRemoval(fn: () => void): void {
 	const theme = (window as unknown as { ProcessWireAdminTheme?: { observe?: (cb: (records: MutationRecord[]) => void) => () => void } }).ProcessWireAdminTheme;
 	if (!theme || typeof theme.observe !== 'function') return;
 	theme.observe(records => {
-		for (const r of records) if (r.removedNodes.length) { fn(); return; }
+		// a node that is in the page again moved (a drag step, a sort): nothing to clean up (PF2)
+		for (const r of records) for (const n of Array.from(r.removedNodes)) if (!n.isConnected) { fn(); return; }
 	});
 }

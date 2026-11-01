@@ -289,6 +289,27 @@ trait AdminThemeBridgeShell {
 	}
 
 	/**
+	 * runtimeLabels(), kept in the session per language and per version of this file (audit PF1:
+	 * about sixty translation lookups on every request). runtimeLabels() stays the one list, where
+	 * the language tools find the strings.
+	 *
+	 * @return array
+	 *
+	 */
+	public function sessionLabels() {
+		$user = $this->wire()->user;
+		$language = $user && $user->language ? (int) $user->language->id : 0;
+		$key = 'labels-' . $language . '-' . (int) @filemtime(__FILE__);
+		$session = $this->wire()->session;
+		$labels = $session->getFor($this, $key);
+		if(!is_array($labels)) {
+			$labels = $this->runtimeLabels();
+			$session->setFor($this, $key, $labels);
+		}
+		return $labels;
+	}
+
+	/**
 	 * Labels the shell templates print (_masthead.php, _footer.php), translated in this file's
 	 * textdomain: `$adminTheme->_()` in a template is looked up here while the language parser files
 	 * it under the template, so a translation entered there was never used (audit B2)
@@ -320,15 +341,65 @@ trait AdminThemeBridgeShell {
 	/**
 	 * Render primary navigation from the framework's nav array
 	 *
+	 * The markup is kept in the session, as AdminThemeUikit keeps its own (audit PF1: building it
+	 * from every admin page and module took most of the theme's time on each request), and dropped
+	 * when an admin page is saved, the user's language changes or modules are refreshed, installed
+	 * or uninstalled (hookClearNavCache()). The current section is marked after, per request.
+	 *
 	 * @return string
 	 *
 	 */
 	public function renderPrimaryNav() {
-		$out = '';
-		foreach($this->getPrimaryNavArray() as $item) {
-			$out .= $this->renderNavItem($item, 0);
+		$session = $this->wire()->session;
+		$out = (string) $session->getFor($this, 'prnav');
+		if($out === '') {
+			foreach($this->getPrimaryNavArray() as $item) {
+				$out .= $this->renderNavItem($item, 0);
+			}
+			$session->setFor($this, 'prnav', $out);
 		}
-		return "<ul class='pw-primary-nav'>$out</ul>";
+		return "<ul class='pw-primary-nav'>" . $this->markCurrentNavItem($out) . "</ul>";
+	}
+
+	/**
+	 * The top-level item of the current section gets pw-current and aria-current (audit SU1): the
+	 * one whose admin page is the current page or one of its parents (the section's URL is then
+	 * a prefix of this one, as the rendering used to compare)
+	 *
+	 * @param string $out Top-level items' markup, unmarked
+	 * @param Page|null $page The admin page shown (default: the current one)
+	 * @return string
+	 *
+	 */
+	public function markCurrentNavItem($out, $page = null) {
+		if($page === null) $page = $this->wire()->page;
+		if(!$page || !$page->id) return $out;
+		$adminRoot = (int) $this->wire()->config->adminRootPageID;
+		foreach($page->parents()->and($page) as $p) {
+			if((int) $p->id === $adminRoot) continue;
+			$marked = preg_replace("~(<li class='pw-nav-item pw-nav-item-top page-{$p->id}-)([^']*')(><a )~",
+				"\$1 pw-current\$2\$3aria-current='true' ", $out, 1, $n);
+			if($n && is_string($marked)) return $marked;
+		}
+		return $out;
+	}
+
+	/**
+	 * Hook after Pages::saved, Modules::refresh, ::install, ::uninstall: drop the primary nav kept in
+	 * the session (renderPrimaryNav()), as AdminThemeUikit::hookClearCaches() does its own
+	 *
+	 * @param HookEvent $event
+	 *
+	 */
+	public function hookClearNavCache(HookEvent $event) {
+		$page = $event->arguments(0);
+		if($page instanceof Page) {
+			$changes = $event->arguments(1);
+			$user = $this->wire()->user;
+			$clear = $page->template->name === 'admin' || ($user && $page->id === $user->id && is_array($changes) && in_array('language', $changes));
+			if(!$clear) return;
+		}
+		$this->wire()->session->removeFor($this, 'prnav');
 	}
 
 	/**
@@ -351,19 +422,13 @@ trait AdminThemeBridgeShell {
 		$icon = empty($item['icon']) ? '' : $this->renderNavIcon($item['icon']);
 		$children = empty($item['children']) ? array() : $item['children'];
 		if($level === 0) {
+			// the current section is marked per request, after the session's copy (markCurrentNavItem())
 			$class = "pw-nav-item pw-nav-item-top page-$id-";
-			// current section: the request URL lies under this item's URL (Pages, Setup, ...)
-			$current = (string) $this->wire()->input->url();
-			$ariaCurrent = '';
-			if(!empty($item['url']) && $item['url'] !== $this->wire()->urls->admin && strpos($current, $item['url']) === 0) {
-				$class .= ' pw-current';
-				$ariaCurrent = " aria-current='true'"; // the section of this page (audit SU1)
-			}
 			// top level is text only, as Uikit and Boss render it
-			if(!count($children)) return "<li class='$class'><a href='$url'$ariaCurrent>$title</a></li>";
+			if(!count($children)) return "<li class='$class'><a href='$url'>$title</a></li>";
 			$my = in_array($item['name'], array('access', 'page', 'module'), true) ? 'left top' : 'left-1 top';
 			$out = "<li class='$class pw-nav-item-parent pw-dropdown'>" .
-				"<a href='$url' id='prnav-page-$id' data-from='prnav-page-$parentId' class='pw-dropdown-toggle' aria-haspopup='true' aria-expanded='false'$ariaCurrent>$title</a>" .
+				"<a href='$url' id='prnav-page-$id' data-from='prnav-page-$parentId' class='pw-dropdown-toggle' aria-haspopup='true' aria-expanded='false'>$title</a>" .
 				"<ul class='pw-dropdown-menu prnav' data-my='$my' data-at='left bottom' style='display:none'>";
 			foreach($children as $child) $out .= $this->renderNavItem($child, $level + 1);
 			return $out . "</ul></li>";

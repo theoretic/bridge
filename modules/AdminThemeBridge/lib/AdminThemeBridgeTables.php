@@ -46,6 +46,8 @@ trait AdminThemeBridgeTables {
 			if(count((array) $table->rows) < $this->getDataTableSortRows()) $table->setSortable(false);
 			return;
 		}
+		// the maker (a backtrace) only when the table could sort at all (audit PF1)
+		if(count((array) $table->headerRow) === 0 || count((array) $table->rows) < max(2, $this->getDataTableSortRows())) return;
 		if(!$this->sortableDataTable($table, $this->dataTableMaker())) return;
 		$table->setSortable(true);
 		foreach(array_values((array) $table->headerRow) as $n => $th) {

@@ -1134,6 +1134,25 @@ check('TT core\'s inline confirm and click guard become data attributes, nothing
 	&& strpos($handlersOut, "<input type='checkbox' data-pw-noclick />") !== false && strpos($handlersOut, 'onclick="other()"') !== false
 	&& strpos($handlersOut, 'return confirm') === false, $handlersOut);
 check('TT the setup script asks for them with the theme\'s dialog', strpos($srcOf('classic/setup.js'), "closest('[data-pw-confirm], [data-pw-noclick]')") !== false);
+// 0.19.0: performance (audit PF1, PF2)
+if(isset($bridge) && $bridge) {
+	$shellSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
+	check('PF1 the primary nav is kept in the session and dropped when it may change', strpos($shellSrc, "\$session->setFor(\$this, 'prnav', \$out);") !== false
+		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "addHookAfter('saved', \$this, 'hookClearNavCache')") !== false);
+	// the page editor's admin page lies under Pages: Pages is the one current section
+	$pagesSection = $pages->get((int) $config->adminRootPageID)->child('name=page, include=all');
+	$editScreen = $pagesSection->id ? $pagesSection->child('name=edit, include=all') : new NullPage();
+	$navMarked = $bridge->markCurrentNavItem("<li class='pw-nav-item pw-nav-item-top page-{$pagesSection->id}-'><a href='/x/'>Pages</a></li>" .
+		"<li class='pw-nav-item pw-nav-item-top page-22-'><a href='/y/'>Setup</a></li>", $editScreen);
+	check('PF1 the current section is still marked after the session\'s copy', $editScreen->id
+		&& strpos($navMarked, "page-{$pagesSection->id}- pw-current'><a aria-current='true' href=") !== false && substr_count($navMarked, 'pw-current') === 1, $navMarked);
+	check('PF1 the runtime labels are kept per language and version', strpos($shellSrc, 'public function sessionLabels()') !== false && $bridge->sessionLabels() === $bridge->runtimeLabels());
+	check('PF1 urlToFile() and componentClass() remember their answers', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeScripts.php'), 'if(isset($this->urlFiles[$path])) return $this->urlFiles[$path];') !== false
+		&& strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeComponents.php'), '$this->componentClasses[$class]') !== false);
+}
+check('PF2 a node that only moved is no new content to the runtime', strpos($srcOf('index.ts'), '!moved.has(node)') !== false
+	&& strpos($srcOf('util/removal.ts'), 'if (!n.isConnected) { fn(); return; }') !== false);
+
 // 0.18.6: listeners that outlived their element, selectors built from values (audit BG7, BG8)
 check('BG7 a reloaded page tree\'s group menu listeners go with the old tree', strpos($srcOf('fields/pagelist-group.ts'), "{ capture: true, signal: gone.signal }") !== false);
 check('BG7 one ResizeObserver per frame in the setup screens', strpos($srcOf('classic/setup.js'), 'if(frame.pwFit) frame.pwFit.disconnect();') !== false);

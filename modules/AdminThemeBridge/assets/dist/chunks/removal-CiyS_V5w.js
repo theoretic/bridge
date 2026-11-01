@@ -1,0 +1,1 @@
+function f(e){const o=window.ProcessWireAdminTheme;!o||typeof o.observe!="function"||o.observe(r=>{for(const n of r)for(const t of Array.from(n.removedNodes))if(!t.isConnected){e();return}})}export{f as o};
