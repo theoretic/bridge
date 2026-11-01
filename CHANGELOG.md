@@ -1,5 +1,11 @@
 # Changelog
 
+## AdminThemeBridge 0.21.1: no full icon font on every screen (2026-11-01)
+
+Found by the benchmark rerun of the 2026-11-01 audit. The user menu's "smaller" button (`fa-search-minus`) was missing from the Font Awesome solid subset: the theme passes the icon's name bare to a helper, which the build's code scan does not see. Every admin screen therefore fetched the full solid face, 158 kB, on top of the 22 kB subset. `runtime/fa-icons.txt` now lists both scale icons, the subsets are cut again, and the smoke test checks that the two code points are in the subset.
+
+Lighthouse on the atispro sandbox (desktop, median of 3, four screens), before and after: fonts 225 to 71 kB per screen, Largest Contentful Paint 1.0 to 0.9 s, score 96 to 97. The README table is from this run.
+
 ## AdminThemeBridge 0.21.0: one asset plan, shared helpers, type-checked classic scripts (2026-11-01)
 
 From the 2026-11-01 audit (AR1, AR2, AR3, AR5). No change in what a page gets: the head of five screens was compared byte for byte before and after.

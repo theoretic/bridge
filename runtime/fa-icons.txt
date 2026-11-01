@@ -3,6 +3,12 @@
 # v4 or v6 names. Add icons that common third-party modules or typical sites (template and field
 # icons) use, so they do not pull the full Font Awesome face. Comments start with #.
 
+# Bridge's own icons that the code scan cannot see (a name passed bare to a helper): the user
+# menu's scale buttons, shown on every screen; without them every screen fetched the full solid
+# face (158 kB; benchmark 2026-11-01)
+search-minus
+search-plus
+
 # Icons of the modules and of the templates, fields and admin pages of ten production sites
 
 # (tools/fa-icons-site.php plus a module scan, 2026-10-20) that core and Bridge do not use.

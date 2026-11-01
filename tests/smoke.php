@@ -1135,6 +1135,18 @@ check('TT core\'s inline confirm and click guard become data attributes, nothing
 	&& strpos($handlersOut, "<input type='checkbox' data-pw-noclick />") !== false && strpos($handlersOut, 'onclick="other()"') !== false
 	&& strpos($handlersOut, 'return confirm') === false, $handlersOut);
 check('TT the setup script asks for them with the theme\'s dialog', strpos($srcOf('classic/setup.js'), "closest('[data-pw-confirm], [data-pw-noclick]')") !== false);
+// 0.21.1: every icon the shell shows on every screen is in the subsets
+$faCssShipped = (string) @file_get_contents($themeDir . 'assets/fonts/fa-6.7.2/fa.css');
+$solidRange = preg_match('/font-family:"Font Awesome 6 Free";font-style:normal;font-weight:900;font-display:block;src:url\(fa-solid-900-subset[^)]*\)[^;]*;unicode-range:([^}]+)\}/', $faCssShipped, $fm) ? $fm[1] : '';
+$inRange = function($cp) use($solidRange) {
+	foreach(explode(',', $solidRange) as $part) {
+		$ab = explode('-', strtolower(str_replace('U+', '', trim($part))));
+		if($cp >= hexdec($ab[0]) && $cp <= hexdec($ab[1] ?? $ab[0])) return true;
+	}
+	return false;
+};
+check('PF3 the scale buttons\' icons (search-minus, search-plus) are in the solid subset', $faCssShipped === '' || ($solidRange !== '' && $inRange(0xf010) && $inRange(0xf00e)));
+
 // docs that follow the code (audit BG10)
 $themeInfo = (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php');
 $themeVersion = preg_match("/'version' => '([0-9.]+)'/", $themeInfo, $vm) ? $vm[1] : '';

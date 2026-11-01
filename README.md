@@ -4,7 +4,7 @@ A [ProcessWire](https://processwire.com) admin built from native web components 
 every existing Inputfield and Process module.
 
 The name says what it is: a bridge between the jQuery-era admin and the modern web stack.
-"Bridge" is a working name. Status: beta, AdminThemeBridge 0.21.0; the component contract is
+"Bridge" is a working name. Status: beta, AdminThemeBridge 0.21.1; the component contract is
 version 1 and may still change before 1.0.
 
 ## What it is
@@ -42,16 +42,20 @@ Lighthouse 12 (desktop preset), logged in, cold cache, median of 3 runs, average
   <img alt="Lighthouse results of Bridge 0.9.3, Uikit (original and 2025 look), AdminThemeBoss, Reno and Default: score, LCP, JavaScript, CSS, requests, jQuery, fonts" src="docs/images/benchmark-light.png" width="880">
 </picture>
 
-The same for Bridge, Uikit and AdminThemeBoss as text:
+The chart is from Bridge 0.9.3. The same measurement on 2026-11-01, Bridge 0.21.1 against Uikit
+and AdminThemeBoss:
 
-| | Bridge 0.9.3 | Uikit | AdminThemeBoss |
+| | Bridge 0.21.1 | Uikit | AdminThemeBoss |
 |---|---:|---:|---:|
-| Performance score | 98 | 69 | 81 |
-| Largest Contentful Paint | 0.9 s | 3.6 s | 1.8 s |
-| JavaScript, gzip | 38 kB | 272 kB | 190 kB |
-| CSS, gzip | 55 kB | 118 kB | 59 kB |
+| Performance score | 97 | 67 | 82 |
+| Largest Contentful Paint | 0.9 s | 3.7 s | 1.8 s |
+| JavaScript, gzip | 54 kB | 272 kB | 190 kB |
+| CSS, gzip | 57 kB | 118 kB | 62 kB |
 | jQuery loaded | no | yes | yes |
 | Fonts | 71 kB | 237 kB | 75 kB |
+
+Bridge's JavaScript grew from 38 kB since 0.9.3 with the native widgets, the Trusted Types
+policy and keyboard support; Uikit's and AdminThemeBoss's figures are the same run's.
 
 Localhost numbers: absolute times are higher on a real server, the differences between themes
 are the point. A screen with a jQuery-era field loads that field's stack, as it should.
