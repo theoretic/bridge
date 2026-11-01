@@ -10,6 +10,8 @@ From the 2026-11-01 audit (UX1). Checked in a browser by the new `tools/a11y-che
 - **WireTabs** (the page editor's tabs and every Process that uses them) and **language tabs** are tab lists for screen readers: tab roles, the selected tab, the panels they control. Left and Right, Home and End move between the tabs and open them, as in `<pw-tabs>`.
 - **Names for controls that show only an icon**: the image field's three view buttons (pressed while on), the arrow next to a Save button, the remove sign of an asmSelect item, the tag remove sign, the date picker's calendar button, the page table's trash icons; the repeater's drag icon is hidden from screen readers (Alt+Up and Down sort the items), and its controls keep a name when the field's labels are missing. The tag input is a combobox with its list of suggestions.
 - New runtime labels, translatable with the theme: `image`, `remove`, `moreActions`, `imageViewList`, `imageViewLeft`, `imageViewGrid`, `pickDate`.
+- Gzip budgets raised for this work (`runtime/scripts/check-css.mjs`): `runtime.js` with its index chunk from 14,848 to 15,360 B, `main.js` from 12 to 12.5 KiB, the classic scripts together from 43.5 to 45 KiB.
+
 ## AdminThemeBridge 0.19.0: faster on the server (2026-11-01)
 
 From the 2026-11-01 audit (PF1, PF2). Profiled with Xdebug on the atispro sandbox: Bridge drew far less in the browser than Uikit, but took longer on the server. Most of that was the main menu, built from every admin page and module on each request.
