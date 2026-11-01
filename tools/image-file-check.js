@@ -122,6 +122,11 @@ const PNG = makePng(48, 32, [40, 120, 220]);
 	// B: view modes, kept in the InputfieldImage cookie
 	await page.click(IMG + ' .InputfieldImageListToggle[href="list"]');
 	check('B list mode', await page.evaluate((s) => document.querySelector(s).classList.contains('InputfieldImageEditAll'), IMG));
+	const listBackground = await page.evaluate(s => {
+		const thumb = document.querySelector(s + ' .gridImage__overflow');
+		return { padding: getComputedStyle(thumb).backgroundImage, image: getComputedStyle(thumb.querySelector('img')).backgroundImage };
+	}, IMG);
+	check('B list thumbnail padding is transparent; checkerboard stays on the image', listBackground.padding === 'none' && listBackground.image !== 'none', JSON.stringify(listBackground));
 	await page.click(IMG + ' .InputfieldImageListToggle[href="left"]');
 	check('B left mode (whole thumbnails)', await page.evaluate((s) => !document.querySelector(s).classList.contains('InputfieldImageEditAll') && document.querySelector(s + ' .gridImages').hasAttribute('data-ragged'), IMG));
 	await page.click(IMG + ' .InputfieldImageListToggle[href="list"]');
@@ -129,6 +134,7 @@ const PNG = makePng(48, 32, [40, 120, 220]);
 	check('B mode kept after reload (cookie)', await page.evaluate((s) => document.querySelector(s).classList.contains('InputfieldImageEditAll'), IMG), await page.evaluate(() => document.cookie.split('; ').find(c => c.indexOf('InputfieldImage=') === 0)));
 	await page.click(IMG + ' .InputfieldImageListToggle[href="grid"]');
 	check('B grid mode', await page.evaluate((s) => !document.querySelector(s).classList.contains('InputfieldImageEditAll') && !document.querySelector(s + ' .gridImages').hasAttribute('data-ragged'), IMG));
+	check('B grid thumbnail keeps its checkerboard', await page.$eval(IMG + ' .gridImage__overflow', el => getComputedStyle(el).backgroundImage !== 'none'));
 
 	// C: size slider
 	const sized = await page.evaluate((s) => {
