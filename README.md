@@ -4,7 +4,7 @@ A [ProcessWire](https://processwire.com) admin built from native web components 
 every existing Inputfield and Process module.
 
 The name says what it is: a bridge between the jQuery-era admin and the modern web stack.
-"Bridge" is a working name. Status: beta, AdminThemeBridge 0.11.4; the component contract is
+"Bridge" is a working name. Status: beta, AdminThemeBridge 0.21.0; the component contract is
 version 1 and may still change before 1.0.
 
 ## What it is
@@ -74,15 +74,21 @@ are the point. A screen with a jQuery-era field loads that field's stack, as it 
   single-file field that holds one, an upload that overwrites a file of the same name, Save and
   Replace in the image editor, deleted variations, a module uninstall, a renamed published page
   without path history, and more (Features > Warn before risky actions, on by default).
+- The keyboard reaches what the pointer does: tabs move with the arrow keys, Alt+Up and Down
+  sort lists and move pages in the tree, Ctrl+Space selects; dialogs take the focus and ask
+  before closing over unsaved changes. Reduced motion turns the flashes and smooth scrolls off,
+  and a finger scrolls a sortable list until it holds an item.
 
 ## Compatibility
 
 A conformance suite ([conformance/](conformance/)) renders every admin screen under Uikit and
-under Bridge and compares what modules see. On copies of nine real sites that is 1,434 screens
-with no difference caused by the theme, covering 41 of the 45 third-party modules installed
-there; the other four have admin screens that fail the same way under Uikit on those copies
-([conformance/RESULTS-2026-10-20.md](conformance/RESULTS-2026-10-20.md)). Behaviour checks run
-in Chromium and Firefox. Pro modules (ProFields, FormBuilder, ListerPro) have not been tested.
+under Bridge and compares what modules see. On copies of nine real sites that is 1,447 screens
+with no difference caused by the theme
+([conformance/RESULTS-2026-11-01.md](conformance/RESULTS-2026-11-01.md), AdminThemeBridge
+0.21.0); the 2026-10-20 run counted 41 of the 45 third-party modules installed there as covered,
+the other four having admin screens that fail the same way under Uikit on those copies.
+Behaviour checks run in Chromium and Firefox, keyboard and screen reader checks among them.
+Pro modules (ProFields, FormBuilder, ListerPro) have not been tested.
 
 ## Install
 
@@ -146,11 +152,12 @@ modules/AdminThemeBridge/  the admin theme; assets/dist/ and scripts/ hold built
 modules/BridgeDemo/        native Process and Inputfield used as a test fixture
 modules/BridgeCsp/         optional: a nonce-based Content-Security-Policy for the admin (ADR 0020)
 runtime/                   TypeScript runtime, stylesheets (Vite) and the theme's classic
-                           scripts (src/classic/, minified with esbuild into scripts/)
+                           scripts (src/classic/, minified with esbuild into scripts/,
+                           type-checked with types/classic.d.ts)
 conformance/               screen-by-screen comparison against Uikit
 tests/smoke.php            smoke test against a sandbox install
 tools/                     sandbox builders, deploy and diagnostic scripts, Playwright checks,
-                           bench/ (Lighthouse benchmark)
+                           ci.sh (every check in one run), bench/ (Lighthouse benchmark)
 docs/                      component contract, ADRs, install notes
 ```
 
@@ -163,9 +170,11 @@ npm install
 npm run build
 ```
 
-The build checks that the runtime, the stylesheets and each classic script stay within their
-gzip size budgets and that every design token used is declared, and keeps the previous build's
-chunks for one more release (a tab left open across a deploy still loads them).
+The build type-checks the TypeScript and the classic scripts, checks that every HTML and script
+sink goes through the Trusted Types policy, that the runtime, the stylesheets and each classic
+script stay within their gzip size budgets and that every design token used is declared, and
+keeps the previous build's chunks for one more release (a tab left open across a deploy still
+loads them).
 
 Supported browsers: Chrome and Edge 111+, Safari 16.2+, Firefox 121+ (the CSS uses
 `color-mix()` and `:has()`).
@@ -213,8 +222,11 @@ The sandbox and test tools build disposable copies of local ProcessWire sites un
 `sandbox/` (gitignored); the header of each script in `tools/` describes it. `tests/smoke.php`
 checks the theme against a sandbox from the command line, `conformance/run.php` compares every
 screen with Uikit, and the Playwright checks in `tools/*-check.js` drive the screens in Chromium
-and Firefox; each fails on page errors and on console errors. Never point the tests at a real
-site's database.
+and Firefox; each fails on page errors and on console errors. `tools/ci.sh` runs all of it (PHP
+lint, the build, the smoke test, the browser checks with the policy enforced, conformance) and
+exits with the number of failed steps; `npm install` in `tools/` gives it a Playwright
+(`PW=tools/node_modules/playwright-core`). The sandbox tools refuse any database but a sandbox
+copy (`tools/lib/sandbox-guard.php`). Never point the tests at a real site's database.
 
 ## Credits
 

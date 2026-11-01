@@ -1135,6 +1135,15 @@ check('TT core\'s inline confirm and click guard become data attributes, nothing
 	&& strpos($handlersOut, "<input type='checkbox' data-pw-noclick />") !== false && strpos($handlersOut, 'onclick="other()"') !== false
 	&& strpos($handlersOut, 'return confirm') === false, $handlersOut);
 check('TT the setup script asks for them with the theme\'s dialog', strpos($srcOf('classic/setup.js'), "closest('[data-pw-confirm], [data-pw-noclick]')") !== false);
+// docs that follow the code (audit BG10)
+$themeInfo = (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php');
+$themeVersion = preg_match("/'version' => '([0-9.]+)'/", $themeInfo, $vm) ? $vm[1] : '';
+check('BG10 the README and the CHANGELOG name the module\'s version', $themeVersion !== ''
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "AdminThemeBridge $themeVersion;") !== false
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/CHANGELOG.md'), "## AdminThemeBridge $themeVersion:") !== false, $themeVersion);
+check('BG10 the files from upstream code say so', strpos((string) file_get_contents(dirname(__DIR__) . '/bootstrap/Bootstrap.php'), 'Mozilla Public License 2.0') !== false
+	&& strpos($srcOf('fields/asmselect.ts'), 'Copyright (c) 2009-2019 by Ryan Cramer, licensed under the MIT license') !== false);
+
 // 0.21.0: architecture (audit AR1, AR2, AR3, AR5)
 $themeLib = $themeDir . 'lib/';
 $traitMembers = array();

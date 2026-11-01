@@ -1,0 +1,8 @@
+{
+  "name": "bridge-tools",
+  "private": true,
+  "description": "Browser checks of the Bridge sandbox (tools/*-check.js, tools/ci.sh): npm install here, then PW=tools/node_modules/playwright-core and npx playwright-core install chromium firefox",
+  "devDependencies": {
+    "playwright-core": "^1.62.1"
+  }
+}

@@ -96,8 +96,8 @@ of 11776 B gzip, the classic scripts 43228 of 43264 B, `runtime.js` plus its ind
 9. **A Playwright check runs the admin under an enforced policy.** `tools/csp-check.js` opens the
    native screens with Trusted Types and the nonce policy enforced and fails on any
    `securitypolicyviolation`, console error or page error; a report-only pass over every screen
-   lists what the legacy stack still trips, by screen, as a baseline. `tools/gate1.sh` runs the
-   enforced pass on the atispro sandbox.
+   lists what the legacy stack still trips, by screen, as a baseline. `tools/ci.sh` runs the
+   enforced pass (0.21.0; `tools/gate1.sh` runs the conformance suite only).
 10. **Out of scope, said so in the docs.** Screens that load the legacy stack (jQuery, jQuery UI,
     `inputfields.js`, CKEditor, TinyMCE, third-party modules) keep tripping Trusted Types; a site
     runs report-only there or enforces on native screens only. `style-src` with a nonce and no
@@ -203,7 +203,7 @@ Items 1 to 6 and 8 to 10 below are done, with these differences:
   and 43.5 kB (the classic total); about 80 wrapped writes cost more than the estimate.
 - `tools/csp-check.js --enforce` passes on every native screen in Chromium and Firefox (atispro
   sandbox): no script, handler or Trusted Types violation, and the fragment probe runs only the
-  vouched script. `tools/gate1.sh` does not run it yet (it needs Playwright).
+  vouched script. `tools/ci.sh` runs it with the other browser checks since 0.21.0.
 
 ### 0.18.4 (was 0.18.1): Trusted Types in the scripts
 
@@ -225,7 +225,7 @@ Items 1 to 6 and 8 to 10 below are done, with these differences:
    43264 to 44032 B, `runtime.js` 14000 to 14336 B; widget chunks stay at 8 KiB (the helpers
    replace string concatenation, most chunks shrink or stay).
 8. `tools/csp-check.js` enforced pass on the native screens; `tools/native-check.js --gate`
-   unchanged. `tools/gate1.sh` runs the enforced pass.
+   unchanged. `tools/ci.sh` runs the enforced pass (0.21.0).
 9. `tests/smoke.php`: built `main.js` contains the policy name and no `document.write`;
    `runtime.js` and the chunks contain no `document.write` / `insertAdjacentHTML(` /
    `parseFromString(` outside the helper (the minified names make this a presence check on the

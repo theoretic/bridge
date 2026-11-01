@@ -8,7 +8,10 @@
  * (wire/core/ProcessWire.php, checked against 3.0.274) so the resulting Config is
  * indistinguishable to the core; only the source of the paths differs.
  *
- * Original work, MIT (see LICENSE at the repository root).
+ * buildConfig() follows ProcessWire::buildConfig() of ProcessWire 3.0.274 (wire/core/ProcessWire.php,
+ * Mozilla Public License 2.0, https://processwire.com) step by step and copies parts of it,
+ * modified: the paths come from the layout instead of the directory of index.php. Those parts
+ * are MPL 2.0; the rest of this file is Bridge's own, MIT (see LICENSE at the repository root).
  *
  * Layout keys (all paths absolute, forward slashes, trailing slash optional):
  *

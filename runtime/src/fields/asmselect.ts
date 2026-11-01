@@ -1,4 +1,8 @@
 /**
+ * Ported from Alternate Select Multiple (asmSelect) 2.0, jQuery plugin, https://processwire.com,
+ * Copyright (c) 2009-2019 by Ryan Cramer, licensed under the MIT license; modified (rewritten
+ * without jQuery).
+ *
  * asmSelect without jQuery (milestone 2.4, ADR 0015). A port of upstream's jquery.asmselect.js
  * 2.0 (Ryan Cramer, MIT): same options (ProcessWire.config.InputfieldAsmSelect merged with the
  * select's data-asmopt), same markup and classes, so the theme's CSS and the server's processing
