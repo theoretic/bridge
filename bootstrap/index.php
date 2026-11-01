@@ -12,18 +12,19 @@
  * from project.php via BridgeBootstrap instead of ProcessWire::buildConfig(); the installer
  * branch is removed. The MPL 2.0 applies to this file; see LICENSE at the repository root.
  *
- * Index version follows upstream so SystemUpdater's check passes: 302.
+ * Index version follows upstream so SystemUpdater's check passes: 303 (core 3.0.270 and later
+ * build ProcessWire first and boot it second, so a failing boot still has its shutdown handler).
  */
 
-if(!defined("PROCESSWIRE")) define("PROCESSWIRE", 302); // index version
+if(!defined("PROCESSWIRE")) define("PROCESSWIRE", 303); // index version
 
 $rootPath = __DIR__;
 if(DIRECTORY_SEPARATOR != '/') $rootPath = str_replace(DIRECTORY_SEPARATOR, '/', $rootPath);
 
-$layout = require("$rootPath/project.php");
+$layout = is_file("$rootPath/project.php") ? require("$rootPath/project.php") : null;
 if(!is_array($layout)) {
 	header("HTTP/1.1 500 Internal Server Error");
-	echo "project.php must return an array";
+	echo "project.php (next to index.php) must return an array";
 	exit(1);
 }
 $layout['root'] = $rootPath;
@@ -44,7 +45,7 @@ try {
 	exit(1);
 }
 
-if(!$config->dbName) {
+if(!$config->dbName && $config->dbType !== 'sqlite') {
 	header("HTTP/1.1 404 Page Not Found");
 	echo "404 page not found (no site configuration available)";
 	exit(0);
@@ -54,7 +55,10 @@ $process = null;
 $wire = null;
 
 try {
-	$wire = new ProcessWire($config);
+	// built, then booted (index 303): a throw while booting still finds $wire->shutdown below. A
+	// core before 3.0.270 has no boot() and boots in the constructor as before.
+	$wire = new ProcessWire($config, '/', false);
+	if(method_exists($wire, 'boot')) $wire->boot($config);
 	$process = $wire->modules->get('ProcessPageView'); /** @var ProcessPageView $process */
 	$wire->wire('process', $process);
 	echo $process->execute($config->internal);

@@ -25,7 +25,7 @@ of the dev branch (3.0.274), not taken from the review alone.
 ## 2. Verified against core 3.0.274
 
 - `ProcessWire::buildConfig()` (`wire/core/ProcessWire.php:1220-1322`) takes only `siteDir`; `$wireDir = "wire"` is hardcoded at line 1301, `templates-admin` at 1304. Confirms the review's unverified claim. Upstream PR candidate: a `wireDir` option.
-- Version gates: `indexVersion = 300`, `htaccessVersion = 301` (constants at :98 and :104). Current upstream `index.php` declares 302, so the check is numeric, as the review said.
+- Version gates: `indexVersion = 300`, `htaccessVersion = 301` (constants at :98 and :104). Upstream `index.php` declared 302 at plan time and 303 since 3.0.270 (build, then `boot()`); the check is numeric, as the review said. `bootstrap/index.php` follows it (audit SE7, 2026-11-01).
 - `Modules::addPath($path)` exists (`wire/core/Modules/Modules.php:345`).
 - Duplicate modules (same class in `site/modules` and `wire/modules`) are tracked by `ModulesDuplicates` (`setUseDuplicate()`, `getCurrent()`), and `ModulesFiles::getModuleFile()` resolves through it. So precedence is managed state, not undefined behaviour, but it is per-install config, which is why D4 keeps `substituteModules` as the second leg.
 - Inputfield seams (`wire/core/Inputfield/Inputfield.php`): `___render()` abstract :1427, `___renderValue()` :1437, `renderReady()` :1473 (not hookable) calling `___renderReadyHook()` :1494, `___processInput()` :1523.

@@ -54,13 +54,14 @@ class BridgeBootstrap {
 			throw new \RuntimeException('Bridge bootstrap: layout[root] must be an existing directory');
 		}
 
-		$wirePath = self::dir($layout['wire'] ?? "$rootPath/wire/");
-		$sitePath = self::dir($layout['site'] ?? "$rootPath/site/");
-		$assetsPath = self::dir($layout['assets'] ?? "{$sitePath}assets/");
-		$templatesPath = self::dir($layout['templates'] ?? "{$sitePath}templates/");
-		$siteModulesPath = self::dir($layout['siteModules'] ?? "{$sitePath}modules/");
-		$classesPath = self::dir($layout['classes'] ?? "{$sitePath}classes/");
-		$sessionsPath = self::dir($layout['sessions'] ?? "{$assetsPath}sessions/");
+		$dirs = self::resolvePaths($layout, $rootPath);
+		$wirePath = $dirs['wire'];
+		$sitePath = $dirs['site'];
+		$assetsPath = $dirs['assets'];
+		$templatesPath = $dirs['templates'];
+		$siteModulesPath = $dirs['siteModules'];
+		$classesPath = $dirs['classes'];
+		$sessionsPath = $dirs['sessions'];
 
 		if(!is_file("{$wirePath}core/ProcessWire.php")) {
 			throw new \RuntimeException("Bridge bootstrap: no ProcessWire core at {$wirePath}core/");
@@ -183,6 +184,34 @@ class BridgeBootstrap {
 		$config->bridgeLayoutWarnings = $warnings;
 
 		return $config;
+	}
+
+	/**
+	 * The layout's directories with their defaults, as buildConfig() uses them
+	 *
+	 * Pure: reads no file. tools/bootstrap-htaccess.php asks the same question, so the .htaccess it
+	 * writes protects the directories the boot will use (audit SE7).
+	 *
+	 * @param array $layout As for buildConfig()
+	 * @param string $rootPath Web root, forward slashes, no trailing slash
+	 * @return array wire, site, assets, templates, siteModules, classes, sessions => directory with
+	 *   a trailing slash
+	 *
+	 */
+	public static function resolvePaths(array $layout, $rootPath) {
+		$rootPath = rtrim(self::dir($rootPath), '/');
+		$wire = self::dir($layout['wire'] ?? "$rootPath/wire/");
+		$site = self::dir($layout['site'] ?? "$rootPath/site/");
+		$assets = self::dir($layout['assets'] ?? "{$site}assets/");
+		return array(
+			'wire' => $wire,
+			'site' => $site,
+			'assets' => $assets,
+			'templates' => self::dir($layout['templates'] ?? "{$site}templates/"),
+			'siteModules' => self::dir($layout['siteModules'] ?? "{$site}modules/"),
+			'classes' => self::dir($layout['classes'] ?? "{$site}classes/"),
+			'sessions' => self::dir($layout['sessions'] ?? "{$assets}sessions/"),
+		);
 	}
 
 	/**

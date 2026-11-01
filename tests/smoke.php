@@ -41,7 +41,7 @@ bridgeSandboxBooted($config, $root);
 /** @var Templates $templates */
 
 check('booted: $wire is a ProcessWire instance', isset($wire) && $wire instanceof ProcessWire);
-check('index version seen by core is 302', PROCESSWIRE === 302);
+check('index version seen by core is 303', PROCESSWIRE === 303);
 
 // paths
 check('paths->root is the sandbox root', $config->paths->root === "$root/", $config->paths->root);
@@ -993,5 +993,63 @@ check('BG9 gate1.sh exits with the number of failed sites', strpos($read('tools/
 check('BG9 conformance fails on a lost session and on no screens', strpos($read('conformance/run.php'), "\$d['login'] =") !== false
 	&& strpos($read('conformance/run.php'), '|| !$total) ? 1 : 0') !== false);
 check('BG9 release-module.sh never overwrites a published tag', strpos($read('tools/release-module.sh'), 'push -f') === false);
+
+// audit 2026-11-01, R1: the bootstrap
+$indexSrc = $read('bootstrap/index.php');
+check('SE7 bootstrap/index.php builds, then boots, as upstream index 303', strpos($indexSrc, "new ProcessWire(\$config, '/', false);") !== false
+	&& strpos($indexSrc, '$wire->boot($config);') !== false && strpos($indexSrc, "\$config->dbType !== 'sqlite'") !== false);
+$resolved = BridgeBootstrap::resolvePaths($layout, $root);
+check('SE7 resolvePaths() gives the directories the boot uses', $resolved['wire'] === $config->paths->wire && $resolved['site'] === $config->paths->site
+	&& $resolved['assets'] === $config->paths->assets && $resolved['templates'] === $config->paths->templates
+	&& $resolved['siteModules'] === $config->paths->siteModules && $resolved['sessions'] === $config->paths->sessions, json_encode($resolved));
+// the .htaccess generator on a layout that moves every directory, against upstream's rule lines
+$htDir = $config->paths->cache . 'bridge-htaccess-' . getmypid() . '/';
+@mkdir($htDir, 0755, true);
+file_put_contents($htDir . 'project.php', "<?php\nreturn array('bridge' => " . var_export(dirname(__DIR__) . '/bootstrap', true) . ", 'wire' => __DIR__ . '/vendor/processwire/wire', 'site' => __DIR__ . '/app',\n" .
+	"'assets' => __DIR__ . '/data/assets', 'sessions' => __DIR__ . '/data/sessions', 'templates' => __DIR__ . '/views', 'siteModules' => __DIR__ . '/ext/modules', 'classes' => '/elsewhere/classes');\n");
+$rules = array(
+	'(^|/)(site|site-[^/]+)/assets/(cache|logs|backups|sessions|config|database|install|tmp)($|/.*$) [NC,OR]',
+	'(^|/)(site|site-[^/]+)/install($|/.*$) [NC,OR]', '(^|/)(site|site-[^/]+)/assets.*/-.+/.* [NC,OR]',
+	'(^|/)(wire|site|site-[^/]+)/(config|index\.config|config-dev)\.php($|/) [NC,OR]',
+	'(^|/)(wire|site|site-[^/]+)/templates-admin($|/|/.*\.(php|html?|tpl|inc))($|/) [NC,OR]',
+	'(^|/)(site|site-[^/]+)/templates($|/|/.*\.(php|html?|tpl|inc))($|/) [NC,OR]', '(^|/)(site|site-[^/]+)/classes($|/.*) [NC,OR]',
+	'(^|/)(site|site-[^/]+)/assets($|/|/.*\.ph(p|ps|tml|p[0-9]))($|/) [NC,OR]',
+	'(^|/)wire/(core|modules)/.*\.(php|inc|tpl|module|info\.json)($|/) [NC,OR]',
+	'(^|/)(site|site-[^/]+)/modules/.*\.(php|inc|tpl|module|info\.json)$ [NC,OR]',
+	'(^|/)(site|site-[^/]+)/(config[^/]*/?|[^/]+\.php.*)$ [NC,OR]',
+	'(^|/)(wire/|site[-/]).+\.(bak|old|sql|sw[op]|(bak|php|sql)[./]+.*)[\d.]*$ [NC,OR]',
+);
+$ht = "  # Prevent all the following rules from blocking images in site install directories\n  # Block access to the /site/install/ directories\n";
+foreach($rules as $r) $ht .= "  RewriteCond %{REQUEST_URI} $r\n";
+file_put_contents($htDir . 'htaccess.txt', $ht . "  RewriteRule ^.*$ - [F,L]\n");
+file_put_contents($htDir . 'stub.txt', "  # Prevent all the following rules from blocking images in site install directories\n");
+$runTool = function($source) use($htDir) {
+	$proc = proc_open(array(PHP_BINARY, dirname(__DIR__) . '/tools/bootstrap-htaccess.php', $htDir, $source, '--dry-run'), array(1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+	$out = stream_get_contents($pipes[1]);
+	stream_get_contents($pipes[2]);
+	fclose($pipes[1]);
+	fclose($pipes[2]);
+	return array(proc_close($proc), $out);
+};
+list($code, $out) = $runTool($htDir . 'htaccess.txt');
+check('SE7 bootstrap-htaccess points every rule at a layout that moves every directory', $code === 0 && strpos($out, '(data/sessions)($|/)') !== false
+	&& strpos($out, '(views)($|/|') !== false && strpos($out, '(ext/modules)/') !== false && strpos($out, '(data/assets)/(cache|logs') !== false
+	&& strpos($out, '(site|site-') === false && strpos($out, 'RewriteRule ^(?!vendor/processwire/wire/)vendor/ - [F,L]') !== false
+	&& strpos($out, 'RewriteRule ^project\.php$ - [F,L]') !== false, "exit $code");
+list($code) = $runTool($htDir . 'stub.txt');
+check('SE7 bootstrap-htaccess fails when upstream rules are missing', $code === 1, "exit $code");
+foreach((array) glob($htDir . '*') as $file) @unlink($file);
+@rmdir($htDir);
+$upstreamHt = getenv('BRIDGE_HTACCESS') ?: dirname($config->paths->wire) . '/htaccess.txt';
+if(is_file($upstreamHt)) {
+	$proc = proc_open(array(PHP_BINARY, dirname(__DIR__) . '/tools/bootstrap-htaccess.php', $root, $upstreamHt, '--dry-run'), array(1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+	stream_get_contents($pipes[1]);
+	$err = trim((string) stream_get_contents($pipes[2]));
+	fclose($pipes[1]);
+	fclose($pipes[2]);
+	check('SE7 bootstrap-htaccess knows every rule of the installed core\'s htaccess.txt', proc_close($proc) === 0, $err);
+} else {
+	warn('upstream htaccess.txt not found: set BRIDGE_HTACCESS to check the generator against it');
+}
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);
