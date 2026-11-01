@@ -9,14 +9,15 @@
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   [PW_STATE=<login state file>] PROBE_PASS=<sandbox bridge password> node tools/repeater-check.js
 //     <playwright-core dir> <firefox|chromium|webkit>
-// Admin URL: the atispro sandbox (http://localhost:8089, user "bridge"), or ADMIN=<admin url>.
+// Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url>.
 // Page /bridge-native/ (NATIVE_ID, default 1517) from tools/sandbox-fixture.php: bf_repeater (3
 // items), bf_repeater_depth (depth 2, min 1, max 5: Parent, Child at depth 1, Sibling),
 // bf_pagetable (2 rows); a legacy editor with a repeater: 1224 (LEGACY_ID: CKEditor and
 // PageTableNext keep it legacy).
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
-const ADMIN = process.env.ADMIN || 'http://localhost:8089/fv9673g5vdfigh/';
+const sandbox = require('./lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl();
 const NATIVE = process.env.NATIVE_ID || '1517';
 const LEGACY = process.env.LEGACY_ID || '1224';
 const results = [];
@@ -39,7 +40,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.goto(ADMIN + 'page/edit/?id=' + id, { waitUntil: 'networkidle' });
 		if(await page.locator('#login_name').count()) {
 			await page.fill('#login_name', 'bridge');
-			await page.fill('#login_pass', process.env.PROBE_PASS);
+			await page.fill('#login_pass', sandbox.password());
 			await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 			if(statePath) await ctx.storageState({ path: statePath });
 			await page.goto(ADMIN + 'page/edit/?id=' + id, { waitUntil: 'networkidle' });

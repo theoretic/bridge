@@ -16,17 +16,25 @@
 # Usage (Git Bash):  bash tools/sandbox-site.sh <site> <port>
 #   <site>  name of D:/work/sites/home/<site>.osp
 #   <port>  port the sandbox is served on (added to httpHosts as localhost:<port>)
-set -eu
+#
+# The copy never points at the site's own database (audit SE5): every dbName literal in the copied
+# config files becomes <dbName>_bridge, and before anything is written the configuration is read
+# the way the sandbox boots it (tools/lib/sandbox-dbname.php) and must name that copy.
+set -euo pipefail
 
 SITE="${1:-}"; PORT="${2:-}"
 [ -n "$SITE" ] && [ -n "$PORT" ] || { echo "usage: bash tools/sandbox-site.sh <site> <port>"; exit 1; }
+[[ "$SITE" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] && [[ "$SITE" != *..* ]] || { echo "site: letters, digits, dot, dash, underscore"; exit 1; }
+[[ "$PORT" =~ ^[0-9]{2,5}$ ]] || { echo "port: a number"; exit 1; }
 
 HERE="$(cygpath -m "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)")"
 SB="$HERE/sandbox/$SITE"
 SRC="/d/work/sites/home/$SITE.osp/application/webroot/site"
 WIRE_WIN='D:\install\processwire\wire'
 M="/d/work/sites/modules/MariaDB-11.8/bin"
-DBH="MariaDB-11.8"; DBU="mysql"; DBP="mysql"
+DBH="MariaDB-11.8"; DBU="mysql"
+# the local server's default password, in the environment rather than on the command line
+export MYSQL_PWD="${MYSQL_PWD:-mysql}"
 PHP="/d/work/sites/modules/PHP-8.5/php"
 
 [ -d "$SRC" ] || { echo "no site dir: $SRC"; exit 1; }
@@ -41,9 +49,11 @@ mkdir -p "$SB/app" "$SB/vendor/processwire"
 mkdir -p "$SB/app/assets/files" "$SB/app/assets/cache" "$SB/app/assets/logs" "$SB/app/assets/sessions" "$SB/app/assets/backups"
 
 echo "-> database name"
-CONFIGS="$(ls "$SB"/app/config*.php 2>/dev/null)"
-DBNAME="$(grep -h -m1 '^\s*\$config->dbName' $CONFIGS 2>/dev/null | sed -n -E "1s/.*dbName *= *['\"]([^'\"]+)['\"].*/\1/p")"
+mapfile -t CONFIGS < <(ls "$SB"/app/config*.php 2>/dev/null || true)
+[ ${#CONFIGS[@]} -gt 0 ] || { echo "no app/config*.php"; exit 1; }
+DBNAME="$( (grep -h -m1 '^\s*\$config->dbName' "${CONFIGS[@]}" || true) | sed -n -E "1s/.*dbName *= *['\"]([^'\"]+)['\"].*/\1/p")"
 [ -n "$DBNAME" ] || { echo "dbName not found in app/config*.php"; exit 1; }
+[[ "$DBNAME" =~ ^[A-Za-z0-9_]+$ ]] || { echo "dbName '$DBNAME': letters, digits and underscore only"; exit 1; }
 DBCOPY="${DBNAME}_bridge"
 echo "   $DBNAME -> $DBCOPY"
 
@@ -108,19 +118,27 @@ return array(
 EOF
 
 echo "-> database copy $DBNAME -> $DBCOPY"
-"$M/mariadb" -h "$DBH" -u "$DBU" -p"$DBP" -e "DROP DATABASE IF EXISTS \`$DBCOPY\`; CREATE DATABASE \`$DBCOPY\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-"$M/mariadb-dump" -h "$DBH" -u "$DBU" -p"$DBP" --single-transaction "$DBNAME" | "$M/mariadb" -h "$DBH" -u "$DBU" -p"$DBP" "$DBCOPY"
-for f in $CONFIGS; do
-	sed -i -E "s/(config->dbName *= *['\"])$DBNAME(['\"])/\1$DBCOPY\2/" "$f"
+"$M/mariadb" -h "$DBH" -u "$DBU" -e "DROP DATABASE IF EXISTS \`$DBCOPY\`; CREATE DATABASE \`$DBCOPY\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+"$M/mariadb-dump" -h "$DBH" -u "$DBU" --single-transaction "$DBNAME" | "$M/mariadb" -h "$DBH" -u "$DBU" "$DBCOPY"
+# every dbName literal, also the ones a config picks by host (production branches): the copy is
+# the only database a sandbox may name
+for f in "${CONFIGS[@]}"; do
+	sed -i -E "s/(config->dbName *= *['\"])[^'\"]+(['\"])/\1$DBCOPY\2/g" "$f"
 done
-grep -q "$DBCOPY" $CONFIGS 2>/dev/null || { echo "config not pointed at $DBCOPY"; exit 1; }
+other="$( (grep -hoE "config->dbName *= *['\"][^'\"]*['\"]" "${CONFIGS[@]}" || true) | grep -vE "['\"]($DBCOPY)?['\"]$" || true)"
+[ -z "$other" ] || { echo "config still names another database: $other"; exit 1; }
 
 echo "-> httpHosts: localhost:$PORT"
 # appended at the end of config.php so it wins over whatever form the site uses (array(), [], included files)
 printf '\n// sandbox: tools/sandbox-site.sh\n$config->httpHosts[] = %s;\n' "'localhost:$PORT'" >> "$SB/app/config.php"
 grep -q "localhost:$PORT" "$SB/app/config.php" || { echo "httpHosts not updated"; exit 1; }
 
+echo "-> database the configuration names, read as the sandbox boots it"
+booted="$("$PHP" "$HERE/tools/lib/sandbox-dbname.php" "$SB" | tr -d '\r')"
+[ "$booted" = "$DBCOPY" ] || { echo "the configuration names '$booted', not $DBCOPY (an included config file?); nothing written to it"; exit 1; }
+echo "   $booted"
+
 echo "-> admin: theme install + sandbox users"
-"$PHP" "$HERE/tools/sandbox-admin.php" "$SB"
+"$PHP" "$HERE/tools/sandbox-admin.php" "$SB" "$PORT"
 
 echo "done: $SB (serve: $PHP -S localhost:$PORT -t sandbox/$SITE tools/router.php)"

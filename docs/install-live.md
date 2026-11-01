@@ -2,8 +2,8 @@
 
 Local sites get the theme through a junction and `tools/deploy-local.php`. A server gets a plain
 copy and the same script, run as the web server user. The checklist below comes from the first
-two live installs: atis.pro (2026-10-17), which went wrong in three separate ways, and testfly.me
-(2026-10-18). Both are described after the checklist.
+two live installs: the first site (2026-10-17), which went wrong in three separate ways, and the
+second (2026-10-18). Both are described after the checklist.
 
 ## Checklist
 
@@ -18,7 +18,7 @@ Before:
    install from the admin only warns, and since 0.8.2 the profile refuses Bridge while the setting
    is on.
 4. **Check site hooks on page saves.** Boss's reset is a user save at boot, before any template
-   file runs (see [testfly.me](#what-went-wrong-on-testflyme) below). A `Pages::saved` hook that
+   file runs (see [the second site](#what-went-wrong-on-the-second-site) below). A `Pages::saved` hook that
    relies on the site's prepend file (an autoloader, constants, functions) fails there. Hooks
    should load what they need themselves.
 
@@ -71,7 +71,7 @@ location ~* /site/modules/AdminThemeBridge/.+\.(js|css|woff2|json)$ {
 }
 ```
 
-## What went wrong on atis.pro
+## What went wrong on the first site
 
 ### 1. Memory exhausted during install
 
@@ -114,7 +114,9 @@ Since 0.8.1 the theme handles this itself:
   and logs `Loaded at boot: module info cache was stale, rebuilt it` to `admin-theme-bridge`;
 - the first request shows the previous theme, every later one shows Bridge.
 
-`admin-theme-diag.php` reports a repair made during its own boot.
+Since 0.8.5 only an admin request by a superuser rebuilds the cache, at most five times with a
+growing wait. A CLI boot, `admin-theme-diag.php` included, never does: open the admin as a
+superuser, or run Modules > Refresh. The diag prints the last `Loaded at boot` log line.
 
 `$modules->deleteCache('moduleFileSnapshot')` doesn't force the rebuild: it clears WireCache and
 memory, but the snapshot lives in the `modules` table. Save an empty array instead, as
@@ -126,20 +128,20 @@ The production database predates the local switch-off, so AdminThemeBoss still h
 "activate for all users" on. Every user's `admin_theme` read `AdminThemeUikit` again on each
 request.
 
-## What went wrong on testfly.me
+## What went wrong on the second site
 
 Second live install, 2026-10-18. The install went through. Selecting Bridge in the profile
-ended on `/backend/profile/` with:
+ended on the profile screen with:
 
 ```
-Error: Class "SiteIndex" not found in testfly.me/htdocs/site/shared/hooks/pages.siteIndex.php:22
+Error: Class "SiteIndex" not found in <webroot>/site/shared/hooks/pages.siteIndex.php:22
 ```
 
 The chain:
 1. ProcessProfile saved the user with `admin_theme = AdminThemeBridge` and redirected.
 2. On the next request AdminThemeBoss ("activate for all users" on) found a user whose theme
    isn't Uikit. Its `init()` called `$user->setAndSave('admin_theme', 'AdminThemeUikit')`.
-3. That save ran while modules were initialised, before any template file. On testfly the class
+3. That save ran while modules were initialised, before any template file. On that site the class
    autoloader for `site/shared/classes/` is registered by the prepend file
    (`templates/_shared/__prepend.php`), so it wasn't there yet.
 4. The site's `Pages::saved` hook (`site/shared/hooks/pages.siteIndex.php`, included from
@@ -148,8 +150,8 @@ The chain:
 Under Uikit nothing showed: Boss only saves a user whose theme isn't Uikit already.
 
 Two separate faults, then:
-- **The site's.** The hook needed a class it didn't load. testfly fixed this on 2026-10-14 (the
-  hook now loads the class itself, commit 4d9591a), but the server still had the older copy. Any
+- **The site's.** The hook needed a class it didn't load. The site fixed this on 2026-10-14 (the
+  hook now loads the class itself), but the server still had the older copy. Any
   boot-time save would have hit it: Boss, a CLI script, another module's `init()`.
 - **The setting.** Even with the hook fixed, Boss would have switched the user back to Uikit on
   every request. Bridge's install warning had said so, once.

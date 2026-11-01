@@ -9,11 +9,12 @@
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   [PW_STATE=<login state file>] PROBE_PASS=<sandbox bridge password> node tools/lister-check.js
 //     <playwright-core dir> <firefox|chromium|webkit>
-// Admin URL: the atispro sandbox (http://localhost:8089, user "bridge"), or ADMIN=<admin url>.
+// Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url>.
 // Uses the fixture pages of tools/sandbox-fixture.php ("Bridge native", the page table rows).
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
-const ADMIN = process.env.ADMIN || 'http://localhost:8089/fv9673g5vdfigh/';
+const sandbox = require('./lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl();
 const results = [];
 const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info === undefined ? '' : String(info).slice(0, 400) }); };
 
@@ -34,7 +35,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.goto(ADMIN + path, { waitUntil: 'networkidle' });
 		if(await page.locator('#login_name').count()) {
 			await page.fill('#login_name', 'bridge');
-			await page.fill('#login_pass', process.env.PROBE_PASS);
+			await page.fill('#login_pass', sandbox.password());
 			await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 			// the page after login (a Lister) posts for its results 250 ms after load: let that finish,
 			// or a following ?reset=1 can be served first and the results come back for an emptied

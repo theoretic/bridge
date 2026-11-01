@@ -23,14 +23,15 @@
 //   [PW_STATE=<login state file>] PROBE_PASS=<sandbox bridge password> [PHP=<php>] [SANDBOX=<sandbox root>]
 //     [NATIVE_ID=<id>] [FIXTURE_ID=<id>] [SCREENS=<path>,<path>] node tools/csp-check.js <playwright-core dir>
 //     [chromium|firefox] [--json out.json]
-// Admin URL: the atispro sandbox (http://localhost:8089, user "bridge"), or ADMIN=<admin url>.
+// Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url>.
 // Exit code 1 when a check fails.
 const path = require('path');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 const pw = require(process.argv[2]);
 const browserName = (process.argv[3] && !process.argv[3].startsWith('--')) ? process.argv[3] : 'chromium';
-const ADMIN = process.env.ADMIN || 'http://localhost:8089/fv9673g5vdfigh/';
+const sandbox = require('./lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl();
 const jsonOut = process.argv.indexOf('--json') > -1 ? process.argv[process.argv.indexOf('--json') + 1] : '';
 const REPO = path.join(__dirname, '..');
 const SANDBOX = (process.env.SANDBOX || path.join(REPO, 'sandbox', 'atispro')).replace(/\\/g, '/');
@@ -151,7 +152,7 @@ async function visit(page, url) {
 		await page.goto(ADMIN, { waitUntil: 'networkidle' });
 		if(await page.locator('#login_name').count()) {
 			await page.fill('#login_name', 'bridge');
-			await page.fill('#login_pass', process.env.PROBE_PASS || '');
+			await page.fill('#login_pass', sandbox.password());
 			await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 			if(statePath) await ctx.storageState({ path: statePath });
 		}

@@ -19,12 +19,13 @@
  * Usage: php tools/sandbox-fixture.php /path/to/sandbox/root
  */
 
-$root = rtrim(str_replace('\\', '/', $argv[1] ?? ''), '/');
-if(!is_file("$root/index.php") || !is_file("$root/project.php") || strpos($root, '/sandbox/') === false) {
-	exit("Usage: php tools/sandbox-fixture.php /path/to/sandbox/root (a sandbox/ directory)\n");
-}
+if(!isset($argv[1])) exit("Usage: php tools/sandbox-fixture.php /path/to/sandbox/root (a sandbox/ directory)\n");
+// a sandbox on its own database copy only (audit SE5)
+require __DIR__ . '/lib/sandbox-guard.php';
+$root = bridgeSandboxRoot($argv[1]);
 if(empty($_SERVER['DOCUMENT_ROOT'])) $_SERVER['DOCUMENT_ROOT'] = $root;
 include "$root/index.php";
+bridgeSandboxBooted($config, $root);
 /** @var Modules $modules */
 /** @var Fields $fields */
 /** @var Templates $templates */

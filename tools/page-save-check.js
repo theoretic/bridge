@@ -6,24 +6,26 @@
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   PROBE_PASS=<sandbox bridge password> node tools/page-save-check.js <playwright-core dir>
 //     <firefox|chromium|webkit>
-// Base URL: the atispro sandbox (http://localhost:8089, user "bridge"); pages 1264 (cases) and
+// Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs) or ADMIN=; pages 1264 (cases) and
 // 1224 (case: CKEditor body, image fields, the "metrics" repeater).
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
-const BASE = 'http://localhost:8089';
-const ADMIN = BASE + '/fv9673g5vdfigh/';
+const sandbox = require('./lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl();
 const results = [];
 const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info === undefined ? '' : String(info).slice(0, 400) }); };
 
 (async () => {
 	const browser = await pw[browserName].launch({ headless: true });
 	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-	const consoleErrors = require('./console-errors')(ctx);
+	// page 1224 shows images whose files the sandbox does not copy (tools/sandbox-site.sh leaves out
+	// assets/files): their 404s are the sandbox's, not the editor's
+	const consoleErrors = require('./console-errors')(ctx, /status of 404 .*\/assets\/files\//);
 	const page = await ctx.newPage();
 	page.on('dialog', d => d.accept());
 	await page.goto(ADMIN);
 	await page.fill('#login_name', 'bridge');
-	await page.fill('#login_pass', process.env.PROBE_PASS);
+	await page.fill('#login_pass', sandbox.password());
 	await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 
 	const open = async (id, extra) => {
@@ -145,15 +147,15 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	// I: name change updates URL preview and View link
 	await open(1224);
 	await page.click('#_ProcessPageEditSettings');
-	const name0 = await val('input[name=_pw_page_name]');
-	await page.fill('input[name=_pw_page_name]', name0 + '-bt');
+	const name0 = await val('input[name=_pw_page_name], input[name=_pw_pg_name]');
+	await page.fill('input[name=_pw_page_name], input[name=_pw_pg_name]', name0 + '-bt');
 	r = await save('#submit_save');
 	check('I rename in place', r.inPlace);
 	check('I View link follows the new name', await page.evaluate((n) => { const a = document.querySelector('#_ProcessPageEditView'); return a && a.getAttribute('href').indexOf(n) > -1; }, name0 + '-bt'));
 	check('I Settings tab kept after the swap', await page.evaluate(() => getComputedStyle(document.getElementById('ProcessPageEditSettings')).display !== 'none'));
-	await page.fill('input[name=_pw_page_name]', name0);
+	await page.fill('input[name=_pw_page_name], input[name=_pw_pg_name]', name0);
 	r = await save('#submit_save');
-	check('I restore name', r.inPlace && await val('input[name=_pw_page_name]') === name0);
+	check('I restore name', r.inPlace && await val('input[name=_pw_page_name], input[name=_pw_pg_name]') === name0);
 
 	// K: dropdowns after a swap
 	await page.hover('#pw-nav a.pw-dropdown-toggle >> nth=1');
@@ -221,4 +223,5 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 function report() {
 	const failed = results.filter(x => !x.ok);
 	console.log(JSON.stringify({ browser: browserName, passed: results.length - failed.length, failed: failed.length, results }, null, 1));
+	if(failed.length) process.exitCode = 1; // audit BG9: a failed check fails the run
 }

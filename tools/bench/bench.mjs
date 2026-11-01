@@ -1,7 +1,8 @@
 // Admin theme benchmark on a Bridge sandbox: Lighthouse (desktop preset, performance only,
 // cold cache per run) plus the bytes each screen loads, raw and gzipped.
 // usage (tools/bench/README.md): cd tools/bench && npm install, then
-//   SB_ROOT=<sandbox root> PHP=<php binary> PROBE_PASS=... node bench.mjs <playwright-core dir> <out dir> [runs]
+//   SB_ROOT=<sandbox root> PHP=<php binary> node bench.mjs <playwright-core dir> <out dir> [runs]
+// (admin URL and password: the sandbox's .credentials; ADMIN= and PROBE_PASS= override them)
 import lighthouse from 'lighthouse';
 import * as chromeLauncher from 'chrome-launcher';
 import puppeteer from 'puppeteer-core';
@@ -21,7 +22,11 @@ const here = (rel) => new URL(rel, import.meta.url).pathname.replace(/^\/([A-Z]:
 const ROOT = process.env.SB_ROOT || here('../../sandbox/atispro');
 const PHP = process.env.PHP || 'php';
 const SWITCH = here('./switch-theme.php');
-const ADMIN = 'http://localhost:8089/fv9673g5vdfigh/';
+// admin URL and password from the sandbox's .credentials (tools/lib/sandbox.cjs, audit SE4)
+if(!process.env.SANDBOX) process.env.SANDBOX = ROOT;
+const sandbox = require('../lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl();
+const ORIGIN = new URL(ADMIN).origin + '/';
 const PORT = 9333;
 
 const THEMES = [
@@ -60,24 +65,24 @@ for(const theme of THEMES) {
 	const page = await browser.newPage();
 	await go(page, ADMIN);
 	await page.type('#login_name', theme.user);
-	await page.type('#login_pass', process.env.PROBE_PASS);
+	await page.type('#login_pass', sandbox.password(theme.user));
 	await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0' }), page.click('#Inputfield_login_submit')]);
 	if(await page.$('#login_name')) throw new Error('login failed for ' + theme.user);
-	const cookieHeader = async () => (await page.cookies('http://localhost:8089/')).map(c => c.name + '=' + c.value).join('; ');
+	const cookieHeader = async () => (await page.cookies(ORIGIN)).map(c => c.name + '=' + c.value).join('; ');
 	flags.port = chrome.port;
 	const cdp = await page.createCDPSession();
 
 	for(const screen of SCREENS) { try {
 		const url = ADMIN + screen.path;
 		await go(page, url); // warm PHP, check the session
-		if(await page.$('#login_name')) throw new Error('session lost before ' + screen.key + '; cookies: ' + (await page.cookies('http://localhost:8089/')).map(c => c.name).join(','));
+		if(await page.$('#login_name')) throw new Error('session lost before ' + screen.key + '; cookies: ' + (await page.cookies(ORIGIN)).map(c => c.name).join(','));
 		const jq = await page.evaluate(() => typeof window.jQuery === 'function');
 		const runs = [];
 		let lastLhr;
 		for(let i = 0; i < RUNS; i++) {
 			await cdp.send('Network.clearBrowserCache'); // cold HTTP cache, cookies kept
 			const r = await lighthouse(url, flags, desktopConfig, page);
-			console.log('  run', i + 1, screen.key, 'url', page.url(), 'cookies', (await page.cookies('http://localhost:8089/')).map(c => c.name).join(','));
+			console.log('  run', i + 1, screen.key, 'url', page.url(), 'cookies', (await page.cookies(ORIGIN)).map(c => c.name).join(','));
 			const lhr = r.lhr;
 			if(lhr.runtimeError) throw new Error(lhr.runtimeError.message);
 			const a = lhr.audits;
@@ -91,10 +96,10 @@ for(const theme of THEMES) {
 		}
 		// bytes and requests from the last run's network log
 		const all = lastLhr.audits['network-requests'].details.items;
-		const external = all.filter(x => !x.url.startsWith('http://localhost:8089/')).map(x => x.url);
-		const items = all.filter(x => x.url.startsWith('http://localhost:8089/'));
+		const external = all.filter(x => !x.url.startsWith(ORIGIN)).map(x => x.url);
+		const items = all.filter(x => x.url.startsWith(ORIGIN));
 		const themeSeen = items.some(x => x.url.includes(theme.marker));
-		if(!page.url().startsWith('http://localhost:8089/')) await go(page, ADMIN, 'domcontentloaded');
+		if(!page.url().startsWith(ORIGIN)) await go(page, ADMIN, 'domcontentloaded');
 		const by = {};
 		for(const x of items) {
 			const t = x.resourceType || 'Other';
@@ -120,5 +125,6 @@ for(const theme of THEMES) {
 	await browser.disconnect();
 	await chrome.kill();
 }
-console.log(execFileSync(PHP, [SWITCH, ROOT, 'AdminThemeUikit', ''], { encoding: 'utf8' }).trim());
+// the uikit user and Uikit's style back as they were before the run (audit BG9)
+console.log(execFileSync(PHP, [SWITCH, ROOT, 'restore'], { encoding: 'utf8' }).trim());
 console.log('done');

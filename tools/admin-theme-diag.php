@@ -8,13 +8,13 @@
  *   sudo -u www-data php /tmp/admin-theme-diag.php /var/www/site/htdocs admin
  *
  * Prints the installed admin themes (autoload as the loader sees it, flags, file),
- * AdminThemeBoss's settings, $config->defaultAdminTheme, every user's admin_theme, and the
- * module cache state that decides when AdminThemeBridge loads. Changes nothing itself, but on a
- * site where Bridge's module cache is stale, booting lets Bridge 0.8.1+ rebuild it (reported below).
- * docs/install-live.md explains each line.
+ * AdminThemeBoss's settings, $config->defaultAdminTheme, how many users have which admin_theme
+ * (no user names: the output is meant to be pasted into an issue), the given user's own value, and
+ * the module cache state that decides when AdminThemeBridge loads. Changes nothing: since 0.8.5
+ * a stale module cache is rebuilt only by a superuser opening the admin (or Modules > Refresh),
+ * never by a CLI boot like this one (audit BG9). docs/install-live.md explains each line.
  */
 
-$started = time();
 $root = rtrim(str_replace('\\', '/', $argv[1] ?? ''), '/');
 $userName = $argv[2] ?? 'guest';
 if(!is_file("$root/index.php")) exit("Usage: php admin-theme-diag.php /path/to/webroot [username]\n");
@@ -66,11 +66,14 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	echo "\nAdminThemeBridge useAsLogin = " . var_export($bridgeConfig['useAsLogin'] ?? null, true) . "\n";
 }
 
-echo "\nUsers' admin_theme (raw value as stored):\n";
+echo "\nUsers by admin_theme (raw value as stored, counts only):\n";
+$byTheme = array();
 foreach($users->find('include=all, check_access=0') as $u) {
 	$u->of(false);
-	echo "  " . str_pad($u->name, 20) . var_export($u->getUnformatted('admin_theme'), true) . "\n";
+	$key = var_export($u->getUnformatted('admin_theme'), true);
+	$byTheme[$key] = ($byTheme[$key] ?? 0) + 1;
 }
+foreach($byTheme as $value => $count) echo "  " . str_pad($value, 24) . "$count user(s)\n";
 
 echo "\nWhich theme AdminTheme::init() picks for '$userName':\n";
 $u = $users->get('name=' . $sanitizer->pageName($userName));
@@ -92,6 +95,7 @@ if($modules->isInstalled('AdminThemeBridge')) {
 $logFile = $config->paths->logs . 'admin-theme-bridge.txt';
 $lines = is_file($logFile) ? (array) file($logFile) : array();
 $last = $lines ? trim((string) end($lines)) : '';
-if(strpos($last, 'Loaded at boot') !== false && strtotime(substr($last, 0, 19)) >= $started) {
-	echo "  this run found the cache stale and rebuilt it (Bridge loaded at boot); the lines above show the repaired state\n";
+if(strpos($last, 'Loaded at boot') !== false) {
+	echo "  last log line: $last\n";
+	echo "  a stale cache is rebuilt when a superuser opens the admin, or by Modules > Refresh\n";
 }

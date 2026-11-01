@@ -10,14 +10,17 @@
  * not installed at the end.
  */
 
-$root = rtrim(str_replace('\\', '/', $argv[1] ?? ''), '/');
 $names = array_slice($argv, 2);
-if(!is_file("$root/index.php") || !is_file("$root/project.php") || !count($names)) {
+if(!isset($argv[1]) || !count($names)) {
 	exit("Usage: php tools/sandbox-modules.php /path/to/sandbox/root ModuleA ModuleB ...\n");
 }
+// a sandbox on its own database copy only (audit SE5)
+require __DIR__ . '/lib/sandbox-guard.php';
+$root = bridgeSandboxRoot($argv[1]);
 
 if(empty($_SERVER['DOCUMENT_ROOT'])) $_SERVER['DOCUMENT_ROOT'] = $root;
 include "$root/index.php";
+bridgeSandboxBooted($config, $root);
 /** @var Modules $modules */
 /** @var Config $config */
 

@@ -8,7 +8,10 @@
 # repository that touched modules/AdminThemeBridge/ becomes a commit there, same message and
 # author) and pushed to that repository's main branch, with a tag v<version> from getModuleInfo().
 #
-# Usage (Git Bash):  bash tools/release-module.sh [--dry-run]
+# Usage (Git Bash):  bash tools/release-module.sh [--dry-run | --publish]
+#   no argument or --dry-run: split and report only; --publish: push. Anything else stops (audit
+#   BG9: a mistyped --dry-run published). A tag that exists there is never moved: a new release
+#   needs a new version in getModuleInfo().
 #   first time: create the empty public repository theoretic/AdminThemeBridge on GitHub (no README,
 #   no licence: both come from modules/AdminThemeBridge/), then run this.
 set -euo pipefail
@@ -19,7 +22,9 @@ REMOTE_URL="https://github.com/theoretic/AdminThemeBridge.git"
 REMOTE=module
 PREFIX=modules/AdminThemeBridge
 BRANCH=module-dist
-DRY=${1:-}
+MODE=${1:---dry-run}
+case "$MODE" in --dry-run|--publish) ;; *) echo "usage: bash tools/release-module.sh [--dry-run | --publish]"; exit 1;; esac
+[ $# -le 1 ] || { echo "one argument at most"; exit 1; }
 
 [ -z "$(git status --porcelain -- "$PREFIX")" ] || { echo "uncommitted changes under $PREFIX: commit first"; exit 1; }
 git remote get-url "$REMOTE" >/dev/null 2>&1 || git remote add "$REMOTE" "$REMOTE_URL"
@@ -34,11 +39,15 @@ for f in AdminThemeBridge.module.php README.md LICENSE; do
 done
 echo "$(git rev-list --count "$BRANCH") commits, top: $(git log -1 --format='%h %s' "$BRANCH")"
 
-if [ "$DRY" = "--dry-run" ]; then
-	echo "dry run: would push $BRANCH to $REMOTE main and tag v$version"
+if git ls-remote --exit-code --tags "$REMOTE" "refs/tags/v$version" >/dev/null 2>&1; then
+	echo "tag v$version exists on $REMOTE: raise the version in getModuleInfo() and CHANGELOG.md first"
+	exit 1
+fi
+if [ "$MODE" = "--dry-run" ]; then
+	echo "dry run: would push $BRANCH to $REMOTE main and tag v$version (run with --publish)"
 	exit 0
 fi
 git push "$REMOTE" "$BRANCH:main"
 # the tag lives only there (no local tag that could clash with this repository's own)
-git push -f "$REMOTE" "$BRANCH:refs/tags/v$version"
+git push "$REMOTE" "$BRANCH:refs/tags/v$version"
 echo "published AdminThemeBridge $version to $REMOTE_URL"

@@ -9,13 +9,14 @@
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   [PW_STATE=<login state file>] PROBE_PASS=<sandbox bridge password> node tools/page-edit-check.js
 //     <playwright-core dir> <firefox|chromium|webkit>
-// Admin URL: the atispro sandbox (http://localhost:8089, user "bridge"), or ADMIN=<admin url>. Pages from
+// Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url>. Pages from
 // tools/sandbox-fixture.php: /bridge-native/ (NATIVE_ID, default 1517) and /bridge-native-parent/
 // (PARENT_ID, default 1518); a legacy editor: 1264 (LEGACY_ID); a native editor with a View tab: the
 // home page (VIEW_ID, default 1).
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
-const ADMIN = process.env.ADMIN || 'http://localhost:8089/fv9673g5vdfigh/';
+const sandbox = require('./lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl();
 const NATIVE = process.env.NATIVE_ID || '1517';
 const PARENT = process.env.PARENT_ID || '1518';
 const LEGACY = process.env.LEGACY_ID || '1264';
@@ -43,7 +44,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.goto(ADMIN + 'page/edit/?id=' + id + (extra || ''), { waitUntil: 'networkidle' });
 		if(await page.locator('#login_name').count()) {
 			await page.fill('#login_name', 'bridge');
-			await page.fill('#login_pass', process.env.PROBE_PASS);
+			await page.fill('#login_pass', sandbox.password());
 			await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 			if(statePath) await ctx.storageState({ path: statePath });
 			await page.goto(ADMIN + 'page/edit/?id=' + id + (extra || ''), { waitUntil: 'networkidle' });

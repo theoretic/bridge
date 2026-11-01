@@ -6,12 +6,13 @@
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   PROBE_PASS=<sandbox bridge password> node tools/fa-coverage.js <playwright-core dir> <screens.json>
-//     [base url, default http://localhost:8089] [Font Awesome version, default 6.7.2]
+//     [base url, default from the sandbox's .credentials] [Font Awesome version, default 6.7.2]
 // <screens.json>: a gate1/conformance JSON of the sandbox (its keys or url fields are the screens).
 const pw = require(process.argv[2]);
 const fs = require('fs');
 const path = require('path');
-const BASE = process.argv[4] || 'http://localhost:8089';
+const sandbox = require('./lib/sandbox.cjs');
+const BASE = process.argv[4] || sandbox.baseUrl();
 const VERSION = process.argv[5] || '6.7.2';
 const src = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
 const screens = Array.isArray(src) ? src.map(x => x.url || x.screen) : Object.keys(src.screens || src);
@@ -37,7 +38,7 @@ for(const m of faCss.matchAll(/@font-face\{font-family:"([^"]+)";font-style:norm
 	await page.goto(BASE + screens[0], { waitUntil: 'networkidle' });
 	if(await page.locator('#login_name').count()) {
 		await page.fill('#login_name', 'bridge');
-		await page.fill('#login_pass', process.env.PROBE_PASS);
+		await page.fill('#login_pass', sandbox.password());
 		await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 	}
 	const missing = new Map();

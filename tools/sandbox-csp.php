@@ -8,15 +8,17 @@
  * Installs BridgeCsp first when it is junctioned into app/modules/ but not installed yet.
  */
 
-$root = rtrim(str_replace('\\', '/', $argv[1] ?? ''), '/');
 $mode = $argv[2] ?? '';
-if(!is_file("$root/index.php") || !is_file("$root/project.php") || strpos($root, '/sandbox/') === false
-	|| ($mode !== '' && !in_array($mode, array('off', 'report-only', 'enforce'), true))) {
+if(!isset($argv[1]) || ($mode !== '' && !in_array($mode, array('off', 'report-only', 'enforce'), true))) {
 	exit("Usage: php tools/sandbox-csp.php /path/to/sandbox/root [off|report-only|enforce]\n");
 }
+// a sandbox on its own database copy only (audit SE5)
+require __DIR__ . '/lib/sandbox-guard.php';
+$root = bridgeSandboxRoot($argv[1]);
 
 if(empty($_SERVER['DOCUMENT_ROOT'])) $_SERVER['DOCUMENT_ROOT'] = $root;
 include "$root/index.php";
+bridgeSandboxBooted($config, $root);
 /** @var Modules $modules */
 
 if(!$modules->isInstalled('BridgeCsp')) {

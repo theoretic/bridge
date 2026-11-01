@@ -27,7 +27,8 @@ for(const dir of process.argv.slice(3)) {
 		if(r.error) continue;
 		const file = join(dir, `lhr-${r.theme.replace(/\W+/g, '_')}-${r.screen.replace(/\W+/g, '_')}.json`);
 		const lhr = JSON.parse(readFileSync(file, 'utf8'));
-		const items = lhr.audits['network-requests'].details.items.filter(x => x.url.startsWith('http://localhost:8089/'));
+		const origin = new URL(lhr.finalDisplayedUrl || lhr.finalUrl || lhr.requestedUrl).origin + '/';
+		const items = lhr.audits['network-requests'].details.items.filter(x => x.url.startsWith(origin));
 		const by = { Script: { requests: 0, raw: 0, gzip: 0 }, Stylesheet: { requests: 0, raw: 0, gzip: 0 }, unresolved: [] };
 		for(const x of items) {
 			if(!by[x.resourceType] || x.resourceType === 'unresolved') continue;

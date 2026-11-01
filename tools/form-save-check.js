@@ -9,12 +9,13 @@
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   [PW_STATE=<login state file>] PROBE_PASS=<sandbox bridge password> node tools/form-save-check.js
 //     <playwright-core dir> <firefox|chromium|webkit>
-// Admin URL: the atispro sandbox (http://localhost:8089, user "bridge"), or ADMIN=<admin url>.
+// Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url>.
 // Uses tools/sandbox-fixture.php's field bf_integer, template bridge_native, role bridge-fixture;
 // MODULE (default ProcessPageList) is a configurable module saved unchanged; USER_ID default 41.
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
-const ADMIN = process.env.ADMIN || 'http://localhost:8089/fv9673g5vdfigh/';
+const sandbox = require('./lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl();
 const MODULE = process.env.MODULE || 'ProcessPageList';
 const results = [];
 const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info === undefined ? '' : String(info).slice(0, 400) }); };
@@ -36,7 +37,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.goto(ADMIN + path, { waitUntil: 'networkidle' });
 		if(await page.locator('#login_name').count()) {
 			await page.fill('#login_name', 'bridge');
-			await page.fill('#login_pass', process.env.PROBE_PASS);
+			await page.fill('#login_pass', sandbox.password());
 			await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 			if(statePath) await ctx.storageState({ path: statePath });
 			await page.goto(ADMIN + path, { waitUntil: 'networkidle' });

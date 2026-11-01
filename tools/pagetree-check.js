@@ -9,11 +9,12 @@
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   [PW_STATE=<login state file>] PROBE_PASS=<sandbox bridge password> node tools/pagetree-check.js
 //     <playwright-core dir> <firefox|chromium|webkit>
-// Admin URL: the atispro sandbox (http://localhost:8089, user "bridge"), or ADMIN=<admin url>.
+// Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url>.
 // Branch /bridge-tree/ with 60 children (TREE_ID, default 1568) from tools/sandbox-fixture.php.
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
-const ADMIN = process.env.ADMIN || 'http://localhost:8089/fv9673g5vdfigh/';
+const sandbox = require('./lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl();
 const TREE = process.env.TREE_ID || '1568';
 const results = [];
 const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info === undefined ? '' : String(info).slice(0, 400) }); };
@@ -35,7 +36,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.goto(ADMIN + path, { waitUntil: 'networkidle' });
 		if(await page.locator('#login_name').count()) {
 			await page.fill('#login_name', 'bridge');
-			await page.fill('#login_pass', process.env.PROBE_PASS);
+			await page.fill('#login_pass', sandbox.password());
 			await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 			if(statePath) await ctx.storageState({ path: statePath });
 			await page.goto(ADMIN + path, { waitUntil: 'networkidle' });

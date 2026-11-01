@@ -10,12 +10,13 @@
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   PROBE_PASS=<sandbox bridge password> FIXTURE_ID=<id> node tools/scheme-scan.js <playwright-core dir>
-//     <firefox|chromium> [base url, default http://localhost:8089/fv9673g5vdfigh/] [--json out.json]
+//     <firefox|chromium> [base url, default from the sandbox's .credentials] [--json out.json]
 // PAGES=<id>,<id> adds more page editors to the screens (third-party fields on other sandboxes).
 // Exit code 1 when anything is found.
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
-const ADMIN = (process.argv[4] && !process.argv[4].startsWith('--')) ? process.argv[4] : 'http://localhost:8089/fv9673g5vdfigh/';
+const sandbox = require('./lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl((process.argv[4] && !process.argv[4].startsWith('--')) ? process.argv[4] : '');
 const jsonOut = process.argv.indexOf('--json') > -1 ? process.argv[process.argv.indexOf('--json') + 1] : '';
 
 // elements whose colours are content, not chrome
@@ -122,7 +123,7 @@ function scan(opts) {
 		page.on('dialog', d => d.dismiss());
 		await page.goto(ADMIN);
 		await page.fill('#login_name', 'bridge');
-		await page.fill('#login_pass', process.env.PROBE_PASS);
+		await page.fill('#login_pass', sandbox.password());
 		await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 
 		const scanAll = async (screen) => {

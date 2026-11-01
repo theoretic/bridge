@@ -6,13 +6,14 @@
  *
  * Usage: php tests/smoke.php /path/to/sandbox/root
  * The sandbox is produced by tools/sandbox-site.sh (own DB copy, own site copy).
- * Read-only for the database apart from what a normal boot writes (module cache refresh).
+ * Writes to the sandbox's own database copy only, and refuses any other (exit 2, audit SE5):
+ * the files move round trip saves a fixture page, the probes write files to the cache directory.
  */
 
-$root = rtrim(str_replace('\\', '/', $argv[1] ?? (getenv('BRIDGE_SANDBOX') ?: '')), '/');
-if(!is_file("$root/index.php") || !is_file("$root/project.php")) {
-	exit("Usage: php tests/smoke.php /path/to/sandbox/root (needs index.php + project.php)\n");
-}
+$root = $argv[1] ?? (getenv('BRIDGE_SANDBOX') ?: '');
+if($root === '') exit("Usage: php tests/smoke.php /path/to/sandbox/root (needs index.php + project.php)\n");
+require dirname(__DIR__) . '/tools/lib/sandbox-guard.php';
+$root = bridgeSandboxRoot($root);
 
 $fails = 0;
 function check($label, $ok, $detail = '') {
@@ -32,6 +33,7 @@ $expectWire = rtrim(str_replace('\\', '/', $layout['wire']), '/') . '/';
 $expectSite = rtrim(str_replace('\\', '/', $layout['site']), '/') . '/';
 
 include "$root/index.php";
+bridgeSandboxBooted($config, $root);
 /** @var ProcessWire $wire */
 /** @var Config $config */
 /** @var Modules $modules */
@@ -352,7 +354,6 @@ if($modules->isInstalled('AdminThemeBridge')) {
 		$probe = $modules->wire(new AdminThemeBridge());
 		foreach(array('pendingScriptReasons' => array('/x/FieldtypeSmoke/' => 'Script:FieldtypeSmoke/smoke.js'), 'legacyInputfieldDirs' => $legacyDirs) as $prop => $value) {
 			$r = new \ReflectionProperty($probe, $prop);
-			$r->setAccessible(true);
 			$r->setValue($probe, $value);
 		}
 		return array($probe->useLegacyStack(), array_keys($probe->getLegacyReasons()));
@@ -392,7 +393,6 @@ if($modules->isInstalled('AdminThemeBridge')) {
 		$probe = $modules->wire(new AdminThemeBridge());
 		$probe->addHookAfter('scriptNeeds', function(HookEvent $e) { $map = $e->return; $map['/bridge-smoke-needs.js'] = 'languages'; $e->return = $map; });
 		$mark = new \ReflectionMethod($probe, 'markInputfield');
-		$mark->setAccessible(true);
 		foreach($rendered as $inputfield) $mark->invoke($probe, $inputfield, true);
 		return $probe;
 	};
@@ -425,7 +425,6 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	$configProbe = function($name, $process) use($modules, $wire, $input, $config) {
 		$probe = $modules->wire(new AdminThemeBridge());
 		$r = new \ReflectionProperty($probe, 'scriptsBeforeProcess');
-		$r->setAccessible(true);
 		// as hookProcessExecuteBefore() has it: every script so far, versioned
 		$before = array();
 		foreach($config->scripts->urls() as $url) $before[] = (string) $url;
@@ -965,5 +964,34 @@ if(is_file($cspFile) && $modules->isInstalled('BridgeCsp')) {
 }
 check('CSP tools/csp-check.js ships', is_file(dirname(__DIR__) . '/tools/csp-check.js'));
 
+// audit 2026-11-01, R0: the tools
+$toolsDir = dirname(__DIR__) . '/tools/';
+$read = function($rel) { return (string) @file_get_contents(dirname(__DIR__) . '/' . $rel); };
+check('SE5 the sandbox guard refuses a foreign database', bridgeSandboxProblem((object) array('dbName' => 'atispro', 'paths' => (object) array('root' => "$root/")), $root) !== ''
+	&& bridgeSandboxProblem((object) array('dbName' => 'x_bridge', 'paths' => (object) array('root' => dirname(__DIR__) . '/')), $root) !== ''
+	&& bridgeSandboxProblem($config, $root) === '');
+check('SE5 the sandbox guard refuses a directory outside sandbox/', bridgeSandboxRootProblem(dirname(__DIR__) . '/bootstrap') !== '');
+$guarded = array();
+foreach(array('tools/sandbox-admin.php', 'tools/sandbox-modules.php', 'tools/sandbox-csp.php', 'tools/sandbox-fixture.php',
+	'tools/bench/switch-theme.php', 'conformance/run.php', 'tests/smoke.php') as $rel) {
+	$src = $read($rel);
+	if(strpos($src, 'lib/sandbox-guard.php') === false || strpos($src, 'bridgeSandboxRoot(') === false || strpos($src, 'bridgeSandboxBooted($config, $root)') === false) $guarded[] = $rel;
+}
+check('SE5 every tool that writes to a sandbox loads the guard before and after the boot', !count($guarded), implode(', ', $guarded));
+$site = $read('tools/sandbox-site.sh');
+check('SE5 sandbox-site.sh stops on a failed pipe and checks the database by its config', strpos($site, 'set -euo pipefail') !== false && strpos($site, 'lib/sandbox-dbname.php') !== false);
+$literal = array();
+foreach(array_merge((array) glob($toolsDir . '*.js'), (array) glob($toolsDir . 'bench/*.mjs')) as $file) {
+	if(preg_match('~localhost:\d+/[a-z0-9]{8,}/~i', (string) file_get_contents($file))) $literal[] = basename($file);
+}
+check('SE4 no tool names an admin path', !count($literal), implode(', ', $literal));
+check('SE4 the sandbox records its admin path for the browser tools', strpos($read('tools/sandbox-admin.php'), "'admin=' . \$config->urls->admin") !== false
+	&& strpos($read('tools/lib/sandbox.cjs'), "line.startsWith('admin=')") !== false);
+check('BG9 page-save-check and dropdown-stress fail on a failure', strpos($read('tools/page-save-check.js'), 'process.exitCode = 1') !== false
+	&& strpos($read('tools/dropdown-stress.js'), 'process.exitCode = 1') !== false);
+check('BG9 gate1.sh exits with the number of failed sites', strpos($read('tools/gate1.sh'), 'exit "$failed"') !== false);
+check('BG9 conformance fails on a lost session and on no screens', strpos($read('conformance/run.php'), "\$d['login'] =") !== false
+	&& strpos($read('conformance/run.php'), '|| !$total) ? 1 : 0') !== false);
+check('BG9 release-module.sh never overwrites a published tag', strpos($read('tools/release-module.sh'), 'push -f') === false);
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

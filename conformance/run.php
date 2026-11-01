@@ -13,7 +13,9 @@
  *   php conformance/run.php /path/to/sandbox/root [--base=http://localhost:8089] [--only=substr] [--json=out.json]
  *
  * Exit code: 0 when every screen matches, 1 when any screen differs or fails (HTTP error, PHP
- * error text, NoticeError). The report goes to stdout; --json writes the digests for inspection.
+ * error text, NoticeError, a session that fell back to the login form) or when no screen ran;
+ * 2 when the root is not a sandbox on its own database copy (tools/lib/sandbox-guard.php). The
+ * report goes to stdout; --json writes the digests for inspection.
  */
 
 $root = '';
@@ -26,17 +28,20 @@ foreach(array_slice($argv, 1) as $arg) {
 	else if(strpos($arg, '--json=') === 0) $jsonOut = substr($arg, 7);
 	else $root = rtrim(str_replace('\\', '/', $arg), '/');
 }
-if(!$root || !is_file("$root/index.php") || !is_file("$root/project.php")) {
+if(!$root) {
 	exit("Usage: php conformance/run.php /path/to/sandbox/root [--base=http://localhost:8089] [--only=substr] [--json=file]\n");
 }
+// a sandbox on its own database copy only: the CLI boot below rewrites module caches keyed by
+// path, which a real site's database must never get (audit SE5)
+require dirname(__DIR__) . '/tools/lib/sandbox-guard.php';
+$root = bridgeSandboxRoot($root);
 
 $credFile = "$root/.credentials";
 if(!is_file($credFile)) exit("No $credFile; run tools/sandbox-admin.php first\n");
 $creds = array();
+// user:password lines; admin= and base= lines are the browser tools' (tools/lib/sandbox.cjs)
 foreach(file($credFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-	if(strpos($line, '#') === 0) continue;
-	list($name, $pass) = array_pad(explode(':', $line, 2), 2, '');
-	if($name && $pass) $creds[$name] = $pass;
+	if(preg_match('/^([a-z0-9_-]+):(.+)$/i', $line, $m)) $creds[$m[1]] = $m[2];
 }
 foreach(array('uikit', 'bridge') as $name) {
 	if(empty($creds[$name])) exit("User $name missing in $credFile\n");
@@ -51,6 +56,7 @@ ob_start();
 if(empty($_SERVER['DOCUMENT_ROOT'])) $_SERVER['DOCUMENT_ROOT'] = $root;
 include "$root/index.php";
 ob_end_clean();
+bridgeSandboxBooted($config, $root);
 /** @var ProcessWire $wire */
 /** @var Config $config */
 /** @var Pages $pages */
@@ -181,7 +187,7 @@ class ConformanceClient {
 		$body = curl_exec($ch);
 		$status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
 		$final = (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-		curl_close($ch);
+		unset($ch);
 		return array('status' => $status, 'body' => (string) $body, 'url' => $final);
 	}
 	public function login($adminUrl, $name, $pass) {
@@ -265,6 +271,8 @@ function digest($status, $html, $url) {
 		return $d;
 	}
 	if(preg_match('~(Fatal error|Uncaught [A-Za-z\\\\]*(Error|Exception)|Internal Server Error)~', $html, $m)) $d['error'] = $m[1];
+	// ProcessLogin's form: the session is gone and this screen was never compared
+	$d['login'] = (bool) preg_match('~<input\b[^>]*\bname=["\']?login_name\b~i', $html);
 	libxml_use_internal_errors(true);
 	$doc = new \DOMDocument();
 	$doc->loadHTML('<?xml encoding="utf-8" ?>' . $html);
@@ -468,6 +476,7 @@ foreach($screens as $url) {
 		$p = array();
 		if($d['status'] !== 200) $p[] = "HTTP $d[status]";
 		if($d['error'] !== '') $p[] = $d['error'];
+		if(!empty($d['login'])) $p[] = 'session lost: the login form came back (audit BG9)';
 		foreach($d['notices'] as $n) if(strpos($n, 'error:') === 0) $p[] = $n;
 		if($p) $failed = true;
 		$problems[$name] = $p;
@@ -477,7 +486,8 @@ foreach($screens as $url) {
 	$strip = function(array $list) {
 		return json_encode(array_map(function($s) { return preg_replace('/\s*Paths: .*$/s', '', $s); }, $list));
 	};
-	$site = $failed && $strip($problems['uikit']) === $strip($problems['bridge']);
+	$lost = !empty($row['uikit']['login']) || !empty($row['bridge']['login']);
+	$site = $failed && !$lost && $strip($problems['uikit']) === $strip($problems['bridge']);
 	if($site) $siteFails++;
 	else if($failed) $fails++;
 	else if($diff) $diffs++;
@@ -504,4 +514,5 @@ if($jsonOut) {
 	file_put_contents($jsonOut, json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 	echo "digests written to $jsonOut\n";
 }
-exit(($fails || $diffs) ? 1 : 0);
+if(!$total) echo "FAIL no screen ran" . ($only !== '' ? " (--only=$only matched none)" : '') . "\n";
+exit(($fails || $diffs || !$total) ? 1 : 0);

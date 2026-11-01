@@ -11,11 +11,12 @@
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   [PW_STATE=<login state file>] PROBE_PASS=<sandbox bridge password> node tools/native-check.js <playwright-core dir>
-//     <firefox|chromium> [admin url, default http://localhost:8089/fv9673g5vdfigh/] [--gate]
+//     <firefox|chromium> [admin url, default from the sandbox's .credentials] [--gate]
 // Exit code 1 when a check fails.
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'chromium';
-const ADMIN = (process.argv[4] && !process.argv[4].startsWith('--')) ? process.argv[4] : 'http://localhost:8089/fv9673g5vdfigh/';
+const sandbox = require('./lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl((process.argv[4] && !process.argv[4].startsWith('--')) ? process.argv[4] : '');
 const GATE = process.argv.includes('--gate');
 const LAB = ADMIN + 'setup/bridge-demo/fields/';
 const results = [];
@@ -35,7 +36,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	await page.goto(LAB, { waitUntil: 'networkidle' });
 	if(await page.locator('#login_name').count()) {
 		await page.fill('#login_name', 'bridge');
-		await page.fill('#login_pass', process.env.PROBE_PASS);
+		await page.fill('#login_pass', sandbox.password());
 		await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 		if(statePath) await ctx.storageState({ path: statePath });
 	}

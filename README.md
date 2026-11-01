@@ -150,7 +150,8 @@ The ProcessWire modules directory installs from
 [theoretic/AdminThemeBridge](https://github.com/theoretic/AdminThemeBridge), a module-only
 repository generated from `modules/AdminThemeBridge/` with its history (the directory needs the
 module file at a repository's root). Publish a release there with
-`bash tools/release-module.sh` after committing it here.
+`bash tools/release-module.sh --publish` after committing it here; without `--publish` it only
+reports what it would push.
 
 ### Font Awesome subsets
 

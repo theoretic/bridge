@@ -5,15 +5,16 @@
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1 so the page path is not rewritten):
 //   PROBE_PASS=<sandbox bridge password> node tools/dropdown-stress.js <playwright-core dir>
-//     <firefox|chromium|webkit> <admin page path> [moves=80] [seed=7]
-// The base URL is the atispro sandbox (http://localhost:8089, user "bridge").
+//     <firefox|chromium|webkit> [admin page path, relative to the admin URL] [moves=80] [seed=7]
+// Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs) or ADMIN=.
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
-const pagePath = process.argv[4] || '/fv9673g5vdfigh/page/edit/?id=1264';
+const sandbox = require('./lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl();
+const pagePath = process.argv[4] || 'page/edit/?id=1264'; // relative to the admin URL
 const MOVES = +(process.argv[5] || 80);
 let seed = +(process.argv[6] || 7);
 const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
-const BASE = 'http://localhost:8089';
 
 const instrument = () => {
 	window.__log = [];
@@ -35,12 +36,12 @@ const instrument = () => {
 	const browser = await pw[browserName].launch({ headless: true });
 	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 	const page = await ctx.newPage();
-	await page.goto(BASE + '/fv9673g5vdfigh/');
+	await page.goto(ADMIN);
 	await page.fill('#login_name', 'bridge');
-	await page.fill('#login_pass', process.env.PROBE_PASS);
+	await page.fill('#login_pass', sandbox.password());
 	await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 	await page.addInitScript(instrument);
-	await page.goto(BASE + pagePath, { waitUntil: 'networkidle' });
+	await page.goto(ADMIN + pagePath, { waitUntil: 'networkidle' });
 	await page.waitForTimeout(800);
 
 	// state of the world at the pointer: which toggle (hit area) or visible menu is under it
@@ -103,5 +104,6 @@ const instrument = () => {
 		if(t.k !== 'away' && t.k !== 'toggle' && !s.inMenu && !s.toggle) violations.push(`#${i} aimed at ${t.k} but menu closed before arrival (steps ${steps}); at ${Math.round(x)},${Math.round(y)} el=${await page.evaluate(([x,y])=>{const e=document.elementFromPoint(x,y); return e? e.tagName+'.'+String(e.className).slice(0,40):'none'},[x,y])}; prev: ${path.slice(-3).join(' > ')}; log: ${(await page.evaluate(() => window.__log.slice(-8))).join(' / ')}`);
 	}
 	console.log(JSON.stringify({ browser: browserName, page: pagePath, stats, violations: violations.length, details: violations.slice(0, 25) }, null, 1));
+	if(violations.length) process.exitCode = 1; // audit BG9: a stress run with violations fails
 	await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });

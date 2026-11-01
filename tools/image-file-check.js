@@ -9,7 +9,7 @@
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   [PW_STATE=<login state file>] PROBE_PASS=<sandbox bridge password> node tools/image-file-check.js
 //     <playwright-core dir> <firefox|chromium|webkit>
-// Admin URL: the atispro sandbox (http://localhost:8089, user "bridge"), or ADMIN=<admin url> for
+// Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url> for
 // another sandbox. Page /bridge-native/ (NATIVE_ID, default 1517) from tools/sandbox-fixture.php:
 // bf_images (3 images), bf_image (single), bf_files (2 files); a legacy editor with the same field
 // types, /bridge-fixture/ (LEGACY_ID, default 1494).
@@ -19,7 +19,8 @@
 // hooks/pageimage.lqip.php, fails under FileCompiler; it fails the same under every admin theme).
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
-const ADMIN = process.env.ADMIN || 'http://localhost:8089/fv9673g5vdfigh/';
+const sandbox = require('./lib/sandbox.cjs');
+const ADMIN = sandbox.adminUrl();
 const NATIVE = process.env.NATIVE_ID || '1517';
 const LEGACY = process.env.LEGACY_ID || '1494';
 const results = [];
@@ -61,7 +62,7 @@ const PNG = makePng(48, 32, [40, 120, 220]);
 		await page.goto(ADMIN + 'page/edit/?id=' + id, { waitUntil: 'networkidle' });
 		if(await page.locator('#login_name').count()) {
 			await page.fill('#login_name', 'bridge');
-			await page.fill('#login_pass', process.env.PROBE_PASS);
+			await page.fill('#login_pass', sandbox.password());
 			await Promise.all([page.waitForNavigation(), page.click('#Inputfield_login_submit')]);
 			if(statePath) await ctx.storageState({ path: statePath });
 			await page.goto(ADMIN + 'page/edit/?id=' + id, { waitUntil: 'networkidle' });
