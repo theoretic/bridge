@@ -1134,6 +1134,20 @@ check('TT core\'s inline confirm and click guard become data attributes, nothing
 	&& strpos($handlersOut, "<input type='checkbox' data-pw-noclick />") !== false && strpos($handlersOut, 'onclick="other()"') !== false
 	&& strpos($handlersOut, 'return confirm') === false, $handlersOut);
 check('TT the setup script asks for them with the theme\'s dialog', strpos($srcOf('classic/setup.js'), "closest('[data-pw-confirm], [data-pw-noclick]')") !== false);
+// 0.20.2: the runtime's own words translated, one rule for asking (audit UX6, UX7)
+$englishLeft = array();
+foreach(array('fields/image.ts' => "setAttribute('aria-label', 'Thumbnail size')", 'fields/upload.ts' => 'is a invalid file extension', 'fields/datetime.ts' => 'aria-label="month"',
+	'fields/pagelistselect.ts' => "data.message || 'Error')") as $rel => $needle) {
+	if(strpos($srcOf($rel), $needle) !== false) $englishLeft[] = $rel;
+}
+check('UX6 no English-only words left in the runtime\'s own controls', !count($englishLeft), implode(', ', $englishLeft));
+if(isset($bridge) && $bridge) {
+	$missing = array_diff(array('thumbSize', 'add', 'month', 'year', 'hour', 'minute', 'second', 'error', 'badExt', 'tooBig'), array_keys($bridge->runtimeLabels()));
+	check('UX6 their labels are runtime labels', !count($missing), implode(', ', $missing));
+}
+check('UX7 several pages dropped on the trash always ask, one asks with the setting on', strpos($srcOf('fields/pagelist-move.ts'), "const ok = await (one ? guard : (o: Parameters<typeof guard>[0]) => confirm({ danger: true, ...o }))({") !== false
+	&& strpos($srcOf('fields/pagelist-group.ts'), "if (cn !== 'Trash') { run(); return; }\n\t\tvoid confirm({") !== false);
+
 // 0.20.1: keyboard moves, reduced motion, touch, contrast and stacking (audit UX2-UX5)
 check('UX2 the page tree moves a row with Alt+Arrow keys; selections take Ctrl+Space and Shift+Space', strpos($srcOf('fields/pagelist-move.ts'), "root.addEventListener('keydown', e => {") !== false
 	&& strpos($srcOf('util/selection.ts'), "if (e.key === ' ' && (e.ctrlKey || e.shiftKey) && !e.altKey && !e.metaKey) {") !== false);

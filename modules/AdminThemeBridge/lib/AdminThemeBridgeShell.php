@@ -251,6 +251,17 @@ trait AdminThemeBridgeShell {
 			'imageViewList' => __('Show as a list with details', __FILE__),
 			'imageViewLeft' => __('Show as a list with thumbnails', __FILE__),
 			'imageViewGrid' => __('Show as a grid', __FILE__),
+			// the runtime's own words (0.20.2)
+			'thumbSize' => __('Thumbnail size', __FILE__), // the image field's size slider
+			'add' => __('Add', __FILE__), // a new tag: "Add <tag>…"
+			'month' => __('Month', __FILE__), // the date picker's selects
+			'year' => __('Year', __FILE__),
+			'hour' => __('Hour', __FILE__),
+			'minute' => __('Minute', __FILE__),
+			'second' => __('Second', __FILE__),
+			'error' => __('Error', __FILE__),
+			'badExt' => __('%s is not an allowed file extension. Use one of: %s', __FILE__),
+			'tooBig' => __('The file is %d kB, more than the %d kB allowed', __FILE__),
 			'pickDate' => __('Choose a date', __FILE__), // the calendar button next to a date input
 			// risky action warnings (0.15.0, ADR 0019): a title, the risk, the OK button's verb;
 			// each %s or %d is filled in order by the runtime

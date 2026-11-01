@@ -13,6 +13,7 @@
  */
 
 import { toHTML } from '../util/trusted';
+import { fill } from '../util/danger';
 
 export type UploadResult = { error?: boolean | number; message?: string; markup?: string; replace?: boolean; overwrite?: boolean; file?: string };
 
@@ -76,12 +77,12 @@ export function rejectReason(file: File, target: UploadTarget, resized = false):
 	const ext = (file.name.split('.').pop() || '').toLowerCase();
 	if (target.extensions.split(/\s+/).indexOf(ext) < 0) {
 		return labels['bad-ext'] ? labels['bad-ext'].replace('EXTENSIONS', target.extensions)
-			: ext + ' is a invalid file extension, please use one of: ' + target.extensions;
+			: fill('badExt', '%s is not an allowed file extension. Use one of: %s', ext, target.extensions);
 	}
 	if (!resized && file.size > target.maxFilesize && target.maxFilesize > 2000000) {
 		const maxKB = Math.floor(target.maxFilesize / 1024);
 		return labels['too-big'] ? labels['too-big'].replace('MAX_KB', String(maxKB))
-			: 'Filesize ' + Math.floor(file.size / 1024) + ' kb is too big. Maximum allowed is ' + maxKB + ' kb';
+			: fill('tooBig', 'The file is %d kB, more than the %d kB allowed', Math.floor(file.size / 1024), maxKB);
 	}
 	return '';
 }

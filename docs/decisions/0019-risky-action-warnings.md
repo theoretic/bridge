@@ -87,6 +87,9 @@ or replace data. For each one we checked whether core already asks.
     before back on Cancel.
 - **The runtime's own gestures ask inline** through `guard()`: the file move (8), the tree drop on
   Trash (11) and the repeater's new item (12).
+- **Several pages to the trash always ask** (0.20.2, audit UX7): the tree group's Trash did, a drop
+  of several selected pages on Trash asked only with the setting. One rule now: more than one page
+  asks whatever the setting, one page asks while it is on.
 - **The theme's earlier `window.confirm` calls now use the same dialog, whatever the setting.**
   These are the tree group's Trash and "unsaved changes" (now red), the upload-in-progress save,
   the Lister refresh, the role permission box, and the `ProcessWire.confirm` fallback on pages

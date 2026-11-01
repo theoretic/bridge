@@ -262,7 +262,7 @@ function setupPicker(input: HTMLInputElement): void {
 		const [fromYear, toYear] = yearBounds(o.yearRange, selected ? selected.getFullYear() : y);
 		let title = '';
 		if (o.changeMonth) {
-			title += '<select class="ui-datepicker-month" aria-label="month">' + o.monthNamesShort.map((n, i) =>
+			title += '<select class="ui-datepicker-month" aria-label="' + t(label('month', 'Month')) + '">' + o.monthNamesShort.map((n, i) =>
 				'<option value="' + i + '"' + (i === m ? ' selected' : '') + '>' + t(n) + '</option>').join('') + '</select>';
 		} else {
 			title += '<span class="ui-datepicker-month">' + t(o.monthNames[m]) + '</span>';
@@ -270,7 +270,7 @@ function setupPicker(input: HTMLInputElement): void {
 		if (o.changeYear) {
 			let years = '';
 			for (let yy = Math.min(fromYear, y); yy <= Math.max(toYear, y); yy++) years += '<option value="' + yy + '"' + (yy === y ? ' selected' : '') + '>' + yy + '</option>';
-			title += '<select class="ui-datepicker-year" aria-label="year">' + years + '</select>';
+			title += '<select class="ui-datepicker-year" aria-label="' + t(label('year', 'Year')) + '">' + years + '</select>';
 		} else {
 			title += '&nbsp;<span class="ui-datepicker-year">' + y + '</span>';
 		}
@@ -312,9 +312,9 @@ function setupPicker(input: HTMLInputElement): void {
 			const hours = ampm
 				? opts(24, 1, time.h, v => (v % 12 === 0 ? 12 : v % 12) + (v < 12 ? ' am' : ' pm'))
 				: opts(24, 1, time.h);
-			timeRow = '<div class="ui-timepicker-div"><select class="ui-timepicker-hour" aria-label="hour">' + hours + '</select>' +
-				(/m/.test(timeFormat) ? ' : <select class="ui-timepicker-minute" aria-label="minute">' + opts(60, 1, time.m) + '</select>' : '') +
-				(/s/.test(timeFormat) ? ' : <select class="ui-timepicker-second" aria-label="second">' + opts(60, 1, time.s) + '</select>' : '') + '</div>';
+			timeRow = '<div class="ui-timepicker-div"><select class="ui-timepicker-hour" aria-label="' + t(label('hour', 'Hour')) + '">' + hours + '</select>' +
+				(/m/.test(timeFormat) ? ' : <select class="ui-timepicker-minute" aria-label="' + t(label('minute', 'Minute')) + '">' + opts(60, 1, time.m) + '</select>' : '') +
+				(/s/.test(timeFormat) ? ' : <select class="ui-timepicker-second" aria-label="' + t(label('second', 'Second')) + '">' + opts(60, 1, time.s) + '</select>' : '') + '</div>';
 		}
 		const panel = o.showButtonPanel || timeFormat
 			? '<div class="ui-datepicker-buttonpane ui-widget-content"><button type="button" class="ui-datepicker-current ui-state-default ui-priority-secondary ui-corner-all">' +

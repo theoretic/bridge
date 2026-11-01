@@ -160,7 +160,7 @@ export function setupTags(original: HTMLInputElement | HTMLSelectElement, given?
 		const list = candidates();
 		const q = text.value.trim();
 		let html = '';
-		if (canCreate(q)) html += '<div class="create" role="option" data-selectable data-value="' + esc(q) + '">' + (o.addLabel || 'Add') + ' <strong>' + esc(q) + '</strong>&hellip;</div>';
+		if (canCreate(q)) html += '<div class="create" role="option" data-selectable data-value="' + esc(q) + '">' + (o.addLabel || esc(label('add', 'Add'))) + ' <strong>' + esc(q) + '</strong>&hellip;</div>';
 		list.forEach(t => { html += '<div class="option" role="option" data-selectable data-value="' + esc(t.value) + '">' + esc(t.label) + '</div>'; });
 		content.innerHTML = toHTML(html);
 		active = -1;

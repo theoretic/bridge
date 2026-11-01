@@ -21,6 +21,7 @@ import { makeSortable } from '../util/sortable';
 import { fetchOk, failed } from '../util/fail';
 import { adminUrl } from '../util/pw';
 import { toHTML } from '../util/trusted';
+import { label } from '../util/labels';
 
 type Child = {
 	id: number; label: string; path: string; template?: string; numChildren: number; numTotal?: number;
@@ -159,7 +160,7 @@ function setup(input: HTMLInputElement, multiple: boolean): void {
 			return;
 		}
 		if (data.error) {
-			window.alert(data.message || 'Error');
+			window.alert(data.message || label('error', 'Error'));
 			return;
 		}
 		const list = el('div', 'PageList');

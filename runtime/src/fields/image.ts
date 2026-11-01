@@ -366,7 +366,7 @@ function setupHeader(inputfield: HTMLElement, signal: AbortSignal): void {
 	slider.min = String(gridSize / 2);
 	slider.max = String(gridSize * 2);
 	slider.value = String(set.size);
-	slider.setAttribute('aria-label', 'Thumbnail size');
+	slider.setAttribute('aria-label', label('thumbSize', 'Thumbnail size'));
 	const fill = (): void => {
 		const min = parseFloat(slider.min);
 		slider.style.setProperty('--pw-range-fill', ((parseFloat(slider.value) - min) / (parseFloat(slider.max) - min) * 100) + '%');

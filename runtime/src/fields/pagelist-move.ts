@@ -28,7 +28,7 @@
 import { gather, edgeScroll, swallowClick } from '../util/sortable';
 import type { Selectable } from '../util/selection';
 import { label } from '../util/labels';
-import { guard, fill } from '../util/danger';
+import { guard, confirm, fill } from '../util/danger';
 
 export type TreeCtx = {
 	root: HTMLElement;
@@ -204,7 +204,8 @@ export function installMove(c: TreeCtx): void {
 		if (parentID && parentID === c.o.trashPageID) {
 			const one = travelling.length === 1;
 			const kidsOf = one ? c.numOf(lead) : 0;
-			const ok = await guard({
+			// one rule (audit UX7): several pages to the trash always ask, one asks with the setting on
+			const ok = await (one ? guard : (o: Parameters<typeof guard>[0]) => confirm({ danger: true, ...o }))({
 				title: one
 					? fill('warnTrashTitle', 'Move %s to the trash?', (lead.querySelector('a.PageListPage') || lead).textContent || '')
 					: fill('trashPages', 'Move %d pages to the trash?', travelling.length),

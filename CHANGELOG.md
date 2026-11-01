@@ -1,5 +1,12 @@
 # Changelog
 
+## AdminThemeBridge 0.20.2: translated words, one rule for asking (2026-11-01)
+
+From the 2026-11-01 audit (UX6, UX7).
+
+- **The runtime's own words are translatable**: the image size slider, "Add" in the tag input, the date picker's month, year, hour, minute and second selects, an error without a message in the page picker, and the upload messages used when the file field gives none. New runtime labels: `thumbSize`, `add`, `month`, `year`, `hour`, `minute`, `second`, `error`, `badExt`, `tooBig`.
+- **One rule for asking before the trash**: several pages always ask, whether they come from the menu of selected rows or from a drop on the Trash; one page asks while "Warn before risky actions" is on. A drop of several pages on the Trash asked only with the setting before.
+
 ## AdminThemeBridge 0.20.1: keyboard moves, less motion, touch, clearer edges (2026-11-01)
 
 From the 2026-11-01 audit (UX2 to UX5).
