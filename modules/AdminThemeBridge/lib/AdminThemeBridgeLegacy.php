@@ -171,12 +171,15 @@ trait AdminThemeBridgeLegacy {
 	}
 
 	/**
-	 * Hook before ProcessController::execute: remember the scripts there are so far
+	 * Hook before ProcessController::execute: remember the scripts there are so far; and ask for
+	 * the request's nonce (ADR 0020) here, once site/ready.php and every module's ready() have
+	 * hooked nonce(), so that an AJAX response gets its X-Bridge-Nonce header too
 	 *
 	 * @param HookEvent $event
 	 *
 	 */
 	public function hookProcessExecuteBefore(HookEvent $event) {
+		$this->cspNonce();
 		$this->scriptsBeforeProcess = array();
 		foreach($this->assetUrls($this->wire()->config->scripts) as $url) $this->scriptsBeforeProcess[] = (string) $url;
 	}

@@ -37,7 +37,7 @@ if(!defined("PROCESSWIRE")) die();
 			if($debugStripped && is_string($debugNative)) {
 				$debugScript = 'scripts/debug-tools.js';
 				$debugTools = str_replace('<div id="debug">', '<div id="debug" class="pw-debug">', $debugNative) .
-					"<script src='" . $adminTheme->url() . $debugScript . '?v=' . (is_file($adminTheme->path() . $debugScript) ? filemtime($adminTheme->path() . $debugScript) : $adminTheme->version) . "'></script>";
+					"<script src='" . $adminTheme->url() . $debugScript . '?v=' . (is_file($adminTheme->path() . $debugScript) ? filemtime($adminTheme->path() . $debugScript) : $adminTheme->version) . "'" . $adminTheme->nonceAttr() . "></script>";
 			}
 			echo $debugTools;
 		}

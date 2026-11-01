@@ -25,11 +25,18 @@ trait AdminThemeBridgeRewrites {
 			'modules/Process/ProcessField/ProcessField.module' => array('"jQuery(document).ready(function() { " . '),
 			'modules/Process/ProcessPageEditImageSelect/ProcessPageEditImageSelect.module' => array('$(document).ready(function() { setupProcessSave('),
 			// hookDataTableRender(), hookDataTableRenderBefore() (lib/AdminThemeBridgeTables.php)
-			'modules/Markup/MarkupAdminDataTable/MarkupAdminDataTable.module' => array("AdminDataTable.initTable($('#\$id'));", "if(\$this->sortable) \$tableClass .= ' ' . \$this->settings('sortableClass');", 'public function setColNotSortable($index)'),
+			'modules/Markup/MarkupAdminDataTable/MarkupAdminDataTable.module' => array("<script>if(typeof AdminDataTable != 'undefined') AdminDataTable.initTable($('#\$id'));</script>", "if(\$this->sortable) \$tableClass .= ' ' . \$this->settings('sortableClass');", 'public function setColNotSortable($index)'),
 			// hookPageEditExecute()
 			'modules/Process/ProcessPageEdit/ProcessPageEdit.module' => array("\$func = 'initPageEditForm();';", '"<scr" . "ipt>$func</script>"'),
 			// hookFormRender()
 			'modules/LanguageSupport/LanguageTabs.module' => array("setupLanguageTabs(\$('#\$id'));", '"<script>$func</script>"'),
+			// hookFormRender(): core inline scripts on native screens that get the nonce (ADR 0020)
+			'modules/Fieldtype/FieldtypeRepeater/InputfieldRepeater.module' => array("\$inputfield->appendMarkup .= \"<script>ProcessWire.config['\$idAttr'] = \" . json_encode(\$jsValue) . ';</script>';"),
+			'modules/Process/ProcessPageLister/ProcessPageListerBookmarks.php' => array("\$form->appendMarkup = '<script>ProcessLister.initialized = true;</script>';"),
+			'modules/Inputfield/InputfieldSubmit/InputfieldSubmit.module' => array("\$out .= \"<script\" . \">InputfieldSubmitDropdown.init('#{\$this->id}', null, \$required);</script>\";"),
+			// deferLegacyInline(): the head's core inline scripts (ADR 0020)
+			'modules/Jquery/JqueryUI/JqueryUI.module' => array("\"<script>\" .\n\t\t\t\"vex.defaultOptions.className='vex-theme-default';\" ."),
+			'core/Admin/AdminTheme.php' => array("\$parts['head'] .= \"<\$script>\" . \n\t\t\t\t\"window.CKEDITOR_BASEPATH='\""),
 			// isAjaxPlaceholder() (lib/AdminThemeBridgeLegacy.php) copies this condition
 			'core/Inputfield/InputfieldWrapper.php' => array(
 				'$ajaxInputfield = $collapsed == Inputfield::collapsedYesAjax || $collapsed === Inputfield::collapsedTabAjax',
@@ -61,9 +68,13 @@ trait AdminThemeBridgeRewrites {
 	}
 
 	/**
-	 * On a page that defers the legacy stack, inline scripts that configure a legacy library wait
-	 * for it: JqueryUI::useVex() adds `<script>vex.defaultOptions...</script>` to the head markup,
-	 * which would throw before vex is there. Wrapped, it runs once the stack loads (if it does).
+	 * The head's extra markup. On a page that defers the legacy stack, inline scripts that
+	 * configure a legacy library wait for it: JqueryUI::useVex() adds
+	 * `<script>vex.defaultOptions...</script>` to the head markup, which would throw before vex is
+	 * there. Wrapped, it runs once the stack loads (if it does).
+	 *
+	 * Both of core's head scripts get the request's nonce (ADR 0020): that one, wrapped or not, and
+	 * AdminTheme::getExtraMarkup()'s `window.CKEDITOR_BASEPATH` on page editors.
 	 *
 	 * @param string $markup
 	 * @return string
@@ -71,22 +82,44 @@ trait AdminThemeBridgeRewrites {
 	 */
 	public function deferLegacyInline($markup) {
 		$markup = (string) $markup;
-		if($this->useLegacyStack() || strpos($markup, 'vex.') === false) return $markup;
-		return preg_replace_callback('~<script>(\s*vex\..*?)</script>~s', function($m) {
-			return "<script>ProcessWireAdminTheme.legacy.later(function(){" . $m[1] . "});</script>";
+		if(strpos($markup, '<script>') === false) return $markup;
+		$open = $this->nonceScriptTag('<script>');
+		if($open !== '<script>') $markup = str_replace("<script>window.CKEDITOR_BASEPATH='", $open . "window.CKEDITOR_BASEPATH='", $markup);
+		if(strpos($markup, 'vex.') === false) return $markup;
+		$legacy = $this->useLegacyStack();
+		return preg_replace_callback('~<script>(\s*vex\..*?)</script>~s', function($m) use($open, $legacy) {
+			return $open . ($legacy ? $m[1] : "ProcessWireAdminTheme.legacy.later(function(){" . $m[1] . "});") . "</script>";
 		}, $markup);
 	}
 
 	/**
-	 * Hook after InputfieldForm::render: run LanguageTabs' inline setup only where jQuery is
+	 * Hook after InputfieldWrapper::render (forms and the repeater's AJAX item included): run
+	 * LanguageTabs' inline setup only where jQuery is, and give the request's nonce to the core
+	 * inline scripts a native screen keeps: that one, the repeater item's config
+	 * (`ProcessWire.config['…'] = …`, InputfieldRepeater.module), the Lister's bookmark line
+	 * (`ProcessLister.initialized = true`, ProcessPageListerBookmarks.php) and the submit button's
+	 * dropdown (`InputfieldSubmitDropdown.init(…)`, InputfieldSubmit.module). Known scripts only
+	 * (ADR 0020); a nested wrapper's output is rewritten once, the patterns no longer match after.
 	 *
 	 * @param HookEvent $event
 	 *
 	 */
 	public function hookFormRender(HookEvent $event) {
-		$out = (string) $event->return;
-		if(strpos($out, 'setupLanguageTabs(') === false) return;
-		$event->return = str_replace("<script>setupLanguageTabs($('#", "<script>window.jQuery && setupLanguageTabs(jQuery('#", $out);
+		$out = $event->return;
+		if(!is_string($out) || strpos($out, '<script>') === false) return;
+		$open = $this->nonceScriptTag('<script>');
+		$from = array("<script>setupLanguageTabs($('#");
+		$to = array($open . "window.jQuery && setupLanguageTabs(jQuery('#");
+		if($open !== '<script>') {
+			$from[] = "<script>ProcessWire.config['";
+			$to[] = $open . "ProcessWire.config['";
+			$from[] = '<script>ProcessLister.initialized = true;</script>';
+			$to[] = $open . 'ProcessLister.initialized = true;</script>';
+			$from[] = "<script>InputfieldSubmitDropdown.init('#";
+			$to[] = $open . "InputfieldSubmitDropdown.init('#";
+		}
+		$result = str_replace($from, $to, $out);
+		if($result !== $out) $event->return = $result;
 	}
 
 	/**
@@ -124,7 +157,9 @@ trait AdminThemeBridgeRewrites {
 				"ProcessWireAdminTheme.iframeHeight(document.getElementById('ProcessTemplatePageLister'));",
 		);
 		$result = preg_replace_callback('~(<script\b[^>]*>)(.*?)(</script>)~is', function($m) use($from, $to) {
-			return $m[1] . str_replace($from, $to, $m[2]) . $m[3];
+			$code = str_replace($from, $to, $m[2]);
+			// a core script the theme rewrote is one it vouches for: it gets the nonce (ADR 0020)
+			return ($code === $m[2] ? $m[1] : $this->nonceScriptTag($m[1])) . $code . $m[3];
 		}, $out);
 		return is_string($result) ? $result : $out;
 	}
@@ -141,7 +176,7 @@ trait AdminThemeBridgeRewrites {
 		$out = $event->return;
 		if(!is_string($out) || strpos($out, '<script>initPageEditForm();</script>') === false) return;
 		$event->return = str_replace('<script>initPageEditForm();</script>',
-			"<script>typeof initPageEditForm === 'function' ? initPageEditForm() : " .
+			$this->nonceScriptTag('<script>') . "typeof initPageEditForm === 'function' ? initPageEditForm() : " .
 			"window.ProcessWireAdminTheme && ProcessWireAdminTheme.pageEdit && ProcessWireAdminTheme.pageEdit.init();</script>", $out);
 	}
 }

@@ -664,7 +664,7 @@ if(isset($bridge) && $bridge) {
 // 0.10.1 (audit 2026-10-27, phase 5: architecture)
 if(isset($bridge) && $bridge) {
 	$traits = class_uses($bridge);
-	check('PA1 the theme class is split into its twelve traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 12, implode(', ', array_keys($traits)));
+	check('PA1 the theme class is split into its thirteen traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 13, implode(', ', array_keys($traits)));
 	check('PA1 hookable methods stay hookable through the traits', method_exists($bridge, '___sortableDataTable') && method_exists($bridge, '___nativeMap') && method_exists($bridge, '___renderBreadcrumbs'));
 	$traitSrc = '';
 	foreach((array) glob($themeDir . 'lib/*.php') as $f) $traitSrc .= (string) file_get_contents($f);
@@ -861,6 +861,109 @@ if(isset($bridge) && $bridge) {
 	$themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
 	check('theme.css has the warning dialog and its red button', strpos($themeCss, '.pw-ask-danger .pw-ask-message .fa{') !== false && strpos($themeCss, '.ui-button.pw-button-danger{') !== false);
 }
+
+// 0.18.0: the Content-Security-Policy nonce (ADR 0020)
+if(isset($bridge) && $bridge) {
+	$resetNonce = function() use($bridge) { (new \ReflectionProperty($bridge, 'nonceValue'))->setValue($bridge, null); };
+	$resetNonce();
+	check('CSP nonce() is empty unhooked, and so are the attribute and the meta', $bridge->cspNonce() === '' && $bridge->nonceAttr() === '' && $bridge->cspMeta() === '');
+	check('CSP without a nonce the rewrites print what they printed before', $bridge->nonceScriptTag('<script>') === '<script>'
+		&& $bridge->nativeInlineScripts("<script>\$(document).ready(function() { ProcessTemplateInitFields(); });</script>") === "<script>(window.jQuery ? jQuery : function(f) { document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', f) : f(); })(function() { ProcessTemplateInitFields(); });</script>");
+	$smokeNonce = 'c21va2Utbm9uY2U+/A==';
+	$nonceHook = $bridge->addHookAfter('nonce', function(HookEvent $e) use($smokeNonce) { $e->return = $smokeNonce . "' onload='x"; });
+	$resetNonce();
+	$attr = " nonce='$smokeNonce'";
+	check('CSP a hook sets the nonce; characters outside base64 are dropped', $bridge->cspNonce() === $smokeNonce . 'onload=x', $bridge->cspNonce());
+	$bridge->removeHook($nonceHook);
+	$nonceHook = $bridge->addHookAfter('nonce', function(HookEvent $e) use($smokeNonce) { $e->return = $smokeNonce; });
+	$resetNonce();
+	check('CSP nonceAttr() and cspMeta() carry it', $bridge->nonceAttr() === $attr && $bridge->cspMeta() === "<meta property='csp-nonce'$attr />");
+	check('CSP the nonce is asked once per request', (function() use($bridge, $smokeNonce) {
+		$hook = $bridge->addHookAfter('nonce', function(HookEvent $e) { $e->return = 'changed'; });
+		$same = $bridge->cspNonce() === $smokeNonce;
+		$bridge->removeHook($hook);
+		return $same;
+	})());
+	check('CSP nonceScriptTag() adds the nonce once, keeps attributes, leaves a nonce alone',
+		$bridge->nonceScriptTag('<script>') === "<script$attr>"
+		&& $bridge->nonceScriptTag("<script type='text/javascript'>") === "<script$attr type='text/javascript'>"
+		&& $bridge->nonceScriptTag("<script nonce='other'>") === "<script nonce='other'>");
+	// the rewrites vouch for the core scripts they rewrite, and only those
+	$rewritten = $bridge->nativeInlineScripts("<script>\$(document).ready(function() { ProcessTemplateInitFields(); });</script><script>other();</script>");
+	check('CSP nativeInlineScripts() stamps the script it rewrote, not the other', strpos($rewritten, "<script$attr>(window.jQuery") === 0 && strpos($rewritten, '<script>other();</script>') !== false, $rewritten);
+	check('CSP deferLegacyInline() stamps the vex script, wrapped or not', $bridge->deferLegacyInline('<script>vex.defaultOptions.className="x";</script>') === ($bridge->useLegacyStack()
+		? "<script$attr>vex.defaultOptions.className=\"x\";</script>"
+		: "<script$attr>ProcessWireAdminTheme.legacy.later(function(){vex.defaultOptions.className=\"x\";});</script>"));
+	check('CSP deferLegacyInline() stamps core\'s CKEditor base path, not another head script',
+		$bridge->deferLegacyInline("<script>window.CKEDITOR_BASEPATH='/x/';</script><script>other();</script>") === "<script$attr>window.CKEDITOR_BASEPATH='/x/';</script><script>other();</script>");
+	$hookOut = function($method, $html) use($bridge) {
+		$e = new HookEvent(array('object' => $bridge, 'method' => 'render', 'arguments' => array()));
+		$e->return = $html;
+		$bridge->$method($e);
+		return $e->return;
+	};
+	$form = "<form id='f'><script>setupLanguageTabs($('#f'));</script><div><script>ProcessWire.config['Inputfield_x'] = {\"a\":1};</script>" .
+		"<script>ProcessLister.initialized = true;</script><script>InputfieldSubmitDropdown.init('#s', null, false);</script><script>alert(1)</script></div></form>";
+	$formOut = $hookOut('hookFormRender', $form);
+	check('CSP hookFormRender() stamps LanguageTabs, the repeater config, the Lister line and the submit dropdown',
+		strpos($formOut, "<script$attr>window.jQuery && setupLanguageTabs(jQuery('#f'));</script>") !== false
+		&& strpos($formOut, "<script$attr>InputfieldSubmitDropdown.init('#s', null, false);</script>") !== false
+		&& strpos($formOut, "<script$attr>ProcessWire.config['Inputfield_x']") !== false
+		&& strpos($formOut, "<script$attr>ProcessLister.initialized = true;</script>") !== false, $formOut);
+	check('CSP hookFormRender() leaves an unknown inline script without the nonce', strpos($formOut, '<script>alert(1)</script>') !== false);
+	check('CSP hookFormRender() on a nested wrapper stamps once', $hookOut('hookFormRender', $formOut) === $formOut);
+	check('CSP hookFormRender() is hooked on every wrapper (the repeater item is one)', strpos($moduleSrc, "addHookAfter('InputfieldWrapper::render', \$this, 'hookFormRender'") !== false);
+	$tableOut = $hookOut('hookDataTableRender', "<table id='t'></table>\n<script>if(typeof AdminDataTable != 'undefined') AdminDataTable.initTable($('#t'));</script>");
+	check('CSP hookDataTableRender() stamps the table script', strpos($tableOut, "<script$attr>if(typeof AdminDataTable != 'undefined') AdminDataTable.initTable(window.jQuery ? jQuery('#t') : document.getElementById('t'));</script>") !== false, $tableOut);
+	$editOut = $hookOut('hookPageEditExecute', "<form></form><script>initPageEditForm();</script>");
+	check('CSP hookPageEditExecute() stamps the editor init', strpos($editOut, "<script$attr>typeof initPageEditForm === 'function'") !== false, $editOut);
+	$bridge->removeHook($nonceHook);
+	$resetNonce();
+	check('CSP the theme asks for the nonce before the Process runs (AJAX responses get X-Bridge-Nonce)', strpos($themeSource, "public function hookProcessExecuteBefore(HookEvent \$event) {\n\t\t\$this->cspNonce();") !== false);
+
+	// every <script>, <style> and modulepreload link the templates print carries the nonce
+	$unstamped = array();
+	foreach(glob($themeDir . '_*.php') as $f) {
+		foreach(file($f, FILE_IGNORE_NEW_LINES) as $line) {
+			// comments name the tags without printing them
+			if(preg_match('~^\s*(//|\*|/\*)~', $line)) continue;
+			// a tag up to its own closing bracket: an arrow or an embedded PHP block inside it does not end it
+			if(!preg_match_all("~<(?:script|style)(?=[\s>'<])(?:<\?php.*?\?>|->|[^>])*>|<link rel='modulepreload'(?:->|[^>])*>~", $line, $m)) continue;
+			foreach($m[0] as $tag) {
+				if(strpos($tag, 'nonce') === false) $unstamped[] = basename($f) . ': ' . $tag;
+			}
+		}
+	}
+	check('CSP every script, style and modulepreload tag in the templates carries the nonce', !count($unstamped), implode(' | ', $unstamped));
+	check('CSP the meta comes first in the head', preg_match('~\?>\s*<\?php echo \$adminTheme->cspMeta\(\); \?>\s*<meta http-equiv="content-type"~', (string) file_get_contents($themeDir . '_head.php')) === 1);
+	check('CSP no blanket pass over the page: nonceScriptTag() is called only by the known rewrites',
+		substr_count($themeSource, 'nonceScriptTag(') === 6, (string) substr_count($themeSource, 'nonceScriptTag('));
+}
+
+// 0.18.0: BridgeCsp (ADR 0020)
+$cspFile = dirname(__DIR__) . '/modules/BridgeCsp/BridgeCsp.module.php';
+check('CSP BridgeCsp ships', is_file($cspFile));
+if(is_file($cspFile) && $modules->isInstalled('BridgeCsp')) {
+	$csp = $modules->getModule('BridgeCsp', array('noInit' => true, 'noPermissionCheck' => true));
+	check('CSP BridgeCsp defaults: off, the nonce policy with Trusted Types', $csp instanceof BridgeCsp
+		&& strpos(BridgeCsp::defaultPolicy, "'nonce-{nonce}' 'strict-dynamic'") !== false
+		&& strpos(BridgeCsp::defaultPolicy, "require-trusted-types-for 'script'; trusted-types bridge;") !== false);
+	if($csp instanceof BridgeCsp) {
+		$csp->set('mode', 'off');
+		$offInactive = !$csp->active();
+		$csp->set('mode', 'report-only');
+		$reportActive = $csp->active();
+		(new \ReflectionProperty($csp, 'nonce'))->setValue($csp, 'abc=');
+		check('CSP BridgeCsp is active in report-only and enforce only, and fills in the nonce', $offInactive && $reportActive
+			&& $csp->policyFor("script-src 'nonce-{nonce}';\n  object-src 'none';") === "script-src 'nonce-abc='; object-src 'none';");
+	}
+	check('CSP BridgeCsp sends its policy only under AdminThemeBridge', strpos((string) file_get_contents($cspFile), "\$theme->className() !== 'AdminThemeBridge'") !== false);
+	check('CSP the sandbox installs BridgeCsp and junctions it', strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-admin.php'), "'BridgeCsp'") !== false
+		&& strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-site.sh'), 'for m in AdminThemeBridge BridgeDemo BridgeCsp; do') !== false);
+} else {
+	warn('BridgeCsp not installed in this sandbox (tools/sandbox-csp.php installs it)');
+}
+check('CSP tools/csp-check.js ships', is_file(dirname(__DIR__) . '/tools/csp-check.js'));
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

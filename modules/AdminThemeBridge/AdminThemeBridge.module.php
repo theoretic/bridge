@@ -15,6 +15,7 @@ require_once(__DIR__ . '/lib/AdminThemeBridgeConfig.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeHead.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgePageAdd.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeFiles.php');
+require_once(__DIR__ . '/lib/AdminThemeBridgeCsp.php');
 
 /**
  * AdminThemeBridge
@@ -47,11 +48,12 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	use AdminThemeBridgeHead;
 	use AdminThemeBridgePageAdd;
 	use AdminThemeBridgeFiles;
+	use AdminThemeBridgeCsp;
 
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.17.0',
+			'version' => '0.18.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -469,8 +471,10 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->addHookBefore('ProcessController::execute', $this, 'hookProcessExecuteBefore');
 		$this->addHookAfter('ProcessController::execute', $this, 'hookProcessExecute');
 		// LanguageTabs appends `setupLanguageTabs($('#form'))` to each form with language tabs; on a
-		// page without jQuery the runtime sets them up itself (milestone 2.4)
-		$this->addHookAfter('InputfieldForm::render', $this, 'hookFormRender', array('priority' => 200));
+		// page without jQuery the runtime sets them up itself (milestone 2.4). On every wrapper, as
+		// the repeater's AJAX item is one: its config script and the Lister's bookmark line get the
+		// request's nonce there (ADR 0020)
+		$this->addHookAfter('InputfieldWrapper::render', $this, 'hookFormRender', array('priority' => 200));
 		// the page editor (milestone 3.1): its inline init call falls back to the native editor, and
 		// the page tree in its Children tab stays legacy until the page tree is native (3.4)
 		$this->addHookAfter('ProcessPageEdit::execute', $this, 'hookPageEditExecute');
@@ -509,5 +513,13 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 *
 	 */
 	protected $urlsMemo = array();
+
+	/**
+	 * cspNonce() for this request, once asked (null before; ADR 0020)
+	 *
+	 * @var string|null
+	 *
+	 */
+	protected $nonceValue = null;
 
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## AdminThemeBridge 0.18.0: a nonce for a Content-Security-Policy (2026-11-01)
+
+First step of Trusted Types and CSP support, from [issue 1](https://github.com/theoretic/bridge/issues/1). Decision in `docs/decisions/0020-trusted-types-and-csp-nonce.md`. Sites without a policy see no change.
+
+- **New hookable `AdminThemeBridge::nonce()`.** It returns `''` unless a site hooks it to return the nonce its `script-src` policy carries. With a nonce, the theme puts it on every script, style and module preload it prints, on the script tags of core and modules in the head, and on the core inline scripts it knows on native screens. It also prints `<meta property="csp-nonce">` and sends an `X-Bridge-Nonce` header, also with AJAX fragments. Unknown inline scripts never get the nonce.
+- **New optional module Bridge CSP** (`modules/BridgeCsp/`). It makes a random nonce per request, gives it to the theme, and sends the policy: off (the default), report only, or enforced. The default policy needs the nonce with `'strict-dynamic'` for scripts and requires Trusted Types with the policy name `bridge`. It applies only to admin pages shown with Bridge.
+- Under the report-only policy, no native screen reports a blocked script. Trusted Types are reported but not satisfied yet: the theme's scripts still write HTML strings, which 0.18.1 routes through the `bridge` policy. Use report only until then; enforcing now breaks the native screens. **Do not enforce yet** for a second reason too: core's module list asks before Delete and Install through inline `onclick` handlers, which an enforced policy blocks without a word, so those buttons would act without asking. 0.18.1 replaces them. Screens that load the legacy jQuery stack, CKEditor, TinyMCE or third-party modules keep reporting.
+- For module authors: `$adminTheme->nonceAttr()` returns ` nonce='…'` or nothing, for inline scripts a module prints (`docs/contract.md` 2.1).
+- For developers: `tools/csp-check.js` opens the admin under the report-only policy and lists every violation by screen. It fails when a native screen blocks a script. `tools/sandbox-csp.php` switches the sandbox's mode.
+
 ## AdminThemeBridge 0.17.0: data tables sort from 10 rows (2026-10-30)
 
 - **New setting: Datatable sortable rows threshold** (Features, default 10). A data table sorts by its column headers only when it has at least this many rows; a shorter table shows no sort arrows and its headers are plain. This holds for every table, also those a module made sortable itself. A table split into pages counts the rows of its page. Set 0 to sort every table as before (core tables still need two rows).

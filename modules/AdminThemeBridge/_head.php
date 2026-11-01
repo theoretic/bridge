@@ -21,8 +21,12 @@ if(!defined("PROCESSWIRE")) die();
 // what to print, in which order, and the client config: AdminThemeBridge::headPlan()
 // (lib/AdminThemeBridgeHead.php, audit PA1)
 extract($adminTheme->headPlan($layout));
+// the request's Content-Security-Policy nonce (ADR 0020): on every <style>, <script> and
+// modulepreload link below, and in the meta the scripts read it from; nothing without one
+$nonce = $adminTheme->nonceAttr();
 
 ?>
+	<?php echo $adminTheme->cspMeta(); ?>
 	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
 	<meta name="robots" content="noindex, nofollow" />
 	<meta name="google" content="notranslate" />
@@ -32,14 +36,14 @@ extract($adminTheme->headPlan($layout));
 	// the canvas colour before the stylesheets arrive: no white flash in the dark scheme, and
 	// "auto" without JavaScript follows the system (audit C36; same values as 00-tokens.css)
 	?>
-	<style data-pw-keep>
+	<style data-pw-keep<?php echo $nonce; ?>>
 		html[data-pw-scheme=dark] { background: #0a0a0a; }
 		@media (prefers-color-scheme: dark) { html:not([data-pw-scheme=light]) { background: #0a0a0a; } }
 	</style>
 
 	<title><?php echo $adminTheme->getBrowserTitle(); ?></title>
 
-	<script>
+	<script<?php echo $nonce; ?>>
 		<?php echo $adminTheme->getHeadJS(); ?>
 		// colour scheme and scale before first paint: the user's choice in this browser (localStorage,
 		// under the user's key; the last user's on the login screen) over the setting; auto follows
@@ -87,18 +91,18 @@ if($useUikit) echo "\n\t<link type='text/css' href='" . $attr($uikitCss) . "' re
 echo "\n\t<link type='text/css' href='" . $attr($themeCss) . "' rel='stylesheet' data-pw-theme />";
 echo "\n\t<link type='text/css' href='" . $attr($fieldsCss) . "' rel='stylesheet' data-pw-fields />";
 if($adminTheme->maxWidth) {
-	echo "\n\t<style data-pw-keep>.pw-container, #notices { max-width:" . (int) $adminTheme->maxWidth . "px; }</style>";
+	echo "\n\t<style data-pw-keep$nonce>.pw-container, #notices { max-width:" . (int) $adminTheme->maxWidth . "px; }</style>";
 }
 // the runtime module and the chunk it imports statically, fetched while the page parses instead
 // of after main.js imports it at the end of the body (audit B21, C32); same URL as that import()
 $runtimeFile = $themeDir . 'assets/dist/runtime.js';
 if(is_file($runtimeFile)) {
-	echo "\n\t<link rel='modulepreload' href='" . $attr($bridgeJs['runtimeUrl']) . "' />";
+	echo "\n\t<link rel='modulepreload' href='" . $attr($bridgeJs['runtimeUrl']) . "'$nonce />";
 	$chunks = $adminTheme->manifest('runtimeChunks');
 	if(!is_array($chunks)) {
 		$chunks = preg_match_all('~from\s*["\']\./(chunks/[\w.-]+\.js)["\']~', (string) file_get_contents($runtimeFile), $m) ? array_unique($m[1]) : array();
 	}
-	foreach($chunks as $chunk) echo "\n\t<link rel='modulepreload' href='" . $attr("{$themeUrl}assets/dist/$chunk") . "' />";
+	foreach($chunks as $chunk) echo "\n\t<link rel='modulepreload' href='" . $attr("{$themeUrl}assets/dist/$chunk") . "'$nonce />";
 }
 // theme scripts that no inline code calls while the page parses run deferred (in order, before
 // DOMContentLoaded); main.js (stand-ins, InputfieldSubmitDropdown), lister.js
@@ -111,6 +115,6 @@ foreach($printScripts as $file) {
 		$rel = preg_replace('/\?.*$/', '', substr($file, strlen($themeUrl)));
 		if(in_array($rel, $deferrable, true)) $defer = ' defer';
 	}
-	echo "\n\t<script type='text/javascript' src='" . $attr($file) . "'$defer></script>";
+	echo "\n\t<script type='text/javascript' src='" . $attr($file) . "'$defer$nonce></script>";
 }
 echo "\n";

@@ -11,7 +11,8 @@ trait AdminThemeBridgeTables {
 
 	/**
 	 * Hook after MarkupAdminDataTable::render: its inline `initTable($('#id'))` gets the element
-	 * itself where jQuery is not on the page (the runtime's AdminDataTable takes either)
+	 * itself where jQuery is not on the page (the runtime's AdminDataTable takes either), and the
+	 * script gets the request's nonce (ADR 0020)
 	 *
 	 * @param HookEvent $event
 	 *
@@ -19,8 +20,10 @@ trait AdminThemeBridgeTables {
 	public function hookDataTableRender(HookEvent $event) {
 		$out = $event->return;
 		if(!is_string($out) || strpos($out, "AdminDataTable.initTable($('#") === false) return;
-		$event->return = preg_replace('~AdminDataTable\.initTable\(\$\(\'#([^\']+)\'\)\)~',
+		$out = preg_replace('~AdminDataTable\.initTable\(\$\(\'#([^\']+)\'\)\)~',
 			'AdminDataTable.initTable(window.jQuery ? jQuery(\'#$1\') : document.getElementById(\'$1\'))', $out);
+		$event->return = str_replace("<script>if(typeof AdminDataTable != 'undefined') AdminDataTable.initTable(",
+			$this->nonceScriptTag('<script>') . "if(typeof AdminDataTable != 'undefined') AdminDataTable.initTable(", $out);
 	}
 
 	/**

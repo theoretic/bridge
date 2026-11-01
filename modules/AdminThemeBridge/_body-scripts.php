@@ -8,7 +8,9 @@
 
 if(!defined("PROCESSWIRE")) die();
 
+/** @var AdminThemeBridge $adminTheme */
+
 ?>
-<script>
+<script<?php echo $adminTheme->nonceAttr(); ?>>
 	ProcessWireAdminTheme.init();
 </script>

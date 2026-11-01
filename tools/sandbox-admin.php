@@ -52,7 +52,8 @@ echo "ok   $dropped cached entries dropped (URLs/paths cached on the original la
 ";
 
 $modules->refresh();
-foreach(array_merge(array_unique($themes), array('ProcessBridgeDemo')) as $theme) {
+// BridgeCsp installs with its mode off (tools/sandbox-csp.php switches it, ADR 0020)
+foreach(array_merge(array_unique($themes), array('ProcessBridgeDemo', 'BridgeCsp')) as $theme) {
 	if($modules->isInstalled($theme)) {
 		echo "ok   $theme installed\n";
 	} else if($modules->isInstallable($theme)) {

@@ -120,6 +120,7 @@ map with a hook on `AdminThemeBridge::nativeMap`. Both are described in
 bootstrap/                 front controller and project.php layout config
 modules/AdminThemeBridge/  the admin theme; assets/dist/ and scripts/ hold built files (committed)
 modules/BridgeDemo/        native Process and Inputfield used as a test fixture
+modules/BridgeCsp/         optional: a nonce-based Content-Security-Policy for the admin (ADR 0020)
 runtime/                   TypeScript runtime, stylesheets (Vite) and the theme's classic
                            scripts (src/classic/, minified with esbuild into scripts/)
 conformance/               screen-by-screen comparison against Uikit

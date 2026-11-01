@@ -65,6 +65,26 @@ Wrapper attributes the theme writes on every rendered `li.Inputfield`, in both t
 
 For the current Process the same descriptor is in `ProcessWire.config.AdminThemeBridge.process` (or `null`).
 
+### 2.1 Content-Security-Policy nonce (0.18.0, ADR 0020)
+
+`AdminThemeBridge::___nonce()` returns the nonce of the request for a nonce-based `script-src`, `''` by default. A site that sends such a policy hooks it (the `BridgeCsp` module does, or the site's own code):
+
+```php
+$wire->addHookAfter('AdminThemeBridge::nonce', function(HookEvent $event) use($nonce) {
+	$event->return = $nonce; // the value in the site's policy header, the same for the whole request
+});
+```
+
+The theme asks once, before the Process runs, and keeps the answer (`cspNonce()`). With a nonce it prints `<meta property='csp-nonce' nonce='…'>` first in `<head>`, sends `X-Bridge-Nonce: …` with the response (full pages and AJAX fragments alike), and puts the nonce on every `<script>`, `<style>` and `<link rel=modulepreload>` it prints itself, on every script tag it prints for core and modules in the head, and on the core inline scripts it knows: the ones it rewrites (data tables, page editor init, LanguageTabs, the jQuery-ready rewrites, the vex settings) and the repeater item's config, the Lister's bookmark line, the submit dropdown init and `window.CKEDITOR_BASEPATH`. Nothing else gets it: an unknown inline script stays without a nonce, so injected markup cannot borrow one.
+
+A module that prints an inline `<script>` or `<style>` on admin pages adds the nonce itself:
+
+```php
+$theme = $this->wire()->adminTheme;
+$nonce = $theme && method_exists($theme, 'nonceAttr') ? $theme->nonceAttr() : ''; // " nonce='…'" or ''
+$out .= "<script$nonce>MyModule.init();</script>";
+```
+
 ## 3. Legacy stack policy
 
 `legacyStack` theme setting:
