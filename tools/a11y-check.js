@@ -223,6 +223,30 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	});
 	check('touch: list items leave the page scroll to the finger (a hold drags them)', touch.asm !== 'none', JSON.stringify(touch));
 
+	// 7. the user's own colour in the user menu (0.22.0): named swatches, applied at once, kept
+	await open(`page/edit/?id=${NATIVE}`);
+	const colours = () => page.evaluate(() => ({ variant: document.documentElement.getAttribute('data-pw-variant'),
+		primary: document.documentElement.style.getPropertyValue('--pw-primary'),
+		pressed: Array.from(document.querySelectorAll('.pw-color-pick button[aria-pressed="true"]')).map(b => b.getAttribute('data-pw-variant-pick')) }));
+	const named = await page.$$eval('.pw-color-pick button, .pw-color-pick input', els => els.every(el => el.getAttribute('aria-label')) && els.length === 7);
+	check('colour picker: seven named controls in the user menu', named);
+	const site = await colours();
+	await page.hover('#tools-toggle');
+	await page.waitForTimeout(300);
+	await page.click('.pw-color-pick [data-pw-variant-pick="green"]');
+	await page.waitForTimeout(700);
+	const picked = await colours();
+	await page.reload({ waitUntil: 'networkidle' });
+	const kept = await colours();
+	check('colour picker: a preset applies at once and is kept for the user', picked.variant === 'green' && kept.variant === 'green' && kept.pressed.join() === 'green', JSON.stringify({ picked, kept }));
+	await page.hover('#tools-toggle');
+	await page.waitForTimeout(300);
+	await page.click('.pw-color-pick .pw-color-reset');
+	await page.waitForTimeout(700);
+	await page.reload({ waitUntil: 'networkidle' });
+	const back = await colours();
+	check('colour picker: "Site default" goes back to the site\'s colour', back.variant === site.variant && back.pressed.join() === '', JSON.stringify({ site, back }));
+
 	check('no page errors', errors.length === 0, errors.join(' | '));
 	await consoleErrors.settle();
 	consoleErrors.check(check);

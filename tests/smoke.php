@@ -127,7 +127,7 @@ check('theme.css built', is_file($themeCss));
 if(is_file($themeCss)) {
 	$css = file_get_contents($themeCss);
 	check('theme.css under 84 kB raw (the gzip budget in check-css.mjs is the binding one)', strlen($css) < 84 * 1024, (string) strlen($css));
-	check('theme.css under 15.75 kB gzip', strlen(gzencode($css, 9)) <= 15.75 * 1024, (string) strlen(gzencode($css, 9)));
+	check('theme.css under 16 kB gzip', strlen(gzencode($css, 9)) <= 16 * 1024, (string) strlen(gzencode($css, 9)));
 	check('theme.css is flat (no nesting left)', !preg_match('/[{;]\s*&/', $css));
 	// every font the stylesheet references ships next to it (none until Geist is self-hosted)
 	preg_match_all('~url\(\.\./fonts/([^)]+)\)~', $css, $m);
@@ -667,7 +667,7 @@ if(isset($bridge) && $bridge) {
 // 0.10.1 (audit 2026-10-27, phase 5: architecture)
 if(isset($bridge) && $bridge) {
 	$traits = class_uses($bridge);
-	check('PA1 the theme class is split into its thirteen traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 13, implode(', ', array_keys($traits)));
+	check('PA1 the theme class is split into its fourteen traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 14, implode(', ', array_keys($traits)));
 	check('PA1 hookable methods stay hookable through the traits', method_exists($bridge, '___sortableDataTable') && method_exists($bridge, '___nativeMap') && method_exists($bridge, '___renderBreadcrumbs'));
 	$traitSrc = '';
 	foreach((array) glob($themeDir . 'lib/*.php') as $f) $traitSrc .= (string) file_get_contents($f);
@@ -1135,6 +1135,43 @@ check('TT core\'s inline confirm and click guard become data attributes, nothing
 	&& strpos($handlersOut, "<input type='checkbox' data-pw-noclick />") !== false && strpos($handlersOut, 'onclick="other()"') !== false
 	&& strpos($handlersOut, 'return confirm') === false, $handlersOut);
 check('TT the setup script asks for them with the theme\'s dialog', strpos($srcOf('classic/setup.js'), "closest('[data-pw-confirm], [data-pw-noclick]')") !== false);
+// 0.22.0: each user's own colour (the picker in the user menu, the user page's meta)
+if(isset($bridge) && $bridge) {
+	$memo = new \ReflectionProperty($bridge, 'userColorsValue');
+	check('a colour is #rrggbb or nothing', AdminThemeBridge::hexColor(' #7C3AED ') === '#7c3aed' && AdminThemeBridge::hexColor('red') === '' && AdminThemeBridge::hexColor('#7c3aedff') === '');
+	$memo->setValue($bridge, null);
+	check('a guest gets the site\'s colour and no picker', $bridge->userColors() === null && $bridge->renderColorPicker() === '' && $bridge->getVariant() === $bridge->siteVariant());
+	$guest = $wire->user;
+	$cu = $wire->users->get('name=bridge');
+	if($cu && $cu->id) {
+		$was = $cu->meta(AdminThemeBridge::userColorsMeta);
+		$wire->users->setCurrentUser($cu);
+		$cu->meta(AdminThemeBridge::userColorsMeta, array('variant' => 'custom', 'color' => '#7c3aed'));
+		$memo->setValue($bridge, null);
+		$picker = $bridge->renderColorPicker();
+		check('a user\'s own custom colour is the page\'s, printed before first paint', $bridge->getVariant() === 'custom' && $bridge->getPrimaryColor() === '#7c3aed'
+			&& strpos($bridge->renderHtmlAttributes(), "style='--pw-primary:#7c3aed'") !== false, $bridge->renderHtmlAttributes());
+		check('the picker: five named presets, a custom colour, the site default, the CSRF token', substr_count($picker, "class='pw-color-swatch' data-pw-variant=") === 5
+			&& strpos($picker, "data-pw-variant-pick='custom' value='#7c3aed'") !== false && strpos($picker, "class='pw-color-reset' data-pw-variant-pick=''") !== false
+			&& strpos($picker, 'data-token-name=') !== false && strpos($picker, 'pw-color-pick-custom') !== false);
+		$cu->meta(AdminThemeBridge::userColorsMeta, array('variant' => 'purple', 'color' => ''));
+		$memo->setValue($bridge, null);
+		check('an unknown saved preset falls back to the site\'s colour', $bridge->userColors() === null && $bridge->getVariant() === $bridge->siteVariant());
+		$bridge->set('userColors', 0);
+		$cu->meta(AdminThemeBridge::userColorsMeta, array('variant' => 'pink', 'color' => ''));
+		$memo->setValue($bridge, null);
+		check('with "Users choose their own colour" off, the site\'s colour and no picker', $bridge->getVariant() === $bridge->siteVariant() && $bridge->renderColorPicker() === '');
+		$bridge->set('userColors', 1);
+		if(is_array($was)) $cu->meta(AdminThemeBridge::userColorsMeta, $was); else $cu->meta()->remove(AdminThemeBridge::userColorsMeta);
+		$wire->users->setCurrentUser($guest);
+		$memo->setValue($bridge, null);
+	}
+	check('the picker saves through the admin, before the Process runs', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "addHookBefore('ProcessController::execute', \$this, 'hookUserColorsSave')") !== false
+		&& strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeUserColors.php'), '$this->wire()->session->CSRF->hasValidToken()') !== false);
+}
+check('the picker\'s work is a runtime chunk; editors follow a colour change', strpos($srcOf('index.ts'), "import('./util/colors')") !== false
+	&& strpos($srcOf('classic/main.js'), "document.addEventListener('pw-variant-change'") !== false);
+
 // 0.21.1: every icon the shell shows on every screen is in the subsets
 $faCssShipped = (string) @file_get_contents($themeDir . 'assets/fonts/fa-6.7.2/fa.css');
 $solidRange = preg_match('/font-family:"Font Awesome 6 Free";font-style:normal;font-weight:900;font-display:block;src:url\(fa-solid-900-subset[^)]*\)[^;]*;unicode-range:([^}]+)\}/', $faCssShipped, $fm) ? $fm[1] : '';
@@ -1233,7 +1270,7 @@ $widgetsCss = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/style
 check('UX4 whole items drag after a touch hold; only handles take the finger at once', strpos($srcOf('util/sortable.ts'), "if (e.pointerType === 'touch' && getComputedStyle(grip).touchAction !== 'none') {") !== false
 	&& strpos($widgetsCss, '.asmListSortable .asmListItem, .pw-sortable-item { touch-action: none; }') === false && strpos($widgetsCss, '.InputfieldRepeaterDrag { touch-action: none; }') !== false);
 $tokensCss = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/styles/00-tokens.css');
-check('UX5 control edges at 3:1 and one stacking scale', strpos($tokensCss, '--input: #8c8c8c;') !== false && strpos($tokensCss, '--pw-z-popup: 80;') !== false
+check('UX5 neutral control edges (the owner\'s call, 0.22.0) and one stacking scale', strpos($tokensCss, '--input: #e5e5e5;') !== false && strpos($tokensCss, '--pw-z-popup: 80;') !== false
 	&& strpos($widgetsCss, '.pw-group-actions { position: fixed; z-index: var(--pw-z-popup);') !== false);
 
 // 0.20.0: dialogs, drawer and tabs (audit UX1); the browser side is tools/a11y-check.js

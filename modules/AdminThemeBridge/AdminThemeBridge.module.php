@@ -17,6 +17,7 @@ require_once(__DIR__ . '/lib/AdminThemeBridgeHead.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgePageAdd.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeFiles.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeCsp.php');
+require_once(__DIR__ . '/lib/AdminThemeBridgeUserColors.php');
 
 /**
  * AdminThemeBridge
@@ -50,11 +51,12 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	use AdminThemeBridgePageAdd;
 	use AdminThemeBridgeFiles;
 	use AdminThemeBridgeCsp;
+	use AdminThemeBridgeUserColors;
 
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.21.1',
+			'version' => '0.22.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -336,6 +338,20 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	protected $variants = array('blue', 'vibrant', 'black', 'pink', 'green', 'custom');
 
 	/**
+	 * The user page's meta key of the user's own colour (userColors(), 0.22.0)
+	 *
+	 */
+	const userColorsMeta = 'AdminThemeBridge.colors';
+
+	/**
+	 * userColors() for this request: null before it is asked, false when the user has none
+	 *
+	 * @var array|false|null
+	 *
+	 */
+	protected $userColorsValue = null;
+
+	/**
 	 * Control classes added to Inputfields by type (hookInputfieldRender); never on the wrapper
 	 *
 	 * @var array class => array(control class, content class)
@@ -435,6 +451,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->set('pageSaveInPlace', 1);
 		$this->set('pageAddSkipTemplate', 0);
 		$this->set('dangerWarn', 1);
+		$this->set('userColors', 1);
 		$this->set('dataTableSortRows', 10);
 		$this->set('printScripts', '');
 		$this->set('nativeOverrides', '');
@@ -516,6 +533,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// they get ready, so opening one later loads the legacy stack it needs
 		$this->addHookAfter('Inputfield::renderReadyHook', $this, 'hookInputfieldReady');
 		$this->addHookBefore('ProcessController::execute', $this, 'hookProcessExecuteBefore');
+		// a user's own colour, saved from the user menu (0.22.0)
+		if($this->userColors) $this->addHookBefore('ProcessController::execute', $this, 'hookUserColorsSave');
 		$this->addHookAfter('ProcessController::execute', $this, 'hookProcessExecute');
 		// LanguageTabs appends `setupLanguageTabs($('#form'))` to each form with language tabs; on a
 		// page without jQuery the runtime sets them up itself (milestone 2.4). On every wrapper, as

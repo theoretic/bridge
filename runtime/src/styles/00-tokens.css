@@ -29,8 +29,7 @@
 	--accent-foreground: #171717;
 	--destructive: #e7000b;
 	--border: #e5e5e5;
-	/* a control's edge at 3:1 on white (WCAG 1.4.11, audit UX5); --border stays for dividers */
-	--input: #8c8c8c;
+	--input: #e5e5e5;
 	--shadow-xs: 0 1px 2px 0 rgb(0 0 0 / .05);
 	--shadow-sm: 0 1px 3px 0 rgb(0 0 0 / .1), 0 1px 2px -1px rgb(0 0 0 / .1);
 	--shadow-md: 0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1);
@@ -96,7 +95,7 @@
 	--accent-foreground: #fafafa;
 	--destructive: #ff6467;
 	--border: rgb(255 255 255 / .1);
-	--input: rgb(255 255 255 / .36); /* 3:1 on the dark background (UX5) */
+	--input: rgb(255 255 255 / .15);
 	--success: #4ade80;
 	--warning: #fbbf24;
 	--pw-status-success-bg: #052e16; --pw-status-success-border: #166534; --pw-status-success-fg: #bbf7d0; --pw-status-success-icon: #4ade80;

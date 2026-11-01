@@ -39,6 +39,8 @@ export const Bridge = {
 	// ADR 0019); a promise, and callbacks for classic scripts calling through the stand-in
 	confirm: (opts: AskOptions | string, onOk?: () => void, onCancel?: () => void): Promise<boolean> => import('./util/danger').then(m => m.callbacks(m.confirm(opts), onOk, onCancel)),
 	guard: (opts: AskOptions, onOk?: () => void, onCancel?: () => void): Promise<boolean> => import('./util/danger').then(m => m.callbacks(m.guard(opts), onOk, onCancel)),
+	// the user's own colour from the user menu (0.22.0); the theme script hands its picks here
+	colors: (el: HTMLElement, save = true): Promise<void> => import('./util/colors').then(m => m.pick(el, save), err => failed('colour', err)),
 	init(): void {
 		defineTabs();
 		defineDialog();

@@ -626,6 +626,7 @@ var ProcessWireAdminTheme = {
 			// editors whose scripts arrive with the legacy stack (loaded on demand)
 			document.addEventListener('pw-legacy-loaded', function() { self.ckeditor(); self.tinymce(); });
 			document.addEventListener('pw-scheme-change', function(e) { self.refresh(e.detail && e.detail.source); });
+			document.addEventListener('pw-variant-change', function() { self.refresh('toggle'); });
 		},
 
 		dark: function() {
@@ -1034,6 +1035,14 @@ var ProcessWireAdminTheme = {
 			if(!remove) return;
 			e.preventDefault();
 			self.removeNotices(remove.closest('#notices'));
+		});
+		// the user's own colour (0.22.0): a swatch's click, the custom colour while it moves (input)
+		// and once set (change) go to the runtime (util/colors.ts), which is a chunk of its own
+		['click', 'input', 'change'].forEach(function(type) {
+			document.addEventListener(type, function(e) {
+				var el = e.target.closest && e.target.closest('[data-pw-variant-pick]');
+				if(el && (type === 'click') === (el.tagName === 'BUTTON') && window.Bridge) window.Bridge.colors(el, type !== 'input');
+			});
 		});
 		// mobile nav toggle: theme-owned, works with and without jQuery. The drawer is a disclosure
 		// (audit UX1): opening it focuses its first link; Escape closes it and focuses the toggle;

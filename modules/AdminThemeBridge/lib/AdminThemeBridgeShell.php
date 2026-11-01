@@ -10,27 +10,26 @@
 trait AdminThemeBridgeShell {
 
 	/**
-	 * Current colour variant, validated
+	 * Current colour variant, validated: the user's own (0.22.0, userColors()), else the site's
 	 *
 	 * @return string
 	 *
 	 */
 	public function getVariant() {
-		$variant = (string) $this->get('variant');
-		if(!in_array($variant, $this->variants, true)) $variant = 'blue';
-		if($variant === 'custom' && $this->getPrimaryColor() === '') $variant = 'blue';
-		return $variant;
+		$own = $this->userColors();
+		return $own ? $own['variant'] : $this->siteVariant();
 	}
 
 	/**
-	 * Custom primary colour as #rrggbb, or '' when unset or invalid
+	 * Custom primary colour as #rrggbb, or '' when unset or invalid: the user's own when they
+	 * picked a custom colour, else the site's
 	 *
 	 * @return string
 	 *
 	 */
 	public function getPrimaryColor() {
-		$color = trim((string) $this->get('primaryColor'));
-		return preg_match('/^#[0-9a-f]{6}$/i', $color) ? strtolower($color) : '';
+		$own = $this->userColors();
+		return $own && $own['variant'] === 'custom' ? $own['color'] : $this->sitePrimaryColor();
 	}
 
 	/**
@@ -503,7 +502,7 @@ trait AdminThemeBridgeShell {
 			"<ul class='pw-user-nav'><li class='pw-dropdown'>" .
 			"<a id='tools-toggle' class='pw-dropdown-toggle' aria-haspopup='true' aria-expanded='false'$profile>" .
 			$this->renderNavIcon('user') . $name . "</a>" .
-			"<ul class='pw-dropdown-menu' data-my='right top' data-at='right bottom' style='display:none'>$out</ul>" .
+			"<ul class='pw-dropdown-menu' data-my='right top' data-at='right bottom' style='display:none'>$out" . $this->renderColorPicker() . "</ul>" .
 			"</li></ul>";
 	}
 

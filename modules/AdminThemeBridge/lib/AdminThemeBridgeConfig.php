@@ -58,11 +58,22 @@ trait AdminThemeBridgeConfig {
 		$f->attr('value', (string) $this->get('primaryColor'));
 		// a value the theme cannot use falls back to blue: say so (audit SU9)
 		$color = trim((string) $this->get('primaryColor'));
-		if($color !== '' && $this->getPrimaryColor() === '') {
+		if($color !== '' && $this->sitePrimaryColor() === '') {
 			$f->error(sprintf(__('Not a hex colour (#RRGGBB): %s. The blue preset is used instead.', __FILE__), $color));
 		}
 		$f->showIf = 'variant=custom';
 		$f->columnWidth = 50;
+		$fs->add($f);
+
+		/** @var InputfieldCheckbox $f */
+		$f = $modules->get('InputfieldCheckbox');
+		$f->attr('name', 'userColors');
+		$f->label = __('Users choose their own colour', __FILE__);
+		$f->label2 = __('Users choose their own colour', __FILE__);
+		$f->description = __('A colour picker in the user menu: each user can take another preset or a colour of their own, kept with the user and used on every device. The colour above stays the default and is what the login screen shows.', __FILE__);
+		$f->attr('value', 1);
+		if($this->userColors) $f->attr('checked', 'checked');
+		$f->collapsed = Inputfield::collapsedNever;
 		$fs->add($f);
 
 		/** @var InputfieldRadios $f */

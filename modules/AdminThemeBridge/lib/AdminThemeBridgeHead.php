@@ -268,6 +268,8 @@ trait AdminThemeBridgeHead {
 		$bridgeJs['legacyStyles'] = $legacyStyles;
 		$bridgeJs['colorScheme'] = $this->getColorScheme();
 		$bridgeJs['variant'] = $this->getVariant();
+		// the site's colour, which "Site default" in the user menu goes back to (0.22.0)
+		$bridgeJs['site'] = array('variant' => $this->siteVariant(), 'primary' => $this->sitePrimaryColor());
 		$bridgeJs['legacyReasons'] = $this->getLegacyReasons();
 		$bridgeJs['pageSave'] = $scripts['pageSave'];
 		// risky action warnings (ADR 0019); a rename only warns when no path history keeps the old URL

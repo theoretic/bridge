@@ -1,5 +1,12 @@
 # Changelog
 
+## AdminThemeBridge 0.22.0: each user's own colour; neutral input borders again (2026-11-01)
+
+- **Each user picks their own colour** at the end of the user menu: the five presets, each swatch in its own colour for the current scheme, a custom colour (the browser's colour picker, previewed while it moves) and "Site default". The page switches at once. The choice is kept with the user, in the user page's meta data (`AdminThemeBridge.colors`), so it is on every device and in the page before its first paint. The site's colour (Appearance > Colour) stays the default and is what the login screen shows. A new setting, Appearance > "Users choose their own colour", on by default, turns the picker off and makes everyone use the site's colour again.
+- The picker saves with a POST to the admin, answered before the Process runs (`bridgeColors=1`, `variant`, `color`, the CSRF token). Its script is a runtime chunk loaded on the first pick; rich text editors follow a colour change as they follow a scheme change (`pw-variant-change` on document).
+- **Input borders are neutral again** (`--input` `#e5e5e5`, and the light 15 % edge in the dark scheme), as before 0.20.1. The darker 3:1 edge of 0.20.1 is reverted: the owner's call. The colour never depended on the variant.
+- `theme.css` gzip budget 15.75 to 16 KiB for the picker.
+
 ## AdminThemeBridge 0.21.1: no full icon font on every screen (2026-11-01)
 
 Found by the benchmark rerun of the 2026-11-01 audit. The user menu's "smaller" button (`fa-search-minus`) was missing from the Font Awesome solid subset: the theme passes the icon's name bare to a helper, which the build's code scan does not see. Every admin screen therefore fetched the full solid face, 158 kB, on top of the 22 kB subset. `runtime/fa-icons.txt` now lists both scale icons, the subsets are cut again, and the smoke test checks that the two code points are in the subset.
