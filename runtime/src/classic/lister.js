@@ -36,10 +36,14 @@
 		var color = getComputedStyle(document.documentElement).getPropertyValue('--pw-primary-bg').trim() || '#ffffaa';
 		el.animate([{ backgroundColor: color }, { backgroundColor: 'transparent' }], { duration: 400 });
 	}
-	function runScript(code) {
+	// code from the results' ProcessListerScript part, run as that element (its nonce kept: with a
+	// page nonce it runs only when the response vouched for it, audit SE2)
+	function runScript(code, from, nonce) {
 		var s = document.createElement('script');
 		s.text = code;
-		window.ProcessWireAdminTheme.runScripts([s]);
+		var own = from ? (from.nonce || from.getAttribute('nonce') || '') : '';
+		if(own) s.setAttribute('nonce', own);
+		window.ProcessWireAdminTheme.runScripts([s], { nonce: nonce });
 	}
 	function bridge() { return window.Bridge || null; }
 
@@ -52,10 +56,17 @@
 	 * the page that code runs as upstream; without jQuery it would throw, so the same is done here:
 	 * config merged, styles appended, scripts kept for a later stack load (they are legacy scripts).
 	 */
-	function runListerScript(js) {
+	function runListerScript(js, part, nonce) {
 		js = (js || '').trim();
 		if(!js) return;
-		if(window.jQuery) return runScript(js);
+		// with a page nonce the part is used only when the response vouched for it: its config, styles
+		// and script URLs would otherwise come from whatever markup ended up in the results (SE2)
+		var page = window.ProcessWireAdminTheme.nonce ? window.ProcessWireAdminTheme.nonce() : '';
+		if(page && (!nonce || (part.nonce || part.getAttribute('nonce') || '') !== nonce)) {
+			if(window.console) console.warn('Bridge Lister: the results\' script part has no nonce of its response, not used (Content-Security-Policy)');
+			return;
+		}
+		if(window.jQuery) return runScript(js, part, nonce);
 		var config = (window.ProcessWire && window.ProcessWire.config) || null;
 		var m = js.match(/var configAdd=(\{[\s\S]*?\});\s*\$\.extend\(config, configAdd\);/);
 		if(m && config) {
@@ -228,10 +239,11 @@
 			if(rowIDs.length) { data.append('row_page_id', rowIDs.join(',')); ProcessLister.resetTotal = false; }
 			ProcessLister.inAjax = true;
 			ProcessLister.spin(true);
+			var nonce = '';
 			fetch(url, { method: 'POST', body: data, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
 				// an error page is never put in the results (nor are its scripts run)
-				.then(function(res) { if(!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
-				.then(function(html) { ProcessLister._submitSuccess(html); })
+				.then(function(res) { if(!res.ok) throw new Error('HTTP ' + res.status); nonce = res.headers.get('X-Bridge-Nonce') || ''; return res.text(); })
+				.then(function(html) { ProcessLister._submitSuccess(html, nonce); })
 				.catch(function(err) {
 					ProcessLister.inAjax = false;
 					ProcessLister.spin(false);
@@ -239,7 +251,7 @@
 				});
 		},
 
-		_submitSuccess: function(data) {
+		_submitSuccess: function(data, nonce) {
 			var results = ProcessLister.results;
 			var refreshAll = true;
 			ProcessLister.inAjax = false;
@@ -324,12 +336,12 @@
 			// quotes, and an output filter that drops them made it run ".getScript(..."
 			var parsed = new DOMParser().parseFromString('<div>' + data + '</div>', 'text/html');
 			var part = parsed.getElementById('ProcessListerScript');
-			if(part) runListerScript(part.textContent);
+			if(part) runListerScript(part.textContent, part, nonce);
 			// inline scripts run as with upstream's .html(data): every one in fresh results (column
 			// and extension markup too), the field scripts of refreshed rows
 			var theme = window.ProcessWireAdminTheme;
-			if(refreshAll) theme.runScripts(results, { legacy: !!results.querySelector('[data-bridge-legacy]') });
-			else theme.runScripts($$('.Inputfield script', parsed));
+			if(refreshAll) theme.runScripts(results, { legacy: !!results.querySelector('[data-bridge-legacy]'), nonce: nonce });
+			else theme.runScripts($$('.Inputfield script', parsed), { nonce: nonce });
 		},
 
 		_refreshRow: function(pageID, message) {

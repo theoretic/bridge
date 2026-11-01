@@ -74,7 +74,9 @@ trait AdminThemeBridgeRewrites {
 	 * there. Wrapped, it runs once the stack loads (if it does).
 	 *
 	 * Both of core's head scripts get the request's nonce (ADR 0020): that one, wrapped or not, and
-	 * AdminTheme::getExtraMarkup()'s `window.CKEDITOR_BASEPATH` on page editors.
+	 * AdminTheme::getExtraMarkup()'s `window.CKEDITOR_BASEPATH` on page editors, each when its whole
+	 * text is core's (knownInlineScripts(), audit SE1). A failed pattern match returns the markup
+	 * as it came (audit BG1).
 	 *
 	 * @param string $markup
 	 * @return string
@@ -83,13 +85,17 @@ trait AdminThemeBridgeRewrites {
 	public function deferLegacyInline($markup) {
 		$markup = (string) $markup;
 		if(strpos($markup, '<script>') === false) return $markup;
-		$open = $this->nonceScriptTag('<script>');
-		if($open !== '<script>') $markup = str_replace("<script>window.CKEDITOR_BASEPATH='", $open . "window.CKEDITOR_BASEPATH='", $markup);
-		if(strpos($markup, 'vex.') === false) return $markup;
-		$legacy = $this->useLegacyStack();
-		return preg_replace_callback('~<script>(\s*vex\..*?)</script>~s', function($m) use($open, $legacy) {
-			return $open . ($legacy ? $m[1] : "ProcessWireAdminTheme.legacy.later(function(){" . $m[1] . "});") . "</script>";
+		$legacy = null;
+		$result = preg_replace_callback('~<script>(.*?)</script>~s', function($m) use(&$legacy) {
+			$body = $m[1];
+			$open = $this->nonceKnownScript('<script>', $body);
+			if(strpos(ltrim($body), 'vex.') === 0) {
+				if($legacy === null) $legacy = $this->useLegacyStack();
+				if(!$legacy) $body = 'ProcessWireAdminTheme.legacy.later(function(){' . $body . '});';
+			}
+			return $open . $body . '</script>';
 		}, $markup);
+		return is_string($result) ? $result : $markup;
 	}
 
 	/**
@@ -97,9 +103,11 @@ trait AdminThemeBridgeRewrites {
 	 * LanguageTabs' inline setup only where jQuery is, and give the request's nonce to the core
 	 * inline scripts a native screen keeps: that one, the repeater item's config
 	 * (`ProcessWire.config['…'] = …`, InputfieldRepeater.module), the Lister's bookmark line
-	 * (`ProcessLister.initialized = true`, ProcessPageListerBookmarks.php) and the submit button's
-	 * dropdown (`InputfieldSubmitDropdown.init(…)`, InputfieldSubmit.module). Known scripts only
-	 * (ADR 0020); a nested wrapper's output is rewritten once, the patterns no longer match after.
+	 * (`ProcessLister.initialized = true`, ProcessPageListerBookmarks.php), the submit button's
+	 * dropdown (`InputfieldSubmitDropdown.init(…)`, InputfieldSubmit.module) and the other core
+	 * scripts of knownInlineScripts() a form carries. Known scripts only, by their whole text (ADR
+	 * 0020, audit SE1): a script that only begins like one of them stays without the nonce. A nested
+	 * wrapper's output is stamped once: a stamped tag is no bare `<script>` any more.
 	 *
 	 * @param HookEvent $event
 	 *
@@ -107,19 +115,16 @@ trait AdminThemeBridgeRewrites {
 	public function hookFormRender(HookEvent $event) {
 		$out = $event->return;
 		if(!is_string($out) || strpos($out, '<script>') === false) return;
-		$open = $this->nonceScriptTag('<script>');
-		$from = array("<script>setupLanguageTabs($('#");
-		$to = array($open . "window.jQuery && setupLanguageTabs(jQuery('#");
-		if($open !== '<script>') {
-			$from[] = "<script>ProcessWire.config['";
-			$to[] = $open . "ProcessWire.config['";
-			$from[] = '<script>ProcessLister.initialized = true;</script>';
-			$to[] = $open . 'ProcessLister.initialized = true;</script>';
-			$from[] = "<script>InputfieldSubmitDropdown.init('#";
-			$to[] = $open . "InputfieldSubmitDropdown.init('#";
-		}
-		$result = str_replace($from, $to, $out);
-		if($result !== $out) $event->return = $result;
+		$result = preg_replace_callback('~<script>(.*?)</script>~s', function($m) {
+			$body = $m[1];
+			$open = $this->nonceKnownScript('<script>', $body);
+			// LanguageTabs' setup runs only where jQuery is; the runtime sets the tabs up otherwise
+			if(preg_match("~\\AsetupLanguageTabs\\(\\$\\('#([A-Za-z0-9_:.-]+)'\\)\\);\\z~", trim($body), $t)) {
+				$body = "window.jQuery && setupLanguageTabs(jQuery('#$t[1]'));";
+			}
+			return $open . $body . '</script>';
+		}, $out);
+		if(is_string($result) && $result !== $out) $event->return = $result;
 	}
 
 	/**
@@ -138,8 +143,9 @@ trait AdminThemeBridgeRewrites {
 	 *
 	 */
 	public function nativeInlineScripts($out) {
-		if(strpos($out, 'ready(function() {') === false && strpos($out, 'iFrameResize(') === false) return $out;
 		if(stripos($out, '<script') === false) return $out;
+		// nothing to rewrite, and no nonce to give to the core scripts it knows
+		if(strpos($out, 'ready(function() {') === false && strpos($out, 'iFrameResize(') === false && $this->cspNonce() === '') return $out;
 		$ready = "(window.jQuery ? jQuery : function(f) { document.readyState === 'loading' ? " .
 			"document.addEventListener('DOMContentLoaded', f) : f(); })(function() { ";
 		$from = array(
@@ -158,8 +164,9 @@ trait AdminThemeBridgeRewrites {
 		);
 		$result = preg_replace_callback('~(<script\b[^>]*>)(.*?)(</script>)~is', function($m) use($from, $to) {
 			$code = str_replace($from, $to, $m[2]);
-			// a core script the theme rewrote is one it vouches for: it gets the nonce (ADR 0020)
-			return ($code === $m[2] ? $m[1] : $this->nonceScriptTag($m[1])) . $code . $m[3];
+			// the nonce goes by what core printed, never by whether a rewrite happened: any script
+			// containing a ready() call was rewritten, and vouched for, before (ADR 0020, audit SE1)
+			return $this->nonceKnownScript($m[1], $m[2]) . $code . $m[3];
 		}, $out);
 		return is_string($result) ? $result : $out;
 	}
@@ -176,7 +183,7 @@ trait AdminThemeBridgeRewrites {
 		$out = $event->return;
 		if(!is_string($out) || strpos($out, '<script>initPageEditForm();</script>') === false) return;
 		$event->return = str_replace('<script>initPageEditForm();</script>',
-			$this->nonceScriptTag('<script>') . "typeof initPageEditForm === 'function' ? initPageEditForm() : " .
+			$this->nonceKnownScript('<script>', 'initPageEditForm();') . "typeof initPageEditForm === 'function' ? initPageEditForm() : " .
 			"window.ProcessWireAdminTheme && ProcessWireAdminTheme.pageEdit && ProcessWireAdminTheme.pageEdit.init();</script>", $out);
 	}
 }

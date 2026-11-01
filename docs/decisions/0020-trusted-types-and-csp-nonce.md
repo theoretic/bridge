@@ -180,7 +180,15 @@ a delegated listener in `scripts/setup.js` asks through `Bridge.confirm`. Proces
 `onclick="return false"` on disabled items goes the same way. `tools/csp-check.js` lists handlers
 on native screens as WARN lines; 0.18.1 turns them into failures.
 
-### 0.18.1: Trusted Types in the scripts
+### 0.18.1 as built (2026-11-01): the nonce rule first
+
+The 2026-11-01 audit found the nonce stamped by prefix (SE1) and fragment scripts re-run without the
+rule of decision 3 (SE2). 0.18.1 fixes both: `knownInlineScripts()` matches each core script from
+start to end, and both runners apply decision 3 with `responseNonce()`, with the budget raise of
+item 7 below. Items 1 (the runner part), 2 (`responseNonce()`), 3 (the fetch sites) and 7 are done;
+the Trusted Types sweep below moves to 0.18.4.
+
+### 0.18.4 (was 0.18.1): Trusted Types in the scripts
 
 1. `runtime/src/classic/main.js`: `ProcessWireAdminTheme.trusted` (policy, `html`, `script`,
    `scriptURL`, `nonce` read from the meta); `runScripts()` with the nonce rule and `createScript`;

@@ -12,7 +12,7 @@
 // Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url> for
 // another sandbox. Page /bridge-native/ (NATIVE_ID, default 1517) from tools/sandbox-fixture.php:
 // bf_images (3 images), bf_image (single), bf_files (2 files); a legacy editor with the same field
-// types, /bridge-fixture/ (LEGACY_ID, default 1494).
+// types, /bridge-fixture/ (LEGACY_ID, else FIXTURE_ID, default 1494).
 // IGNORE_ERRORS=<regex>: page errors of known third-party bugs to leave out (davinci: Fluency loads
 // fluency.bundle.js from a relative URL, whose HTML answer throws "Unexpected token '<'").
 // NO_IMAGE_UPLOAD=1: skip the image upload round trip (atispro: the site's own upload hook,
@@ -22,7 +22,7 @@ const browserName = process.argv[3] || 'firefox';
 const sandbox = require('./lib/sandbox.cjs');
 const ADMIN = sandbox.adminUrl();
 const NATIVE = process.env.NATIVE_ID || '1517';
-const LEGACY = process.env.LEGACY_ID || '1494';
+const LEGACY = process.env.LEGACY_ID || process.env.FIXTURE_ID || '1494'; // /bridge-fixture/
 const results = [];
 const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info === undefined ? '' : String(info).slice(0, 400) }); };
 
@@ -467,6 +467,11 @@ const PNG = makePng(48, 32, [40, 120, 220]);
 	const askInfo = ask ? await page.evaluate(() => ({ rows: document.querySelectorAll('dialog.pw-ask-move li').length, button: document.querySelector('dialog.pw-ask-move button[value="ok"]').textContent })) : null;
 	check('T two images onto a field with room for one: partial, the dialog says one moves', t4.partial.join() === 'wrap_Inputfield_bf_docs' && t4.count === '2' && askInfo && askInfo.rows === 2 && /1/.test(askInfo.button), JSON.stringify({ t4, askInfo }));
 	if(ask) await page.click('dialog.pw-ask-move button[value="ok"]');
+	// images into a plain file field lose their sized copies: the risky-action warning asks too
+	// (0.15.0, ADR 0019; on by default)
+	const warned = await waitFor(() => !!document.querySelector('dialog.pw-ask-danger[open]'), null, 5000);
+	check('T images into a file field: the warning names the loss of their sized copies', warned);
+	if(warned) await page.click('dialog.pw-ask-danger[open] button[value="ok"]');
 	await settled();
 	const nT4 = await allNames();
 	check('T the first image moved into Docs, the other stayed', nT4.docs.length === 2 && nT4.docs.indexOf(n0.images[0]) > -1 && nT4.images.join() === n0.images.slice(1).join(), JSON.stringify(nT4));

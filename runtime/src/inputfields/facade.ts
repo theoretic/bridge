@@ -13,7 +13,7 @@ import { open, close, toggle, isCollapsed } from './collapse';
 import { isHidden } from './dependencies';
 import { installGlobal } from '../util/stubs';
 import { legacyLoaded } from '../legacy';
-import { runScripts } from '../util/scripts';
+import { runScripts, responseNonce } from '../util/scripts';
 
 type Target = string | Element | ArrayLike<Element> | null | undefined;
 
@@ -156,8 +156,9 @@ export const InputfieldsFacade = {
 			url += (url.indexOf('?') > -1 ? '&' : '?') + 'field=' + name + '&reloadInputfieldAjax=' + name;
 			if (fnsx) url += '&fnsx=' + fnsx;
 			if (extraData && typeof extraData === 'object' && extraData.queryString) url += '&' + extraData.queryString;
+			let nonce = '';
 			fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-				.then(r => r.text())
+				.then(r => { nonce = responseNonce(r); return r.text(); })
 				.then(html => {
 					if (html.indexOf('{') === 0) return;
 					const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -166,7 +167,7 @@ export const InputfieldsFacade = {
 					const mine = li.querySelector(':scope > .InputfieldContent');
 					if (!content || !mine) return;
 					mine.innerHTML = content.innerHTML;
-					return runScripts(mine, { legacy: !!li.querySelector('[data-bridge-legacy]') }).then(() => {
+					return runScripts(mine, { legacy: !!li.querySelector('[data-bridge-legacy]'), nonce }).then(() => {
 						li.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { source: 'reload' } }));
 					});
 				})

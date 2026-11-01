@@ -27,7 +27,7 @@ import { makeSortable } from '../util/sortable';
 import { getCookie, setCookie } from '../util/cookie';
 import { choose } from '../util/choose';
 import { legacyLoaded } from '../legacy';
-import { runScripts } from '../util/scripts';
+import { runScripts, responseNonce } from '../util/scripts';
 import { changed, setValue } from '../util/events';
 import { fetchOk, failed } from '../util/fail';
 import { open as openField, close as closeField, isCollapsed } from '../inputfields/collapse';
@@ -283,15 +283,23 @@ function itemUrl(repeater: HTMLElement, extra: string, pageID?: number): string 
 	return url + (version ? '&version=' + version : '') + extra;
 }
 
+/** the response's nonce for its scripts (responseNonce()), by its parsed document */
+const nonces = new WeakMap<Document, string>();
+
 async function getHtml(url: string): Promise<Document> {
 	const res = await fetchOk(url);
-	return new DOMParser().parseFromString(await res.text(), 'text/html');
+	const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+	nonces.set(doc, responseNonce(res, doc));
+	return doc;
 }
 
-/** inline scripts of new content run (upstream runScripts); legacy content once the stack is there */
-function runFieldScripts(root: HTMLElement): Promise<void> {
+/**
+ * inline scripts of new content run (upstream runScripts); legacy content once the stack is there;
+ * with a page nonce only those the response vouched for (audit SE2)
+ */
+function runFieldScripts(root: HTMLElement, doc: Document): Promise<void> {
 	const scripts = Array.from(root.querySelectorAll<HTMLScriptElement>('.Inputfield script'));
-	return runScripts(scripts, { legacy: !!root.querySelector('[data-bridge-legacy]') });
+	return runScripts(scripts, { legacy: !!root.querySelector('[data-bridge-legacy]'), nonce: nonces.get(doc) || '' });
 }
 
 /**
@@ -348,7 +356,7 @@ async function loadItem(item: HTMLElement): Promise<void> {
 		updateAccordion(item);
 		toggleFamily(item, true);
 		if (fields) {
-			await runFieldScripts(fields);
+			await runFieldScripts(fields, doc);
 			initContent(fields, 'InputfieldRepeaterItemEdit', added);
 		}
 	} catch (err) {
@@ -445,7 +453,7 @@ async function addItem(link: HTMLElement): Promise<void> {
 		updateAccordion(item);
 		item.querySelectorAll<HTMLElement>('.InputfieldRepeater').forEach(r => initRepeater(r));
 		repeater.classList.add('InputfieldStateChanged');
-		await runFieldScripts(item);
+		await runFieldScripts(item, doc);
 	} catch (err) {
 		if (spinner) { spinner.classList.remove(...on); spinner.classList.add(...off); }
 		dropPlaceholders(list);

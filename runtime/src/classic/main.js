@@ -26,12 +26,22 @@ var ProcessWireAdminTheme = {
 	 * marked data-bridge-legacy expects jQuery. The one runner for the theme's classic scripts and
 	 * the runtime (util/scripts.ts), replacing four that differed (audit B22).
 	 *
+	 * On a page with a Content-Security-Policy nonce (meta[property=csp-nonce], ADR 0020) a script
+	 * runs only when its own nonce is the one its response carried (options.nonce: the response's
+	 * X-Bridge-Nonce header or its document's meta), and the live copy gets this page's nonce. Any
+	 * other script is skipped with one warning: a copy made here would run under 'strict-dynamic'
+	 * whatever it says, and markup injected into a fragment is what the policy is there to stop
+	 * (audit SE2). Without a nonce on the page nothing changes.
+	 *
 	 * @param {Element|Element[]} rootOrScripts A container (its scripts run) or a list of scripts
-	 * @param {{legacy?: boolean}} [options]
+	 * @param {{legacy?: boolean, nonce?: string}} [options]
 	 * @returns {Promise}
 	 */
 	runScripts: function(rootOrScripts, options) {
 		var self = this;
+		var page = self.nonce();
+		var want = (options && options.nonce) || '';
+		var skipped = 0;
 		var scripts;
 		if(Array.isArray(rootOrScripts)) scripts = rootOrScripts;
 		else if(rootOrScripts && rootOrScripts.tagName === 'SCRIPT') scripts = [rootOrScripts];
@@ -50,8 +60,12 @@ var ProcessWireAdminTheme = {
 					var here = old.isConnected && old.ownerDocument === document;
 					var src = old.getAttribute('src');
 					if(src && loaded.filter(function(u) { return u === src; }).length > (here ? 1 : 0)) continue;
+					// the nonce IDL property survives nonce hiding in this page, the attribute is what a
+					// parsed document has
+					if(page && (!want || (old.nonce || old.getAttribute('nonce') || '') !== want)) { skipped++; continue; }
 					var live = document.createElement('script');
-					Array.prototype.forEach.call(old.attributes, function(a) { live.setAttribute(a.name, a.value); });
+					Array.prototype.forEach.call(old.attributes, function(a) { if(a.name !== 'nonce') live.setAttribute(a.name, a.value); });
+					if(page) live.nonce = page;
 					var wait = null;
 					if(src) {
 						live.async = false;
@@ -63,6 +77,7 @@ var ProcessWireAdminTheme = {
 					else document.body.appendChild(live);
 					if(wait) return wait.then(next);
 				}
+				if(skipped && window.console) console.warn('Bridge: ' + skipped + ' script(s) without the response\'s nonce not run (Content-Security-Policy)');
 			};
 			return Promise.resolve(next());
 		};
@@ -73,6 +88,15 @@ var ProcessWireAdminTheme = {
 			});
 		}
 		return run();
+	},
+
+	/**
+	 * This page's Content-Security-Policy nonce (meta[property=csp-nonce], ADR 0020), '' for none
+	 * @returns {string}
+	 */
+	nonce: function() {
+		var m = document.querySelector('meta[property="csp-nonce"]');
+		return (m && (m.nonce || m.getAttribute('nonce'))) || '';
 	},
 
 	/**
@@ -1567,6 +1591,8 @@ var ProcessWireAdminTheme = {
 		loadScript: function(url) {
 			return new Promise(function(resolve, reject) {
 				var s = document.createElement('script');
+				var nonce = ProcessWireAdminTheme.nonce();
+				if(nonce) s.nonce = nonce;
 				s.src = url;
 				s.async = false;
 				s.onload = function() { resolve(url); };

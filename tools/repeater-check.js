@@ -29,11 +29,13 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const statePath = process.env.PW_STATE || '';
 	const ctx = await browser.newContext(Object.assign({ viewport: { width: 1300, height: 950 } },
 		statePath && fs.existsSync(statePath) ? { storageState: statePath } : {}));
-	const consoleErrors = require('./console-errors')(ctx);
+	// page 1224 shows images whose files the sandbox does not copy (tools/sandbox-site.sh leaves out
+	// assets/files): their 404s are the sandbox's, not the editor's
+	const consoleErrors = require('./console-errors')(ctx, /status of 404 .*\/assets\/files\//);
 	const page = await ctx.newPage();
 	const errors = [];
 	const ignore = process.env.IGNORE_ERRORS ? new RegExp(process.env.IGNORE_ERRORS) : null;
-	page.on('pageerror', e => { if(!ignore || !ignore.test(e.message)) errors.push(e.message); });
+	page.on('pageerror', e => { if(!ignore || !ignore.test(e.message + ' ' + (e.stack || ''))) errors.push(page.url().replace(ADMIN, '') + ': ' + e.message + ' @ ' + String(e.stack || '').split(String.fromCharCode(10)).slice(1, 3).map(s => s.trim()).join(' / ')); });
 	page.on('dialog', d => d.accept());
 
 	const open = async (id) => {

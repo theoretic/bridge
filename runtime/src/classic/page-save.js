@@ -252,7 +252,7 @@
 		while(body.firstChild) body.removeChild(body.firstChild);
 		Array.prototype.slice.call(newBody.childNodes).forEach(function(n) { body.appendChild(document.adoptNode(n)); });
 		swapHeadAndNotices(doc);
-		runScripts(body);
+		runScripts(body, docNonce(doc));
 		var theme = window.ProcessWireAdminTheme;
 		if(theme && theme.setupHeadButtons) theme.setupHeadButtons();
 		// the screen's own set-up (tabs, sliders, field list), as at load
@@ -288,7 +288,7 @@
 
 		swapHeadAndNotices(doc);
 
-		runScripts(body);
+		runScripts(body, docNonce(doc));
 		var $ = window.jQuery;
 		var theme = window.ProcessWireAdminTheme;
 		// head-button copies before upstream binds the dropdown toggles (the 'reloaded' below)
@@ -312,10 +312,17 @@
 	// scripts parsed by DOMParser never run: the theme's shared runner makes live copies, in order
 	// (synchronous: no legacy wait, the editor's own stack state does not change on a save). Inline
 	// ones only: they carry the per-render set-up; a src one ran with the page, again would bind twice
-	function runScripts(root) {
+	// with a page nonce only the scripts the saved response vouched for run (audit SE2): its
+	// document's meta carries that response's nonce
+	function docNonce(doc) {
+		var meta = doc.querySelector('meta[property="csp-nonce"]');
+		return (meta && meta.getAttribute('nonce')) || '';
+	}
+
+	function runScripts(root, nonce) {
 		var $ = window.jQuery;
 		var before = $ ? submitConfirmHandlers() : [];
-		window.ProcessWireAdminTheme.runScripts(Array.prototype.slice.call(root.querySelectorAll('script:not([src])')));
+		window.ProcessWireAdminTheme.runScripts(Array.prototype.slice.call(root.querySelectorAll('script:not([src])')), { nonce: nonce });
 		// initPageEditForm() binds a document-delegated upload confirm on every run: keep the first
 		if($ && before.length) submitConfirmHandlers().forEach(function(h) {
 			if(before.indexOf(h) < 0) jQuery(document).off('click', 'button[type=submit]', h.handler);

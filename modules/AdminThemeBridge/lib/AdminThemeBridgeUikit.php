@@ -163,7 +163,10 @@ trait AdminThemeBridgeUikit {
 		$key = $file . '|' . filemtime($file) . '|' . filesize($file);
 		if($this->uikitVerdicts === null) $this->loadVerdicts();
 		if(!isset($this->uikitVerdicts[$key])) {
-			$this->uikitVerdicts[$key] = self::needsUikit((string) file_get_contents($file, false, null, 0, 512 * 1024));
+			$verdict = self::needsUikit((string) file_get_contents($file, false, null, 0, 512 * 1024));
+			// a failed pattern: "needs it" for this request only, never kept (audit BG1)
+			if(preg_last_error() !== PREG_NO_ERROR) return $verdict;
+			$this->uikitVerdicts[$key] = $verdict;
 			$this->uikitVerdictsChanged = true;
 		}
 		return (bool) $this->uikitVerdicts[$key];
@@ -177,10 +180,13 @@ trait AdminThemeBridgeUikit {
 	 *
 	 */
 	public static function needsUikit($js) {
-		$js = preg_replace('~/\*.*?\*/~s', '', $js);
-		$js = (string) preg_replace('~(^|[^:\'"\\\\])//[^\n]*~m', '$1', (string) $js);
-		if(preg_match('/\bwindow\.UIkit\b|\btypeof\s+(window\.)?UIkit\b|[\'"]UIkit[\'"]\s+in\s+window/', $js)) return false;
-		return (bool) preg_match('/\bUIkit\b/', $js);
+		$js = self::stripJsComments($js);
+		// a pattern that failed: assume it does (the layer loads, nothing breaks; audit BG1)
+		if($js === null) return true;
+		$checks = preg_match('/\bwindow\.UIkit\b|\btypeof\s+(window\.)?UIkit\b|[\'"]UIkit[\'"]\s+in\s+window/', $js);
+		if($checks === false) return true;
+		if($checks) return false;
+		return preg_match('/\bUIkit\b/', $js) !== 0;
 	}
 
 	/**

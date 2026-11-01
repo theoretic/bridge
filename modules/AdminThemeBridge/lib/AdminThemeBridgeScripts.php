@@ -86,7 +86,11 @@ trait AdminThemeBridgeScripts {
 		$key = $file . '|' . filemtime($file) . '|' . filesize($file);
 		if($this->jqueryVerdicts === null) $this->loadVerdicts();
 		if(!isset($this->jqueryVerdicts[$key])) {
-			$this->jqueryVerdicts[$key] = self::needsJquery((string) file_get_contents($file, false, null, 0, 512 * 1024));
+			$verdict = self::needsJquery((string) file_get_contents($file, false, null, 0, 512 * 1024));
+			// a pattern that failed (backtrack limit) answers "needs it" for this request only: a
+			// verdict kept forever must come from a complete scan (audit BG1)
+			if(preg_last_error() !== PREG_NO_ERROR) return $verdict;
+			$this->jqueryVerdicts[$key] = $verdict;
 			$this->jqueryVerdictsChanged = true;
 		}
 		return (bool) $this->jqueryVerdicts[$key];
@@ -162,12 +166,29 @@ trait AdminThemeBridgeScripts {
 	 *
 	 */
 	public static function needsJquery($js) {
-		// comments out (a // inside a string such as 'http://' is left alone: a : or quote before it)
-		$js = preg_replace('~/\*.*?\*/~s', '', $js);
-		$js = (string) preg_replace('~(^|[^:\'"\\\\])//[^\n]*~m', '$1', (string) $js);
+		$js = self::stripJsComments($js);
+		// a pattern that failed: assume it does (the stack loads, nothing breaks); preg_last_error()
+		// tells isJqueryScript() not to keep the verdict (audit BG1)
+		if($js === null) return true;
 		// a script that asks whether jQuery is there runs without it
-		if(preg_match('/\bwindow\.jQuery\b|\btypeof\s+(window\.)?jQuery\b|[\'"]jQuery[\'"]\s+in\s+window/', $js)) return false;
-		return (bool) preg_match('/\bjQuery\b|(?<![\w$])\$\s*\(|(?<![\w$])\$\.\w/', $js);
+		$checks = preg_match('/\bwindow\.jQuery\b|\btypeof\s+(window\.)?jQuery\b|[\'"]jQuery[\'"]\s+in\s+window/', $js);
+		if($checks === false) return true;
+		if($checks) return false;
+		return preg_match('/\bjQuery\b|(?<![\w$])\$\s*\(|(?<![\w$])\$\.\w/', $js) !== 0;
+	}
+
+	/**
+	 * A script source without its comments (a // inside a string such as 'http://' is left alone:
+	 * a : or quote before it), for needsJquery() and needsUikit()
+	 *
+	 * @param string $js
+	 * @return string|null Null when a pattern failed (preg_last_error() says why)
+	 *
+	 */
+	public static function stripJsComments($js) {
+		$js = preg_replace('~/\*.*?\*/~s', '', (string) $js);
+		if($js === null) return null;
+		return preg_replace('~(^|[^:\'"\\\\])//[^\n]*~m', '$1', $js);
 	}
 
 	/**

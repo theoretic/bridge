@@ -20,6 +20,8 @@
  * Only for admin pages whose current admin theme is AdminThemeBridge: under another theme the
  * theme's inline scripts carry no nonce and an enforced policy would break the admin. A site that
  * already sends its own policy does not need this module: hook AdminThemeBridge::nonce instead.
+ * If both run, the module's header goes out next to the site's, never in its place (0.1.1): the
+ * browser enforces both, so the site's policy can only get stricter.
  *
  * Original work, MIT.
  */
@@ -28,7 +30,7 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge CSP',
-			'version' => '0.1.0',
+			'version' => '0.1.1',
 			'summary' => 'Nonce-based Content-Security-Policy and Trusted Types for the Bridge admin (report-only or enforced).',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -128,7 +130,8 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 		$policy = $this->policyFor($this->get('policy'));
 		if($policy !== '') {
 			$name = $this->get('mode') === self::modeEnforce ? 'Content-Security-Policy' : 'Content-Security-Policy-Report-Only';
-			header("$name: $policy");
+			// next to any policy the site sends, never in its place (audit SE6)
+			header("$name: $policy", false);
 		}
 		$report = $this->policyFor($this->get('reportPolicy'));
 		if($report !== '') header("Content-Security-Policy-Report-Only: $report", false);
@@ -147,7 +150,7 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 		$f = $modules->get('InputfieldRadios');
 		$f->attr('name', 'mode');
 		$f->label = $this->_('Mode');
-		$f->description = $this->_('Report only first: the admin works as before and the browser console lists what the policy would block. Enforce once the screens you use report nothing.');
+		$f->description = $this->_('Report only first: the admin works as before and the browser console lists what the policy would block. Enforce once the screens you use report nothing. A policy the site sends itself stays: this one goes out next to it, and the browser applies both.');
 		$f->notes = $this->_('Not ready to enforce yet (Bridge 0.18.0): the theme\'s scripts still trip Trusted Types, and core\'s module list asks before Delete and Install through inline handlers that an enforced policy blocks, so those buttons would act without asking.');
 		$f->addOption(self::modeOff, $this->_('Off'));
 		$f->addOption(self::modeReport, $this->_('Report only'));

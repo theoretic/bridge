@@ -27,7 +27,7 @@ class ProcessBridgeDemo extends Process implements Module, BridgeComponent {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge demo',
-			'version' => '0.1.0',
+			'version' => '0.2.0',
 			'summary' => 'Test page for AdminThemeBridge: a Process without jQuery, with lazy-loaded legacy field.',
 			'author' => 'Alexei Tarasov',
 			'permission' => 'page-edit',
@@ -295,5 +295,32 @@ gamma", 'maxItems' => 1, 'columnWidth' => 50));
 		$f->collapsed = Inputfield::collapsedYes;
 		$wrapper->add($f);
 		return $wrapper->render();
+	}
+
+	/**
+	 * The CSP probe (Setup > Bridge demo > csp/, tools/csp-check.js; audit SE2): a field loaded over
+	 * AJAX whose markup holds two inline scripts, one with the request's nonce and one without.
+	 * Under a nonce-based policy only the first may run; without one, both run as before.
+	 *
+	 * @return string
+	 *
+	 */
+	public function ___executeCsp() {
+		$modules = $this->wire()->modules;
+		$adminTheme = $this->wire()->adminTheme;
+		$nonce = $adminTheme && method_exists($adminTheme, 'nonceAttr') ? $adminTheme->nonceAttr() : '';
+		/** @var InputfieldForm $form */
+		$form = $modules->get('InputfieldForm');
+		$form->attr('id', 'BridgeDemoCsp');
+		/** @var InputfieldMarkup $f */
+		$f = $modules->get('InputfieldMarkup');
+		$f->attr('name', 'csp_probe');
+		$f->label = 'CSP probe (loaded over AJAX)';
+		$f->collapsed = Inputfield::collapsedYesAjax;
+		$f->value = "<p>Two inline scripts: one with the response's nonce, one without.</p>" .
+			"<script$nonce>window.__bridgeVouched = (window.__bridgeVouched || 0) + 1;</script>" .
+			"<script>window.__bridgeUnvouched = (window.__bridgeUnvouched || 0) + 1;</script>";
+		$form->add($f);
+		return $form->render();
 	}
 }

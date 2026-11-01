@@ -217,15 +217,21 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	t = await tabs();
 	check('J the remembered tab is used once', t.active.join() === '_ProcessPageEditContent', JSON.stringify(t));
 
-	// K: a save while an upload runs asks first
+	// K: a save while an upload runs waits for it (scripts/save-wait.js, 0.12.0); a second click
+	// saves now, after the theme's dialog asks (0.15.0); Cancel keeps the page
 	dialogs = [];
-	dialogAnswer = false;
 	await page.evaluate(() => document.body.classList.add('pw-uploading'));
 	m = await mark();
 	await page.click('#submit_save');
-	await page.waitForTimeout(800);
-	check('K upload in progress: asks, cancel keeps the page', dialogs.length === 1 && await page.evaluate(() => window.__pwMark) === m && !(await page.evaluate(() => window.__pwSaved)), JSON.stringify(dialogs));
-	dialogAnswer = true;
+	await page.waitForTimeout(700);
+	const waitingNow = await page.evaluate(() => document.body.classList.contains('pw-save-waiting'));
+	await page.click('#submit_save');
+	const asked = await page.waitForSelector('dialog.pw-ask[open]', { timeout: 3000 }).then(() => true, () => false);
+	if(asked) await page.click('dialog.pw-ask[open] button[value="cancel"]');
+	await page.waitForTimeout(500);
+	check('K upload in progress: the save waits, a second click asks, Cancel keeps the page', waitingNow && asked && !dialogs.length
+		&& await page.evaluate(() => window.__pwMark) === m && !(await page.evaluate(() => window.__pwSaved)), JSON.stringify({ waitingNow, asked, dialogs }));
+	await page.keyboard.press('Escape');
 	await page.evaluate(() => document.body.classList.remove('pw-uploading'));
 
 	// L: the Children tab's page tree (native since milestone 3.4) opens without the stack

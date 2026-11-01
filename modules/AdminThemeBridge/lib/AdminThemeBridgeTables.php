@@ -12,7 +12,8 @@ trait AdminThemeBridgeTables {
 	/**
 	 * Hook after MarkupAdminDataTable::render: its inline `initTable($('#id'))` gets the element
 	 * itself where jQuery is not on the page (the runtime's AdminDataTable takes either), and the
-	 * script gets the request's nonce (ADR 0020)
+	 * script gets the request's nonce (ADR 0020). Only core's script, by its whole text (audit SE1);
+	 * a failed match leaves the output as it was (audit BG1).
 	 *
 	 * @param HookEvent $event
 	 *
@@ -20,10 +21,13 @@ trait AdminThemeBridgeTables {
 	public function hookDataTableRender(HookEvent $event) {
 		$out = $event->return;
 		if(!is_string($out) || strpos($out, "AdminDataTable.initTable($('#") === false) return;
-		$out = preg_replace('~AdminDataTable\.initTable\(\$\(\'#([^\']+)\'\)\)~',
-			'AdminDataTable.initTable(window.jQuery ? jQuery(\'#$1\') : document.getElementById(\'$1\'))', $out);
-		$event->return = str_replace("<script>if(typeof AdminDataTable != 'undefined') AdminDataTable.initTable(",
-			$this->nonceScriptTag('<script>') . "if(typeof AdminDataTable != 'undefined') AdminDataTable.initTable(", $out);
+		$result = preg_replace_callback('~<script>(.*?)</script>~s', function($m) {
+			$pattern = "~\\Aif\\(typeof AdminDataTable != 'undefined'\\) AdminDataTable\\.initTable\\(\\$\\('#([A-Za-z0-9_:.-]+)'\\)\\);\\z~";
+			if(!preg_match($pattern, trim($m[1]), $t)) return $m[0];
+			return $this->nonceKnownScript('<script>', $m[1]) . "if(typeof AdminDataTable != 'undefined') " .
+				"AdminDataTable.initTable(window.jQuery ? jQuery('#$t[1]') : document.getElementById('$t[1]'));</script>";
+		}, $out);
+		if(is_string($result) && $result !== $out) $event->return = $result;
 	}
 
 	/**

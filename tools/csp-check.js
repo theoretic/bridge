@@ -64,6 +64,21 @@ const SCREENS = [
 	...(process.env.SCREENS ? process.env.SCREENS.split(',').map(s => s.trim()).filter(Boolean) : []),
 ];
 
+// the fragment probe (audit SE2): Setup > Bridge demo > csp/ loads a field over AJAX whose markup
+// holds a script with the response's nonce and one without; returns how often each ran
+async function probe(page) {
+	await page.goto(ADMIN + 'setup/bridge-demo/csp/', { waitUntil: 'networkidle' });
+	const header = page.locator('li.Inputfield_csp_probe > .InputfieldHeader');
+	if(!(await header.count())) return { error: 'no probe field (ProcessBridgeDemo 0.2.0?)' };
+	await header.click();
+	await page.waitForFunction(() => {
+		const li = document.querySelector('li.Inputfield_csp_probe');
+		return li && !li.classList.contains('InputfieldAjaxLoading') && !li.querySelector('.renderInputfieldAjax');
+	}, null, { timeout: 15000 }).catch(() => {});
+	await page.waitForTimeout(300);
+	return page.evaluate(() => ({ vouched: window.__bridgeVouched || 0, unvouched: window.__bridgeUnvouched || 0 }));
+}
+
 const sandboxMode = (mode) => {
 	const out = execFileSync(PHP, [path.join(REPO, 'tools', 'sandbox-csp.php'), SANDBOX].concat(mode ? [mode] : []), { encoding: 'utf8' });
 	const m = out.match(/mode (\S+)(?: -> (\S+))?/);
@@ -164,6 +179,14 @@ async function visit(page, url) {
 			visits.push(v);
 		}
 		check('no page errors under the report-only policy', errors.length === 0, errors.slice(0, 4).join(' | '));
+		// a fragment's scripts: with the nonce only the vouched one runs; without, both, as before
+		const probePage = await ctx.newPage(); // a tab of its own: the last screen may still navigate
+		const withNonce = await probe(probePage);
+		check('fragment probe under the policy: the vouched script ran, the other did not', withNonce.vouched === 1 && withNonce.unvouched === 0, JSON.stringify(withNonce));
+		sandboxMode('off');
+		const without = await probe(probePage);
+		check('fragment probe without a policy: both scripts ran', without.vouched === 1 && without.unvouched === 1, JSON.stringify(without));
+		sandboxMode('report-only');
 		await ctx.close();
 	} finally {
 		await browser.close();

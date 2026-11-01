@@ -37,7 +37,7 @@ trait AdminThemeBridgeHealth {
 	 * The loader reads 'template=admin' from the module info cache, not from the class; with no
 	 * entry it takes autoload=true (ModulesLoader.php:570, 3.0.274) and inits the theme at boot,
 	 * before the page is known. That happens when the cache rebuild that ends an install never ran
-	 * to the end (atis.pro 2026-10-17: a site module ran out of memory there), and
+	 * to the end (a live site, 2026-10-17: a site module ran out of memory there), and
 	 * Modules::refresh() does not repair it: it skips the rebuild while no module file changed.
 	 *
 	 * @return bool
@@ -106,7 +106,7 @@ trait AdminThemeBridgeHealth {
 	 * AdminThemeBoss::init() then calls $user->setAndSave('admin_theme', 'AdminThemeUikit') for
 	 * any user with another theme, on every request: no user can keep this theme, and the save
 	 * runs at boot, before any template file, so site hooks on Pages::saved run without whatever
-	 * the site's prepend file sets up (testfly.me 2026-10-18: 'Class "SiteIndex" not found').
+	 * the site's prepend file sets up (a live site, 2026-10-18: 'Class "SiteIndex" not found').
 	 *
 	 * @return bool
 	 *

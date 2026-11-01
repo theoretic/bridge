@@ -1,5 +1,18 @@
 # Changelog
 
+## AdminThemeBridge 0.18.1: the nonce means what it says (2026-11-01)
+
+From the 2026-11-01 audit (security, SE1 and SE2). Sites without a Content-Security-Policy see no change.
+
+- **Core's inline scripts are known by their whole text.** 0.18.0 put the nonce on any inline script that only began like one of core's (the repeater's config, the submit dropdown, the LanguageTabs line, any `$(document).ready(…)` on a native screen, the vex and CKEditor lines, the data table line). Markup injected into a form that started its script the same way was vouched for. Each known script is now matched from start to end, allowing only what core puts in it (an id, a field name, a JSON value). Others get no nonce, also when the theme rewrites their jQuery `ready()` call.
+- **Scripts of HTML loaded later run only with their response's nonce.** An AJAX field, a repeater item, Lister results and the in-place save run the inline scripts that came with them. Under a nonce-based policy with `'strict-dynamic'` a copy made by the theme's script ran whatever it said. On a page with a nonce, a script now runs only when it carries the nonce of the response it came in (the `X-Bridge-Nonce` header, or the saved page's own meta), and the copy gets the page's nonce. Others are skipped with one console warning. The Lister's script part follows the same rule.
+- **The legacy stack, when it loads late, gets the page's nonce** on each of its script tags.
+- **A failed pattern breaks nothing any more.** A regular expression that hits PCRE's backtrack limit on a large page returned nothing, which emptied the head's extra markup or a data table. It now leaves the markup as it was. A script scan that fails answers "needs jQuery" for that request and is not kept in the cache, where a wrong verdict used to stay.
+- **Bridge CSP 0.1.1 adds its header next to a site's own policy** instead of replacing it; the browser enforces both. Its settings say so.
+- For module authors: an inline script in markup that arrives over AJAX needs `$adminTheme->nonceAttr()` too, `<script src>` included (`docs/contract.md` 2.1). `ProcessWireAdminTheme.nonce()` returns the page's nonce.
+- For developers: Setup > Bridge demo > csp/ (ProcessBridgeDemo 0.2.0) loads a field over AJAX holding one script with the response's nonce and one without, and `tools/csp-check.js` checks that only the first runs under the policy and both run without it. The size budgets of `runtime.js`, `main.js` and the classic scripts are raised as ADR 0020 planned.
+- `tools/page-edit-check.js` K follows 0.12.0 and 0.15.0: a save during an upload waits, and a second click asks in the theme's dialog.
+
 ## AdminThemeBridge 0.18.0: a nonce for a Content-Security-Policy (2026-11-01)
 
 First step of Trusted Types and CSP support, from [issue 1](https://github.com/theoretic/bridge/issues/1). Decision in `docs/decisions/0020-trusted-types-and-csp-nonce.md`. Sites without a policy see no change.
