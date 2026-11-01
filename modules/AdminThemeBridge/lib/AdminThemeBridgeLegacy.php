@@ -39,7 +39,10 @@ trait AdminThemeBridgeLegacy {
 			($collapsed === Inputfield::collapsedBlankAjax && $inputfield->isEmpty());
 		if(!$ajax || !$this->wire()->user->isLoggedin()) return false;
 		if($inputfield->getSetting('required') && $inputfield->isEmpty()) return false;
-		if($this->wire()->config->ajax && $this->wire()->input->get('renderInputfieldAjax') === $inputfield->attr('id')) return false;
+		$ajaxID = $this->wire()->config->ajax ? (string) $this->wire()->input->get('renderInputfieldAjax') : '';
+		if($ajaxID !== '' && $ajaxID === $inputfield->attr('id')) return false;
+		// the AJAX request for a field inside this one renders that field, not a placeholder (BG5)
+		if($ajaxID !== '' && $inputfield instanceof InputfieldWrapper && $inputfield->getChildByName(str_replace('Inputfield_', '', $ajaxID))) return false;
 		return true;
 	}
 

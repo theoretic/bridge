@@ -62,8 +62,11 @@ trait AdminThemeBridgeShell {
 	/**
 	 * Is this URL an asset of another admin theme module (AdminThemeUikit, AdminThemeBoss, ...)?
 	 *
-	 * Matches a path segment /AdminTheme<Name>/ other than this theme's. Core's shared
-	 * wire/templates-admin/styles/AdminTheme.css is not a theme module asset and is kept.
+	 * A path segment /AdminTheme<Name>/ names another theme when that installed module is an admin
+	 * theme (extends AdminTheme) or AdminThemeBoss, a Uikit add-on that appends its full Uikit build
+	 * on every admin request (audit BG4: a name prefix alone also dropped AdminThemeCustomizer and
+	 * /AdminThemeBridgeX/). Core's shared wire/templates-admin/styles/AdminTheme.css is no theme
+	 * module asset and is kept.
 	 *
 	 * @param string $url
 	 * @return bool
@@ -72,7 +75,31 @@ trait AdminThemeBridgeShell {
 	public function isOtherThemeAsset($url) {
 		// UIkit's script, added by a module, is that module's request for UIkit (ADR 0017)
 		if(self::isUikitScript($url)) return false;
-		return (bool) preg_match('~/AdminTheme(?!Bridge/)[A-Za-z0-9]+/~', (string) $url);
+		if(!preg_match_all('~/(AdminTheme[A-Za-z0-9_]+)/~', (string) $url, $m)) return false;
+		foreach($m[1] as $name) {
+			if($name !== $this->className() && $this->isOtherThemeModule($name)) return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Is this module name another admin theme, or AdminThemeBoss? Asked once per name and request.
+	 *
+	 * @param string $name
+	 * @return bool
+	 *
+	 */
+	protected function isOtherThemeModule($name) {
+		if(isset($this->otherThemeModules[$name])) return $this->otherThemeModules[$name];
+		$modules = $this->wire()->modules;
+		$is = false;
+		if($name === 'AdminThemeBoss') {
+			$is = true;
+		} else if($modules->isInstalled($name) && $modules->includeModule($name)) {
+			$class = wireClassName($name, true);
+			$is = class_exists($class, false) && is_subclass_of($class, __NAMESPACE__ . '\\AdminTheme');
+		}
+		return $this->otherThemeModules[$name] = $is;
 	}
 
 	/**
@@ -271,6 +298,8 @@ trait AdminThemeBridgeShell {
 	 */
 	public function shellLabel($key) {
 		switch($key) {
+			// the admin's language code for <html lang>: translate "en" to the language's own code (audit SE6)
+			case 'lang': return __('en', __FILE__);
 			case 'menu': return __('Menu', __FILE__);
 			case 'mainNav': return __('Main', __FILE__); // the main navigation landmark
 			case 'breadcrumbs': return __('Breadcrumbs', __FILE__);
@@ -372,7 +401,9 @@ trait AdminThemeBridgeShell {
 			$attrs = '';
 			foreach($item as $name => $value) {
 				if(!is_string($name) || is_array($value) || is_object($value)) continue;
-				if(in_array($name, $allowAttrs, true) || strpos($name, 'data-') === 0 || strpos($name, 'on') === 0) {
+				// an attribute name and nothing else (audit SE6); an on* handler is core's contract and
+				// stays, but a Content-Security-Policy without 'unsafe-inline' blocks it
+				if(in_array($name, $allowAttrs, true) || preg_match('/^(data-[a-z0-9_.-]+|on[a-z]+)$/', $name)) {
 					if($value === '' || $value === null) continue;
 					$attrs .= " $name='" . $sanitizer->entities((string) $value) . "'";
 				}
@@ -457,7 +488,8 @@ trait AdminThemeBridgeShell {
 		if($this->isModal || !$this->isLoggedIn) return '';
 		$sanitizer = $this->wire()->sanitizer;
 		$extended = (bool) $this->extendedBreadcrumbs;
-		$process = $this->wire()->page->process;
+		// the process field may hold the module itself (instantiated): core compares its name (BG3)
+		$process = (string) $this->wire()->page->process;
 		$isPageEdit = $process === 'ProcessPageEdit';
 		if($extended) {
 			if($process === 'ProcessPageList') return '';

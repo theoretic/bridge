@@ -90,8 +90,8 @@ foreach($adminTheme->assetUrls($styles) as $file) {
 if($useUikit) echo "\n\t<link type='text/css' href='" . $attr($uikitCss) . "' rel='stylesheet' data-pw-uikit />";
 echo "\n\t<link type='text/css' href='" . $attr($themeCss) . "' rel='stylesheet' data-pw-theme />";
 echo "\n\t<link type='text/css' href='" . $attr($fieldsCss) . "' rel='stylesheet' data-pw-fields />";
-if($adminTheme->maxWidth) {
-	echo "\n\t<style data-pw-keep$nonce>.pw-container, #notices { max-width:" . (int) $adminTheme->maxWidth . "px; }</style>";
+if($adminTheme->getMaxWidth()) {
+	echo "\n\t<style data-pw-keep$nonce>.pw-container, #notices { max-width:" . $adminTheme->getMaxWidth() . "px; }</style>";
 }
 // the runtime module and the chunk it imports statically, fetched while the page parses instead
 // of after main.js imports it at the end of the body (audit B21, C32); same URL as that import()

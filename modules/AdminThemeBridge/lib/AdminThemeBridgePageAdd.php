@@ -29,6 +29,9 @@ trait AdminThemeBridgePageAdd {
 		if($this->wire()->page->process != 'ProcessPageAdd') return;
 		// a template chosen in the URL (nav shortcuts, Save + Publish + Add Another) is a choice
 		if(!$input->requestMethod('GET') || $input->get('template_id') || $input->get('name_format')) return;
+		// a GET that creates a page: only for a navigation from this site (audit SE6); a request from
+		// another site (an image tag, a link elsewhere) gets the form, as without the setting
+		if(!$this->pageAddSameOrigin()) return;
 		$parent = $pages->get((int) $input->get('parent_id'));
 		// upstream's own quick add (childNameFormat) had its go before buildForm()
 		if(!$parent->id || strlen((string) $parent->template->childNameFormat)) return;
@@ -47,6 +50,26 @@ trait AdminThemeBridgePageAdd {
 		// still here: the quick add did not go through, so the form is built as upstream does
 		$pages->removeHook($hookId);
 		$input->get->remove('name_format');
+	}
+
+	/**
+	 * Is this request a navigation from this site? Fetch metadata where the browser sends it
+	 * (Sec-Fetch-Site same-origin, or none for a typed or bookmarked address; Sec-Fetch-Dest a
+	 * document or a frame), else the referrer's host against $config->httpHost. Anything else gets
+	 * Add New's form instead of a quick add.
+	 *
+	 * @return bool
+	 *
+	 */
+	public function pageAddSameOrigin() {
+		$site = strtolower((string) ($_SERVER['HTTP_SEC_FETCH_SITE'] ?? ''));
+		if($site !== '') {
+			$dest = strtolower((string) ($_SERVER['HTTP_SEC_FETCH_DEST'] ?? 'document'));
+			return in_array($site, array('same-origin', 'none'), true) && in_array($dest, array('document', 'iframe', 'frame'), true);
+		}
+		$referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
+		$host = $referer === '' ? '' : strtolower((string) parse_url($referer, PHP_URL_HOST) . (parse_url($referer, PHP_URL_PORT) ? ':' . parse_url($referer, PHP_URL_PORT) : ''));
+		return $host !== '' && $host === strtolower((string) $this->wire()->config->httpHost);
 	}
 
 	/**

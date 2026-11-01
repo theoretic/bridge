@@ -851,6 +851,51 @@ if(isset($bridge) && $bridge) {
 	check('SE3 the move endpoint asks ProcessPageEdit::ajaxEditable() for the page and both fields', strpos($filesSrc, '!$process->ajaxEditable($page)') !== false
 		&& strpos($filesSrc, '!$process->ajaxEditable($page, $from->name) || !$process->ajaxEditable($page, $to->name)') !== false);
 	check('SE3 the move endpoint answers no raw exception text', strpos($filesSrc, "catch(\\Throwable \$e)") !== false && strpos($filesSrc, "get_class(\$e) === WireException::class") !== false);
+
+	// audit 2026-11-01, R4: server hardening and bugs
+	check('SE6 <html lang> is escaped and translated in the shell\'s textdomain', $bridge->shellLabel('lang') === 'en'
+		&& strpos((string) file_get_contents($themeDir . '_main.php'), "entities(\$adminTheme->shellLabel('lang'))") !== false);
+	$navHook = $bridge->addHookAfter('getUserNavArray', function(HookEvent $e) {
+		$items = $e->return;
+		$items[] = array('url' => '/x/', 'title' => 'Smoke', "onclick' data-evil='1" => 'x', 'data-smoke' => 'y', 'onclick' => 'return true', 'style' => 'color:red');
+		$e->return = $items;
+	});
+	$nav = $bridge->renderUserNav();
+	$bridge->removeHook($navHook);
+	$nav = preg_match('~<a [^>]*>Smoke</a>~', $nav, $navItem) ? $navItem[0] : $nav;
+	check('SE6 user nav prints attribute names it can name, as core documents them', strpos($nav, "data-smoke='y'") !== false && strpos($nav, "onclick='return true'") !== false
+		&& strpos($nav, 'data-evil') === false && strpos($nav, 'style=') === false, $nav);
+	check('BG4 another theme\'s assets are dropped by its module, not by a name prefix',
+		$bridge->isOtherThemeAsset($config->urls->modules . 'AdminTheme/AdminThemeUikit/uikit/dist/css/uikit.pw.min.css')
+		&& $bridge->isOtherThemeAsset($config->urls->siteModules . 'AdminThemeBoss/styles/x.css')
+		&& !$bridge->isOtherThemeAsset($config->urls->siteModules . 'AdminThemeCustomizer/x.js')
+		&& !$bridge->isOtherThemeAsset($config->urls->siteModules . 'AdminThemeBridgeX/x.js')
+		&& !$bridge->isOtherThemeAsset($config->urls->adminTemplates . 'styles/AdminTheme.css'));
+	$printScriptsWas = $bridge->get('printScripts');
+	$list = new \ReflectionMethod($bridge, 'printScriptsList');
+	$bridge->set('printScripts', "/a.js");
+	$first = $list->invoke($bridge);
+	$bridge->set('printScripts', "/b.js");
+	$second = $list->invoke($bridge);
+	$bridge->set('printScripts', $printScriptsWas);
+	check('BG2 a new printScripts value drops the parsed list', $first === array('/a.js') && $second === array('/b.js'), json_encode(array($first, $second)));
+	check('BG2 the head prints the clamped maximum width', strpos((string) file_get_contents($themeDir . '_head.php'), '$adminTheme->getMaxWidth()') !== false
+		&& strpos((string) file_get_contents($themeDir . '_head.php'), '(int) $adminTheme->maxWidth') === false);
+	check('BG3 the breadcrumbs compare the Process by name, as core does', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php'), '$process = (string) $this->wire()->page->process;') !== false);
+	$serverWas = $_SERVER;
+	$_SERVER['HTTP_SEC_FETCH_SITE'] = 'cross-site';
+	$_SERVER['HTTP_SEC_FETCH_DEST'] = 'document';
+	$cross = $bridge->pageAddSameOrigin();
+	$_SERVER['HTTP_SEC_FETCH_SITE'] = 'same-origin';
+	$_SERVER['HTTP_SEC_FETCH_DEST'] = 'image';
+	$image = $bridge->pageAddSameOrigin();
+	$_SERVER['HTTP_SEC_FETCH_DEST'] = 'document';
+	$nav2 = $bridge->pageAddSameOrigin();
+	unset($_SERVER['HTTP_SEC_FETCH_SITE'], $_SERVER['HTTP_SEC_FETCH_DEST']);
+	$_SERVER['HTTP_REFERER'] = 'https://elsewhere.example/page';
+	$foreign = $bridge->pageAddSameOrigin();
+	$_SERVER = $serverWas;
+	check('SE6 Add New quick-adds only for a navigation from this site', !$cross && !$image && $nav2 && !$foreign, json_encode(array($cross, $image, $nav2, $foreign)));
 }
 
 // 0.15.0: risky action warnings (ADR 0019)

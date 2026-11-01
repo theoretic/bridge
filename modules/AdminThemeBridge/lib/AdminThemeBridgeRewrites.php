@@ -37,11 +37,20 @@ trait AdminThemeBridgeRewrites {
 			// deferLegacyInline(): the head's core inline scripts (ADR 0020)
 			'modules/Jquery/JqueryUI/JqueryUI.module' => array("\"<script>\" .\n\t\t\t\"vex.defaultOptions.className='vex-theme-default';\" ."),
 			'core/Admin/AdminTheme.php' => array("\$parts['head'] .= \"<\$script>\" . \n\t\t\t\t\"window.CKEDITOR_BASEPATH='\""),
+			// _masthead.php names the search landmark by these (audit SU4, BG5)
+			'modules/Process/ProcessPageSearch/ProcessPageSearch.module' => array("<form id='ProcessPageSearchForm'", "id='ProcessPageSearchQuery'"),
+			// _footer.php moves the debug panel into a dialog (scripts/debug-tools.js)
+			'templates-admin/debug.inc' => array('<div id="debug">', 'var $debug = $("#debug");'),
+			// init(): the login form's inputs keep their labels as accessible names (audit SU5)
+			'modules/Process/ProcessLogin/ProcessLogin.module' => array("attr('id+name', 'login_name')", "attr('id+name', 'login_pass')"),
+			// getBrowserTitle(): the product name in the window title
+			'core/Admin/AdminThemeFramework.php' => array("' • ProcessWire';"),
 			// isAjaxPlaceholder() (lib/AdminThemeBridgeLegacy.php) copies this condition
 			'core/Inputfield/InputfieldWrapper.php' => array(
 				'$ajaxInputfield = $collapsed == Inputfield::collapsedYesAjax || $collapsed === Inputfield::collapsedTabAjax',
 				'|| ($collapsed == Inputfield::collapsedBlankAjax && $inputfield->isEmpty());',
 				"if(\$ajaxInputfield && ((\$required && \$inputfield->isEmpty()) || !\$this->wire()->user->isLoggedin())) {",
+				"} else if(\$ajaxID && \$ajaxID != \$inputfieldID && \$inputfield instanceof InputfieldWrapper &&",
 			),
 		);
 	}

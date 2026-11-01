@@ -1,5 +1,19 @@
 # Changelog
 
+## AdminThemeBridge 0.18.3: smaller fixes on the server side (2026-11-01)
+
+From the 2026-11-01 audit (SE6, BG2 to BG5).
+
+- **Add New's quick add (setting "Step 2 if template auto-selected") works only for a navigation from this site.** It creates a page on a plain address. A request from another site, such as an image tag pointing at it, now gets the Add New form instead, as without the setting. The theme reads the browser's fetch metadata, or else the referrer.
+- **The `lang` attribute of the page is escaped**, and its translation is now looked up where the language tools file it (translate "en" in `lib/AdminThemeBridgeShell.php`).
+- **User menu items print only real attribute names.** Core lets a module add `href`, `target`, `class`, `id`, `data-*` and `onclick` to an item; a key with other characters in it is now left out. `onclick` stays, as core documents it, but a Content-Security-Policy without `'unsafe-inline'` blocks it.
+- **Another admin theme's assets are recognised by its module.** Bridge drops the styles and scripts other admin themes add to every admin page. A module whose name only starts with "AdminTheme" (AdminThemeCustomizer, say) kept nothing of its own before; now only installed admin themes and AdminThemeBoss lose theirs.
+- The extended breadcrumbs recognise the page editor when the process field holds the module itself.
+- The maximum content width is printed as the settings screen clamps it (0 to 4000 px).
+- A new `printScripts` setting takes effect within the same request.
+- An AJAX request for a field inside an AJAX-loaded fieldset is no longer taken for a placeholder, as core decides it.
+- `tests/smoke.php` now watches more core strings the theme relies on: the search form, the debug panel, the login inputs and the window title.
+
 ## AdminThemeBridge 0.18.2: moves between file fields ask what saves ask (2026-11-01)
 
 From the 2026-11-01 audit (security, SE3).

@@ -53,7 +53,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.18.2',
+			'version' => '0.18.3',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -494,7 +494,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	}
 
 	/**
-	 * Set a property; a new nativeOverrides value drops the parsed copy (getNativeOverrides())
+	 * Set a property; a new nativeOverrides or printScripts value drops its parsed copy
+	 * (getNativeOverrides(), printScriptsList(); audit BG2)
 	 *
 	 * @param string $key
 	 * @param mixed $value
@@ -503,6 +504,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 */
 	public function set($key, $value) {
 		if($key === 'nativeOverrides') $this->nativeOverridesCache = null;
+		if($key === 'printScripts') $this->printScriptsList = null;
 		return parent::set($key, $value);
 	}
 
@@ -513,6 +515,13 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 *
 	 */
 	protected $urlsMemo = array();
+
+	/**
+	 * isOtherThemeModule() answers for this request: module name => bool
+	 *
+	 * @var array
+	 */
+	protected $otherThemeModules = array();
 
 	/**
 	 * cspNonce() for this request, once asked (null before; ADR 0020)

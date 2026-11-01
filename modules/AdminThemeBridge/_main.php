@@ -28,7 +28,7 @@ $headlinePos = strpos($content, "$headline</h1>");
 if($headlinePos && $headlinePos > 500) $headline = '';
 
 ?><!DOCTYPE html>
-<html class="pw" lang="<?php echo $adminTheme->_('en'); ?>"<?php echo $adminTheme->renderHtmlAttributes(); ?>>
+<html class="pw" lang="<?php echo $adminTheme->wire()->sanitizer->entities($adminTheme->shellLabel('lang')); ?>"<?php echo $adminTheme->renderHtmlAttributes(); ?>>
 <head>
 	<?php
 	$adminTheme->includeFile('_head.php', array('layout' => $layout));
