@@ -44,7 +44,9 @@ export function pick(el: HTMLElement, save: boolean): void {
 	if (variant) apply(variant, color);
 	else apply(site.variant || 'blue', site.primary || '');
 	box.querySelectorAll<HTMLElement>('button[data-pw-variant-pick]').forEach(b => b.setAttribute('aria-pressed', String(b.getAttribute('data-pw-variant-pick') === variant)));
-	box.classList.toggle('pw-color-pick-custom', variant === 'custom');
+	// the colour in use is ringed: the pick, or the site's after "Site default"
+	const inUse = variant || site.variant || 'blue';
+	box.querySelectorAll<HTMLElement>('.pw-color-swatch').forEach(s => s.classList.toggle('pw-color-current', (s.getAttribute('data-pw-variant') || 'custom') === inUse));
 	if (!save) return;
 	// one request for a quick run of picks
 	window.clearTimeout(timer);

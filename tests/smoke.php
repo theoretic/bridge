@@ -1140,6 +1140,7 @@ if(isset($bridge) && $bridge) {
 	$memo = new \ReflectionProperty($bridge, 'userColorsValue');
 	check('a colour is #rrggbb or nothing', AdminThemeBridge::hexColor(' #7C3AED ') === '#7c3aed' && AdminThemeBridge::hexColor('red') === '' && AdminThemeBridge::hexColor('#7c3aedff') === '');
 	$memo->setValue($bridge, null);
+	check('the colour in use is ringed, the site\'s too', strpos($srcOf('util/colors.ts'), "classList.toggle('pw-color-current'") !== false);
 	check('a guest gets the site\'s colour and no picker', $bridge->userColors() === null && $bridge->renderColorPicker() === '' && $bridge->getVariant() === $bridge->siteVariant());
 	$guest = $wire->user;
 	$cu = $wire->users->get('name=bridge');
@@ -1151,9 +1152,9 @@ if(isset($bridge) && $bridge) {
 		$picker = $bridge->renderColorPicker();
 		check('a user\'s own custom colour is the page\'s, printed before first paint', $bridge->getVariant() === 'custom' && $bridge->getPrimaryColor() === '#7c3aed'
 			&& strpos($bridge->renderHtmlAttributes(), "style='--pw-primary:#7c3aed'") !== false, $bridge->renderHtmlAttributes());
-		check('the picker: five named presets, a custom colour, the site default, the CSRF token', substr_count($picker, "class='pw-color-swatch' data-pw-variant=") === 5
+		check('the picker: five named presets, a custom colour, the site default, the CSRF token', substr_count($picker, "' data-pw-variant='") === 5
 			&& strpos($picker, "data-pw-variant-pick='custom' value='#7c3aed'") !== false && strpos($picker, "class='pw-color-reset' data-pw-variant-pick=''") !== false
-			&& strpos($picker, 'data-token-name=') !== false && strpos($picker, 'pw-color-pick-custom') !== false);
+			&& strpos($picker, 'data-token-name=') !== false && strpos($picker, "pw-color-custom pw-color-current'") !== false);
 		$cu->meta(AdminThemeBridge::userColorsMeta, array('variant' => 'purple', 'color' => ''));
 		$memo->setValue($bridge, null);
 		check('an unknown saved preset falls back to the site\'s colour', $bridge->userColors() === null && $bridge->getVariant() === $bridge->siteVariant());

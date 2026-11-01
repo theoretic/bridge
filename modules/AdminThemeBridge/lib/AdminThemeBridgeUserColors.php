@@ -122,6 +122,8 @@ trait AdminThemeBridgeUserColors {
 		$csrf = $this->wire()->session->CSRF;
 		$own = $this->userColors();
 		$current = $own ? $own['variant'] : '';
+		// the colour in use is ringed, the site's included when the user has none of their own
+		$inUse = $this->getVariant();
 		$names = array(
 			'blue' => __('Blue', __FILE__),
 			'vibrant' => __('Vibrant', __FILE__),
@@ -130,7 +132,7 @@ trait AdminThemeBridgeUserColors {
 			'green' => __('Green', __FILE__),
 		);
 		$label = $sanitizer->entities1(__('Colour', __FILE__));
-		$out = "<li class='pw-color-pick" . ($current === 'custom' ? ' pw-color-pick-custom' : '') . "' role='group' aria-label='$label'" .
+		$out = "<li class='pw-color-pick' role='group' aria-label='$label'" .
 			" data-url='" . $sanitizer->entities($this->wire()->config->urls->admin) . "'" .
 			" data-token-name='" . $sanitizer->entities($csrf->getTokenName()) . "'" .
 			" data-token-value='" . $sanitizer->entities($csrf->getTokenValue()) . "'>" .
@@ -141,12 +143,12 @@ trait AdminThemeBridgeUserColors {
 			" title='$site' aria-label='$site'><i class='fa fa-fw fa-undo' aria-hidden='true'></i></button>";
 		foreach($names as $variant => $name) {
 			$name = $sanitizer->entities1($name);
-			$out .= "<button type='button' class='pw-color-swatch' data-pw-variant='$variant' data-pw-variant-pick='$variant'" .
+			$out .= "<button type='button' class='pw-color-swatch" . ($inUse === $variant ? ' pw-color-current' : '') . "' data-pw-variant='$variant' data-pw-variant-pick='$variant'" .
 				" aria-pressed='" . ($current === $variant ? 'true' : 'false') . "' title='$name' aria-label='$name'></button>";
 		}
 		$custom = $sanitizer->entities1(__('Custom colour', __FILE__));
 		$value = $own && $own['variant'] === 'custom' ? $own['color'] : ($this->sitePrimaryColor() ?: '#3584ea');
-		$out .= "<label class='pw-color-swatch pw-color-custom' title='$custom'>" .
+		$out .= "<label class='pw-color-swatch pw-color-custom" . ($inUse === 'custom' ? ' pw-color-current' : '') . "' title='$custom'>" .
 			"<input type='color' data-pw-variant-pick='custom' value='$value' aria-label='$custom'></label>";
 		return $out . "</li>";
 	}

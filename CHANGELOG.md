@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.22.1: the colour picker shows the colour in use (2026-11-01)
+
+- The swatch of the colour in use has a ring, also when the user has no colour of their own and the site's colour applies. Before, only a colour the user had picked was marked, so with the site's colour nothing was.
+
 ## AdminThemeBridge 0.22.0: each user's own colour; neutral input borders again (2026-11-01)
 
 - **Each user picks their own colour** at the end of the user menu: the five presets, each swatch in its own colour for the current scheme, a custom colour (the browser's colour picker, previewed while it moves) and "Site default". The page switches at once. The choice is kept with the user, in the user page's meta data (`AdminThemeBridge.colors`), so it is on every device and in the page before its first paint. The site's colour (Appearance > Colour) stays the default and is what the login screen shows. A new setting, Appearance > "Users choose their own colour", on by default, turns the picker off and makes everyone use the site's colour again.
