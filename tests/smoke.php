@@ -1306,7 +1306,7 @@ check('BG9 page-save-check and dropdown-stress fail on a failure', strpos($read(
 	&& strpos($read('tools/dropdown-stress.js'), 'process.exitCode = 1') !== false);
 check('BG9 gate1.sh exits with the number of failed sites', strpos($read('tools/gate1.sh'), 'exit "$failed"') !== false);
 check('BG9 conformance fails on a lost session and on no screens', strpos($read('conformance/run.php'), "\$d['login'] =") !== false
-	&& strpos($read('conformance/run.php'), '|| !$total) ? 1 : 0') !== false);
+	&& strpos($read('conformance/run.php'), '|| !$total || $noneRendered) ? 1 : 0') !== false);
 check('BG9 release-module.sh never overwrites a published tag', strpos($read('tools/release-module.sh'), 'push -f') === false);
 
 // audit 2026-11-01, R1: the bootstrap
