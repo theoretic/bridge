@@ -214,6 +214,9 @@ check('the head preloads the runtime module', strpos($headPhp, "rel='moduleprelo
 $uikitCss = (string) @file_get_contents($themeDir . 'assets/dist/uikit.css');
 check('the UIkit layer is built, in one cascade layer, with its covered-class list', strpos($uikitCss, '@layer uikit{') !== false && is_file($themeDir . 'assets/dist/uikit-covered.json'));
 check('the UIkit stand-in is printed before every module script', strpos($themeSource, '$uikitLayer = array($this->themeAssetUrl(\'scripts/uikit-layer.js\'));') !== false);
+// 0.24.1: upstream's slide-in panels (window.pwPanels) come with the legacy stack, as in AdminThemeUikit
+check('panel.js is asked for as AdminThemeUikit does, panel.css goes with the stack', strpos($themeSource, "\$jqueryUI->use('panel');") !== false
+	&& strpos((string) @file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), "\$panelCss = \$config->urls('JqueryUI') . 'panel.css';") !== false);
 $faCssFile = glob($themeDir . 'assets/fonts/fa-*/fa.css');
 $faCssText = $faCssFile ? (string) file_get_contents($faCssFile[0]) : '';
 check('Font Awesome subsets carry a content hash', $faCssText === '' || (bool) preg_match('/url\(fa-solid-900-subset\.[0-9a-f]{8}\.woff2\)/', $faCssText));

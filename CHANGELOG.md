@@ -1,5 +1,14 @@
 # Changelog
 
+## AdminThemeBridge 0.24.1: upstream's slide-in panels with the legacy stack (2026-11-02)
+
+From a forum report: a module that opens its own panels (`pwPanels.addPanel($a)`) threw `pwPanels is not defined`, also with the legacy stack on every page.
+
+- **`JqueryUI/panel.js` comes with the legacy stack.** AdminThemeUikit asks for it in its `init()` (`$jqueryUI->use('panel')`), Bridge did not, so `window.pwPanels` never existed. The theme now asks for it the same way. It is a core script under `wire/`, so it loads with the stack: printed where the stack is printed, deferred and loaded with it on demand otherwise. On a page without the stack nothing more is fetched, and `.pw-panel` links still open in the runtime's dialog.
+- **`panel.css` goes with the stack's styles**: printed with the stack, else in `legacyStyles` beside the jQuery UI skin.
+- With the stack, the Debug Mode Tools link now opens upstream's slide-in panel (as `scripts/debug-tools.js` already did whenever `pwPanels` was there); without it, the dialog as before.
+- Checks: a smoke line for the request and the stylesheet's place.
+
 ## AdminThemeBridge 0.24.0: sorting for components, core file widgets for subclasses (2026-11-02)
 
 From phlppschrr's proposal ([theoretic/bridge#3](https://github.com/theoretic/bridge/pull/3)), made while porting FieldtypeFlex to native Bridge support. The File/Image part takes a different shape from the PR's: a declaration on the server instead of a JavaScript call (ADR 0015 addendum).

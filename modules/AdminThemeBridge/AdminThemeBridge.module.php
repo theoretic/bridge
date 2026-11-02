@@ -56,7 +56,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.24.0',
+			'version' => '0.24.1',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -511,6 +511,12 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->addBodyClass('pw-legacy-' . $this->legacyStack);
 		$this->addBodyClass('pw-variant-' . $this->getVariant());
 		$this->addBodyClass('pw-scheme-' . $this->getColorScheme());
+		// upstream's slide-in panels (JqueryUI/panel.js, window.pwPanels), as AdminThemeUikit::init()
+		// asks for them: modules call pwPanels.addPanel() themselves. A core script under wire/, so it
+		// loads with the legacy stack (printed or deferred); panel.css goes with the stack's styles
+		// (headStyles()). Without the stack the runtime opens .pw-panel links in its dialog
+		$jqueryUI = $this->wire()->modules->get('JqueryUI');
+		if($jqueryUI) $jqueryUI->use('panel');
 
 		// marking happens in both modes so the client can tell legacy and native markup apart;
 		// the flag only matters in auto mode

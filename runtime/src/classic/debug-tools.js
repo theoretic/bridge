@@ -4,12 +4,11 @@
  *
  * Upstream's own script is a jQuery $(document).ready() that makes the sections a jQuery UI
  * accordion and the link a slide-in panel (JqueryUI/panel.js). Without the legacy stack it threw
- * and left the whole panel open below the footer; with the stack it slid open inline, as the
- * stack loads no panel.js. _footer.php leaves that script out (#debug.pw-debug) and this one does
- * the same on every page, jQuery or not:
+ * and left the whole panel open below the footer. _footer.php leaves that script out
+ * (#debug.pw-debug) and this one does the same on every page, jQuery or not:
  * - the link (a.pw-panel with data-panel-id, panel.js's in-page panel) opens the panel in a
- *   dialog (34-dialog.css) titled with its tab text; when a module has loaded panel.js itself
- *   (window.pwPanels), panel.js opens it;
+ *   dialog (34-dialog.css) titled with its tab text; where panel.js is loaded (window.pwPanels:
+ *   the legacy stack brings it since 0.24.1, as AdminThemeUikit does), panel.js opens it;
  * - the sections fold as the accordion did: all closed at first, one open at a time.
  */
 (function() {

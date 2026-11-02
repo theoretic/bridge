@@ -177,6 +177,13 @@ trait AdminThemeBridgeHead {
 			$styles->append($jqueryUiCss);
 		} else {
 			$legacyStyles[] = $jqueryUiCss;
+			// panel.js's stylesheet (JqueryUI::use('panel'), init()) comes with its script
+			$panelCss = $config->urls('JqueryUI') . 'panel.css';
+			foreach($this->assetUrls($styles) as $url) {
+				if(self::stripQuery((string) $url) !== $panelCss) continue;
+				$styles->remove($url);
+				$legacyStyles[] = (string) $url;
+			}
 		}
 		return array('iconVersion' => $iconVersion, 'faCss' => $faCss, 'legacyStyles' => $legacyStyles);
 	}
