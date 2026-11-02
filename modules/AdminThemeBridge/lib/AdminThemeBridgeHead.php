@@ -154,6 +154,10 @@ trait AdminThemeBridgeHead {
 		$iconVersion = empty($adminIcons['version']) ? '' : $adminIcons['version'];
 		$faCss = '';
 		$styles->prepend($wireUrl . "templates-admin/styles/AdminTheme.css?v=$version");
+		// the page tree drawer (0.25.0): the tree's own stylesheet, which only the tree's screens load
+		if(in_array('tree', $this->drawerNames(), true)) {
+			$styles->append($config->urls->get('ProcessPageList') . 'ProcessPageList.css?v=' . $this->wire()->modules->getModuleInfoProperty('ProcessPageList', 'version'));
+		}
 		if($iconVersion && version_compare($iconVersion, '6.0.0', '>=')) {
 			// core's all.min.css with its fonts split (runtime/scripts/fa-subset.mjs): icons in common use
 			// come from small subsets, the rest from the full files, nothing else fetches a font; built for

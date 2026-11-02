@@ -1258,6 +1258,29 @@ if(isset($bridge) && $bridge) {
 			check('the page tree screen itself shows no tree button, the history one', $bridge->drawerNames() === array('history'));
 			$wire->wire('page', $pageWas);
 		}
+		// the drawer's tree: its own root-tree options, the global config untouched
+		$jsWas = $config->js('ProcessPageList');
+		$sharedWas = array_key_exists('ProcessPageList', $config->js());
+		$opts = $bridge->treeDrawerOptions();
+		check('the drawer tree: root 0 with the home page shown, the tree\'s URLs, no pre-rendered branches', $opts['rootPageID'] === 0 && $opts['showRootPage'] === true
+			&& substr((string) $opts['ajaxURL'], -10) === 'page/list/' && $opts['openPageData'] === array() && isset($opts['moreLabel']), json_encode($opts));
+		check('the global ProcessPageList config stays as it was (null stays null, not shared)', $config->js('ProcessPageList') === $jsWas
+			&& array_key_exists('ProcessPageList', $config->js()) === $sharedWas, json_encode(array($jsWas, $sharedWas)));
+		$config->js('ProcessPageList', array('rootPageID' => 1234, 'showRootPage' => false));
+		$opts = $bridge->treeDrawerOptions();
+		check('with the Children tab\'s tree in the global config, the drawer still gets a root tree and the config keeps the tab\'s', $opts['rootPageID'] === 0
+			&& $opts['showRootPage'] === true && $config->js('ProcessPageList') === array('rootPageID' => 1234, 'showRootPage' => false), json_encode($config->js('ProcessPageList')));
+		$config->set('ProcessPageList', $jsWas);
+		// the cookie as the browser sent it (a set() would send a Set-Cookie header)
+		$cookieData = new \ReflectionProperty('ProcessWire\WireInputData', 'data');
+		$cookiesWas = $cookieData->getValue($wire->input->cookie);
+		$cookieData->setValue($wire->input->cookie, array_merge($cookiesWas, array('pagelist_open' => "1-0,$treePage->id,999999999-0,abc,1-0")));
+		$open = $bridge->treeDrawerOptions()['openPageIDs'];
+		check('open branches from the pagelist_open cookie: existing, listable, once, "id-start"', $open === array('1-0', "$treePage->id-0"), json_encode($open));
+		$cookieData->setValue($wire->input->cookie, $cookiesWas);
+		$tpl = $bridge->renderDrawers();
+		check('the template holds a tree container with its options and the CSRF token, not #PageListContainer', strpos($tpl, "<div class='PageListContainer PageListContainerRoot pw-drawer-tree' data-pw-tree='{") !== false
+			&& strpos($tpl, "data-token-name='" . $session->CSRF->getTokenName() . "'") !== false && strpos($tpl, "id='PageListContainer'") === false);
 		$wire->input->get->modal = 1;
 		check('a modal window (?modal=1) prints no drawers', $bridge->drawerNames() === array() && $bridge->renderDrawers() === '');
 		$wire->input->get->remove('modal');

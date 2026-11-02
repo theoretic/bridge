@@ -1,5 +1,5 @@
 // Drawers check (tools/drawers-check.js, 0.25.0): the theme's tab-focus bus (pw-tab-focus) that
-// the page tree and history drawers refresh on.
+// the drawers refresh on (A), the drawer shell (B), the page tree in its drawer (C).
 // Needs a Playwright install with its browsers (any project's node_modules/playwright-core).
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
@@ -10,6 +10,8 @@ const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
 const sandbox = require('./lib/sandbox.cjs');
 const ADMIN = sandbox.adminUrl();
+// branch /bridge-tree/ with 60 children (TREE_ID) and a page with children (PARENT_ID) from tools/sandbox-fixture.php
+const TREE = process.env.TREE_ID || '1568';
 const results = [];
 const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info === undefined ? '' : String(info).slice(0, 400) }); };
 
@@ -125,6 +127,78 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await gp.goto(ADMIN, { waitUntil: 'domcontentloaded' });
 		check('B the login screen has no drawer buttons or drawers', await gp.evaluate(() => !!document.querySelector('#login_name') && !document.querySelector('.pw-drawer-buttons, dialog.pw-drawer')));
 		await guest.close();
+	}
+
+	// C: the page tree in the drawer
+	{
+		const D = '#pw-drawer-tree ';
+		const T = D + '.PageListID' + TREE;
+		const waitFor = async (fn, arg, ms = 10000) => {
+			for(let t = 0; t < ms; t += 200) {
+				if(await page.evaluate(fn, arg)) return true;
+				await page.waitForTimeout(200);
+			}
+			return false;
+		};
+		const openTree = async () => {
+			await page.click('[data-pw-drawer="tree"]');
+			return waitFor((d) => {
+				const root = document.querySelector(d + '.PageListItem.PageListID1');
+				return !!root && root.classList.contains('PageListItemOpen') && document.querySelectorAll(d + '.PageListID1 + .PageList > .PageListItem').length > 1;
+			}, D);
+		};
+		await open('setup/field/');
+		check('C the tree drawer shows the home page open with its children', await openTree());
+		const branch = () => page.evaluate((t) => { const i = document.querySelector(t); return !!i && i.classList.contains('PageListItemOpen') && document.querySelectorAll(t + ' + .PageList > .PageListItem').length > 0; }, T);
+		if(await branch()) {
+			await page.click(T + ' > a.PageListPage');
+			await page.waitForTimeout(500);
+		}
+		await page.$eval(T + ' > a.PageListPage', a => a.scrollIntoView({ block: 'center' }));
+		await page.click(T + ' > a.PageListPage');
+		check('C a click on a title opens its branch', await waitFor((t) => document.querySelectorAll(t + ' + .PageList > .PageListItem').length > 1, T));
+		const cookie = await page.evaluate(() => decodeURIComponent((document.cookie.match(/(?:^|;\s*)pagelist_open=([^;]*)/) || [])[1] || ''));
+		check('C the pagelist_open cookie holds the branch', cookie.split(',').some(v => v.split('-')[0] === TREE), cookie);
+		check('C the drawer body scrolls the long branch, no branch cap inside the drawer', await page.evaluate((d) => {
+			const body = document.querySelector(d + '.pw-drawer-body');
+			return body.scrollHeight > body.clientHeight && !Array.from(document.querySelectorAll(d + '.PageList')).some(l => l.style.getPropertyValue('--pw-branch-max'));
+		}, D));
+		check('C an Edit link is a plain link to the page editor', await page.evaluate((t) => {
+			const a = document.querySelector(t + ' > .PageListActions .PageListActionEdit a') || document.querySelector(t + ' + .PageList .PageListActionEdit a');
+			return !!a && /page\/edit\/\?id=\d+/.test(a.getAttribute('href') || '');
+		}, T));
+		check('C the trash is there for the superuser', await page.evaluate((d) => !!document.querySelector(d + '.PageListID7'), D));
+		await open('setup/field/');
+		check('C after a reload the branch is open again (openPageIDs from the cookie)', await openTree() && await waitFor((t) => {
+			const i = document.querySelector(t);
+			return !!i && i.classList.contains('PageListItemOpen') && document.querySelectorAll(t + ' + .PageList > .PageListItem').length > 1;
+		}, T));
+		check('C the drawer stylesheet: ProcessPageList.css on a screen without the tree', await page.evaluate(() => !!document.querySelector('link[href*="ProcessPageList.css"]')));
+		check('C no jQuery with the tree drawer', !(await jq()));
+		// close the branch again: other harnesses start from a closed tree
+		await page.click(T + ' > a.PageListPage');
+		await page.waitForTimeout(500);
+		await page.keyboard.press('Escape');
+
+		// the page editor's Children tab keeps its own tree with the drawer on the page
+		const parent = process.env.PARENT_ID || TREE;
+		await open('page/edit/?id=' + parent);
+		const tabCfg = await page.evaluate(() => { const c = ProcessWire.config.ProcessPageList || {}; return { root: c.rootPageID, show: c.showRootPage }; });
+		check('C the page editor\'s global tree config is the Children tab\'s', String(tabCfg.root) === String(parent) && tabCfg.show === false, JSON.stringify(tabCfg));
+		check('C the drawer tree opens on the page editor too', await openTree());
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(300);
+		const tab = page.locator('#_ProcessPageEditChildren');
+		if(await tab.count()) await tab.click();
+		const kidsOk = await waitFor((p) => {
+			const c = document.getElementById('PageListContainer');
+			if(!c) return false;
+			const rows = c.querySelectorAll('.PageListItem');
+			return rows.length > 0 && !c.querySelector('.PageListID1') && !c.querySelector('.PageListID' + p + ' > a.PageListPage:not(.PageListRootHidden *)');
+		}, parent);
+		check('C the Children tab shows the edited page\'s children, not the home page', kidsOk);
+		check('C the drawer tree still opens after the tab', await page.evaluate(() => { ProcessWireAdminTheme.drawer.open('tree'); return ProcessWireAdminTheme.drawer.isOpen('tree') && !!document.querySelector('#pw-drawer-tree .PageListID1'); }));
+		await page.keyboard.press('Escape');
 	}
 
 	check('no page errors', errors.length === 0, errors.join(' | '));

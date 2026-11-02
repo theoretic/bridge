@@ -22,8 +22,9 @@ const FILES = [
 	// 2026-10-26, to 14336 B on 2026-11-01 for the CSP nonce rule in the script runner (ADR 0020, audit SE2),
 	// to 14848 B the same day for the Trusted Types sweep (every HTML write through util/trusted.ts),
 	// to 15360 B for keyboard and screen reader support (0.20.x, audit UX1-UX4: dialog focus and
-	// unsaved changes, tab roles and arrow keys, keyboard moves and selections)
-	{ name: 'runtime.js', budget: 15360, with: [] },
+	// unsaved changes, tab roles and arrow keys, keyboard moves and selections), to 15872 B for
+	// Bridge.pageTree(), the page tree drawer's tree (0.25.0)
+	{ name: 'runtime.js', budget: 15872, with: [] },
 	// the UIkit layer (ADR 0017): stock UIkit minus Base, on tokens; only on pages that need UIkit
 	{ name: 'uikit.css', budget: 40 * 1024 },
 ];
@@ -105,8 +106,9 @@ for (const f of existsSync(scriptsDir) ? readdirSync(scriptsDir).filter(f => f.e
 	if (gz > budget) { console.error(`scripts/${f}: over the gzip budget`); failed = true; }
 }
 // total raised from 40 to 42 KiB after the UIkit layer (owner's decision, 2026-10-22), and to
-// 42.25 KiB for scripts/save-wait.js (owner's decision, 2026-10-29)
-const CLASSIC_TOTAL = 45 * 1024;
+// 42.25 KiB for scripts/save-wait.js (owner's decision, 2026-10-29); 46 KiB for scripts/drawers.js, the
+// page tree and history drawers (0.25.0, user request)
+const CLASSIC_TOTAL = 46 * 1024;
 console.log(`classic scripts: ${classicTotal} B gzip (budget ${CLASSIC_TOTAL})`);
 if (classicTotal > CLASSIC_TOTAL) { console.error('classic scripts: over the total gzip budget'); failed = true; }
 

@@ -27,6 +27,9 @@
  *   (util/selection.ts, ADR 0018); dragging a selected row moves them all. A row inside a selected
  *   row is never selected on its own; the home page is not selectable.
  * - `pageListRefresh` on document (detail: page id) reloads the list holding that page.
+ * - A container with data-pw-tree (the page tree drawer, 0.25.0, started by Bridge.pageTree()) has
+ *   its own options, JSON merged over the global ones, and stays native with the legacy stack on
+ *   the page: upstream's script builds only #PageListContainer.
  * - Events on the container: `pageListChildrenDone` (detail: the JSON data).
  */
 
@@ -84,6 +87,18 @@ function setupTree(container: HTMLElement): void {
 	listenRefresh();
 	if (container.hasAttribute('data-pw-pagelist')) return;
 	container.setAttribute('data-pw-pagelist', '');
+	// the drawer's tree is ours whatever stack the page has
+	const own = container.hasAttribute('data-pw-tree');
+	const legacy = (): boolean => !own && legacyLoaded();
+	let ownOptions: Partial<Options> = {};
+	if (own) {
+		try {
+			ownOptions = JSON.parse(container.getAttribute('data-pw-tree') || '{}');
+		} catch (err) {
+			failed('page tree', err);
+			return;
+		}
+	}
 	const admin = ((pw().config.urls as { admin?: string }) || {}).admin || '/processwire/';
 	const o: Options = {
 		ajaxURL: admin + 'page/list/', ajaxMoveURL: admin + 'page/sort/', rootPageID: 0, showRootPage: true, openPageIDs: [], openPageData: {},
@@ -93,7 +108,7 @@ function setupTree(container: HTMLElement): void {
 		paginationClass: 'PageListPagination', paginationCurrentClass: 'PageListPaginationCurrent', paginationLinkClass: 'ui-state-default',
 		paginationLinkCurrentClass: 'ui-state-active', paginationHoverClass: 'ui-state-hover', paginationDisabledClass: 'ui-priority-secondary',
 	};
-	Object.assign(o, pw().config.ProcessPageList || {});
+	Object.assign(o, pw().config.ProcessPageList || {}, ownOptions);
 	if (!o.openPageData || Array.isArray(o.openPageData)) o.openPageData = {};
 	if (!Array.isArray(o.openPageIDs)) o.openPageIDs = [];
 	const p = pw();
@@ -464,7 +479,7 @@ function setupTree(container: HTMLElement): void {
 		canSelect: li => !li.classList.contains('PageListPlaceholderItem') && !li.classList.contains('PageListID1')
 			&& !(li.parentElement && li.parentElement.classList.contains('PageListRootHidden')),
 		normalize: list => { const set = new Set(list); return list.filter(li => !ancestors(li).some(a => set.has(a))); },
-		enabled: () => !legacyLoaded() && !root.classList.contains('PageListSorting') && !root.classList.contains('PageListSortSaving'),
+		enabled: () => !legacy() && !root.classList.contains('PageListSorting') && !root.classList.contains('PageListSortSaving'),
 		// several rows: their own action menus give way to one for all (pagelist-group.ts, loaded then)
 		onChange: rows => {
 			root.classList.toggle('pw-multi-selection', rows.length > 1);
@@ -491,7 +506,7 @@ function setupTree(container: HTMLElement): void {
 	/* events ****************************************************************************************/
 
 	container.addEventListener('click', e => {
-		if (legacyLoaded()) return;
+		if (legacy()) return;
 		const t = e.target as HTMLElement;
 		const page = t.closest<HTMLAnchorElement>('a.PageListPage');
 		if (page && root.contains(page)) {
@@ -588,12 +603,12 @@ function setupTree(container: HTMLElement): void {
 let handover = false;
 
 export function init(container: HTMLElement): void {
-	if (legacyLoaded()) return;
+	if (legacyLoaded() && !container.hasAttribute('data-pw-tree')) return;
 	if (!handover) {
 		handover = true;
 		// the stack arrived: upstream's ProcessPageListInit() builds the tree again in the container
 		document.addEventListener('pw-legacy-handover', () => {
-			document.querySelectorAll<HTMLElement>('[data-pw-pagelist]').forEach(c => {
+			document.querySelectorAll<HTMLElement>('[data-pw-pagelist]:not([data-pw-tree])').forEach(c => {
 				c.querySelectorAll(':scope > .PageListRoot').forEach(r => r.remove());
 				c.removeAttribute('data-pw-pagelist');
 			});

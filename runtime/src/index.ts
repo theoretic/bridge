@@ -36,6 +36,9 @@ export const Bridge = {
 	tables: {
 		sort: (table: HTMLTableElement, column: number, dir: 'asc' | 'desc' = 'asc'): Promise<void> => import('./fields/datatable').then(m => m.sort(table, column, dir)),
 	},
+	// a page tree in a container of its own (the page tree drawer, 0.25.0: options in data-pw-tree),
+	// with or without the legacy stack on the page; the tree chunk on demand
+	pageTree: (container: HTMLElement): Promise<void> => import('./fields/pagelist').then(m => m.init(container), err => failed('page tree', err)),
 	// the field widgets' sorting for a list a component owns (0.24.0, theoretic/bridge#3): the
 	// sortable chunk on demand; a promise of the function that removes it
 	sortable: (list: HTMLElement, options: SortableOptions): Promise<() => void> => import('./util/sortable').then(m => m.makeSortable(list, options)),

@@ -105,12 +105,98 @@ trait AdminThemeBridgeDrawers {
 	}
 
 	/**
-	 * The page tree drawer's template content (filled in by the page tree step)
+	 * The page tree drawer's template content: a tree container with its own options
+	 *
+	 * No id='PageListContainer' (the page editor's Children tab has it) and no global options: the
+	 * runtime (fields/pagelist.ts) reads data-pw-tree over ProcessWire.config.ProcessPageList.
 	 *
 	 * @return string
 	 *
 	 */
 	protected function renderTreeDrawerContent() {
-		return '';
+		$sanitizer = $this->wire()->sanitizer;
+		$csrf = $this->wire()->session->CSRF;
+		$json = json_encode($this->treeDrawerOptions());
+		if($json === false) $json = '{}';
+		return "<div class='PageListContainer PageListContainerRoot pw-drawer-tree' data-pw-tree='" . $sanitizer->entities($json) . "' " .
+			"data-token-name='" . $sanitizer->entities($csrf->getTokenName()) . "' data-token-value='" . $sanitizer->entities($csrf->getTokenValue()) . "'></div>";
+	}
+
+	/**
+	 * Options of the drawer's page tree: a root tree (home page shown) as ProcessPageList's
+	 * renderReady() sets them, with the branches the user left open (`pagelist_open` cookie)
+	 *
+	 * The global ProcessWire.config.ProcessPageList is left as it was: the page editor's Children
+	 * tab has its own tree there (rootPageID = the edited page, root hidden).
+	 *
+	 * @return array
+	 *
+	 */
+	public function treeDrawerOptions() {
+		$config = $this->wire()->config;
+		$was = $config->get('ProcessPageList');
+		$shared = array_key_exists('ProcessPageList', $config->js());
+		$options = array();
+		try {
+			// a fresh instance with the module's settings, not the one the page editor's Children tab
+			// may hold, and no init(): it would add the jQuery UI scripts to $config->scripts
+			$modules = $this->wire()->modules;
+			$list = $modules->includeModule('ProcessPageList') ? $this->wire(new ProcessPageList()) : null;
+			if($list) {
+				foreach((array) $modules->getConfig('ProcessPageList') as $key => $value) $list->set($key, $value);
+				// what init() takes from $config->pageList, so the drawer's tree behaves as the screen's
+				$settings = $config->pageList;
+				if(is_array($settings)) {
+					if(!empty($settings['useHoverActions'])) $list->set('useHoverActions', true);
+					$list->set('hoverActionDelay', isset($settings['hoverActionDelay']) ? (int) $settings['hoverActionDelay'] : 100);
+					$list->set('hoverActionFade', isset($settings['hoverActionFade']) ? (int) $settings['hoverActionFade'] : 100);
+					if(!empty($settings['limit'])) $list->set('limit', (int) $settings['limit']);
+				}
+				$list->set('id', 0);
+				$list->set('showRootPage', true);
+				// renderReady() merges whatever $config->ProcessPageList already holds over its own
+				$config->set('ProcessPageList', null);
+				$list->renderReady();
+				$options = $config->js('ProcessPageList');
+			}
+		} catch(\Throwable $e) {
+			$options = array();
+		}
+		$config->set('ProcessPageList', $was);
+		if(!$shared) {
+			// renderReady() shared the key with the client: take it back, the page did not have it
+			$fields = new \ReflectionProperty($config, 'jsFields');
+			$fields->setValue($config, array_values(array_diff((array) $fields->getValue($config), array('ProcessPageList'))));
+		}
+		if(!is_array($options)) $options = array();
+		$options['rootPageID'] = 0;
+		$options['showRootPage'] = true;
+		$options['openPageIDs'] = $this->treeDrawerOpenIDs();
+		$options['openPageData'] = array();
+		$options['openPagination'] = 0;
+		$options['start'] = 0;
+		return $options;
+	}
+
+	/**
+	 * The branches the user left open in a page tree (`pagelist_open` cookie, "id-start"), only
+	 * pages that exist and the user may list
+	 *
+	 * @return array of "id-start" strings
+	 *
+	 */
+	protected function treeDrawerOpenIDs() {
+		$pages = $this->wire()->pages;
+		$ids = array();
+		foreach($this->wire()->input->cookie->array('pagelist_open') as $value) {
+			$parts = explode('-', (string) $value, 2);
+			$id = (int) $parts[0];
+			$start = isset($parts[1]) ? max(0, (int) $parts[1]) : 0;
+			if($id < 1 || isset($ids["$id-$start"])) continue;
+			$p = $pages->get($id);
+			if(!$p->id || !$p->listable()) continue;
+			$ids["$id-$start"] = "$id-$start";
+		}
+		return array_values($ids);
 	}
 }

@@ -8,7 +8,11 @@
  *
  * Events on the dialog (bubbling): pw-drawer-open (detail: { name, first }: first is true on the
  * first open on this page) and pw-drawer-close (detail: { name }).
- * API: ProcessWireAdminTheme.drawer.open(name), .close(name), .isOpen(name).
+ * API: ProcessWireAdminTheme.drawer.open(name), .close(name), .isOpen(name), .refreshTree().
+ *
+ * The page tree drawer clones its <template> (a div[data-pw-tree] with the tree's own options)
+ * into its body on the first open and hands it to Bridge.pageTree(). refreshTree()
+ * builds it again with the branches open now (the pagelist_open cookie), unless a drag is on.
  */
 (function(theme) {
 	'use strict';
@@ -41,6 +45,49 @@
 		d.dispatchEvent(new CustomEvent('pw-drawer-open', { bubbles: true, detail: { name: name, first: first } }));
 	}
 
+	function cookieOpen() {
+		var m = document.cookie.match(/(?:^|;\s*)pagelist_open=([^;]*)/);
+		if(!m) return [];
+		// the runtime writes "id-start,id-start" (fields/pagelist.ts)
+		return decodeURIComponent(m[1]).split(',').filter(function(s) { return /^\d+(-\d+)?$/.test(s); });
+	}
+
+	// a tree from the drawer's template; withCookie: the branches open now instead of at page load
+	function buildTree(withCookie) {
+		var d = dialogOf('tree');
+		var tpl = d && d.querySelector('template.pw-drawer-template');
+		var body = d && d.querySelector('.pw-drawer-body');
+		if(!tpl || !body) return false;
+		var tree = tpl.content.firstElementChild ? tpl.content.firstElementChild.cloneNode(true) : null;
+		if(!tree) return false;
+		if(withCookie) {
+			try {
+				var o = JSON.parse(tree.getAttribute('data-pw-tree') || '{}');
+				o.openPageIDs = cookieOpen();
+				tree.setAttribute('data-pw-tree', JSON.stringify(o));
+			} catch(err) { /* keep the page's options */ }
+		}
+		body.appendChild(tree);
+		// the runtime's tree (fields/pagelist.ts); the Bridge stand-in replays the call until it is there
+		if(window.Bridge && window.Bridge.pageTree) window.Bridge.pageTree(tree);
+		return true;
+	}
+
+	function refreshTree() {
+		var d = dialogOf('tree');
+		var old = d && d.querySelector('.pw-drawer-body [data-pw-tree]');
+		if(!old || old.querySelector('.PageListSorting, .PageListSortSaving')) return false;
+		var body = old.parentNode, top = body.scrollTop;
+		old.remove();
+		buildTree(true);
+		body.scrollTop = top;
+		return true;
+	}
+
+	document.addEventListener('pw-drawer-open', function(e) {
+		if(e.detail && e.detail.name === 'tree' && e.detail.first) buildTree(false);
+	});
+
 	document.addEventListener('click', function(e) {
 		var t = e.target;
 		var b = t.closest && t.closest('[data-pw-drawer]');
@@ -71,5 +118,5 @@
 		});
 	});
 
-	theme.drawer = { open: open, close: close, isOpen: isOpen };
+	theme.drawer = { open: open, close: close, isOpen: isOpen, refreshTree: refreshTree };
 })(window.ProcessWireAdminTheme);

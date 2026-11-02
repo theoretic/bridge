@@ -595,7 +595,8 @@ var ProcessWireAdminTheme = {
 		var resized = window.ResizeObserver ? new ResizeObserver(function() { schedule(); }) : null;
 		var fit = function() {
 			pending = false;
-			var lists = document.querySelectorAll('.PageListRoot .PageList');
+			// not in a drawer: its body scrolls the whole tree (0.25.0)
+			var lists = Array.prototype.filter.call(document.querySelectorAll('.PageListRoot .PageList'), function(l) { return !l.closest('.pw-drawer'); });
 			var masthead = ProcessWireAdminTheme.cssLength('--pw-masthead-h', 56);
 			var vh = window.innerHeight;
 			// reads, then writes, then reads, then writes: two layouts per fit, not two per branch

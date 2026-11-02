@@ -32,3 +32,6 @@ dialog.pw-drawer .pw-drawer-title { margin: 0; font-size: 1rem; font-weight: 600
 .pw-drawer-close { border: 0; background: none; padding: 4px; border-radius: var(--radius-md); font-size: 1.125rem; line-height: 1; cursor: pointer; color: var(--pw-text-muted); }
 .pw-drawer-close:hover { color: var(--pw-h1); }
 .pw-drawer-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px 16px; overscroll-behavior: contain; }
+/* the page tree: no cap on the deepest branch (30-pagelist.css), the body scrolls; the pager sticks to its top */
+.pw-drawer .PageListRoot .PageList:not(:has(.PageList)) { max-height: none; overflow: visible; }
+.pw-drawer .PageList > ul[data-pagination] { top: 0; }
