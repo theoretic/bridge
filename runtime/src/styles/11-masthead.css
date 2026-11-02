@@ -45,6 +45,8 @@
 .pw-view-button:hover:not(:disabled) { color: var(--accent-foreground); background: var(--accent); }
 .pw-view-button:disabled { opacity: .4; cursor: default; }
 .pw-view-button:focus-visible { outline: var(--ring-width) solid var(--ring); outline-offset: 2px; }
+/* the scale in percent, right of the larger button: as wide as "150%", figures of one width */
+.pw-view-scale { width: auto; min-width: 3.25em; padding: 0 4px; font-size: .75rem; font-weight: 500; font-variant-numeric: tabular-nums; }
 
 /* search (upstream ProcessPageSearch form) */
 #ProcessPageSearchForm { position: relative; display: flex; align-items: center; }

@@ -247,6 +247,7 @@ trait AdminThemeBridgeShell {
 			'image' => __('Image', __FILE__), // the lightbox, an image without a title
 			'remove' => __('Remove', __FILE__),
 			'moreActions' => __('More actions', __FILE__), // the arrow next to a Save button
+			'select' => __('Select', __FILE__), // shows the checkboxes of the fields list (0.23.0)
 			'imageViewList' => __('Show as a list with details', __FILE__),
 			'imageViewLeft' => __('Show as a list with thumbnails', __FILE__),
 			'imageViewGrid' => __('Show as a grid', __FILE__),
@@ -350,6 +351,7 @@ trait AdminThemeBridgeShell {
 			case 'display': return __('Display', __FILE__); // the group of scale and scheme buttons
 			case 'smaller': return __('Smaller', __FILE__);
 			case 'larger': return __('Larger', __FILE__);
+			case 'resetScale': return __('Back to 100 %', __FILE__); // the scale shown in percent, a button
 			case 'basedOn': return __('based on ProcessWire %s', __FILE__); // %s is the core version
 			case 'coloursFrom': return __('colours from %s', __FILE__); // %s is a link to AdminThemeBoss
 		}
@@ -534,6 +536,9 @@ trait AdminThemeBridgeShell {
 		return "<div class='pw-view-controls' role='group' aria-label='" . $sanitizer->entities1($this->shellLabel('display')) . "'>" .
 			$button(" data-pw-scale='-1'", 'search-minus', $this->shellLabel('smaller')) .
 			$button(" data-pw-scale='1'", 'search-plus', $this->shellLabel('larger')) .
+			// the scale in percent (0.23.0), filled in by scripts/main.js; a click goes back to 100 %
+			"<button type='button' class='pw-view-button pw-view-scale' data-pw-scale-reset title='" .
+				$sanitizer->entities1($this->shellLabel('resetScale')) . "'>100%</button>" .
 			$button($attrs, $icons[$scheme] ?? 'adjust', $labels[$scheme] ?? $labels['auto']) .
 			"</div>";
 	}

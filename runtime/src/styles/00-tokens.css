@@ -149,6 +149,11 @@
 	--pw-text-muted: var(--muted-foreground);
 	--pw-link: var(--foreground);
 	--pw-link-hover: var(--primary);
+	/* links in text and tables (0.23.0, 02-base.css): the primary toward the text colour, 4.5 to 1 or
+	 * more on the page in every preset (light: the cyan is the lowest, 4.7); underlined where the
+	 * primary is the text colour (black) */
+	--pw-text-link: color-mix(in srgb, var(--primary) 65%, var(--foreground));
+	--pw-text-link-line: none;
 	--pw-h1: var(--foreground);
 	--pw-h2: var(--foreground);
 	--pw-on-primary: var(--primary-foreground);
@@ -166,3 +171,6 @@
 	--pw-shadow-card: var(--shadow-sm);
 	--pw-shadow-dropdown: var(--shadow-md);
 }
+/* on the dark page the primary itself reads (4.7 or more): less of the text colour */
+[data-pw-scheme="dark"] { --pw-text-link: color-mix(in srgb, var(--primary) 80%, var(--foreground)); }
+[data-pw-variant="black"] { --pw-text-link-line: underline; }

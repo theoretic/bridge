@@ -304,7 +304,8 @@ var ProcessWireAdminTheme = {
 
 	/**
 	 * Interface scale: the root font size, in steps; everything the theme sizes in rem follows.
-	 * Buttons [data-pw-scale="-1"] and [data-pw-scale="1"] beside the user menu.
+	 * Buttons [data-pw-scale="-1"] and [data-pw-scale="1"] beside the user menu; [data-pw-scale-reset]
+	 * shows the scale in percent and goes back to 100 %.
 	 */
 	scale: {
 		steps: [0.75, 0.875, 1, 1.125, 1.25, 1.375, 1.5],
@@ -325,6 +326,8 @@ var ProcessWireAdminTheme = {
 				var end = dir < 0 ? v <= this.steps[0] : v >= this.steps[this.steps.length - 1];
 				buttons[i].disabled = end;
 			}
+			var shown = document.querySelectorAll('[data-pw-scale-reset]');
+			for(var j = 0; j < shown.length; j++) shown[j].textContent = Math.round(v * 100) + '%';
 			if(before !== root.style.fontSize) {
 				// what measured the layout measures again (nav fit, notices, page tree, tables)
 				window.dispatchEvent(new Event('resize'));
@@ -343,6 +346,12 @@ var ProcessWireAdminTheme = {
 			var self = this;
 			this.apply();
 			document.addEventListener('click', function(e) {
+				if(e.target.closest && e.target.closest('[data-pw-scale-reset]')) {
+					e.preventDefault();
+					ProcessWireAdminTheme.prefs.set('scale', 1);
+					self.apply();
+					return;
+				}
 				var button = e.target.closest && e.target.closest('[data-pw-scale]');
 				if(!button) return;
 				e.preventDefault();

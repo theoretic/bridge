@@ -27,8 +27,9 @@ table.pw-table td, table.AdminDataTable td {
 	vertical-align: top;
 }
 table.pw-table tbody tr:hover > td, table.AdminDataTable tbody tr:hover > td { background: color-mix(in srgb, var(--muted) 50%, transparent); }
-table.AdminDataList a { color: var(--pw-link); }
-table.AdminDataList tr td:first-child a { color: var(--foreground); font-weight: 500; }
+/* links in tables in the link colour (0.23.0; the name column was the text colour) */
+table.AdminDataList a { color: var(--pw-text-link); }
+table.AdminDataList tr td:first-child a { font-weight: 500; }
 /* sortable headers (datatable.ts, upstream tablesorter): an arrow, dim until the column is sorted */
 .tablesorter-header { cursor: pointer; }
 .tablesorter-header:hover { color: var(--foreground); }

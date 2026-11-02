@@ -25,6 +25,14 @@ body.AdminThemeBridge :is(.description, .notes, #notices li) a:not(.ui-button, .
 /* upstream hover underlines that outrank the rule above (PageAutocomplete labels, sortable table
  * headers, column widths in a template's field list) */
 body.AdminThemeBridge :is(.InputfieldPageAutocomplete ol li .itemLabel a, table.AdminDataTableSortable th, .asmListItem > .asmListItemStatus > .columnWidth:not(.columnWidthOff)):hover { text-decoration: none; }
+/* text links (0.23.0): a link without a class of its own in the content, outside navigation and
+ * headings, takes the link colour (--pw-text-link) and an underline on hover; with the black
+ * preset, whose primary is the text colour, it is always underlined (--pw-text-link-line). The
+ * colour is a default (low specificity); the underline outranks the rule above and leaves the
+ * one of descriptions and notes alone */
+:where(#main) a:not([class]):not(:where(nav, .pw-breadcrumbs, .WireTabs, .PageList, .pw-pagination, .MarkupPagerNav, .pw-dropdown-menu, .InputfieldHeader, h1, h2, h3, h4, button, .ui-button) a) { color: var(--pw-text-link); }
+body.AdminThemeBridge #main a:not([class]):not(:where(nav, .pw-breadcrumbs, .WireTabs, .PageList, .pw-pagination, .MarkupPagerNav, .pw-dropdown-menu, .InputfieldHeader, h1, h2, h3, h4, button, .ui-button, .description, .notes) a) { text-decoration: var(--pw-text-link-line) 1px; text-underline-offset: 2px; }
+#main a:hover { --pw-text-link: var(--pw-link-hover); --pw-text-link-line: underline; }
 body.AdminThemeBridge h1 { color: var(--pw-h1); font-size: 1.875rem; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; margin: 0 0 .5em; overflow-wrap: anywhere; }
 body.AdminThemeBridge h2 { color: var(--pw-h2); font-size: 1.5rem; font-weight: 600; letter-spacing: -.015em; line-height: 1.25; margin: 0 0 .5em; }
 body.AdminThemeBridge h3 { color: var(--pw-h2); font-size: 1.125rem; font-weight: 600; margin: 0 0 .5em; }
@@ -32,7 +40,9 @@ body.AdminThemeBridge h4 { color: var(--pw-h2); font-size: 1rem; font-weight: 60
 body.AdminThemeBridge ::selection { background: var(--pw-selection-bg); color: var(--pw-on-primary); }
 body.AdminThemeBridge hr { border: 0; border-top: 1px solid var(--pw-line); }
 body.AdminThemeBridge code, body.AdminThemeBridge pre { font-size: .875em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-body.AdminThemeBridge pre { overflow: auto; max-width: 100%; }
+/* code in text and code blocks (0.23.0): a muted ground with rounded corners */
+body.AdminThemeBridge :not(pre) > code { padding: .1em .35em; border-radius: var(--radius-sm); background: var(--muted); color: var(--foreground); }
+body.AdminThemeBridge pre { overflow: auto; max-width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--muted); color: var(--foreground); line-height: 1.5; }
 /* default icon size only: .fa-lg, .fa-2x ... keep theirs (audit C19) */
 :where(body.AdminThemeBridge) :is(.fa, .fas, .far) { font-size: var(--pw-icon); }
 body.AdminThemeBridge .pw-nav-icon { margin-right: 6px; }

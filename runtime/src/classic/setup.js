@@ -278,6 +278,43 @@
 				if(importLink) importLink.setAttribute('href', importHref + '?ids=' + ids);
 			});
 		}
+		selectFields();
+	}
+
+	// the fields list's checkboxes (Delete, and Export or Import of the checked fields) show on
+	// demand (0.23.0): hidden with Delete until Select, beside Delete, is pressed; pressed again,
+	// it clears them. Without this script they stay as upstream prints them
+	function selectFields() {
+		var del = $('#submit_delete');
+		if(!del || !$('.checkbox-ids') || $('#pw-select-fields')) return;
+		var config = window.ProcessWire && ProcessWire.config ? ProcessWire.config.AdminThemeBridge : null;
+		var labels = (config && config.labels) || {};
+		var button = document.createElement('button');
+		button.type = 'button';
+		button.id = 'pw-select-fields';
+		button.className = 'ui-button ui-widget ui-state-default ui-corner-all ui-priority-secondary pw-button';
+		button.setAttribute('aria-pressed', 'false');
+		var text = document.createElement('span');
+		text.className = 'ui-button-text';
+		var icon = document.createElement('i');
+		icon.className = 'fa fa-check-square-o';
+		icon.setAttribute('aria-hidden', 'true');
+		var word = document.createTextNode(' ' + (labels.select || 'Select'));
+		text.appendChild(icon);
+		text.appendChild(word);
+		button.appendChild(text);
+		del.parentNode.insertBefore(button, del);
+		document.body.classList.add('pw-select-off');
+		button.addEventListener('click', function() {
+			var on = document.body.classList.toggle('pw-select-off') === false;
+			button.setAttribute('aria-pressed', on ? 'true' : 'false');
+			word.textContent = ' ' + (on ? (labels.done || 'Done') : (labels.select || 'Select'));
+			if(on) return;
+			$$('.checkbox-ids:checked').forEach(function(c) {
+				c.checked = false;
+				c.dispatchEvent(new Event('input', { bubbles: true }));
+			});
+		}, handover.bind());
 	}
 
 	/* Templates ------------------------------------------------------------------------- */

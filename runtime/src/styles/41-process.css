@@ -8,6 +8,8 @@
 /* Lister: results headline and pager on one line */
 h2.lister_headline { font-size: 1.25rem; margin: 24px 0 10px; }
 h2.lister_headline + .pw-pagination, .lister_headline ~ .MarkupPagerNav { margin-top: 24px; }
+/* the fields list's checkbox column and Delete wait for Select (scripts/setup.js, 0.23.0) */
+body.pw-select-off table:has(.checkbox-ids) :is(th, td):last-child, body.pw-select-off #submit_delete { display: none; }
 /* the results arrive by AJAX into an empty div: hold the space, so the footer starts below the
  * fold instead of jumping down when they land (layout shift) */
 #ProcessListerResults:empty { min-height: 100vh; }

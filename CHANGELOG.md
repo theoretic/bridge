@@ -1,5 +1,14 @@
 # Changelog
 
+## AdminThemeBridge 0.23.0: users' requests: scale in percent, tree pager, links, code (2026-11-02)
+
+- **The scale in percent**, right of the "larger" button: 75 % to 150 %, rounded (112.5 % shows as 113 %). A click goes back to 100 %. Hidden on phones with the scale buttons.
+- **A long branch's pagination stays top left** in the page tree. In a branch that scrolls (its scrollbar on the left, a right-to-left box) it sat on the right. It is now sticky: at the top of a branch that scrolls itself, else under the masthead while the page scrolls. Sticky rather than fixed, so it stays with its branch. `ProcessPageList.css` sets its margin with `!important`, so the theme's does too.
+- **The fields list's checkboxes show on demand**: the checkbox column and Delete are hidden until **Select**, beside Delete, is pressed; it then reads Done, and pressing it again unchecks every field. The checked ids still go to Delete, Export and Import, as upstream has it. Without the setup script the list stays as upstream prints it.
+- **Text links in the link colour**: a link without a class in the content, outside navigation, tabs, the page tree, pagination and headings, and every link in a data table (the name column included), is the primary mixed toward the text colour (`--pw-text-link`: 65 % in light, 80 % in dark; 4.5 to 1 or more on the page with every preset), underlined on hover. With the black preset, whose primary is the text colour, they are always underlined (`--pw-text-link-line`). Description and notes links keep their underline.
+- **Code**: inline `<code>` has a muted ground, padding and small rounded corners; `<pre>` a muted ground, a hairline border, padding and rounded corners. Both in the monospace stack as before.
+- `theme.css` gzip budget 16 to 16.25 KiB for these.
+
 ## AdminThemeBridge 0.22.1: the colour picker shows the colour in use (2026-11-01)
 
 - The swatch of the colour in use has a ring, also when the user has no colour of their own and the site's colour applies. Before, only a colour the user had picked was marked, so with the site's colour nothing was.
