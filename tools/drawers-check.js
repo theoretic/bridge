@@ -68,6 +68,65 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	check('A visibilitychange to visible fires once the delay has passed (tabFocusDelay 0)', bus.visible && bus.after === 2, JSON.stringify(bus));
 	check('A detail.hidden is a number', bus.detail, JSON.stringify(bus));
 
+	// B: the drawer shell: buttons right of the logo, <dialog> drawers, one at a time
+	await open('setup/field/');
+	check('B both buttons right of the logo', await page.evaluate(() => {
+		const b = document.querySelector('.pw-logo-link + .pw-drawer-buttons');
+		return !!b && !!b.querySelector('[data-pw-drawer="tree"]') && !!b.querySelector('[data-pw-drawer="history"]');
+	}));
+	await page.evaluate(() => {
+		window.__drawerEvents = [];
+		document.addEventListener('pw-drawer-open', e => window.__drawerEvents.push(e.detail.name + ':' + e.detail.first));
+	});
+	const state = () => page.evaluate(() => ({
+		tree: !!document.querySelector('dialog#pw-drawer-tree[open]'),
+		history: !!document.querySelector('dialog#pw-drawer-history[open]'),
+		focus: document.activeElement ? (document.activeElement.closest('dialog.pw-drawer') || {}).id || document.activeElement.getAttribute('data-pw-drawer') || document.activeElement.tagName : '',
+		expanded: Array.from(document.querySelectorAll('[data-pw-drawer]')).map(b => b.getAttribute('aria-expanded')).join(','),
+	}));
+	await page.click('[data-pw-drawer="tree"]');
+	await page.waitForTimeout(300);
+	let st = await state();
+	check('B a click on the tree button opens its drawer, the focus inside', st.tree && !st.history && st.focus === 'pw-drawer-tree' && st.expanded === 'true,false', JSON.stringify(st));
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	st = await state();
+	check('B Escape closes it, the focus back on its button', !st.tree && st.focus === 'tree' && st.expanded === 'false,false', JSON.stringify(st));
+	await page.click('[data-pw-drawer="history"]');
+	await page.waitForTimeout(300);
+	st = await state();
+	check('B the history button opens its drawer, the tree stays closed', st.history && !st.tree && st.focus === 'pw-drawer-history', JSON.stringify(st));
+	await page.mouse.click(1000, 500);
+	await page.waitForTimeout(300);
+	st = await state();
+	check('B a click on the backdrop closes it', !st.history && st.focus === 'history', JSON.stringify(st));
+	await page.click('[data-pw-drawer="tree"]');
+	await page.waitForTimeout(300);
+	await page.click('#pw-drawer-tree .pw-drawer-close');
+	await page.waitForTimeout(300);
+	st = await state();
+	check('B the close button closes it', !st.tree && st.focus === 'tree', JSON.stringify(st));
+	const events = await page.evaluate(() => window.__drawerEvents.join(' '));
+	check('B pw-drawer-open says whether it is the first open on the page', events === 'tree:true history:true tree:false', events);
+	check('B the API opens one drawer at a time', await page.evaluate(() => {
+		const d = ProcessWireAdminTheme.drawer;
+		d.open('tree');
+		d.open('history');
+		const ok = d.isOpen('history') && !d.isOpen('tree');
+		d.close('history');
+		return ok && !d.isOpen('history');
+	}));
+	check('B no jQuery on the Fields screen with the drawers', !(await jq()));
+	await open('page/');
+	check('B the page tree screen: no tree button, the history one', await page.evaluate(() => !document.querySelector('[data-pw-drawer="tree"]') && !!document.querySelector('[data-pw-drawer="history"]')));
+	{
+		const guest = await browser.newContext();
+		const gp = await guest.newPage();
+		await gp.goto(ADMIN, { waitUntil: 'domcontentloaded' });
+		check('B the login screen has no drawer buttons or drawers', await gp.evaluate(() => !!document.querySelector('#login_name') && !document.querySelector('.pw-drawer-buttons, dialog.pw-drawer')));
+		await guest.close();
+	}
+
 	check('no page errors', errors.length === 0, errors.join(' | '));
 	await consoleErrors.settle();
 	consoleErrors.check(check);

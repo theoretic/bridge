@@ -18,6 +18,7 @@ require_once(__DIR__ . '/lib/AdminThemeBridgePageAdd.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeFiles.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeCsp.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeUserColors.php');
+require_once(__DIR__ . '/lib/AdminThemeBridgeDrawers.php');
 
 /**
  * AdminThemeBridge
@@ -52,6 +53,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	use AdminThemeBridgeFiles;
 	use AdminThemeBridgeCsp;
 	use AdminThemeBridgeUserColors;
+	use AdminThemeBridgeDrawers;
 
 	public static function getModuleInfo() {
 		return array(
@@ -445,7 +447,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * @var array paths relative to the theme's directory
 	 *
 	 */
-	protected $deferrableScripts = array('scripts/setup.js', 'scripts/screens.js', 'scripts/link.js', 'scripts/image-select.js', 'scripts/save-wait.js', 'scripts/page-save.js');
+	protected $deferrableScripts = array('scripts/setup.js', 'scripts/screens.js', 'scripts/link.js', 'scripts/image-select.js', 'scripts/save-wait.js', 'scripts/page-save.js', 'scripts/drawers.js');
 
 	public function __construct() {
 		parent::__construct();

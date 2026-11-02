@@ -247,6 +247,8 @@ trait AdminThemeBridgeHead {
 		// setting, modal windows included
 		if($this->saveInPlaceProcess($process)) $print[] = $this->themeAssetUrl('scripts/save-wait.js');
 		if($pageSave) $print[] = $this->themeAssetUrl('scripts/page-save.js');
+		// the page tree and history drawers beside the logo (0.25.0)
+		if(count($this->drawerNames())) $print[] = $this->themeAssetUrl('scripts/drawers.js');
 		return array(
 			'print' => $print,
 			'deferred' => $split['deferred'],

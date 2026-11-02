@@ -126,8 +126,9 @@ $themeCss = $themeDir . 'assets/dist/theme.css';
 check('theme.css built', is_file($themeCss));
 if(is_file($themeCss)) {
 	$css = file_get_contents($themeCss);
-	check('theme.css under 85 kB raw (the gzip budget in check-css.mjs is the binding one)', strlen($css) < 85 * 1024, (string) strlen($css));
-	check('theme.css under 16.25 kB gzip', strlen(gzencode($css, 9)) <= 16.25 * 1024, (string) strlen(gzencode($css, 9)));
+	// 90 kB raw and 16.75 kB gzip since the page tree and history drawers (0.25.0)
+	check('theme.css under 90 kB raw (the gzip budget in check-css.mjs is the binding one)', strlen($css) < 90 * 1024, (string) strlen($css));
+	check('theme.css under 16.75 kB gzip', strlen(gzencode($css, 9)) <= 16.75 * 1024, (string) strlen(gzencode($css, 9)));
 	check('theme.css is flat (no nesting left)', !preg_match('/[{;]\s*&/', $css));
 	// every font the stylesheet references ships next to it (none until Geist is self-hosted)
 	preg_match_all('~url\(\.\./fonts/([^)]+)\)~', $css, $m);
@@ -697,7 +698,9 @@ if(isset($bridge) && $bridge) {
 // 0.10.1 (audit 2026-10-27, phase 5: architecture)
 if(isset($bridge) && $bridge) {
 	$traits = class_uses($bridge);
-	check('PA1 the theme class is split into its fourteen traits', count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === 14, implode(', ', array_keys($traits)));
+	// fourteen until 0.24.x; one per lib/ file that declares a trait since the drawers (0.25.0)
+	$traitFiles = count(array_filter((array) glob($themeDir . 'lib/*.php'), function($f) { return (bool) preg_match('/^trait AdminThemeBridge\w+ \{/m', (string) file_get_contents($f)); }));
+	check('PA1 the theme class uses every trait in lib/ (at least fifteen)', $traitFiles >= 15 && count(array_filter(array_keys($traits), function($t) { return strpos($t, 'ProcessWire\\AdminThemeBridge') === 0; })) === $traitFiles, implode(', ', array_keys($traits)));
 	check('PA1 hookable methods stay hookable through the traits', method_exists($bridge, '___sortableDataTable') && method_exists($bridge, '___nativeMap') && method_exists($bridge, '___renderBreadcrumbs'));
 	$traitSrc = '';
 	foreach((array) glob($themeDir . 'lib/*.php') as $f) $traitSrc .= (string) file_get_contents($f);
@@ -1216,6 +1219,63 @@ if(isset($bridge) && $bridge) {
 	check('the picker saves through the admin, before the Process runs', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "addHookBefore('ProcessController::execute', \$this, 'hookUserColorsSave')") !== false
 		&& strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeUserColors.php'), '$this->wire()->session->CSRF->hasValidToken()') !== false);
 }
+// 0.25.0: the page tree and history drawers beside the logo
+if(isset($bridge) && $bridge) {
+	$loggedIn = new \ReflectionProperty($bridge, 'isLoggedIn');
+	$guest = $wire->user;
+	check('a guest gets no drawer buttons and no drawers', $bridge->renderDrawerButtons() === '' && $bridge->renderDrawers() === '');
+	$su = $wire->users->get('name=bridge');
+	if($su && $su->id && $su->isSuperuser()) {
+		$wire->users->setCurrentUser($su);
+		$loggedInWas = $loggedIn->getValue($bridge);
+		$loggedIn->setValue($bridge, true);
+		$settingsWas = array($bridge->pageTreeDrawer, $bridge->history);
+		$bridge->set('pageTreeDrawer', 1);
+		$bridge->set('history', 1);
+		$buttons = $bridge->renderDrawerButtons();
+		check('drawer buttons: the tree, then the history, icon-only and named', strpos($buttons, "<div class='pw-drawer-buttons'>") === 0
+			&& strpos($buttons, "data-pw-drawer='tree' aria-controls='pw-drawer-tree' aria-expanded='false'") !== false
+			&& strpos($buttons, "data-pw-drawer='history' aria-controls='pw-drawer-history'") > strpos($buttons, "data-pw-drawer='tree'")
+			&& strpos($buttons, 'fa-sitemap') !== false && strpos($buttons, 'fa-history') !== false && substr_count($buttons, 'aria-label=') === 2, $buttons);
+		$drawers = $bridge->renderDrawers();
+		check('one dialog.pw-drawer per button, each with a named close button and a body', substr_count($drawers, "<dialog class='pw-drawer'") === 2
+			&& strpos($drawers, "id='pw-drawer-tree'") !== false && strpos($drawers, "id='pw-drawer-history'") !== false
+			&& substr_count($drawers, "class='pw-drawer-close' aria-label=") === 2 && substr_count($drawers, "<div class='pw-drawer-body'></div>") === 2, $drawers);
+		$tplAt = strpos($drawers, "<template class='pw-drawer-template'>");
+		check('the tree drawer holds the template the script clones', substr_count($drawers, "<template class='pw-drawer-template'>") === 1
+			&& $tplAt > strpos($drawers, "id='pw-drawer-tree'") && $tplAt < strpos($drawers, "id='pw-drawer-history'"));
+		$bridge->set('pageTreeDrawer', 0);
+		check('with "Page tree on each page" off, only the history button', $bridge->drawerNames() === array('history')
+			&& strpos($bridge->renderDrawerButtons(), "data-pw-drawer='tree'") === false && substr_count($bridge->renderDrawers(), '<dialog') === 1);
+		$bridge->set('history', 0);
+		check('with both off, nothing', $bridge->renderDrawerButtons() === '' && $bridge->renderDrawers() === '');
+		$bridge->set('pageTreeDrawer', 1);
+		$bridge->set('history', 1);
+		$pageWas = $wire->page;
+		$treePage = $pages->get($config->adminRootPageID)->child('name=page, include=all');
+		if($treePage->id) {
+			$wire->wire('page', $treePage);
+			check('the page tree screen itself shows no tree button, the history one', $bridge->drawerNames() === array('history'));
+			$wire->wire('page', $pageWas);
+		}
+		$wire->input->get->modal = 1;
+		check('a modal window (?modal=1) prints no drawers', $bridge->drawerNames() === array() && $bridge->renderDrawers() === '');
+		$wire->input->get->remove('modal');
+		$bridge->set('pageTreeDrawer', $settingsWas[0]);
+		$bridge->set('history', $settingsWas[1]);
+		$loggedIn->setValue($bridge, $loggedInWas);
+		$wire->users->setCurrentUser($guest);
+	}
+	$headSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php');
+	check('the drawers script is printed where a drawer is, deferred', strpos($headSrc, "if(count(\$this->drawerNames())) \$print[] = \$this->themeAssetUrl('scripts/drawers.js');") !== false
+		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "'scripts/page-save.js', 'scripts/drawers.js');") !== false && is_file($themeDir . 'scripts/drawers.js'));
+	$mastheadSrc = (string) file_get_contents($themeDir . '_masthead.php');
+	$logoAt = strpos($mastheadSrc, "class='pw-logo-link'");
+	$buttonsAt = strpos($mastheadSrc, 'renderDrawerButtons()');
+	check('the masthead prints the buttons after the logo, before the nav toggle, and the drawers after the header', $logoAt !== false && $buttonsAt > $logoAt
+		&& $buttonsAt < strpos($mastheadSrc, "class='pw-nav-toggle'") && strpos($mastheadSrc, "</header>\n<?php echo \$adminTheme->renderDrawers(); ?>") !== false);
+	check('theme.css has the drawers', strpos((string) @file_get_contents($themeDir . 'assets/dist/theme.css'), 'dialog.pw-drawer::backdrop') !== false);
+}
 check('the picker\'s work is a runtime chunk; editors follow a colour change', strpos($srcOf('index.ts'), "import('./util/colors')") !== false
 	&& strpos($srcOf('classic/main.js'), "document.addEventListener('pw-variant-change'") !== false);
 
@@ -1252,6 +1312,7 @@ $inRange = function($cp) use($solidRange) {
 };
 check('PF3 tools/fa-coverage.js reads the hashed subset names', strpos((string) file_get_contents(dirname(__DIR__) . '/tools/fa-coverage.js'), '/-subset(\.[0-9a-f]+)?\.woff2/') !== false);
 check('PF3 the scale buttons\' icons (search-minus, search-plus) are in the solid subset', $faCssShipped === '' || ($solidRange !== '' && $inRange(0xf010) && $inRange(0xf00e)));
+check('the drawer buttons\' icons (sitemap, history) are in the solid subset', $faCssShipped === '' || ($solidRange !== '' && $inRange(0xf0e8) && $inRange(0xf1da)));
 
 // docs that follow the code (audit BG10)
 $themeInfo = (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php');
