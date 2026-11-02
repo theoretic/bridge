@@ -1191,6 +1191,9 @@ check('text links take the link colour, underlined with the black preset', preg_
 check('code and code blocks have a ground and rounded corners', (bool) preg_match('/body\.AdminThemeBridge :not\(pre\)>code\{[^}]*background:var\(--muted\)/', $themeCss023)
 	&& (bool) preg_match('/body\.AdminThemeBridge pre\{[^}]*border-radius:var\(--radius-md\)[^}]*background:var\(--muted\)/', $themeCss023));
 
+// 0.23.1 (theoretic/bridge#2): in an image field's list view the checkerboard is on the image only
+check('list view: no checkerboard around the thumbnail', strpos((string) @file_get_contents($themeDir . 'assets/dist/fields.css'), '.InputfieldImageEditAll .gridImage__overflow{background:none}') !== false);
+
 // 0.21.1: every icon the shell shows on every screen is in the subsets
 $faCssShipped = (string) @file_get_contents($themeDir . 'assets/fonts/fa-6.7.2/fa.css');
 $solidRange = preg_match('/font-family:"Font Awesome 6 Free";font-style:normal;font-weight:900;font-display:block;src:url\(fa-solid-900-subset[^)]*\)[^;]*;unicode-range:([^}]+)\}/', $faCssShipped, $fm) ? $fm[1] : '';

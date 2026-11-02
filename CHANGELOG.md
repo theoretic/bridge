@@ -1,5 +1,12 @@
 # Changelog
 
+## AdminThemeBridge 0.23.1: no checkerboard around list-view thumbnails (2026-11-02)
+
+Contributed by phlppschrr ([theoretic/bridge#2](https://github.com/theoretic/bridge/pull/2)).
+
+- In an image field's list view the transparency checkerboard filled the thumbnail's padding as well, so opaque images sat in large grey triangles. `fields.css` repeats upstream's checkerboard rule for the thumbnail box but missed upstream's reset for the list view, and printed after `InputfieldImage.css` it won. The reset is back: the image keeps its checkerboard, the padding is clear. Grid and whole-thumbnail views are unchanged.
+- `tools/image-file-check.js` checks both: no checkerboard on the list view's thumbnail box but one on its image, and the grid thumbnail keeps it.
+
 ## AdminThemeBridge 0.23.0: users' requests: scale in percent, tree pager, links, code (2026-11-02)
 
 - **The scale in percent**, right of the "larger" button: 75 % to 150 %, rounded (112.5 % shows as 113 %). A click goes back to 100 %. Hidden on phones with the scale buttons.
