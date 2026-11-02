@@ -942,6 +942,22 @@ if(isset($bridge) && $bridge) {
 	$bridge->getModuleConfigInputfields($configFields);
 	foreach($configFields->getAll() as $f) if($f->attr('name') === 'dangerWarn') $found = true;
 	check('the setting is in the module config', $found);
+	// 0.25.0: page tree drawer, history and its cap, in Features after Extended breadcrumbs
+	check('"Page tree on each page" and "Show history" are on by default, 100 history steps', (int) $fresh->pageTreeDrawer === 1 && (int) $fresh->history === 1 && $fresh->getHistorySteps() === 100);
+	$steps = array();
+	foreach(array(0, 'abc', 5, 10001, -3) as $v) {
+		$fresh->set('historySteps', $v);
+		$steps[] = $fresh->getHistorySteps();
+	}
+	check('history steps out of range or garbage give 100, 5 gives 5', $steps === array(100, 100, 5, 100, 100), json_encode($steps));
+	$featureNames = array();
+	$featuresFs = $configFields->getChildByName('_features');
+	if($featuresFs) foreach($featuresFs->getAll() as $f) $featureNames[] = $f->attr('name');
+	$at = array_search('extendedBreadcrumbs', $featureNames, true);
+	check('Features: extendedBreadcrumbs, pageTreeDrawer, history, historySteps in this order', $at !== false
+		&& array_slice($featureNames, $at, 4) === array('extendedBreadcrumbs', 'pageTreeDrawer', 'history', 'historySteps'), implode(', ', $featureNames));
+	check('the history steps field is an integer within 1..10000', ($hs = $configFields->getChildByName('historySteps')) && $hs instanceof InputfieldInteger
+		&& (int) $hs->attr('min') === 1 && (int) $hs->attr('max') === 10000);
 	$labels = $bridge->runtimeLabels();
 	foreach(array('warnThisField', 'warnReplaceTitle', 'warnReplace', 'warnReplaceNow', 'warnReplaceImage', 'warnOverwriteTitle', 'warnOverwrite',
 		'warnSaveReplaceTitle', 'warnSaveReplace', 'warnVariationTitle', 'warnVariationsTitle', 'warnVariations', 'warnUninstallTitle', 'warnUninstall', 'warnRemoveDbTitle',

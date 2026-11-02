@@ -135,6 +135,37 @@ trait AdminThemeBridgeConfig {
 
 		/** @var InputfieldCheckbox $f */
 		$f = $modules->get('InputfieldCheckbox');
+		$f->attr('name', 'pageTreeDrawer');
+		$f->label = __('Page tree on each page', __FILE__);
+		$f->description = __('A tree button beside the logo on every admin screen but the page tree itself opens the page tree in a drawer.', __FILE__);
+		$f->attr('value', 1);
+		if($this->pageTreeDrawer) $f->attr('checked', 'checked');
+		$f->columnWidth = 50;
+		$fs->add($f);
+
+		/** @var InputfieldCheckbox $f */
+		$f = $modules->get('InputfieldCheckbox');
+		$f->attr('name', 'history');
+		$f->label = __('Show history', __FILE__);
+		$f->description = __('A history button beside the logo opens the admin screens the user visited, newest first, with how often each was visited. The history is kept with the user, so it is the same on every device.', __FILE__);
+		$f->attr('value', 1);
+		if($this->history) $f->attr('checked', 'checked');
+		$f->columnWidth = 50;
+		$fs->add($f);
+
+		/** @var InputfieldInteger $f */
+		$f = $modules->get('InputfieldInteger');
+		$f->attr('name', 'historySteps');
+		$f->label = __('History steps', __FILE__);
+		$f->description = __('How many entries the history keeps; the oldest go first. Default 100.', __FILE__);
+		$f->attr('value', $this->getHistorySteps());
+		$f->attr('min', 1);
+		$f->attr('max', 10000);
+		$f->columnWidth = 50;
+		$fs->add($f);
+
+		/** @var InputfieldCheckbox $f */
+		$f = $modules->get('InputfieldCheckbox');
 		$f->attr('name', 'pageSaveInPlace');
 		$f->label = __('Save without reload', __FILE__);
 		$f->description = __('Save, Publish and Save + Keep Unpublished in the page editor update the page in place, and so does Save in the field, template, module, user, role, permission and profile editors (on pages without jQuery). Shift+click a save button for a classic save; other save actions, Delete, template changes and modal windows always reload.', __FILE__);

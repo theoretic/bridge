@@ -348,6 +348,12 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	const userColorsMeta = 'AdminThemeBridge.colors';
 
 	/**
+	 * The user page's meta key of the admin screens the user visited (the history drawer, 0.25.0)
+	 *
+	 */
+	const historyMeta = 'AdminThemeBridge.history';
+
+	/**
 	 * userColors() for this request: null before it is asked, false when the user has none
 	 *
 	 * @var array|false|null
@@ -452,6 +458,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->set('logoURL', '');
 		$this->set('logoURLDark', '');
 		$this->set('extendedBreadcrumbs', 1);
+		$this->set('pageTreeDrawer', 1);
+		$this->set('history', 1);
+		$this->set('historySteps', 100);
 		$this->set('pageSaveInPlace', 1);
 		$this->set('pageAddSkipTemplate', 0);
 		$this->set('dangerWarn', 1);
@@ -586,6 +595,17 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		if($key === 'nativeOverrides') $this->nativeOverridesCache = null;
 		if($key === 'printScripts') $this->printScriptsList = null;
 		return parent::set($key, $value);
+	}
+
+	/**
+	 * Most entries the history keeps (the historySteps setting), 1..10000; anything else is 100
+	 *
+	 * @return int
+	 *
+	 */
+	public function getHistorySteps() {
+		$n = (int) $this->get('historySteps');
+		return $n >= 1 && $n <= 10000 ? $n : 100;
 	}
 
 }
