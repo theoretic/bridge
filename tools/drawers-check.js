@@ -1,5 +1,6 @@
 // Drawers check (tools/drawers-check.js, 0.25.0): the theme's tab-focus bus (pw-tab-focus) that
-// the drawers refresh on (A), the drawer shell (B), the page tree in its drawer (C).
+// the drawers refresh on (A), the drawer shell (B), the page tree in its drawer (C), the history
+// drawer (D) and two tabs of one user: the tab that gets the focus back refreshes both (E).
 // Needs a Playwright install with its browsers (any project's node_modules/playwright-core).
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
@@ -157,8 +158,8 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.$eval(T + ' > a.PageListPage', a => a.scrollIntoView({ block: 'center' }));
 		await page.click(T + ' > a.PageListPage');
 		check('C a click on a title opens its branch', await waitFor((t) => document.querySelectorAll(t + ' + .PageList > .PageListItem').length > 1, T));
-		const cookie = await page.evaluate(() => decodeURIComponent((document.cookie.match(/(?:^|;\s*)pagelist_open=([^;]*)/) || [])[1] || ''));
-		check('C the pagelist_open cookie holds the branch', cookie.split(',').some(v => v.split('-')[0] === TREE), cookie);
+		const cookie = await page.evaluate(() => decodeURIComponent((document.cookie.match(/(?:^|;\s*)bridge_tree_open=([^;]*)/) || [])[1] || ''));
+		check('C the drawer tree\'s own cookie (bridge_tree_open) holds the branch', cookie.split(',').some(v => v.split('-')[0] === TREE), cookie);
 		check('C the drawer body scrolls the long branch, no branch cap inside the drawer', await page.evaluate((d) => {
 			const body = document.querySelector(d + '.pw-drawer-body');
 			return body.scrollHeight > body.clientHeight && !Array.from(document.querySelectorAll(d + '.PageList')).some(l => l.style.getPropertyValue('--pw-branch-max'));
@@ -199,6 +200,122 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		check('C the Children tab shows the edited page\'s children, not the home page', kidsOk);
 		check('C the drawer tree still opens after the tab', await page.evaluate(() => { ProcessWireAdminTheme.drawer.open('tree'); return ProcessWireAdminTheme.drawer.isOpen('tree') && !!document.querySelector('#pw-drawer-tree .PageListID1'); }));
 		await page.keyboard.press('Escape');
+	}
+
+	// D: the history drawer
+	const H = '#pw-drawer-history ';
+	const firstRow = () => page.evaluate((h) => {
+		const tr = document.querySelector(h + 'table.pw-history tbody tr');
+		if(!tr) return null;
+		const a = tr.querySelector('a');
+		return { href: a.getAttribute('href'), name: a.textContent, type: tr.children[1].textContent, visits: parseInt(tr.children[2].textContent, 10), current: a.getAttribute('aria-current') };
+	}, H);
+	const rowFor = (href) => page.evaluate(([h, u]) => {
+		const rows = Array.from(document.querySelectorAll(h + 'table.pw-history tbody tr')).filter(tr => tr.querySelector('a').getAttribute('href') === u);
+		return { count: rows.length, visits: rows.length ? parseInt(rows[0].children[2].textContent, 10) : 0, type: rows.length ? rows[0].children[1].textContent : '' };
+	}, [H, href]);
+	const openHistory = async () => {
+		await page.click('[data-pw-drawer="history"]');
+		for(let t = 0; t < 10000 && !(await page.locator(H + 'table.pw-history, ' + H + '.pw-history-empty').count()); t += 200) await page.waitForTimeout(200);
+	};
+	let editorHref = '';
+	{
+		await open('setup/template/');
+		const link = page.locator('table.AdminDataTable a[href*="edit?id="]').first();
+		await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle' }), link.click()]);
+		editorHref = new URL(page.url()).pathname + new URL(page.url()).search;
+		await openHistory();
+		let row = await firstRow();
+		const visits = row ? row.visits : 0;
+		check('D the template editor is the first row, a "template", the current screen', !!row && row.href === editorHref && row.type === 'template' && row.current === 'page' && visits >= 1, JSON.stringify(row) + ' ' + editorHref);
+		await page.keyboard.press('Escape');
+		await page.goto(page.url(), { waitUntil: 'networkidle' });
+		await openHistory();
+		const again = await rowFor(editorHref);
+		check('D a second visit: still one row for it, one visit more', again.count === 1 && again.visits === visits + 1, JSON.stringify(again));
+		await page.keyboard.press('Escape');
+		await open('setup/field/');
+		await openHistory();
+		row = await firstRow();
+		check('D the Fields screen is a "screen" (the type map)', !!row && /setup\/field\/$/.test(row.href) && row.type === 'screen', JSON.stringify(row));
+		check('D the table has a caption and a header row', await page.evaluate((h) => !!document.querySelector(h + 'table.pw-history caption') && document.querySelectorAll(h + 'table.pw-history thead th').length === 3, H));
+		await page.keyboard.press('Escape');
+	}
+
+	// E: two tabs of one user; the tab that gets the focus back refreshes both drawers
+	{
+		await open('setup/field/');
+		const a = page;
+		await openHistory();
+		await a.keyboard.press('Escape');
+		await a.click('[data-pw-drawer="tree"]');
+		await a.waitForTimeout(1500);
+		await a.keyboard.press('Escape');
+		const treeClosed = await a.evaluate((t) => { const i = document.querySelector(t); return !!i && !i.classList.contains('PageListItemOpen'); }, '#pw-drawer-tree .PageListID' + TREE);
+		// tab B: a branch opened in its drawer tree on another screen (the cookie), then a template
+		// editor (the newest visit)
+		const b = await ctx.newPage();
+		const BT = '#pw-drawer-tree .PageListID' + TREE;
+		await b.goto(ADMIN + 'access/users/', { waitUntil: 'networkidle' });
+		await b.click('[data-pw-drawer="tree"]');
+		for(let t = 0; t < 10000 && !(await b.locator(BT).count()); t += 200) await b.waitForTimeout(200);
+		await b.$eval(BT + ' > a.PageListPage', el => el.scrollIntoView({ block: 'center' }));
+		await b.click(BT + ' > a.PageListPage');
+		await b.waitForTimeout(1500);
+		await b.goto(ADMIN + 'setup/template/', { waitUntil: 'networkidle' });
+		const links = b.locator('table.AdminDataTable a[href*="edit?id="]');
+		const second = (await links.count()) > 1 ? links.nth(1) : links.first();
+		await Promise.all([b.waitForNavigation({ waitUntil: 'networkidle' }), second.click()]);
+		const bHref = new URL(b.url()).pathname + new URL(b.url()).search;
+		const requests = [];
+		const onRequest = r => { const u = r.url(); if(u.includes('bridgeHistory=1') || /page\/list\/\?id=1(&|$)/.test(u)) requests.push(u.includes('bridgeHistory=1') ? 'history' : 'tree'); };
+		await a.waitForTimeout(1000);
+		a.on('request', onRequest);
+		requests.length = 0;
+		await a.evaluate(() => {
+			ProcessWireAdminTheme.tabFocusDelay = 0;
+			window.dispatchEvent(new Event('blur'));
+			window.dispatchEvent(new Event('focus'));
+		});
+		const refreshed = await (async () => {
+			for(let t = 0; t < 5000; t += 200) {
+				const ok = await a.evaluate(([h, href, tree]) => {
+					const tr = document.querySelector(h + 'table.pw-history tbody tr a');
+					const item = document.querySelector('#pw-drawer-tree .PageListID' + tree);
+					return !!tr && tr.getAttribute('href') === href && !!item && item.classList.contains('PageListItemOpen')
+						&& document.querySelectorAll('#pw-drawer-tree .PageListID' + tree + ' + .PageList > .PageListItem').length > 1;
+				}, [H, bHref, TREE]);
+				if(ok) return true;
+				await a.waitForTimeout(200);
+			}
+			return false;
+		})();
+		const stateA = await a.evaluate(([h, tree]) => {
+			const top = document.querySelector(h + 'table.pw-history tbody tr a');
+			return { vis: document.visibilityState, fired: window.__tabFocusSeen, top: top ? top.getAttribute('href') : null,
+				open: !!document.querySelector('#pw-drawer-tree .PageListID' + tree + '.PageListItemOpen'), trees: document.querySelectorAll('#pw-drawer-tree [data-pw-tree]').length };
+		}, [H, TREE]);
+		check('E focus back in tab A: its history shows tab B\'s visit on top, its tree the branch B opened', treeClosed && refreshed, JSON.stringify({ treeClosed, bHref, stateA, requests }));
+		const counted = { history: requests.filter(x => x === 'history').length, tree: requests.filter(x => x === 'tree').length };
+		check('E one history request and one root tree request for that focus', counted.history === 1 && counted.tree === 1, JSON.stringify(counted));
+		requests.length = 0;
+		await a.evaluate(() => {
+			ProcessWireAdminTheme.tabFocusDelay = 5000;
+			window.dispatchEvent(new Event('blur'));
+			window.dispatchEvent(new Event('focus'));
+		});
+		await a.waitForTimeout(1500);
+		check('E a second focus at once fetches nothing more', requests.length === 0, requests.join(','));
+		a.off('request', onRequest);
+		// close the branch again for the other harnesses
+		await b.goto(ADMIN + 'access/users/', { waitUntil: 'networkidle' });
+		await b.click('[data-pw-drawer="tree"]');
+		for(let t = 0; t < 10000 && !(await b.locator(BT + '.PageListItemOpen').count()); t += 200) await b.waitForTimeout(200);
+		if(await b.locator(BT + '.PageListItemOpen').count()) {
+			await b.click(BT + ' > a.PageListPage');
+			await b.waitForTimeout(800);
+		}
+		await b.close();
 	}
 
 	check('no page errors', errors.length === 0, errors.join(' | '));

@@ -18,6 +18,10 @@
  * admin), `visits`, `last` (unix time). historyEntry() decides what a visit records and is
  * hookable.
  *
+ * The history drawer (scripts/drawers.js) fetches its table with a GET of the screen's own URL
+ * plus `bridgeHistory=1`, as XMLHttpRequest: hookHistoryFragment() answers it before the Process
+ * runs, with renderHistoryTable() (the screen's own entry marked aria-current).
+ *
  */
 trait AdminThemeBridgeHistory {
 
@@ -33,6 +37,83 @@ trait AdminThemeBridgeHistory {
 		$controller = $event->object;
 		$process = $controller->getProcess();
 		if($process) $this->historyRecord($process);
+	}
+
+	/**
+	 * Hook before ProcessController::execute: the history drawer's table for `?bridgeHistory=1`
+	 * (AJAX, any admin screen); read only, so no CSRF token; 403 for a guest
+	 *
+	 * @param HookEvent $event
+	 *
+	 */
+	public function hookHistoryFragment(HookEvent $event) {
+		$input = $this->wire()->input;
+		if($input->get('bridgeHistory') === null || !$this->wire()->config->ajax || !$input->requestMethod('GET')) return;
+		$event->replace = true;
+		$user = $this->wire()->user;
+		if(!$this->history || !$user->isLoggedin()) {
+			http_response_code(403);
+			$event->return = ' ';
+			return;
+		}
+		header('Content-Type: text/html; charset=utf-8');
+		$event->return = $this->renderHistoryTable($this->historyUrl());
+	}
+
+	/**
+	 * The history drawer's content: a table of the user's entries, newest first, or a sentence
+	 * when there are none
+	 *
+	 * @param string $current The screen's own key (historyUrl()): its link gets aria-current
+	 * @return string
+	 *
+	 */
+	public function renderHistoryTable($current = '') {
+		$sanitizer = $this->wire()->sanitizer;
+		$entries = $this->historyEntries();
+		if(!count($entries)) return "<p class='pw-history-empty'>" . $sanitizer->entities1(__('No screens visited yet.', __FILE__)) . "</p>";
+		$admin = (string) $this->wire()->config->urls->admin;
+		$datetime = $this->wire()->datetime;
+		$format = __('Y-m-d H:i', __FILE__); // date and time of the last visit (PHP date format)
+		$lastLabel = __('Last visit: %s', __FILE__);
+		$rows = '';
+		foreach($entries as $key => $entry) {
+			$url = isset($entry['url']) ? (string) $entry['url'] : (string) $key;
+			$name = isset($entry['name']) && $entry['name'] !== '' ? (string) $entry['name'] : $url;
+			$type = $this->historyTypeLabel(isset($entry['type']) ? (string) $entry['type'] : '');
+			$visits = isset($entry['visits']) ? (int) $entry['visits'] : 1;
+			$last = isset($entry['last']) ? sprintf($lastLabel, $datetime->date($format, (int) $entry['last'])) : '';
+			$attr = $current !== '' && $url === $current ? " aria-current='page'" : '';
+			$rows .= "<tr><td><a href='" . $sanitizer->entities($admin . $url) . "'$attr>" . $sanitizer->entities($name) . "</a></td>" .
+				"<td>" . $sanitizer->entities($type) . "</td>" .
+				"<td class='pw-history-visits' title='" . $sanitizer->entities($last) . "'>$visits</td></tr>";
+		}
+		return "<table class='pw-history'><caption class='pw-sr-only'>" . $sanitizer->entities1(__('Visited screens, newest first', __FILE__)) . "</caption>" .
+			"<thead><tr><th scope='col'>" . $sanitizer->entities1(__('Name', __FILE__)) . "</th><th scope='col'>" . $sanitizer->entities1(__('Type', __FILE__)) . "</th>" .
+			"<th scope='col' class='pw-history-visits'>" . $sanitizer->entities1(__('Visits', __FILE__)) . "</th></tr></thead><tbody>$rows</tbody></table>";
+	}
+
+	/**
+	 * A history entry's type as the user reads it; an unknown key as it is
+	 *
+	 * @param string $type
+	 * @return string
+	 *
+	 */
+	public function historyTypeLabel($type) {
+		switch($type) {
+			case 'page': return __('page', __FILE__);
+			case 'template': return __('template', __FILE__);
+			case 'field': return __('field', __FILE__);
+			case 'module': return __('module', __FILE__);
+			case 'user': return __('user', __FILE__);
+			case 'role': return __('role', __FILE__);
+			case 'permission': return __('permission', __FILE__);
+			case 'lister': return __('lister', __FILE__);
+			case 'pages': return __('page tree', __FILE__);
+			case 'screen': return __('screen', __FILE__);
+		}
+		return $type;
 	}
 
 	/**

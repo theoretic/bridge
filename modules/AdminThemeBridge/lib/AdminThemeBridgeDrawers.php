@@ -124,7 +124,7 @@ trait AdminThemeBridgeDrawers {
 
 	/**
 	 * Options of the drawer's page tree: a root tree (home page shown) as ProcessPageList's
-	 * renderReady() sets them, with the branches the user left open (`pagelist_open` cookie)
+	 * renderReady() sets them, with the branches the user left open in it (treeDrawerCookie)
 	 *
 	 * The global ProcessWire.config.ProcessPageList is left as it was: the page editor's Children
 	 * tab has its own tree there (rootPageID = the edited page, root hidden).
@@ -175,12 +175,15 @@ trait AdminThemeBridgeDrawers {
 		$options['openPageData'] = array();
 		$options['openPagination'] = 0;
 		$options['start'] = 0;
+		// its open branches, the same on every screen (the tree screen's cookie is per path)
+		$options['cookieName'] = self::treeDrawerCookie;
+		$options['cookiePath'] = (string) $config->urls->admin;
 		return $options;
 	}
 
 	/**
-	 * The branches the user left open in a page tree (`pagelist_open` cookie, "id-start"), only
-	 * pages that exist and the user may list
+	 * The branches the user left open in the drawer's tree (its own cookie, treeDrawerCookie,
+	 * "id-start"), only pages that exist and the user may list
 	 *
 	 * @return array of "id-start" strings
 	 *
@@ -188,7 +191,7 @@ trait AdminThemeBridgeDrawers {
 	protected function treeDrawerOpenIDs() {
 		$pages = $this->wire()->pages;
 		$ids = array();
-		foreach($this->wire()->input->cookie->array('pagelist_open') as $value) {
+		foreach($this->wire()->input->cookie->array(self::treeDrawerCookie) as $value) {
 			$parts = explode('-', (string) $value, 2);
 			$id = (int) $parts[0];
 			$start = isset($parts[1]) ? max(0, (int) $parts[1]) : 0;

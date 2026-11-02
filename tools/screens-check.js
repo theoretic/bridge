@@ -201,9 +201,10 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	}
 	await touchCtx.close();
 
-	// the top bar turns into the drawer when its items do not fit
+	// the top bar turns into the drawer when its items do not fit (1100 px wide since the page tree
+	// and history buttons beside the logo, 0.25.0: at 1000 the sandbox's bar no longer fits)
 	const wide = await ctx.newPage();
-	await wide.setViewportSize({ width: 1000, height: 800 });
+	await wide.setViewportSize({ width: 1100, height: 800 });
 	await wide.goto(ADMIN + 'page/edit/?id=' + NATIVE, { waitUntil: 'networkidle' });
 	const fits = await wide.evaluate(() => document.body.classList.contains('pw-nav-overflow'));
 	await wide.evaluate(() => {

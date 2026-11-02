@@ -12,7 +12,11 @@
  *
  * The page tree drawer clones its <template> (a div[data-pw-tree] with the tree's own options)
  * into its body on the first open and hands it to Bridge.pageTree(). refreshTree()
- * builds it again with the branches open now (the pagelist_open cookie), unless a drag is on.
+ * builds it again with the branches open now (its cookie, options.cookieName), unless a drag is on.
+ *
+ * The history drawer fetches its table on the first open (the screen's URL plus bridgeHistory=1,
+ * AdminThemeBridgeHistory). On pw-tab-focus (the user is back in this tab) both drawers that were
+ * built once refresh in the background: the history table, and the tree with its open branches.
  */
 (function(theme) {
 	'use strict';
@@ -45,10 +49,14 @@
 		d.dispatchEvent(new CustomEvent('pw-drawer-open', { bubbles: true, detail: { name: name, first: first } }));
 	}
 
-	function cookieOpen() {
-		var m = document.cookie.match(/(?:^|;\s*)pagelist_open=([^;]*)/);
+	function cookieOpen(name) {
+		var m = null;
+		document.cookie.split(';').forEach(function(c) {
+			c = c.trim();
+			if(!m && c.indexOf(name + '=') === 0) m = [c, c.substring(name.length + 1)];
+		});
 		if(!m) return [];
-		// the runtime writes "id-start,id-start" (fields/pagelist.ts)
+		// fields/pagelist.ts writes "id-start,id-start"
 		return decodeURIComponent(m[1]).split(',').filter(function(s) { return /^\d+(-\d+)?$/.test(s); });
 	}
 
@@ -63,7 +71,7 @@
 		if(withCookie) {
 			try {
 				var o = JSON.parse(tree.getAttribute('data-pw-tree') || '{}');
-				o.openPageIDs = cookieOpen();
+				o.openPageIDs = cookieOpen(o.cookieName || 'pagelist_open');
 				tree.setAttribute('data-pw-tree', JSON.stringify(o));
 			} catch(err) { /* keep the page's options */ }
 		}
@@ -84,8 +92,45 @@
 		return true;
 	}
 
+	var history = { loaded: false, busy: false };
+
+	function loadHistory() {
+		var d = dialogOf('history');
+		var body = d && d.querySelector('.pw-drawer-body');
+		if(!body || history.busy) return;
+		history.busy = true;
+		var url = new URL(window.location.href);
+		url.hash = '';
+		url.searchParams.set('bridgeHistory', '1');
+		fetch(url.href, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) {
+			if(!r.ok) throw new Error('HTTP ' + r.status);
+			return r.text();
+		}).then(function(html) {
+			var top = body.scrollTop;
+			body.innerHTML = theme.trusted.html(html);
+			body.scrollTop = top;
+			history.loaded = true;
+		}).catch(function() {
+			// the last table stays; with none yet, say what happened
+			if(history.loaded) return;
+			var p = document.createElement('p');
+			p.className = 'pw-history-empty';
+			p.setAttribute('role', 'alert');
+			p.textContent = (((window.ProcessWire && ProcessWire.config.AdminThemeBridge) || {}).labels || {}).requestFailed || 'Request failed';
+			body.replaceChildren(p);
+		}).then(function() { history.busy = false; });
+	}
+
 	document.addEventListener('pw-drawer-open', function(e) {
-		if(e.detail && e.detail.name === 'tree' && e.detail.first) buildTree(false);
+		if(!e.detail || !e.detail.first) return;
+		if(e.detail.name === 'tree') buildTree(false);
+		if(e.detail.name === 'history') loadHistory();
+	});
+
+	// back in this tab: what other tabs changed (main.js setupTabFocus)
+	document.addEventListener('pw-tab-focus', function() {
+		if(history.loaded) loadHistory();
+		refreshTree();
 	});
 
 	document.addEventListener('click', function(e) {
@@ -118,5 +163,5 @@
 		});
 	});
 
-	theme.drawer = { open: open, close: close, isOpen: isOpen, refreshTree: refreshTree };
+	theme.drawer = { open: open, close: close, isOpen: isOpen, refreshTree: refreshTree, refreshHistory: loadHistory };
 })(window.ProcessWireAdminTheme);

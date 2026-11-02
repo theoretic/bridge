@@ -358,6 +358,13 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	const historyMeta = 'AdminThemeBridge.history';
 
 	/**
+	 * The cookie of the branches open in the page tree drawer: one for the whole admin, apart from
+	 * the tree screen's `pagelist_open` (per path, upstream's) (0.25.0)
+	 *
+	 */
+	const treeDrawerCookie = 'bridge_tree_open';
+
+	/**
 	 * Query parameters that belong to the request, not to the screen: left out of a history entry's URL
 	 *
 	 * @var array
@@ -568,7 +575,10 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		if($this->userColors) $this->addHookBefore('ProcessController::execute', $this, 'hookUserColorsSave');
 		$this->addHookAfter('ProcessController::execute', $this, 'hookProcessExecute');
 		// the screens each user visits, for the history drawer (0.25.0, lib/AdminThemeBridgeHistory.php)
-		if($this->history) $this->addHookAfter('ProcessController::execute', $this, 'hookHistoryRecord');
+		if($this->history) {
+			$this->addHookBefore('ProcessController::execute', $this, 'hookHistoryFragment');
+			$this->addHookAfter('ProcessController::execute', $this, 'hookHistoryRecord');
+		}
 		// LanguageTabs appends `setupLanguageTabs($('#form'))` to each form with language tabs; on a
 		// page without jQuery the runtime sets them up itself (milestone 2.4). On every wrapper, as
 		// the repeater's AJAX item is one: its config script and the Lister's bookmark line get the

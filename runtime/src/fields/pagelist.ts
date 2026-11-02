@@ -28,8 +28,9 @@
  *   row is never selected on its own; the home page is not selectable.
  * - `pageListRefresh` on document (detail: page id) reloads the list holding that page.
  * - A container with data-pw-tree (the page tree drawer, 0.25.0, started by Bridge.pageTree()) has
- *   its own options, JSON merged over the global ones, and stays native with the legacy stack on
- *   the page: upstream's script builds only #PageListContainer.
+ *   its own options, JSON merged over the global ones (cookieName and cookiePath: where it keeps its
+ *   open branches), and stays native with the legacy stack on the page: upstream's script builds
+ *   only #PageListContainer.
  * - Events on the container: `pageListChildrenDone` (detail: the JSON data).
  */
 
@@ -342,8 +343,10 @@ function setupTree(container: HTMLElement): void {
 			const key = pageId(li) + '-' + (parseInt(li.getAttribute('data-start') || '0', 10) || 0);
 			if (ids.indexOf(key) < 0) ids.push(key);
 		});
-		// the server reads it as a CSV list ($input->cookie->array()): plain "id-start" values
-		setCookie('pagelist_open', ids.join(','));
+		// the server reads it as a CSV list ($input->cookie->array()): plain "id-start" values; the
+		// drawer's tree has its own, for the whole admin (options cookieName, cookiePath)
+		setCookie(typeof o.cookieName === 'string' && o.cookieName ? o.cookieName : 'pagelist_open', ids.join(','),
+			typeof o.cookiePath === 'string' && o.cookiePath ? { path: o.cookiePath } : {});
 	};
 
 	function toggleItem(li: HTMLElement): void {

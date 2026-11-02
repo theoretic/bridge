@@ -1274,9 +1274,10 @@ if(isset($bridge) && $bridge) {
 		// the cookie as the browser sent it (a set() would send a Set-Cookie header)
 		$cookieData = new \ReflectionProperty('ProcessWire\WireInputData', 'data');
 		$cookiesWas = $cookieData->getValue($wire->input->cookie);
-		$cookieData->setValue($wire->input->cookie, array_merge($cookiesWas, array('pagelist_open' => "1-0,$treePage->id,999999999-0,abc,1-0")));
+		$cookieData->setValue($wire->input->cookie, array_merge($cookiesWas, array(AdminThemeBridge::treeDrawerCookie => "1-0,$treePage->id,999999999-0,abc,1-0")));
 		$open = $bridge->treeDrawerOptions()['openPageIDs'];
-		check('open branches from the pagelist_open cookie: existing, listable, once, "id-start"', $open === array('1-0', "$treePage->id-0"), json_encode($open));
+		check('open branches from the drawer\'s own cookie: existing, listable, once, "id-start"; the cookie for the whole admin', $bridge->treeDrawerOptions()['cookieName'] === 'bridge_tree_open'
+			&& $bridge->treeDrawerOptions()['cookiePath'] === $config->urls->admin &&  $open === array('1-0', "$treePage->id-0"), json_encode($open));
 		$cookieData->setValue($wire->input->cookie, $cookiesWas);
 		$tpl = $bridge->renderDrawers();
 		check('the template holds a tree container with its options and the CSRF token, not #PageListContainer', strpos($tpl, "<div class='PageListContainer PageListContainerRoot pw-drawer-tree' data-pw-tree='{") !== false
@@ -1306,8 +1307,9 @@ if(isset($bridge) && $bridge) {
 	$historyWas = $bridge->history;
 	$bridge->set('history', 1);
 	check('history: a guest records nothing', !$bridge->historyRecord($proc('ProcessTemplate')) && $bridge->historyEntries() === array());
-	check('history: recorded after the Process, only while the setting is on', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'),
-		"if(\$this->history) \$this->addHookAfter('ProcessController::execute', \$this, 'hookHistoryRecord');") !== false && method_exists($bridge, '___historyEntry'));
+	$moduleSrc = (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php');
+	check('history: recorded after the Process, its table answered before it, only while the setting is on', (bool) preg_match('/if\(\$this->history\) \{\s*\$this->addHookBefore\(\'ProcessController::execute\', \$this, \'hookHistoryFragment\'\);\s*\$this->addHookAfter\(\'ProcessController::execute\', \$this, \'hookHistoryRecord\'\);/', $moduleSrc)
+		&& method_exists($bridge, '___historyEntry'));
 	check('history: a headline as text, ProcessModule\'s icon token out', AdminThemeBridge::historyName('<icon-plug> Some &amp; <b>Module</b>') === 'Some & Module');
 	$hu = $wire->users->get('name=bridge');
 	$admin = $pages->get($config->adminRootPageID);
@@ -1382,8 +1384,23 @@ if(isset($bridge) && $bridge) {
 		$bridge->set('history', 0);
 		$visit($tplPage, array('id' => $tpl->id), 'Off', 'edit');
 		check('history: with "Show history" off, nothing is recorded', !$bridge->historyRecord($proc('ProcessTemplate')));
+		// the drawer's table (step 6)
+		$hu->meta(AdminThemeBridge::historyMeta, array(
+			'setup/field/' => array('name' => 'Fields', 'type' => 'screen', 'url' => 'setup/field/', 'visits' => 3, 'last' => 1000),
+			"setup/template/edit?id=$tpl->id" => array('name' => 'A <b>bold</b> & "quoted" one', 'type' => 'template', 'url' => "setup/template/edit?id=$tpl->id", 'visits' => 1, 'last' => 2000),
+		));
+		$table = $bridge->renderHistoryTable('setup/field/');
+		$adminUrl = $config->urls->admin;
+		check('history table: two rows, newest first, the name escaped, the type translated, visits with the last visit', substr_count($table, '<tr><td>') === 2
+			&& strpos($table, "setup/template/edit?id=$tpl->id") < strpos($table, "href='{$adminUrl}setup/field/'")
+			&& strpos($table, 'A &lt;b&gt;bold&lt;/b&gt; &amp; &quot;quoted&quot; one') !== false && strpos($table, '<b>') === false
+			&& strpos($table, "<td class='pw-history-visits' title='") !== false && strpos($table, '>3</td>') !== false && strpos($table, "<caption class='pw-sr-only'>") !== false, $table);
+		check('history table: the current screen\'s entry is aria-current, the other is not', substr_count($table, "aria-current='page'") === 1
+			&& strpos($table, "href='{$adminUrl}setup/field/' aria-current='page'") !== false, $table);
+		check('history table: an unknown type prints as it is, escaped', $bridge->historyTypeLabel('x<y') === 'x<y' && $bridge->historyTypeLabel('pages') !== 'pages');
 		$bridge->historyClear();
 		check('history: historyClear() forgets it', $bridge->historyEntries() === array());
+		check('history table: none yet, a sentence instead', strpos($bridge->renderHistoryTable(), "<p class='pw-history-empty'>") === 0);
 		// put everything back
 		$visit($pageWas, array(), (string) $headWas);
 		$wire->wire('page', $pageWas);

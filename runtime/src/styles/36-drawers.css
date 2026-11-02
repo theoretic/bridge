@@ -35,3 +35,13 @@ dialog.pw-drawer .pw-drawer-title { margin: 0; font-size: 1rem; font-weight: 600
 /* the page tree: no cap on the deepest branch (30-pagelist.css), the body scrolls; the pager sticks to its top */
 .pw-drawer .PageListRoot .PageList:not(:has(.PageList)) { max-height: none; overflow: visible; }
 .pw-drawer .PageList > ul[data-pagination] { top: 0; }
+/* the history (AdminThemeBridgeHistory::renderHistoryTable) */
+.pw-history { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.pw-history th { padding: 4px 8px 6px 0; border-bottom: 1px solid var(--border); color: var(--muted-foreground); font-weight: 500; text-align: left; }
+.pw-history td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+.pw-history td:nth-child(2) { color: var(--muted-foreground); white-space: nowrap; }
+.pw-history .pw-history-visits { padding-right: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.pw-history a { color: var(--foreground); text-decoration: none; overflow-wrap: anywhere; }
+.pw-history a:hover { color: var(--pw-link-hover); text-decoration: underline; }
+.pw-history a[aria-current] { font-weight: 600; }
+.pw-history-empty { margin: 0; color: var(--muted-foreground); }
