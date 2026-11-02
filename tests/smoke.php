@@ -1299,6 +1299,103 @@ if(isset($bridge) && $bridge) {
 		&& $buttonsAt < strpos($mastheadSrc, "class='pw-nav-toggle'") && strpos($mastheadSrc, "</header>\n<?php echo \$adminTheme->renderDrawers(); ?>") !== false);
 	check('theme.css has the drawers', strpos((string) @file_get_contents($themeDir . 'assets/dist/theme.css'), 'dialog.pw-drawer::backdrop') !== false);
 }
+// 0.25.0: the visit history (the user page's meta, newest first, a visit again counts, capped)
+if(isset($bridge) && $bridge) {
+	$guest = $wire->user;
+	$proc = function($name) use($modules) { return $modules->getModule($name, array('noInit' => true, 'noPermissionCheck' => true)); };
+	$historyWas = $bridge->history;
+	$bridge->set('history', 1);
+	check('history: a guest records nothing', !$bridge->historyRecord($proc('ProcessTemplate')) && $bridge->historyEntries() === array());
+	check('history: recorded after the Process, only while the setting is on', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'),
+		"if(\$this->history) \$this->addHookAfter('ProcessController::execute', \$this, 'hookHistoryRecord');") !== false && method_exists($bridge, '___historyEntry'));
+	check('history: a headline as text, ProcessModule\'s icon token out', AdminThemeBridge::historyName('<icon-plug> Some &amp; <b>Module</b>') === 'Some & Module');
+	$hu = $wire->users->get('name=bridge');
+	$admin = $pages->get($config->adminRootPageID);
+	$setupPage = $admin->child('name=setup, include=all');
+	$tplPage = $setupPage->id ? $setupPage->child('name=template, include=all') : new NullPage();
+	$fieldPage = $setupPage->id ? $setupPage->child('name=field, include=all') : new NullPage();
+	$modPage = $admin->child('name=module, include=all');
+	$tpl = null;
+	foreach($wire->templates as $histTpl) if(!($histTpl->flags & Template::flagSystem) && $histTpl->name !== '') { $tpl = $histTpl; break; }
+	if($hu && $hu->id && $tplPage->id && $fieldPage->id && $modPage->id && $tpl) {
+		$wire->users->setCurrentUser($hu);
+		$histMetaWas = $hu->meta(AdminThemeBridge::historyMeta);
+		$serverWas = $_SERVER;
+		$pageWas = $wire->page;
+		$headWas = $wire->wire('processHeadline');
+		$stepsWas = $bridge->historySteps;
+		$ajaxWas = $config->ajax;
+		$visit = function($adminPage, array $get, $headline, $segment = '') use($wire) {
+			$wire->wire('page', $adminPage);
+			foreach(array_keys($wire->input->get->getArray()) as $k) $wire->input->get->remove($k);
+			foreach($get as $k => $v) $wire->input->get->$k = $v;
+			$wire->input->setUrlSegments($segment === '' ? array() : array($segment));
+			$wire->wire('processHeadline', $headline);
+		};
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$bridge->set('historySteps', 100);
+		$bridge->historyClear();
+		$visit($tplPage, array('id' => $tpl->id, 'modal' => '', 's' => 2), "Edit Template: $tpl->name", 'edit');
+		$entry = $bridge->historyEntry($proc('ProcessTemplate'), $tplPage);
+		check('history: a template editor visit is a "template" entry with its headline and its editor\'s URL', is_array($entry) && $entry['type'] === 'template'
+			&& $entry['name'] === "Edit Template: $tpl->name" && substr($entry['url'], -strlen("setup/template/edit?id=$tpl->id")) === "setup/template/edit?id=$tpl->id"
+			&& strpos($entry['url'], '/') !== 0, json_encode($entry));
+		$bridge->historyRecord($proc('ProcessTemplate'));
+		$bridge->historyRecord($proc('ProcessTemplate'));
+		$entries = $bridge->historyEntries();
+		check('history: the same screen twice is one entry with two visits', count($entries) === 1 && reset($entries)['visits'] === 2, json_encode($entries));
+		$visit($fieldPage, array(), 'Fields');
+		$bridge->historyRecord($proc('ProcessField'));
+		$visit($modPage, array('name' => 'AdminThemeBridge'), '<icon-paint-brush> Bridge');
+		$bridge->historyRecord($proc('ProcessModule'));
+		$entries = array_values($bridge->historyEntries());
+		check('history: newest first; the fields list is a "screen", a module\'s settings a "module" without the icon token', count($entries) === 3
+			&& $entries[0]['type'] === 'module' && $entries[0]['name'] === 'Bridge' && $entries[1]['type'] === 'screen' && $entries[2]['type'] === 'template', json_encode($entries));
+		$bridge->set('historySteps', 2);
+		$visit($fieldPage, array('id' => 1), 'Edit Field: title', 'edit');
+		$bridge->historyRecord($proc('ProcessField'));
+		$entries = array_values($bridge->historyEntries());
+		check('history: with 2 steps the oldest go before the new one is kept', count($entries) === 2 && $entries[0]['type'] === 'field' && $entries[1]['type'] === 'module', json_encode($entries));
+		$bridge->set('historySteps', 100);
+		$before = count($bridge->historyEntries());
+		$visit($tplPage, array('id' => $tpl->id), "Edit Template: $tpl->name", 'edit');
+		$_SERVER['REQUEST_METHOD'] = 'POST';
+		$post = $bridge->historyRecord($proc('ProcessTemplate'));
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$config->ajax = true;
+		$ajax = $bridge->historyRecord($proc('ProcessTemplate'));
+		$config->ajax = $ajaxWas;
+		$wire->input->get->modal = 1;
+		$modal = $bridge->historyRecord($proc('ProcessTemplate'));
+		$wire->input->get->remove('modal');
+		$wire->input->get->render = 'JSON';
+		$json = $bridge->historyRecord($proc('ProcessTemplate'));
+		$wire->input->get->remove('render');
+		check('history: a POST, an AJAX request, a modal window and ?render= output record nothing', !$post && !$ajax && !$modal && !$json && count($bridge->historyEntries()) === $before);
+		check('history: the login, search and Add New screens are skipped', $bridge->historyEntry($proc('ProcessLogin'), $tplPage) === null
+			&& $bridge->historyEntry($proc('ProcessPageSearch'), $tplPage) === null && $bridge->historyEntry($proc('ProcessPageAdd'), $tplPage) === null);
+		$visit($tplPage, array('id' => $tpl->id, 'q' => str_repeat('x', 300)), 'Long', 'edit');
+		check('history: a URL over 250 characters is not a key', $bridge->historyEntry($proc('ProcessTemplate'), $tplPage) === null);
+		$visit($tplPage, array('z' => '1', 'id' => $tpl->id, $session->CSRF->getTokenName() => 'x'), 'Sorted', 'edit');
+		$sorted = $bridge->historyEntry($proc('ProcessTemplate'), $tplPage);
+		check('history: the query sorted, the CSRF token dropped', is_array($sorted) && substr($sorted['url'], -strlen("edit?id=$tpl->id&z=1")) === "edit?id=$tpl->id&z=1", json_encode($sorted));
+		$bridge->set('history', 0);
+		$visit($tplPage, array('id' => $tpl->id), 'Off', 'edit');
+		check('history: with "Show history" off, nothing is recorded', !$bridge->historyRecord($proc('ProcessTemplate')));
+		$bridge->historyClear();
+		check('history: historyClear() forgets it', $bridge->historyEntries() === array());
+		// put everything back
+		$visit($pageWas, array(), (string) $headWas);
+		$wire->wire('page', $pageWas);
+		$_SERVER = $serverWas;
+		$bridge->set('historySteps', $stepsWas);
+		if(is_array($histMetaWas)) $hu->meta(AdminThemeBridge::historyMeta, $histMetaWas); else $hu->meta()->remove(AdminThemeBridge::historyMeta);
+		$wire->users->setCurrentUser($guest);
+	} else {
+		warn('history: no bridge user, Setup > Templates/Fields, Modules or site template: history checks skipped');
+	}
+	$bridge->set('history', $historyWas);
+}
 check('the picker\'s work is a runtime chunk; editors follow a colour change', strpos($srcOf('index.ts'), "import('./util/colors')") !== false
 	&& strpos($srcOf('classic/main.js'), "document.addEventListener('pw-variant-change'") !== false);
 

@@ -19,6 +19,7 @@ require_once(__DIR__ . '/lib/AdminThemeBridgeFiles.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeCsp.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeUserColors.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeDrawers.php');
+require_once(__DIR__ . '/lib/AdminThemeBridgeHistory.php');
 
 /**
  * AdminThemeBridge
@@ -54,6 +55,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	use AdminThemeBridgeCsp;
 	use AdminThemeBridgeUserColors;
 	use AdminThemeBridgeDrawers;
+	use AdminThemeBridgeHistory;
 
 	public static function getModuleInfo() {
 		return array(
@@ -356,6 +358,14 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	const historyMeta = 'AdminThemeBridge.history';
 
 	/**
+	 * Query parameters that belong to the request, not to the screen: left out of a history entry's URL
+	 *
+	 * @var array
+	 *
+	 */
+	protected $historyDropParams = array('modal', 'render', 'renderInputfieldAjax', 'nonce', '_', 's', 'n', 'open', 'pw_notice', 'bridgeHistory', 'bridgeColors');
+
+	/**
 	 * userColors() for this request: null before it is asked, false when the user has none
 	 *
 	 * @var array|false|null
@@ -557,6 +567,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// a user's own colour, saved from the user menu (0.22.0)
 		if($this->userColors) $this->addHookBefore('ProcessController::execute', $this, 'hookUserColorsSave');
 		$this->addHookAfter('ProcessController::execute', $this, 'hookProcessExecute');
+		// the screens each user visits, for the history drawer (0.25.0, lib/AdminThemeBridgeHistory.php)
+		if($this->history) $this->addHookAfter('ProcessController::execute', $this, 'hookHistoryRecord');
 		// LanguageTabs appends `setupLanguageTabs($('#form'))` to each form with language tabs; on a
 		// page without jQuery the runtime sets them up itself (milestone 2.4). On every wrapper, as
 		// the repeater's AJAX item is one: its config script and the Lister's bookmark line get the
