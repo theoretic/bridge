@@ -87,6 +87,8 @@ trait AdminThemeBridgeLegacy {
 					$inputfield->wrapAttr('data-bridge-version', $info['version']);
 				}
 				$inputfield->wrapAttr('data-bridge-component', $tag === '' ? $class : $tag);
+				$widget = $this->borrowedWidget($inputfield);
+				if($widget !== '') $inputfield->wrapAttr('data-bridge-widget', $widget);
 			} else {
 				$inputfield->wrapAttr('data-bridge-legacy', $class);
 				$legacy = true;
@@ -327,6 +329,24 @@ trait AdminThemeBridgeLegacy {
 			$this->nativeMapCache = is_array($map) ? $map : $this->nativeBase;
 		}
 		return $this->nativeMapCache;
+	}
+
+	/**
+	 * The core widget a subclass borrows (the native map's `widget`, 0.24.0): 'InputfieldFile' or
+	 * 'InputfieldImage' when its exact class has the key and it is one of those, else ''. The core
+	 * classes themselves need none (data-bridge-component already says what they are).
+	 *
+	 * @param Inputfield $inputfield
+	 * @return string
+	 *
+	 */
+	public function borrowedWidget(Inputfield $inputfield) {
+		$class = $inputfield->className();
+		$map = $this->getNativeMap();
+		$widget = isset($map[$class]['widget']) ? (string) $map[$class]['widget'] : '';
+		if($widget === $class || !in_array($widget, array('InputfieldFile', 'InputfieldImage'), true)) return '';
+		$fqn = "\\ProcessWire\\$widget";
+		return $inputfield instanceof $fqn ? $widget : '';
 	}
 
 	/**

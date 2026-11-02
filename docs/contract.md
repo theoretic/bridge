@@ -61,6 +61,7 @@ Wrapper attributes the theme writes on every rendered `li.Inputfield`, in both t
 | `data-bridge-component` | native | the `tag`, or the class name when `tag` is empty |
 | `data-bridge-module` | native with a `module` | resolved module URL |
 | `data-bridge-version` | native components | contract version |
+| `data-bridge-widget` | native, with the map's `widget` (0.24.0) | the core widget it runs on: `InputfieldFile` or `InputfieldImage` |
 | `data-bridge-legacy` | legacy | the class name |
 
 For the current Process the same descriptor is in `ProcessWire.config.AdminThemeBridge.process` (or `null`).
@@ -112,6 +113,16 @@ What is native is one map (0.9.1, ADR 0015 and 0016 addenda): `AdminThemeBridge:
 $wire->addHookAfter('AdminThemeBridge::nativeMap', function(HookEvent $e) {
 	$map = $e->return;
 	$map['InputfieldMyMarkup'] = array('kind' => 'wrapper');
+	$e->return = $map;
+});
+```
+
+A subclass of `InputfieldFile` or `InputfieldImage` whose own script is not needed may run on the runtime's widget for its parent (0.24.0): its entry carries `widget`, and the wrapper gets `data-bridge-widget` beside its own `data-bridge-component`. Uploads go to the field's own upload URL as with core; moves between fields (0.14.0) stay with the exact core classes, since a subclass may save its files its own way.
+
+```php
+$wire->addHookAfter('AdminThemeBridge::nativeMap', function(HookEvent $e) {
+	$map = $e->return;
+	$map['InputfieldMyImage'] = array('kind' => 'field', 'widget' => 'InputfieldImage');
 	$e->return = $map;
 });
 ```
@@ -223,6 +234,7 @@ Built from `runtime/`, imported by the theme script on every admin page. Dispatc
 | `Bridge.Inputfields.evaluate(root)` | re-run `data-show-if` / `data-required-if` (upstream grammar: `,` and, `|` or, operators `= != < > <= >= %= *=`, `.count`) |
 | `Bridge.Inputfields.recalcColumns(root)` | give a hidden column's width to its row |
 | `Bridge.Inputfields.isCollapsed(li)` / `hidden(li)` | the collapse state, and whether a dependency hides the field |
+| `Bridge.sortable(list, options)` | the field widgets' sorting for a list a component owns (0.24.0); Promise of a cleanup function, to call when the list is discarded. `options`: `items` (selector for direct children), `handle`, `cancel`, `axis` (`'y'` default, `'xy'` for wrapping items), `threshold` (px before a drag starts), `enabled()` (asked at each press), `start(item, group)`, `stop(item, {dx, dy, outside, cancelled}, group)`, `update(item)` (after a changed order only). Pointer, touch hold, Alt+ArrowUp/Down and Esc as in core lists; a handled key does not reach a list around it |
 | `Bridge.components.load(url)` | import a component module once; Promise of its default export |
 | `Bridge.components.loadFrom(root)` | import every `data-bridge-module` under root |
 | `Bridge.components.loaded()` | what was imported, with errors |
@@ -319,7 +331,7 @@ A core Process the theme stands in for keeps its upstream PHP, hookables and mar
 
 **Page editor** (`ProcessWireAdminTheme.pageEdit.init()`): upstream ends the editor with `<script>initPageEditForm();</script>`; the theme rewrites it to call upstream's function when it exists, else this. It runs again after an in-place save. Same behaviour as `initPageEditForm()`: tabs over `#ProcessPageEdit > .Inputfields > .InputfieldWrapper` (`#PageEditTabs`, Delete never remembered); `#submit_delete` posts only with `#delete_page` checked; a submit during an upload (`body.pw-uploading`) asks with the form's `data-uploading`; Save and Publish buttons get the after-save dropdown, switched off while `#template` differs from the page's template (caught on `document`: the select arrives by AJAX); the View link runs its `data-action` (panel, modal) from `#_ProcessPageEditViewDropdown`; the Delete tab hides the other `.InputfieldSubmit` (`pw-hidden-tmp`); `#pw-content-title` follows the title input (current language first), or the name.
 
-**File and Image** (milestone 3.2; runtime `fields/file.ts`, `fields/image.ts`, `fields/image-upload.ts`, `fields/image-focus.ts`, shared `fields/upload.ts`), for exact `InputfieldFile` / `InputfieldImage` (wrappers marked `data-bridge-component`); subclasses keep their own scripts. Same markup and behaviour as upstream `InputfieldFile.js` / `InputfieldImage.js`:
+**File and Image** (milestone 3.2; runtime `fields/file.ts`, `fields/image.ts`, `fields/image-upload.ts`, `fields/image-focus.ts`, shared `fields/upload.ts`), for exact `InputfieldFile` / `InputfieldImage` (wrappers marked `data-bridge-component`); subclasses keep their own scripts, unless the native map lends them the widget (`widget`, `data-bridge-widget`, 0.24.0; moves between fields stay core-only). Same markup and behaviour as upstream `InputfieldFile.js` / `InputfieldImage.js`:
 - upload over the same AJAX contract (`InputfieldFileAjax=1`, headers `X-FILENAME`, `X-FIELDNAME`, `X-REPLACENAME`, `X-<CSRF name>`; JSON items `{error, message, markup, replace, overwrite}`), from the file input or a drop; images also between other images (placed there) and on the edit panel's image (replace); `body.pw-uploading` while uploads run; `AjaxUploadDone` on the list; new items get their Inputfields initialised and `reloaded` (`detail.source` `InputfieldFileUpload` / `InputfieldImageUpload`); client resizing with upstream's `PWImageResizer` (loaded alone, it needs no jQuery);
 - files: sort by drag (`input.InputfieldFileSort`, `sorted` on the Inputfield), delete box (double click: all), tags as the native tag control (`fields/texttags.ts` `setupTags()`);
 - images: modes list / left / grid and the size range in the header, kept in upstream's `InputfieldImage` cookie (`JSON{"<field>":{"size","listSize","mode"}}`, jquery.cookie format, `util/cookie.ts`); edit panel; drag sort (a press that does not move stays a click: `util/sortable.ts` `threshold`; since 0.20.1 a finger drags after a 400 ms hold in every sortable list, so a swipe scrolls; a handle with `touch-action: none`, the repeater's, drags at once); trash (double click: all); rename; action note; focus point and zoom; width classes; full-size view in a native lightbox (`dialog.pw-lightbox`, `util/lightbox.ts`) in place of Magnific Popup;

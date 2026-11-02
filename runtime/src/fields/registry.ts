@@ -22,9 +22,10 @@ const WIDGETS: Entry[] = [
 	{ selector: '.InputfieldTextTagsInput, .InputfieldTextTagsSelect', load: () => import('./texttags') },
 	{ selector: 'li.InputfieldSelector', load: () => import('./selector') },
 	{ selector: '.InputfieldPageName, .InputfieldPageTitle', load: () => import('./pagename') },
-	// by the theme's mark: a subclass of these (third-party) stays legacy and keeps its own script
-	{ selector: '.Inputfield[data-bridge-component="InputfieldFile"]', load: () => import('./file') },
-	{ selector: '.Inputfield[data-bridge-component="InputfieldImage"]', load: () => import('./image') },
+	// by the theme's mark: a subclass of these (third-party) stays legacy and keeps its own script,
+	// unless the native map lends it the core widget (`widget`, data-bridge-widget: 0.24.0)
+	{ selector: '.Inputfield[data-bridge-component="InputfieldFile"], .Inputfield[data-bridge-widget="InputfieldFile"]', load: () => import('./file') },
+	{ selector: '.Inputfield[data-bridge-component="InputfieldImage"], .Inputfield[data-bridge-widget="InputfieldImage"]', load: () => import('./image') },
 	{ selector: '.Inputfield[data-bridge-component="InputfieldRepeater"]', load: () => import('./repeater') },
 	{ selector: '.Inputfield[data-bridge-component="InputfieldPageTable"]', load: () => import('./pagetable') },
 	// the page tree (ProcessPageList, milestone 3.4): its screen and the page editor's Children tab

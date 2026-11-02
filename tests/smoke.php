@@ -78,7 +78,7 @@ check('modules paths: core first', isset($modulePaths[0]) && $modulePaths[0] ===
 check('modules paths: site modules second', isset($modulePaths[1]) && $modulePaths[1] === $expectSite . 'modules/', json_encode($modulePaths));
 check('core module resolves under wire', strpos((string) $modules->getModuleFile('ProcessPageEdit'), $expectWire) === 0, (string) $modules->getModuleFile('ProcessPageEdit'));
 $siteModule = '';
-foreach(array('AdminThemeBoss', 'SettingsFactory', 'StaticPages', 'WireMailSmtp') as $name) {
+foreach(array('AdminThemeBoss', 'SettingsFactory', 'StaticPages', 'WireMailSmtp', 'ProcessBridgeDemo') as $name) {
 	if($modules->isInstalled($name)) { $siteModule = $name; break; }
 }
 check('a site module is installed', $siteModule !== '');
@@ -474,6 +474,33 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	$probe = $modules->wire(new AdminThemeBridge());
 	$probe->addHookAfter('nativeMap', function(HookEvent $e) { $map = $e->return; $map['BridgeSmokeSubMarkup'] = array('kind' => 'wrapper'); $e->return = $map; });
 	check('a nativeMap hook makes a class native', $probe->isNativeInputfield($subMarkup) && $probe->isNativeWrapper($subMarkup));
+	// 0.24.0 (theoretic/bridge#3): a File/Image subclass borrows the core widget by declaration
+	$srcOfEarly = function($rel) { return (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/' . $rel); };
+	if(!class_exists('ProcessWire\\BridgeSmokeSubImage', false)) {
+		eval('namespace ProcessWire; class BridgeSmokeSubImage extends InputfieldImage {} class BridgeSmokeSubImageBare extends InputfieldImage {}');
+	}
+	$probe = $modules->wire(new AdminThemeBridge());
+	$probe->addHookAfter('nativeMap', function(HookEvent $e) {
+		$map = $e->return;
+		$map['BridgeSmokeSubImage'] = array('kind' => 'field', 'widget' => 'InputfieldImage');
+		$map['BridgeSmokeSubImageBare'] = array('kind' => 'field');
+		$map['BridgeSmokeSubMarkup'] = array('kind' => 'wrapper', 'widget' => 'InputfieldImage');
+		$e->return = $map;
+	});
+	$mark = new \ReflectionMethod($probe, 'markInputfield');
+	$subImage = $modules->wire(new BridgeSmokeSubImage());
+	$bareImage = $modules->wire(new BridgeSmokeSubImageBare());
+	$coreImage = $modules->get('InputfieldImage');
+	$subMarkup2 = $modules->wire(new BridgeSmokeSubMarkup());
+	foreach(array($subImage, $bareImage, $coreImage, $subMarkup2) as $f) $mark->invoke($probe, $f, false);
+	check('a File/Image subclass with `widget` keeps its class and gets the core widget', $subImage->wrapAttr('data-bridge-component') === 'BridgeSmokeSubImage'
+		&& $subImage->wrapAttr('data-bridge-widget') === 'InputfieldImage', json_encode(array($subImage->wrapAttr('data-bridge-component'), $subImage->wrapAttr('data-bridge-widget'))));
+	check('no widget without the key, for core itself, or for a class that is not a file field', $bareImage->wrapAttr('data-bridge-widget') === null
+		&& $coreImage->wrapAttr('data-bridge-widget') === null && $coreImage->wrapAttr('data-bridge-component') === 'InputfieldImage' && $subMarkup2->wrapAttr('data-bridge-widget') === null);
+	check('moves between fields stay with the core classes', strpos($srcOfEarly('fields/file.ts'), "export const CORE_FIELD = '.Inputfield[data-bridge-component=\"InputfieldFile\"], .Inputfield[data-bridge-component=\"InputfieldImage\"]'") !== false
+		&& strpos($srcOfEarly('fields/file.ts'), '!inputfield.matches(CORE_FIELD)') !== false && strpos($srcOfEarly('fields/files-move.ts'), 'const FIELD = CORE_FIELD;') !== false);
+	check('the registry starts the core widgets for a borrowing subclass', strpos($srcOfEarly('fields/registry.ts'), '.Inputfield[data-bridge-widget="InputfieldImage"]') !== false
+		&& strpos($srcOfEarly('fields/registry.ts'), '.Inputfield[data-bridge-widget="InputfieldFile"]') !== false);
 	$probe = $modules->wire(new AdminThemeBridge());
 	$probe->set('nativeOverrides', "InputfieldText=legacy\nBridgeSmokeSubMarkup = native\nnot a rule");
 	check('nativeOverrides wins over the map, both ways', !$probe->isNativeInputfield($modules->get('InputfieldText')) && $probe->isNativeInputfield($subMarkup));
@@ -1447,5 +1474,10 @@ if(is_file($upstreamHt)) {
 } else {
 	warn('upstream htaccess.txt not found: set BRIDGE_HTACCESS to check the generator against it');
 }
+// 0.24.0 (theoretic/bridge#3): Bridge.sortable for components, a handled key sort stays in its
+// list, file items get the wrappers' script treatment
+check('Bridge.sortable loads the shared sortable chunk', strpos($srcOf('index.ts'), "import('./util/sortable').then(m => m.makeSortable(list, options))") !== false);
+check('a handled Alt+arrow sort does not move a list around it', (bool) preg_match('/e\.preventDefault\(\);\s*(\/\/[^\n]*\n\s*)*e\.stopPropagation\(\);\s*if \(options\.start\) options\.start\(item, block\);/', $srcOf('util/sortable.ts')));
+check('file items get the same nonce handling as wrappers', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "addHookAfter('InputfieldFile::renderItem', \$this, 'hookFormRender'") !== false);
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

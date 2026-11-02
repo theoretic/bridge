@@ -56,7 +56,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.23.1',
+			'version' => '0.24.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -97,6 +97,10 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * scripts: a Process's stand-ins, printed after the theme script on a page without the stack
 	 * scriptsAlways: printed with the stack too (the image window answers an opener without jQuery)
 	 * saveInPlace: its edit form saves without a reload (scripts/page-save.js, milestone 3.8)
+	 * widget: a subclass of InputfieldFile or InputfieldImage that runs on the runtime's widget for
+	 *   it, 'InputfieldFile' or 'InputfieldImage' (0.24.0): the wrapper gets data-bridge-widget beside
+	 *   its own data-bridge-component; moves between fields stay with the core classes. Added by a
+	 *   hook on nativeMap(), never by inheritance
 	 *
 	 * @var array class => entry
 	 *
@@ -541,6 +545,10 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// the repeater's AJAX item is one: its config script and the Lister's bookmark line get the
 		// request's nonce there (ADR 0020)
 		$this->addHookAfter('InputfieldWrapper::render', $this, 'hookFormRender', array('priority' => 200));
+		// a file or image item renders outside a wrapper too (an upload's answer, a subclass's own
+		// transport): its scripts get the same treatment (0.24.0, theoretic/bridge#3). Core's items
+		// carry no script, so for them it is one strpos per item
+		$this->addHookAfter('InputfieldFile::renderItem', $this, 'hookFormRender', array('priority' => 200));
 		// the page editor (milestone 3.1): its inline init call falls back to the native editor, and
 		// the page tree in its Children tab stays legacy until the page tree is native (3.4)
 		$this->addHookAfter('ProcessPageEdit::execute', $this, 'hookPageEditExecute');

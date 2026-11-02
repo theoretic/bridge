@@ -22,7 +22,7 @@
  */
 
 import { uploadTarget, busy, initItem } from './upload';
-import { initFileTags, updateCount } from './file';
+import { initFileTags, updateCount, CORE_FIELD } from './file';
 import { open as openField } from '../inputfields/collapse';
 import { notice } from '../util/notice';
 import { failed } from '../util/fail';
@@ -46,7 +46,8 @@ export type Mover = {
 	cancel(): void;
 };
 
-const FIELD = '.Inputfield[data-bridge-component="InputfieldFile"], .Inputfield[data-bridge-component="InputfieldImage"]';
+// core fields only: a subclass borrowing the widget may save its own way (0.24.0)
+const FIELD = CORE_FIELD;
 const ITEM = 'li.InputfieldFileItem, li.gridImage:not(.gridImagePlaceholder):not(.gridImageUploading)';
 const STATES = ['pw-drop-ok', 'pw-drop-partial', 'pw-drop-no'];
 

@@ -21,7 +21,10 @@
  * when the pointer nears its top or bottom edge (edgeScroll(), also used by the marquee).
  *
  * Keyboard (audit R7): Alt+ArrowUp / Alt+ArrowDown moves the item that holds the focus one place
- * (with its group), with the same start, stop and update calls as a drag.
+ * (with its group), with the same start, stop and update calls as a drag. A handled key goes no
+ * further, so a list inside an item of another sorts alone.
+ *
+ * Public as `Bridge.sortable(list, options)` (0.24.0) for lists a component owns.
  *
  * Touch (audit UX4): a finger starts a drag after a 400 ms hold, as in the page tree, so a swipe
  * over a long list still scrolls the page; moving before the hold is that scroll. A handle whose
@@ -309,6 +312,9 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 		do { n += up ? -1 : 1; other = all[n]; } while (other && block.indexOf(other) > -1);
 		if (!other) return;
 		e.preventDefault();
+		// handled: a list around this one (a repeater in a repeater) must not move its item too
+		// (0.24.0, theoretic/bridge#3)
+		e.stopPropagation();
 		if (options.start) options.start(item, block);
 		const order = items();
 		if (up) other.insertAdjacentElement('beforebegin', item);

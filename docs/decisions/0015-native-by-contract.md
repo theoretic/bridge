@@ -88,3 +88,15 @@ InputfieldMarkup` counted as native by inheritance. Now:
 - The setting "Native or legacy, per class" (`nativeOverrides`, `ClassName=native|legacy` per
   line) wins over the map, the Page field's widget and `BridgeComponent`. `legacyStack=always`
   is unchanged.
+
+## Addendum (0.24.0): a subclass borrows a core widget by declaration
+
+A third-party subclass of `InputfieldFile` or `InputfieldImage` (FieldtypeFlex's, theoretic/bridge#3)
+may want the runtime's widget instead of its parent's jQuery script. Inheritance still decides
+nothing: the subclass's own map entry says so, `'widget' => 'InputfieldFile' | 'InputfieldImage'`,
+added with a `nativeMap()` hook. The wrapper then carries `data-bridge-widget` beside its own
+`data-bridge-component`, and the registry starts the widget by either mark. Moves between fields
+stay with the exact core classes: a subclass may save its files its own way, and the move
+endpoint is core FieldtypeFile's. A JavaScript opt-in (`Bridge.files.init(field, kind)`) was
+proposed and declined: native status is the server's verdict, made once per class, and a
+declaration also covers AJAX-loaded rows and reloads without any call.

@@ -1,5 +1,17 @@
 # Changelog
 
+## AdminThemeBridge 0.24.0: sorting for components, core file widgets for subclasses (2026-11-02)
+
+From phlppschrr's proposal ([theoretic/bridge#3](https://github.com/theoretic/bridge/pull/3)), made while porting FieldtypeFlex to native Bridge support. The File/Image part takes a different shape from the PR's: a declaration on the server instead of a JavaScript call (ADR 0015 addendum).
+
+- **`Bridge.sortable(list, options)`**: the field widgets' sorting (pointer, touch hold, Alt+ArrowUp/Down, Esc, reduced motion) for a list a component owns. The shared sortable chunk loads on the first call; the promise gives the function that removes it. Options as `util/sortable.ts` has them (`items`, `handle`, `cancel`, `axis`, `threshold`, `enabled`, `start`, `stop`, `update`); see the contract.
+- **A handled Alt+arrow sort stays in its list.** In a list inside an item of another (a repeater in a repeater), the key moved the inner item and then the outer one too. Now the key goes no further once a list has used it.
+- **A File or Image subclass may run on the core widget**: its native map entry carries `'widget' => 'InputfieldFile'` or `'InputfieldImage'` (a `nativeMap()` hook), the wrapper gets `data-bridge-widget` beside its own `data-bridge-component`, and the runtime starts the widget as for core, on load, for AJAX content and after a reload. Only for a class that is one of those; the core classes need none.
+- **Moves between fields stay with the core classes**: a drag starts or lands only on an exact `InputfieldFile` / `InputfieldImage` (one selector, `CORE_FIELD` in `fields/file.ts`, also used by `files-move.ts`). A subclass may save its files its own way.
+- **A file item rendered on its own** (`InputfieldFile::renderItem`, also in subclasses) gets the same inline-script treatment as a wrapper's output: the request's nonce for core's known scripts (ADR 0020). Core's items carry no script, so for core nothing changes.
+- Checks: the smoke test stamps a borrowing subclass, one without the key, core itself and a non-file class; `tools/native-check.js` drives `Bridge.sortable` (sort, nested isolation, `enabled()`, cleanup) and starts a borrowing File and Image subclass through `Bridge.Inputfields.init()` without jQuery (the probe is phlppschrr's, adapted).
+- `runtime.js` + index chunk: 15358 B gzip of the 15360 B budget. The next addition there needs a raise.
+
 ## AdminThemeBridge 0.23.1: no checkerboard around list-view thumbnails (2026-11-02)
 
 Contributed by phlppschrr ([theoretic/bridge#2](https://github.com/theoretic/bridge/pull/2)).

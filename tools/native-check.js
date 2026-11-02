@@ -64,6 +64,63 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		check('gate: no legacy reasons', reasonList.length === 0, reasonList.join(', '));
 	}
 
+	// 0.24.0 (theoretic/bridge#3, from phlppschrr's probe): a list a component owns sorts with
+	// Bridge.sortable, nested lists sort alone, and a File/Image subclass that borrows the core
+	// widget (data-bridge-widget) gets it through the usual init and keeps its own mark
+	if(!env.jquery) {
+		const component = await page.evaluate(async () => {
+			const root = document.createElement('div');
+			root.id = 'component-api-probe';
+			root.innerHTML = ProcessWireAdminTheme.trusted.html('<div id="component-outer">'
+				+ '<section class="probe-outer" data-key="outer-a"><button type="button" class="outer-handle">Outer A</button>'
+				+ '<ul id="component-sort"><li class="probe-item" data-key="a"><button type="button" class="probe-handle">A</button></li>'
+				+ '<li class="probe-item" data-key="b"><button type="button" class="probe-handle">B</button></li></ul></section>'
+				+ '<section class="probe-outer" data-key="outer-b"><button type="button" class="outer-handle">Outer B</button></section></div>'
+				+ '<ul class="Inputfields">'
+				+ '<li id="component-file" class="Inputfield InputfieldFile" data-bridge-component="InputfieldProbeFile" data-bridge-widget="InputfieldFile"><label class="InputfieldHeader">Probe file</label><div class="InputfieldContent"><ul class="InputfieldFileList"></ul></div></li>'
+				+ '<li id="component-image" class="Inputfield InputfieldFile InputfieldImage" data-bridge-component="InputfieldProbeImage" data-bridge-widget="InputfieldImage"><label class="InputfieldHeader">Probe image</label><div class="InputfieldContent"><ul class="InputfieldImageList gridImages"></ul><input type="hidden" class="InputfieldImageMaxFiles" value="1"></div></li>'
+				+ '<li id="component-plain" class="Inputfield InputfieldFile" data-bridge-component="InputfieldProbePlain"><label class="InputfieldHeader">Probe plain</label><div class="InputfieldContent"><ul class="InputfieldFileList"></ul></div></li>'
+				+ '</ul>');
+			document.body.append(root);
+			const list = root.querySelector('#component-sort');
+			const outer = root.querySelector('#component-outer');
+			const cleanup = await Bridge.sortable(list, { items: '.probe-item', handle: '.probe-handle', enabled: () => !list.hasAttribute('data-disabled') });
+			const outerCleanup = await Bridge.sortable(outer, { items: '.probe-outer', handle: '.outer-handle' });
+			const order = () => Array.from(list.children, el => el.dataset.key).join(',');
+			const press = (key) => list.querySelector('[data-key="' + key + '"] button').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true, cancelable: true }));
+			press('a');
+			const sorted = order() === 'b,a';
+			const isolated = outer.firstElementChild.dataset.key === 'outer-a';
+			list.setAttribute('data-disabled', '');
+			press('b');
+			const disabled = order() === 'b,a';
+			list.removeAttribute('data-disabled');
+			cleanup(); outerCleanup();
+			press('b');
+			const destroyed = order() === 'b,a';
+			Bridge.Inputfields.init(root);
+			const until = Date.now() + 5000;
+			const ready = () => !!root.querySelector('#component-file [data-pw-file]') && !!root.querySelector('#component-image [data-pw-image]');
+			while(!ready() && Date.now() < until) await new Promise(r => setTimeout(r, 50));
+			const media = ready();
+			const plainSkipped = !root.querySelector('#component-plain [data-pw-file]');
+			const identity = root.querySelector('#component-file').dataset.bridgeComponent === 'InputfieldProbeFile' && root.querySelector('#component-image').dataset.bridgeComponent === 'InputfieldProbeImage';
+			root.remove();
+			return { sorted, isolated, disabled, destroyed, media, plainSkipped, identity, native: typeof jQuery === 'undefined' && !ProcessWireAdminTheme.legacy.loaded };
+		});
+		const names = {
+			sorted: 'Bridge.sortable: Alt+ArrowDown moves the item',
+			isolated: 'Bridge.sortable: an inner key sort leaves the outer list alone',
+			disabled: 'Bridge.sortable: enabled() false skips the sort',
+			destroyed: 'Bridge.sortable: the cleanup removes it',
+			media: 'data-bridge-widget: a borrowing File and Image subclass gets the core widget',
+			plainSkipped: 'data-bridge-widget: a subclass without it gets no widget',
+			identity: 'data-bridge-widget: the subclass keeps its data-bridge-component',
+			native: 'component API: no jQuery, no legacy stack',
+		};
+		Object.entries(component).forEach(([key, ok]) => check(names[key] || key, ok));
+	}
+
 	// collapse: plain
 	await page.click('#wrap_Inputfield_lab_collapsed > .InputfieldHeader');
 	await page.waitForTimeout(400);

@@ -10,6 +10,7 @@ import { Inputfields } from './inputfields/index';
 import { defineTabs } from './elements/pw-tabs';
 import { defineDialog, setupModalLinks, sharedDialog, DialogOptions } from './elements/pw-dialog';
 import type { LightboxItem } from './util/lightbox';
+import type { SortableOptions } from './util/sortable';
 import { legacyLoaded, legacyPending, loadLegacy, onLegacyLoaded } from './legacy';
 import { replay } from './util/stubs';
 import { load as loadComponent, loadFrom as loadComponentsFrom, loadProcess, loaded as loadedComponents } from './components';
@@ -35,6 +36,9 @@ export const Bridge = {
 	tables: {
 		sort: (table: HTMLTableElement, column: number, dir: 'asc' | 'desc' = 'asc'): Promise<void> => import('./fields/datatable').then(m => m.sort(table, column, dir)),
 	},
+	// the field widgets' sorting for a list a component owns (0.24.0, theoretic/bridge#3): the
+	// sortable chunk on demand; a promise of the function that removes it
+	sortable: (list: HTMLElement, options: SortableOptions): Promise<() => void> => import('./util/sortable').then(m => m.makeSortable(list, options)),
 	// a themed confirm (always asks) and a risky action's warning (asks while the setting is on,
 	// ADR 0019); a promise, and callbacks for classic scripts calling through the stand-in
 	confirm: (opts: AskOptions | string, onOk?: () => void, onCancel?: () => void): Promise<boolean> => import('./util/danger').then(m => m.callbacks(m.confirm(opts), onOk, onCancel)),

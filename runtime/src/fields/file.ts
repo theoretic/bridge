@@ -43,9 +43,16 @@ const prune = (): void => fields.forEach((st, f) => { if (!f.isConnected) { drop
 onRemoval(prune);
 
 /**
+ * The core File and Image fields, by the theme's mark. A subclass that borrows their widget
+ * (`data-bridge-widget`, 0.24.0) is not one: its upload and saving may be its own, so moves
+ * between fields (files-move.ts, FieldtypeFile's endpoint) neither start nor land there.
+ */
+export const CORE_FIELD = '.Inputfield[data-bridge-component="InputfieldFile"], .Inputfield[data-bridge-component="InputfieldImage"]';
+
+/**
  * Dragging items out of a file or image field onto another one (0.14.0): the sortable's `outside`
  * and its end, with fields/files-move.ts loaded at the first drag where uploads are possible (the
- * same page editor contract). Until it is in, a drag stays a sort.
+ * same page editor contract), from a core field only. Until it is in, a drag stays a sort.
  */
 export function dragOut(inputfield: HTMLElement, list: HTMLElement): {
 	load(): void;
@@ -56,7 +63,7 @@ export function dragOut(inputfield: HTMLElement, list: HTMLElement): {
 	let loading = false;
 	return {
 		load: () => {
-			if (mover || loading || !uploadAllowed()) return;
+			if (mover || loading || !uploadAllowed() || !inputfield.matches(CORE_FIELD)) return;
 			loading = true;
 			void import('./files-move').then(m => { mover = m.mover(inputfield, list); }).catch(() => { loading = false; });
 		},
