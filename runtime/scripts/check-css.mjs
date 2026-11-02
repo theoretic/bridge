@@ -87,9 +87,9 @@ const scriptsDir = fileURLToPath(new URL('../../modules/AdminThemeBridge/scripts
 // main.js 11.5 and the total 42.25 kB until 2026-11-01: the CSP nonce rule (ADR 0020, audit SE2); the total
 // 43.5 and page-save.js 4 kB since the Trusted Types sweep the same day (0.18.4); main.js 12.5 and the
 // total 45 kB for keyboard and screen reader support (0.20.x, audit UX1-UX3: the drawer, tab roles,
-// reduced motion)
+// reduced motion); main.js 13 kB for the tab-focus bus (pw-tab-focus, 0.25.0)
 const CLASSIC = {
-	'main.js': 12.5, 'setup.js': 7, 'image-select.js': 6, 'lister.js': 4.5, 'page-save.js': 4,
+	'main.js': 13, 'setup.js': 7, 'image-select.js': 6, 'lister.js': 4.5, 'page-save.js': 4,
 	'screens.js': 3.25, 'link.js': 3, 'wire-tabs.js': 2, 'page-edit.js': 1.75, 'save-wait.js': 1.5, 'uikit-layer.js': 2.5, 'debug-tools.js': 1,
 };
 let classicTotal = 0;

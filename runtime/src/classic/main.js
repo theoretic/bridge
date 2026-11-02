@@ -244,6 +244,7 @@ var ProcessWireAdminTheme = {
 		this.setupRangeFill();
 		this.setupTreeFit();
 		this.setupSearch();
+		this.setupTabFocus();
 		this.scheme.init();
 		this.scale.init();
 		this.editors.init();
@@ -519,6 +520,32 @@ var ProcessWireAdminTheme = {
 			}, { once: true });
 			main.focus({ preventScroll: true });
 			mark.scrollIntoView({ block: 'nearest' });
+		});
+	},
+
+	/**
+	 * pw-tab-focus on document when the tab comes back (shown again, or its window focused, after
+	 * it was hidden or blurred), at most once per tabFocusDelay ms; never at page load (Firefox
+	 * focuses the window while the page loads). detail.hidden is how long it was away in ms.
+	 * Anything that refreshes when the user returns to a tab listens to it (0.25.0: the page tree
+	 * and history drawers). Harnesses set tabFocusDelay to 0.
+	 */
+	tabFocusDelay: 5000,
+
+	setupTabFocus: function() {
+		var self = this, last = 0, away = 0;
+		var leave = function() { away = Date.now(); };
+		var back = function() {
+			var now = Date.now();
+			if(!away || document.visibilityState === 'hidden' || (last && now - last < self.tabFocusDelay)) return;
+			last = now;
+			document.dispatchEvent(new CustomEvent('pw-tab-focus', { bubbles: true, detail: { hidden: now - away } }));
+		};
+		window.addEventListener('blur', leave);
+		window.addEventListener('focus', back);
+		document.addEventListener('visibilitychange', function() {
+			if(document.visibilityState === 'hidden') leave();
+			else back();
 		});
 	},
 
