@@ -61,6 +61,10 @@ old version after the refresh, PHP-FPM's opcache is serving the old file; reload
 
 Undo: Profile > Admin Theme back to Uikit, then uninstall the module from its settings page.
 
+The history drawer (0.25.0) keeps each user's visited screens in the `pages_meta` rows of the
+user pages (`AdminThemeBridge.history`), and the page tree drawer its open branches in a browser
+cookie (`bridge_tree_open`). No install step, no table, nothing to copy between sites.
+
 Browser caching (0.9.11): the module's `.htaccess` gives its versioned files (`?v=` URLs) and its
 hashed files (runtime chunks, icon font subsets) `Cache-Control: public, max-age=31536000,
 immutable` on Apache with `mod_headers`. On nginx the same is one rule in the site's server block:

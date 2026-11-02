@@ -4,7 +4,7 @@ A [ProcessWire](https://processwire.com) admin built from native web components 
 every existing Inputfield and Process module.
 
 The name says what it is: a bridge between the jQuery-era admin and the modern web stack.
-"Bridge" is a working name. Status: beta, AdminThemeBridge 0.24.0; the component contract is
+"Bridge" is a working name. Status: beta, AdminThemeBridge 0.25.0; the component contract is
 version 1 and may still change before 1.0.
 
 ## What it is
@@ -80,6 +80,12 @@ are the point. A screen with a jQuery-era field loads that field's stack, as it 
   without path history, and more (Features > Warn before risky actions, on by default).
 - Each user can pick their own colour in the user menu: a preset or any colour, kept with the
   user and shown on every device; the site's colour stays the default.
+- The page tree is one click away on every screen: a tree button beside the logo opens it in a
+  drawer, with the branches left open. A history button beside it lists the admin screens the
+  user visited, newest first, with their type and how often each was visited; the history is
+  kept with the user, so it is the same on every device. With several admin tabs open, the tab
+  that gets the focus back updates both in the background (Features > Page tree on each page,
+  Show history, History steps).
 - The keyboard reaches what the pointer does: tabs move with the arrow keys, Alt+Up and Down
   sort lists and move pages in the tree, Ctrl+Space selects; dialogs take the focus and ask
   before closing over unsaved changes. Reduced motion turns the flashes and smooth scrolls off,
