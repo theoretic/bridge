@@ -9,6 +9,8 @@
  *   opens or closes the row; the click after a drag is swallowed), with touch after a 400 ms hold, so
  *   a swipe still scrolls. Ctrl, Cmd or Shift make a press a selection, never a drag; the row's blank
  *   part draws the rubber band and its actions stay links (util/selection.ts).
+ * - Touch (0.26.0): a hold released without moving past 8 px is a "held" gesture: after its no-op
+ *   drop, `held` is called (touch selection).
  * - While dragging: the item `PageListSortItem PageListSortPlaceholder`, the root `PageListSorting`;
  *   open items without visible children get a placeholder list to drop into. The item goes before
  *   or after the item under the pointer (an open item's child list takes it first, never between the
@@ -52,12 +54,16 @@ export type TreeCtx = {
 	canMove: (li: HTMLElement) => boolean;
 	/** a drag began (the menu of several rows steps aside) */
 	onStart: () => void;
+	/** touch: the hold ended without moving past the slop (called after its no-op drop) */
+	held?: (li: HTMLElement, e: PointerEvent) => void;
 };
 
 type Origin = { list: HTMLElement; at: number };
 
 const THRESHOLD = 4;
 const HOLD = 400;
+// how far a finger may move during the hold, and after it for a "held" gesture
+const SLOP = 8;
 // the parts of a row that drag it; the rest of the row draws the rubber band
 const GRIP = 'a.PageListPage, .PageListNumChildren, .PageListNote';
 
@@ -74,6 +80,8 @@ export function installMove(c: TreeCtx): void {
 	let startX = 0;
 	let startY = 0;
 	let holdTimer = 0;
+	// the touch hold began the drag and the finger has not moved past the slop since
+	let still = false;
 
 	const items = (list: Element): HTMLElement[] => kids(list, '.PageListItem').filter(x => !x.classList.contains('PageListPlaceholderItem'));
 	const busy = (): boolean => root.classList.contains('PageListSorting') || root.classList.contains('PageListSortSaving');
@@ -266,8 +274,9 @@ export function installMove(c: TreeCtx): void {
 		dragId = e.pointerId;
 		startX = e.clientX;
 		startY = e.clientY;
+		still = false;
 		if (e.pointerType === 'touch') {
-			holdTimer = window.setTimeout(() => { if (pending === row) begin(row); }, HOLD);
+			holdTimer = window.setTimeout(() => { if (pending === row) { begin(row); still = !!moving; } }, HOLD);
 			return;
 		}
 		// no text selection and no browser drag of the link: the press is a click or this drag
@@ -307,13 +316,14 @@ export function installMove(c: TreeCtx): void {
 		if (pending) {
 			const far = Math.max(Math.abs(e.clientX - startX), Math.abs(e.clientY - startY));
 			// touch: moving before the hold is a scroll
-			if (e.pointerType === 'touch') { if (far > 8) forget(); return; }
+			if (e.pointerType === 'touch') { if (far > SLOP) forget(); return; }
 			if (!(e.buttons & 1)) { forget(); return; }
 			if (far < THRESHOLD) return;
 			begin(pending);
 		}
 		if (!moving) return;
 		e.preventDefault();
+		if (still && Math.max(Math.abs(e.clientX - startX), Math.abs(e.clientY - startY)) > SLOP) still = false;
 		edgeScroll(e.clientY);
 		const under = document.elementFromPoint(e.clientX, e.clientY);
 		const target = under ? (under as HTMLElement).closest<HTMLElement>('.PageListItem') : null;
@@ -342,10 +352,13 @@ export function installMove(c: TreeCtx): void {
 		swallowClick();
 		const li = moving;
 		li.classList.remove('PageListSortPlaceholder');
-		void stopMove(li);
+		const wasStill = still;
+		still = false;
+		void stopMove(li).then(() => { if (wasStill && c.held) c.held(li, e); });
 	});
 	root.addEventListener('pointercancel', e => {
 		if (e.pointerId !== dragId) return;
+		still = false;
 		if (moving) abort(); else forget();
 	});
 }

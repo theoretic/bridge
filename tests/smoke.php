@@ -831,6 +831,13 @@ if(isset($bridge) && $bridge) {
 	check('a file move held on a closed tab header opens it after 600 ms, never Delete (0.26.0)', strpos($movesSrc, "const TAB = 'ul.WireTabs a[role=\"tab\"]:not(.on):not(#_ProcessPageEditDelete)';") !== false
 		&& strpos($movesSrc, 'header.click(); }, 600)') !== false);
 	check('files from the desktop held on a closed tab header open it (0.26.0)', strpos((string) @file_get_contents($rt . 'inputfields/forms.ts'), "closest?.<HTMLElement>('ul.WireTabs a[role=\"tab\"]:not(.on):not(#_ProcessPageEditDelete)')") !== false);
+	$pagelistMoveSrc = (string) @file_get_contents($rt . 'fields/pagelist-move.ts');
+	check('a touch hold released without moving is a held gesture, in sortable lists and tree moves (0.26.0)', strpos($sortableSrc, 'held?: (item: HTMLElement, e: PointerEvent) => void;') !== false
+		&& strpos($sortableSrc, 'if (wasStill && options.held) options.held(item, e);') !== false
+		&& strpos($pagelistMoveSrc, 'held?: (li: HTMLElement, e: PointerEvent) => void;') !== false
+		&& strpos($pagelistMoveSrc, 'if (wasStill && c.held) c.held(li, e);') !== false);
+	check('touch: a hold on a file row or an image tile opens no callout (0.26.0)', strpos($fieldsCss, '@media(pointer:coarse){.InputfieldFileList>.InputfieldFileItem>.InputfieldFileInfo{-webkit-touch-callout:none;') !== false
+		&& strpos($fieldsCss, '@media(pointer:coarse){.gridImage .gridImage__overflow,.gridImage .gridImage__hover{-webkit-touch-callout:none;') !== false);
 	check('files-move posts bridgeFilesMove, meta as JSON', strpos($movesSrc, "body.append('bridgeFilesMove', '1')") !== false && strpos($movesSrc, "body.append('meta', JSON.stringify(meta))") !== false);
 	check('the page tree\'s moves are their own chunk, loaded with the tree', is_file($rt . 'fields/pagelist-move.ts') && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-move')") !== false && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "root, 0, true).then(() => loadMove())") !== false);
 	check('the tree takes an empty sort answer as success', strpos((string) @file_get_contents($rt . 'fields/pagelist-move.ts'), 'if (!text && res.ok) return {};') !== false);

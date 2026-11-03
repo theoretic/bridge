@@ -3,6 +3,8 @@
  * the gap a dragged image leaves is a tinted tile, the crop grid faint solid lines */
 .gridImage, .gridImage.InputfieldFileItemHidden { border-style: solid !important; }
 .gridImage { background: var(--card); box-shadow: var(--shadow-sm); }
+/* touch: a hold on a tile (a drag or a selection) neither selects nor opens the image's menu */
+@media (pointer: coarse) { .gridImage .gridImage__overflow, .gridImage .gridImage__hover { -webkit-touch-callout: none; user-select: none; } }
 .gridImage.ui-sortable-placeholder { border-color: transparent; background: var(--pw-primary-bg); }
 .cropper-dashed { border-style: solid; }
 .gridImage.gridImagePlaceholder .gridImage__overflow, .InputfieldImageEditAll .gridImage.gridImagePlaceholder .gridImage__overflow { background: var(--muted); }

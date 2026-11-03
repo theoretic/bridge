@@ -28,7 +28,9 @@
  *
  * Touch (audit UX4): a finger starts a drag after a 400 ms hold, as in the page tree, so a swipe
  * over a long list still scrolls the page; moving before the hold is that scroll. A handle whose
- * CSS says `touch-action: none` (the repeater's) drags at once.
+ * CSS says `touch-action: none` (the repeater's) drags at once. A hold released without moving
+ * past the slop is a "held" gesture (0.26.0): after its no-op drop, `held` is called (touch
+ * selection, util/selection.ts).
  */
 
 export type DragEnd = { dx: number; dy: number; outside: boolean; cancelled: boolean };
@@ -64,6 +66,8 @@ export type SortableOptions = {
 	group?: (item: HTMLElement) => HTMLElement[];
 	/** called on each move: true when an outside handler owns this move (the list stays still) */
 	outside?: (item: HTMLElement, group: HTMLElement[], e: PointerEvent) => boolean;
+	/** touch: the hold ended without moving past the slop (called after its no-op drop) */
+	held?: (item: HTMLElement, e: PointerEvent) => void;
 };
 
 const CONTROLS = 'a, button, input, select, textarea, label, [contenteditable]';
@@ -124,6 +128,8 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 	let away = false;
 	let holdTimer = 0;
 	let holding = false;
+	// the touch hold began the drag and the finger has not moved past the slop since
+	let still = false;
 	const threshold = options.threshold || 0;
 
 	const items = (): HTMLElement[] =>
@@ -146,6 +152,7 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 		pointerId = e.pointerId;
 		startX = e.clientX;
 		startY = e.clientY;
+		still = false;
 		const grip = options.handle ? target.closest(options.handle) || item : item;
 		if (e.pointerType === 'touch' && getComputedStyle(grip).touchAction !== 'none') {
 			// a hold makes it a drag; until then the finger scrolls (audit UX4)
@@ -157,6 +164,7 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 				pending = null;
 				holding = false;
 				begin(item);
+				still = true;
 			}, HOLD);
 			return;
 		}
@@ -216,6 +224,7 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 		}
 		if (!dragging || e.pointerId !== pointerId) return;
 		e.preventDefault();
+		if (still && (Math.abs(e.clientX - startX) > SLOP || Math.abs(e.clientY - startY) > SLOP)) still = false;
 		edgeScroll(e.clientY);
 		if (options.outside) {
 			setAway(options.outside(dragging, group, e));
@@ -281,12 +290,17 @@ export function makeSortable(list: HTMLElement, options: SortableOptions): () =>
 	const onUp = (e: PointerEvent): void => {
 		if (pending && e.pointerId === pointerId) drop();
 		if (!dragging || e.pointerId !== pointerId) return;
+		const item = dragging;
+		const wasStill = still;
+		still = false;
 		finish(e, false);
+		if (wasStill && options.held) options.held(item, e);
 	};
 
 	const onCancel = (e: PointerEvent): void => {
 		if (pending && e.pointerId === pointerId) drop();
 		if (!dragging || e.pointerId !== pointerId) return;
+		still = false;
 		finish(e, true);
 	};
 
