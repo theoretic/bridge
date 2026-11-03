@@ -57,7 +57,36 @@ trait AdminThemeBridgeHistory {
 			return;
 		}
 		header('Content-Type: text/html; charset=utf-8');
-		$event->return = $this->renderHistoryTable($this->historyUrl());
+		$process = null;
+		try {
+			/** @var ProcessController $controller */
+			$controller = $event->object;
+			$process = $controller->getProcess();
+		} catch(\Throwable $e) {
+			// no access or no such Process: the plain URL marks the row
+		}
+		$event->return = $this->renderHistoryTable($this->historyCurrentKey($process));
+	}
+
+	/**
+	 * The current screen's history key: the `url` historyEntry() records for it (so a hook that
+	 * rewrites the key still finds the row), or historyUrl() when the screen records nothing
+	 *
+	 * @param Process|null $process The screen's Process
+	 * @return string
+	 *
+	 */
+	protected function historyCurrentKey(?Process $process = null) {
+		$page = $this->wire()->page;
+		if($process && $page && $page->id) {
+			try {
+				$entry = $this->historyEntry($process, $page);
+				if(is_array($entry) && !empty($entry['url'])) return (string) $entry['url'];
+			} catch(\Throwable $e) {
+				// fall through to the plain URL
+			}
+		}
+		return $this->historyUrl();
 	}
 
 	/**

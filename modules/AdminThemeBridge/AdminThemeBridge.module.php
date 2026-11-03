@@ -370,7 +370,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * @var array
 	 *
 	 */
-	protected $historyDropParams = array('modal', 'render', 'renderInputfieldAjax', 'nonce', '_', 's', 'n', 'open', 'pw_notice', 'bridgeHistory', 'bridgeColors');
+	protected $historyDropParams = array('modal', 'render', 'renderInputfieldAjax', 'nonce', '_', 's', 'n', 'open', 'pw_notice', 'bridgeHistory', 'bridgeColors', 'reset', 'login', 'uninstalled');
 
 	/**
 	 * userColors() for this request: null before it is asked, false when the user has none

@@ -1381,6 +1381,39 @@ if(isset($bridge) && $bridge) {
 		$visit($tplPage, array('z' => '1', 'id' => $tpl->id, $session->CSRF->getTokenName() => 'x'), 'Sorted', 'edit');
 		$sorted = $bridge->historyEntry($proc('ProcessTemplate'), $tplPage);
 		check('history: the query sorted, the CSRF token dropped', is_array($sorted) && substr($sorted['url'], -strlen("edit?id=$tpl->id&z=1")) === "edit?id=$tpl->id&z=1", json_encode($sorted));
+		// 0.26.0: request-only parameters leave the key; the drawer marks the key historyEntry() returns
+		$bridge->historyClear();
+		$visit($modPage, array('reset' => 2), 'Modules');
+		$bridge->historyRecord($proc('ProcessModule'));
+		$visit($modPage, array(), 'Modules');
+		$bridge->historyRecord($proc('ProcessModule'));
+		$entries = array_values($bridge->historyEntries());
+		check('history: module/?reset=2 and module/ are one entry with two visits', count($entries) === 1 && $entries[0]['visits'] === 2
+			&& substr($entries[0]['url'], -7) === 'module/', json_encode($entries));
+		$visit($fieldPage, array('login' => 1), 'Fields');
+		$loginEntry = $bridge->historyEntry($proc('ProcessField'), $fieldPage);
+		$visit($modPage, array('uninstalled' => 'X'), 'Modules');
+		$uninstEntry = $bridge->historyEntry($proc('ProcessModule'), $modPage);
+		check('history: ?login= and ?uninstalled= are dropped from the key', is_array($loginEntry) && substr($loginEntry['url'], -12) === 'setup/field/'
+			&& is_array($uninstEntry) && substr($uninstEntry['url'], -7) === 'module/', json_encode(array($loginEntry, $uninstEntry)));
+		$currentKey = new \ReflectionMethod($bridge, 'historyCurrentKey');
+		$visit($fieldPage, array(), 'Fields');
+		$plainKey = $currentKey->invoke($bridge, $proc('ProcessField'));
+		$rewriteHook = $wire->addHookAfter('AdminThemeBridge::historyEntry', function(HookEvent $e) {
+			if(is_array($e->return)) $e->return = array_merge($e->return, array('url' => 'bridge-rewritten/key'));
+		});
+		$rewrittenKey = $currentKey->invoke($bridge, $proc('ProcessField'));
+		$loginKey = $currentKey->invoke($bridge, $proc('ProcessLogin'));
+		$wire->removeHook($rewriteHook);
+		$hu->meta(AdminThemeBridge::historyMeta, array(
+			'bridge-rewritten/key' => array('name' => 'Rewritten', 'type' => 'screen', 'url' => 'bridge-rewritten/key', 'visits' => 1, 'last' => 1000),
+			'setup/field/' => array('name' => 'Fields', 'type' => 'screen', 'url' => 'setup/field/', 'visits' => 1, 'last' => 2000),
+		));
+		$rewrittenTable = $bridge->renderHistoryTable($rewrittenKey);
+		check('history: the drawer marks the key a historyEntry hook rewrote, the plain URL when the screen records nothing', $rewrittenKey === 'bridge-rewritten/key'
+			&& substr($plainKey, -12) === 'setup/field/' && $loginKey === $plainKey && substr_count($rewrittenTable, "aria-current='page'") === 1
+			&& strpos($rewrittenTable, "bridge-rewritten/key' aria-current='page'") !== false, json_encode(array($plainKey, $rewrittenKey, $loginKey)));
+		$bridge->historyClear();
 		$bridge->set('history', 0);
 		$visit($tplPage, array('id' => $tpl->id), 'Off', 'edit');
 		check('history: with "Show history" off, nothing is recorded', !$bridge->historyRecord($proc('ProcessTemplate')));
