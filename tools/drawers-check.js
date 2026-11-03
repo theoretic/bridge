@@ -60,16 +60,44 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		window.dispatchEvent(new Event('focus'));
 		const throttled = seen.length;
 		ProcessWireAdminTheme.tabFocusDelay = 0;
+		window.dispatchEvent(new Event('focus'));
+		const once = seen.length;
 		const visible = document.visibilityState === 'visible';
+		window.dispatchEvent(new Event('blur'));
 		document.dispatchEvent(new Event('visibilitychange'));
-		return { atLoad, unvisited, first, throttled, visible, after: seen.length, detail: seen.every(Boolean) };
+		return { atLoad, unvisited, first, throttled, once, visible, after: seen.length, detail: seen.every(Boolean) };
 	});
 	check('A nothing fires at page load', bus.atLoad === 0, JSON.stringify(bus));
 	check('A a focus without a blur or hidden before it fires nothing', bus.unvisited === 0, JSON.stringify(bus));
 	check('A a window focus after a blur fires pw-tab-focus once', bus.first === 1, JSON.stringify(bus));
 	check('A a second focus at once is throttled', bus.throttled === 1, JSON.stringify(bus));
+	check('A once fired, a focus with no leave since fires nothing (tabFocusDelay 0)', bus.once === 1, JSON.stringify(bus));
 	check('A visibilitychange to visible fires once the delay has passed (tabFocusDelay 0)', bus.visible && bus.after === 2, JSON.stringify(bus));
 	check('A detail.hidden is a number', bus.detail, JSON.stringify(bus));
+	// audit A1.1: the focus moving into an iframe of this page (editor frames) and back is a
+	// window blur/focus pair too, and must fire nothing (headless Firefox sends no window blur
+	// for it, only the focus back, which must not fire on an old leave either)
+	await page.evaluate(() => {
+		window.__frameProbe = { blur: 0, focus: 0, fired: 0 };
+		window.addEventListener('blur', () => window.__frameProbe.blur++);
+		window.addEventListener('focus', () => window.__frameProbe.focus++);
+		document.addEventListener('pw-tab-focus', () => window.__frameProbe.fired++);
+		const back = document.createElement('input');
+		back.id = 'probe-back';
+		back.setAttribute('aria-label', 'probe');
+		const frame = document.createElement('iframe');
+		frame.id = 'probe-frame';
+		frame.title = 'probe';
+		frame.srcdoc = '<input id="in" aria-label="probe">';
+		document.getElementById('main').prepend(back, frame);
+	});
+	await page.frameLocator('#probe-frame').locator('#in').click();
+	await page.waitForTimeout(100);
+	const inFrame = await page.evaluate(() => document.activeElement && document.activeElement.id);
+	await page.click('#probe-back');
+	await page.waitForTimeout(100);
+	const frameProbe = await page.evaluate(() => window.__frameProbe);
+	check('A the focus into an iframe of the page and back fires nothing', inFrame === 'probe-frame' && frameProbe.focus >= 1 && frameProbe.fired === 0, JSON.stringify({ inFrame, frameProbe }));
 
 	// B: the drawer shell: buttons right of the logo, <dialog> drawers, one at a time
 	await open('setup/field/');

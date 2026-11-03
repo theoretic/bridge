@@ -526,22 +526,34 @@ var ProcessWireAdminTheme = {
 	/**
 	 * pw-tab-focus on document when the tab comes back (shown again, or its window focused, after
 	 * it was hidden or blurred), at most once per tabFocusDelay ms; never at page load (Firefox
-	 * focuses the window while the page loads). detail.hidden is how long it was away in ms.
-	 * Anything that refreshes when the user returns to a tab listens to it (0.25.0: the page tree
-	 * and history drawers). Harnesses set tabFocusDelay to 0.
+	 * focuses the window while the page loads), and once per leave: a focus with no hide or blur
+	 * since the last fire fires nothing. detail.hidden is how long it was away in ms.
+	 * A window blur that only moved the focus into an iframe of this page (editor frames, dialog
+	 * iframes) is not a leave: the document still has the focus and the iframe is its active
+	 * element, so the leave is taken back on the next tick, and the focus coming back from that
+	 * frame fires nothing. Anything that refreshes when the user returns to a tab listens to it
+	 * (0.25.0: the page tree and history drawers). Harnesses set tabFocusDelay to 0.
 	 */
 	tabFocusDelay: 5000,
 
 	setupTabFocus: function() {
 		var self = this, last = 0, away = 0;
-		var leave = function() { away = Date.now(); };
+		var leave = function() { return away = Date.now(); };
 		var back = function() {
 			var now = Date.now();
 			if(!away || document.visibilityState === 'hidden' || (last && now - last < self.tabFocusDelay)) return;
 			last = now;
-			document.dispatchEvent(new CustomEvent('pw-tab-focus', { bubbles: true, detail: { hidden: now - away } }));
+			var at = away;
+			away = 0;
+			document.dispatchEvent(new CustomEvent('pw-tab-focus', { bubbles: true, detail: { hidden: now - at } }));
 		};
-		window.addEventListener('blur', leave);
+		window.addEventListener('blur', function() {
+			var at = leave();
+			setTimeout(function() {
+				var el = document.activeElement;
+				if(away === at && el && el.tagName === 'IFRAME' && document.hasFocus()) away = 0;
+			}, 0);
+		});
 		window.addEventListener('focus', back);
 		document.addEventListener('visibilitychange', function() {
 			if(document.visibilityState === 'hidden') leave();
