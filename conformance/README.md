@@ -20,7 +20,8 @@ tail -2 sandbox/conformance-atispro.txt
 ```
 
 Options: `--base=http://host:port`, `--only=<substring of the screen url>`, `--json=<file>` for the
-raw digests. Exit code 1 when any screen differs or fails.
+raw digests, `--uikit-strict` to fail on a screen that loads the UIkit layer unexpectedly (below).
+Exit code 1 when any screen differs or fails, or with `--uikit-strict` when a screen is unexpected.
 
 `screens.txt` placeholders are resolved by bootstrapping the sandbox in CLI: one page per
 non-system template, one field per fieldtype, every non-system template, up to 40
@@ -34,6 +35,11 @@ warnings and errors from `#notices`; every `.Inputfield` inside `#pw-content-bod
 `data-show-if`, `data-required-if`, column width); every form control (name, type, value, select
 option count); every link `href`; every button; row counts per table; registered module scripts
 and stylesheets (`<script src>`, `<link rel=stylesheet>` outside the theme and jQuery paths).
+
+Bridge digests also record the UIkit layer (ADR 0017), not compared with Uikit's:
+`uikit: {link, reasons}`, `link` true when the page prints `link[data-pw-uikit]`, `reasons` the
+`ProcessWire.config.AdminThemeBridge.uikit.reasons` object (reason => count, e.g.
+`Markup:uk-grid`). Layers loaded later in the browser (an added node, a script) are not seen.
 
 ## Normalisation (what is deliberately ignored)
 
@@ -64,7 +70,13 @@ module-facing markup and Bridge must decide whether to follow.
 ok   <url>                 identical digests
 DIFF <url>                 followed by one line per difference
 FAIL <url>                 HTTP error, PHP error text or an error notice under either theme
+UIKIT <url> <reasons>      Bridge printed the UIkit layer there; "[unexpected]" when no line of
+                           uikit-allow.txt matches the url
 ```
+
+The summary adds "N screens load the UIkit layer, M unexpected". `uikit-allow.txt` holds one URL
+substring per line (`{admin}` allowed), the reason in a ` # ` comment: screens whose module markup
+the compat layer cannot draw. Unexpected screens fail the run only with `--uikit-strict`.
 
 A FAIL under both themes is a site or module problem, not a theme problem; the sandbox log
 `app/assets/logs/errors.txt` has the trace. A FAIL under one theme only is what the suite is for.

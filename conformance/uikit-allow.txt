@@ -1,0 +1,8 @@
+# Screens allowed to load the UIkit layer under AdminThemeBridge (ADR 0017), read by run.php.
+# One substring of the screen URL per line ({admin} = the admin URL), the reason in a comment
+# after it (" # ..."). A screen that loads the layer and matches no line is "unexpected": listed
+# as `UIKIT <url> <reasons> [unexpected]`, a failure with --uikit-strict.
+# Add a line only for markup the compat layer cannot draw, with the module and the reasons.
+#
+# atispro (2026-11-03, after 0.26.0 C1 + C2): no screen loads the layer, AgentTools v21's Process
+# screen and the PageTableNext editors included.

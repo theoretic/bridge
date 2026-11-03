@@ -10,26 +10,32 @@
  * strings, CSRF tokens) are normalised away before comparison.
  *
  * Usage:
- *   php conformance/run.php /path/to/sandbox/root [--base=http://localhost:8089] [--only=substr] [--json=out.json]
+ *   php conformance/run.php /path/to/sandbox/root [--base=http://localhost:8089] [--only=substr] [--json=out.json] [--uikit-strict]
+ *
+ * Every Bridge screen that loads the UIkit layer (ADR 0017) gets a `UIKIT <url> <reasons>` line;
+ * one that no line of uikit-allow.txt matches is "unexpected", a failure with --uikit-strict only.
  *
  * Exit code: 0 when every screen matches, 1 when any screen differs or fails (HTTP error, PHP
- * error text, NoticeError, a session that fell back to the login form) or when no screen ran;
- * 2 when the root is not a sandbox on its own database copy (tools/lib/sandbox-guard.php). The
- * report goes to stdout; --json writes the digests for inspection.
+ * error text, NoticeError, a session that fell back to the login form), when no screen ran, or
+ * with --uikit-strict when a screen loads the UIkit layer unexpectedly; 2 when the root is not a
+ * sandbox on its own database copy (tools/lib/sandbox-guard.php). The report goes to stdout;
+ * --json writes the digests for inspection.
  */
 
 $root = '';
 $base = 'http://localhost:8089';
 $only = '';
 $jsonOut = '';
+$uikitStrict = false;
 foreach(array_slice($argv, 1) as $arg) {
 	if(strpos($arg, '--base=') === 0) $base = rtrim(substr($arg, 7), '/');
 	else if(strpos($arg, '--only=') === 0) $only = substr($arg, 7);
 	else if(strpos($arg, '--json=') === 0) $jsonOut = substr($arg, 7);
+	else if($arg === '--uikit-strict') $uikitStrict = true;
 	else $root = rtrim(str_replace('\\', '/', $arg), '/');
 }
 if(!$root) {
-	exit("Usage: php conformance/run.php /path/to/sandbox/root [--base=http://localhost:8089] [--only=substr] [--json=file]\n");
+	exit("Usage: php conformance/run.php /path/to/sandbox/root [--base=http://localhost:8089] [--only=substr] [--json=file] [--uikit-strict]\n");
 }
 // a sandbox on its own database copy only: the CLI boot below rewrites module caches keyed by
 // path, which a real site's database must never get (audit SE5)
@@ -150,6 +156,14 @@ foreach(file(__DIR__ . '/screens.txt', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_L
 $screens[] = $adminUrl . 'page/list/?id=1&render=JSON';
 $screens[] = $adminUrl . 'page/edit/?id=1&modal=1';
 $screens = array_values(array_unique($screens));
+// screens allowed to load the UIkit layer: one URL substring per line, the reason in a comment
+$uikitAllow = array();
+$allowFile = __DIR__ . '/uikit-allow.txt';
+if(is_file($allowFile)) foreach(file($allowFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+	$line = trim(preg_replace('/\s#.*$/', '', $line));
+	if($line === '' || strpos($line, '#') === 0) continue;
+	$uikitAllow[] = str_replace('{admin}', $adminUrl, $line);
+}
 if($only !== '') $screens = array_values(array_filter($screens, function($s) use($only) { return strpos($s, $only) !== false; }));
 
 // ---------------------------------------------------------------------------------------------
@@ -256,8 +270,27 @@ function classList($el) {
 	return $out;
 }
 
+/**
+ * The UIkit layer on a Bridge page (ADR 0017): the printed `link[data-pw-uikit]`, and the reasons
+ * from `ProcessWire.config.AdminThemeBridge.uikit` (getHeadJS(); pretty-printed under debug). Not
+ * compared: the Uikit theme has no layer. isThemeAsset() keeps the layer out of the styles list.
+ *
+ * @param string $html
+ * @param \DOMXPath $xp
+ * @return array {link: bool, reasons: {reason: count}}
+ */
+function uikitDigest($html, \DOMXPath $xp) {
+	$out = array('link' => $xp->query('//link[@data-pw-uikit]')->length > 0, 'reasons' => array());
+	if(preg_match('~var ProcessWire\s*=\s*\{\s*config:\s*(.*?)\s*\};\s*var config = ProcessWire\.config;~s', $html, $m)) {
+		$js = json_decode($m[1], true);
+		$reasons = $js['AdminThemeBridge']['uikit']['reasons'] ?? array();
+		if(is_array($reasons)) $out['reasons'] = $reasons;
+	}
+	return $out;
+}
+
 function digest($status, $html, $url) {
-	$d = array('status' => $status, 'error' => '', 'fields' => array(), 'controls' => array(), 'links' => array(), 'buttons' => array(), 'tables' => array(), 'scripts' => array(), 'styles' => array(), 'notices' => array(), 'title' => '', 'printed' => array(), 'deferred' => array());
+	$d = array('status' => $status, 'error' => '', 'fields' => array(), 'controls' => array(), 'links' => array(), 'buttons' => array(), 'tables' => array(), 'scripts' => array(), 'styles' => array(), 'notices' => array(), 'title' => '', 'printed' => array(), 'deferred' => array(), 'uikit' => array('link' => false, 'reasons' => array()));
 	if(strpos($url, 'render=JSON') !== false) {
 		$json = json_decode($html, true);
 		if($json === null) {
@@ -278,6 +311,7 @@ function digest($status, $html, $url) {
 	$doc->loadHTML('<?xml encoding="utf-8" ?>' . $html);
 	libxml_clear_errors();
 	$xp = new \DOMXPath($doc);
+	$d['uikit'] = uikitDigest($html, $xp);
 
 	foreach($xp->query('//script[@src]') as $s) {
 		$src = normalizeUrl($s->getAttribute('src'));
@@ -462,6 +496,8 @@ $warnings = 0;
 $fails = 0;
 $siteFails = 0;
 $diffs = 0;
+$uikitScreens = 0;
+$uikitUnexpected = 0;
 foreach($screens as $url) {
 	$row = array();
 	foreach($clients as $name => $client) {
@@ -504,12 +540,25 @@ foreach($screens as $url) {
 	$warn = scriptWarnings($row['bridge']);
 	foreach($warn as $line) echo "       WARN $line\n";
 	$warnings += count($warn);
-	$results[$url] = array('uikit' => $row['uikit'], 'bridge' => $row['bridge'], 'diff' => $diff, 'failed' => $failed, 'warnings' => $warn);
+	// the UIkit layer under Bridge: listed always, unexpected unless uikit-allow.txt names the screen
+	$layer = $row['bridge']['uikit'];
+	$unexpected = false;
+	if($layer['link']) {
+		$uikitScreens++;
+		$unexpected = true;
+		foreach($uikitAllow as $allow) if(strpos($url, $allow) !== false) $unexpected = false;
+		if($unexpected) $uikitUnexpected++;
+		$reasons = array();
+		foreach($layer['reasons'] as $reason => $n) $reasons[] = $n > 1 ? "$reason ($n)" : $reason;
+		echo "UIKIT $url " . ($reasons ? implode(', ', $reasons) : '(no reason: mode always?)') . ($unexpected ? ' [unexpected]' : '') . "\n";
+	}
+	$results[$url] = array('uikit' => $row['uikit'], 'bridge' => $row['bridge'], 'diff' => $diff, 'failed' => $failed, 'warnings' => $warn, 'uikitUnexpected' => $unexpected);
 }
 
 $total = count($screens);
 echo "\n$total screens: " . ($total - $fails - $diffs - $siteFails) . " identical, $diffs differ, $fails failed, $siteFails fail identically under both themes (site)\n";
 echo "$warnings script warnings (deferred site scripts on native screens, order)\n";
+echo "$uikitScreens screens load the UIkit layer, $uikitUnexpected unexpected (not in uikit-allow.txt" . ($uikitStrict ? ', --uikit-strict: a failure' : '') . ")\n";
 if($jsonOut) {
 	file_put_contents($jsonOut, json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 	echo "digests written to $jsonOut\n";
@@ -519,4 +568,4 @@ if(!$total) echo "FAIL no screen ran" . ($only !== '' ? " (--only=$only matched 
 // port, or a broken sandbox (a whole run of "same failure" passed before)
 $noneRendered = $total && $siteFails === $total;
 if($noneRendered) echo "FAIL no screen rendered under either theme: is the server on --base this sandbox's?\n";
-exit(($fails || $diffs || !$total || $noneRendered) ? 1 : 0);
+exit(($fails || $diffs || !$total || $noneRendered || ($uikitStrict && $uikitUnexpected)) ? 1 : 0);
