@@ -361,9 +361,13 @@ upload would, and a dialog settles the rest (Replace / Swap / Leave for a single
 **Status 2026-10-30: done (0.14.0; 0.14.1 adds one band and one menu for several selected tree rows; unreleased).**
 - `tools/image-file-check.js` sections R to U and `tools/pagetree-check.js` section H (40/40) pass in Chromium
   and Firefox on atispro; smoke test green with a server-side round trip; Gate 2 unchanged.
-- Open: touch multi-select; moves between a page and its repeater items (needs a physical copy);
-  WireTab headers that open while dragging over them. (2026-11-03: Extras actions on a tree
-  selection shipped in 0.14.1, the group menu.)
+- Done 2026-11-03 (0.26.0): touch multi-select (a hold selects, a tap toggles while a selection
+  exists, the tree's menu of several rows at the tapped row; ADR 0018 addendum,
+  `tools/image-file-check.js` W and `tools/pagetree-check.js` K, Chromium); WireTab headers open
+  under a file drag held 600 ms (moves between fields and files from the desktop); a failed
+  extra action on several tree rows alerts once. (Extras actions on a tree selection shipped in
+  0.14.1, the group menu.)
+- Open: moves between a page and its repeater items (needs a physical copy).
 
 ### Phase 4 — distribution and politics
 
