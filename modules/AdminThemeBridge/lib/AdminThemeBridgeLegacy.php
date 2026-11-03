@@ -614,12 +614,25 @@ trait AdminThemeBridgeLegacy {
 		$print = array();
 		$deferred = array();
 		foreach($all as $url) {
-			if($this->isLegacyScript($url) || ($this->isJqueryScript($url) && !$this->isScriptNeedsScript($url))) {
+			if($this->isDeferredScript($url)) {
 				$deferred[] = $url;
 			} else {
 				$print[] = $url;
 			}
 		}
 		return array('print' => $print, 'deferred' => $deferred);
+	}
+
+	/**
+	 * Is this script held back for the client on a page without the stack? (a legacy-stack script,
+	 * or a jQuery script outside the scriptNeeds() map; getScriptUrls() asks only when the stack
+	 * is not printed)
+	 *
+	 * @param string $url
+	 * @return bool
+	 *
+	 */
+	public function isDeferredScript($url) {
+		return $this->isLegacyScript($url) || ($this->isJqueryScript($url) && !$this->isScriptNeedsScript($url));
 	}
 }

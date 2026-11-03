@@ -342,10 +342,12 @@ Report by ProcessShowcase's author: modules that use UIkit look broken under Bri
 - ProcessShowcase's pages and its UIkit page render in both schemes. Before and after screenshots, in both themes, are in the session notes (`uikit-shots/`).
 - On the sandbox no core screen loads the layer.
 - Smoke test green.
+- Done 2026-11-03 (0.26.0):
+  - layer coverage tuning: compat classes for AdminPageTool, AdminPageDealers, PageTableNext, AgentTools and RockMigrations; a drawn `uk-icon` is no reason (ADR 0017 addenda);
+  - the conformance pass: `run.php` records the layer per screen (`UIKIT` lines, `--uikit-strict`, `conformance/uikit-allow.txt`); gate1 on eight sandboxes, 0 unexpected (`conformance/RESULTS-2026-11-03.md`). The only layer screens are davinci's where the stack prints (RockMigrations.js, allowed by reason); a jQuery script deferred with the stack no longer counts.
 - Open:
   - RTL;
-  - layer coverage tuning: classes worth adding to `95-uikit-compat.css` so common pages skip the layer, such as `uk-margin-large-top` and `uk-button-group`;
-  - a conformance pass on the sandboxes with UIkit-using modules (Fluency, PageTableNext, AgentTools) to confirm none starts loading the layer unexpectedly.
+  - the theme's own regions (masthead, footer) are not scanned for UIkit markup, only `$content` (ADR 0017 says the page).
 
 ### Multi-select and moves between fields (inserted 2026-10-30)
 

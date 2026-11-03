@@ -190,6 +190,7 @@
 .uk-table-small th, .uk-table-small td { padding: 6px 10px; }
 .uk-table-divider > tbody > tr + tr > td, .uk-table-divider > tr + tr > td, .uk-table-divider th { border-bottom: 1px solid var(--pw-line); }
 .uk-table-hover tbody tr:hover > td { background: var(--pw-muted-bg); }
+.uk-table-striped > tbody > tr:nth-of-type(odd) > td { background: var(--pw-muted-bg); }
 .uk-table-justify :is(th, td):first-child { padding-left: 0; }
 .uk-table-justify :is(th, td):last-child { padding-right: 0; }
 /* AdminPageDealers: under 960px the rows stack, one cell per line */

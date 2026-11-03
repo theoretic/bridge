@@ -174,3 +174,24 @@ four on its action links, so every page with a PageTableNext field loaded the la
 - **The class.** `uk-icon` is also seeded as a covered class: UIkit's JS puts it on icon
   elements, and PageTableNext prints it on its action links. UIkit's `.uk-icon` only resets the
   box of the SVG it injects; without UIkit the glyph is a `::before`.
+
+## Addendum: deferred scripts, the conformance pass (0.26.0, 2026-11-03)
+
+The first conformance pass with the layer recorded per screen (`conformance/run.php`, gate1 on
+eight sandboxes, `conformance/RESULTS-2026-11-03.md`) found one site where every screen loaded the
+layer: davinci, through RockMigrations' admin-wide `RockMigrations.js`, which calls
+`UIkit.tooltip` and `UIkit.notification` without checking for UIkit first.
+
+- **A deferred script is no reason.** That file is a jQuery script, so on a page without the
+  legacy stack it is not printed but handed to the client with the stack (`getScriptUrls()`
+  `deferred`). It used to count anyway: `settleUikitAssets()` looked at every registered script.
+  Now a script that names UIkit is a reason only where it is printed (`isDeferredScript()`, the
+  rule `getScriptUrls()` uses). If a late stack runs it on the client, the stand-in loads UIkit
+  on its first call. davinci: 169 of 172 screens with the layer before, 55 after (the ones that
+  print the stack).
+- **Allowed by reason.** Where the stack prints, the script runs and asks for UIkit: the layer
+  is right there. `uikit-allow.txt` takes `reason:<glob>` lines for such modules, which hold on
+  every screen and site; a screen is expected when every reason it has matches one, so another
+  module that starts loading the layer on the same screens is still reported.
+- **One more class.** RockMigrations' own config screen prints `uk-table-striped`; the compat
+  file draws it (odd rows on `--pw-muted-bg`).

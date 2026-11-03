@@ -13,7 +13,8 @@
  *   php conformance/run.php /path/to/sandbox/root [--base=http://localhost:8089] [--only=substr] [--json=out.json] [--uikit-strict]
  *
  * Every Bridge screen that loads the UIkit layer (ADR 0017) gets a `UIKIT <url> <reasons>` line;
- * one that no line of uikit-allow.txt matches is "unexpected", a failure with --uikit-strict only.
+ * one that no line of uikit-allow.txt matches (a URL substring, or `reason:` globs covering every
+ * reason it has) is "unexpected", a failure with --uikit-strict only.
  *
  * Exit code: 0 when every screen matches, 1 when any screen differs or fails (HTTP error, PHP
  * error text, NoticeError, a session that fell back to the login form), when no screen ran, or
@@ -156,13 +157,35 @@ foreach(file(__DIR__ . '/screens.txt', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_L
 $screens[] = $adminUrl . 'page/list/?id=1&render=JSON';
 $screens[] = $adminUrl . 'page/edit/?id=1&modal=1';
 $screens = array_values(array_unique($screens));
-// screens allowed to load the UIkit layer: one URL substring per line, the reason in a comment
+// screens allowed to load the UIkit layer: one URL substring per line, or `reason:<pattern>` (a
+// glob over the layer's reasons: a screen whose every reason matches one is expected wherever it
+// is), the reason in a comment
 $uikitAllow = array();
+$uikitAllowReasons = array();
 $allowFile = __DIR__ . '/uikit-allow.txt';
 if(is_file($allowFile)) foreach(file($allowFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
 	$line = trim(preg_replace('/\s#.*$/', '', $line));
 	if($line === '' || strpos($line, '#') === 0) continue;
-	$uikitAllow[] = str_replace('{admin}', $adminUrl, $line);
+	if(strpos($line, 'reason:') === 0) $uikitAllowReasons[] = substr($line, 7);
+	else $uikitAllow[] = str_replace('{admin}', $adminUrl, $line);
+}
+
+/**
+ * Does every UIkit reason of a screen match a `reason:` line of uikit-allow.txt? (none: no)
+ *
+ * @param array $reasons reason => count
+ * @param array $patterns globs
+ * @return bool
+ *
+ */
+function uikitReasonsAllowed(array $reasons, array $patterns) {
+	if(!$reasons || !$patterns) return false;
+	foreach(array_keys($reasons) as $reason) {
+		$hit = false;
+		foreach($patterns as $pattern) if(fnmatch($pattern, (string) $reason)) $hit = true;
+		if(!$hit) return false;
+	}
+	return true;
 }
 if($only !== '') $screens = array_values(array_filter($screens, function($s) use($only) { return strpos($s, $only) !== false; }));
 
@@ -547,6 +570,7 @@ foreach($screens as $url) {
 		$uikitScreens++;
 		$unexpected = true;
 		foreach($uikitAllow as $allow) if(strpos($url, $allow) !== false) $unexpected = false;
+		if(uikitReasonsAllowed($layer['reasons'], $uikitAllowReasons)) $unexpected = false;
 		if($unexpected) $uikitUnexpected++;
 		$reasons = array();
 		foreach($layer['reasons'] as $reason => $n) $reasons[] = $n > 1 ? "$reason ($n)" : $reason;

@@ -8,6 +8,8 @@
 # the end; a server already listening on the port is reused and left running.
 # Exit code: the number of sites whose run failed (conformance exit code not 0), 0 when all pass
 # (audit BG9: the gate used to end with 0 whatever it found).
+# UIKIT_STRICT=1 passes --uikit-strict to run.php: a screen that loads the UIkit layer and is not
+# in conformance/uikit-allow.txt fails its site.
 set -uo pipefail
 
 HERE="$(cygpath -m "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)")"
@@ -21,6 +23,9 @@ SITES=("$@")
 up() { curl -s -w '\n%{http_code}' --max-time 20 "http://localhost:$1/" 2>/dev/null | tail -n 1 | grep -q '^[1-5][0-9][0-9]$'; }
 
 case_ok() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] && [[ "$2" =~ ^[0-9]+$ ]]; }
+
+STRICT=()
+[ "${UIKIT_STRICT:-}" = 1 ] && STRICT=(--uikit-strict)
 
 started=()
 failed=0
@@ -37,13 +42,13 @@ for entry in "${SITES[@]}"; do
 		up "$port" || { echo "== $site: server on :$port did not come up"; failed=$((failed + 1)); continue; }
 		echo "== $site: server started on :$port (pid $!)"
 	fi
-	if "$PHP" "$HERE/conformance/run.php" "$HERE/sandbox/$site" --base="http://localhost:$port" --json="$HERE/sandbox/gate1-$site.json" > "$HERE/sandbox/gate1-$site.txt" 2>&1; then
+	if "$PHP" "$HERE/conformance/run.php" "$HERE/sandbox/$site" --base="http://localhost:$port" --json="$HERE/sandbox/gate1-$site.json" "${STRICT[@]}" > "$HERE/sandbox/gate1-$site.txt" 2>&1; then
 		status=ok
 	else
 		status=FAILED
 		failed=$((failed + 1))
 	fi
-	grep -E "^[0-9]+ screens:|^FAIL no screen" "$HERE/sandbox/gate1-$site.txt" || tail -1 "$HERE/sandbox/gate1-$site.txt"
+	grep -E "^[0-9]+ screens:|^FAIL no screen|^[0-9]+ screens load the UIkit layer" "$HERE/sandbox/gate1-$site.txt" || tail -1 "$HERE/sandbox/gate1-$site.txt"
 	echo "   $status, FAIL lines: $(grep -c '^FAIL' "$HERE/sandbox/gate1-$site.txt")"
 done
 

@@ -164,7 +164,10 @@ trait AdminThemeBridgeUikit {
 	 * Scripts and stylesheets that ask for UIkit (ADR 0017), once the page is rendered: a UIkit
 	 * script a module added (kept: Bridge then adds no second copy), a stock UIkit stylesheet a
 	 * module added (removed: the layer takes its place), and site module scripts that name the
-	 * UIkit global (isUikitUser()). Called by _head.php before anything is printed.
+	 * UIkit global (isUikitUser()) and are printed on this request: one deferred with the legacy
+	 * stack (RockMigrations' admin-wide jQuery script) is no reason, since it does not run here,
+	 * and where a late stack runs it the stand-in loads UIkit on its first call. Called by
+	 * _head.php before anything is printed.
 	 *
 	 */
 	public function settleUikitAssets() {
@@ -181,7 +184,7 @@ trait AdminThemeBridgeUikit {
 			$url = (string) $url;
 			if(self::isUikitScript($url)) {
 				$this->needUikit('Asset:' . $this->siteRelative($url));
-			} else if($this->isUikitUser($url)) {
+			} else if($this->isUikitUser($url) && ($this->useLegacyStack() || !$this->isDeferredScript($url))) {
 				$this->needUikit('Script:' . $this->siteRelative($url));
 			}
 		}

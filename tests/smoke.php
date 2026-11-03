@@ -392,6 +392,7 @@ if($modules->isInstalled('AdminThemeBridge')) {
 		$c1Covered = $bridge->getUikitCovered();
 		$c1Missing = array_values(array_filter($c1Added, function($c) use($c1Covered) { return !isset($c1Covered[$c]); }));
 		check('the covered list has the 16 classes added in 0.26.0 (127 or more in all)', !$c1Missing && count($c1Covered) >= 127, implode(',', $c1Missing) . ' / ' . count($c1Covered));
+		check("C4 RockMigrations' striped table needs no layer", $uikitScan("<table class='uk-table uk-table-small uk-table-striped'><tr><td>x</td></tr></table>") === array());
 		// 0.26.0: a uk-icon the compat rules draw is no reason
 		$coveredJson = json_decode((string) file_get_contents($themeDir . 'assets/dist/uikit-covered.json'), true);
 		check('uikit-covered.json has classes and icons, the manifest both lists', !empty($coveredJson['classes']) && !empty($coveredJson['icons']) && in_array('pencil', $coveredJson['icons'], true)
@@ -433,6 +434,21 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	check('a multi-language field makes it a legacy reason', $probe->useLegacyStack() && array_key_exists('Script:cache/bridge-smoke-needs.js', $probe->getLegacyReasons()), json_encode($probe->getLegacyReasons()));
 	$config->scripts->remove($needsUrl);
 	@unlink($needsFile);
+	// 0.26.0 C4: a jQuery script naming UIkit (RockMigrations.js on every davinci screen) asks for
+	// the UIkit layer only where it is printed; deferred with the stack it is no reason
+	$rmFile = $config->paths->cache . 'bridge-smoke-rm.js';
+	$rmUrl = $config->urls->cache . 'bridge-smoke-rm.js';
+	file_put_contents($rmFile, "\$(document).ready(function() { \$('.rm-hints input').each(function(i, el) { UIkit.tooltip(el); }); });");
+	$config->scripts->add($rmUrl);
+	$rmReason = function($legacy) use($modules) {
+		$probe = $modules->wire(new AdminThemeBridge());
+		if($legacy) $probe->needLegacy('Smoke:C4');
+		$probe->settleUikitAssets();
+		return count(array_filter(array_keys($probe->getUikitReasons()), function($r) { return strpos($r, 'Script:') === 0 && strpos($r, 'bridge-smoke-rm.js') !== false; }));
+	};
+	check('C4 a deferred jQuery script naming UIkit is no UIkit reason; printed with the stack it is', $bridge->isDeferredScript($rmUrl) && $rmReason(false) === 0 && $rmReason(true) === 1);
+	$config->scripts->remove($rmUrl);
+	@unlink($rmFile);
 	// 0.9.2: a jQuery script a module adds for its own config screen (at init or ready, before the
 	// Process starts) is that screen's reason; a Process that threw keeps its own reason
 	$input = $wire->input;
@@ -1748,6 +1764,11 @@ check('C3 an unexpected UIkit screen fails the run only with --uikit-strict', st
 	&& strpos($run, '($uikitStrict && $uikitUnexpected)) ? 1 : 0') !== false);
 check('C3 conformance/uikit-allow.txt exists and is read by the runner', is_file(dirname(__DIR__) . '/conformance/uikit-allow.txt')
 	&& strpos($run, "__DIR__ . '/uikit-allow.txt'") !== false);
+check('C4 uikit-allow.txt takes reason: globs (every reason of a screen must match), RockMigrations is one; gate1.sh passes UIKIT_STRICT=1 on',
+	strpos($run, "if(strpos(\$line, 'reason:') === 0) \$uikitAllowReasons[] = substr(\$line, 7);") !== false
+	&& strpos($run, "if(uikitReasonsAllowed(\$layer['reasons'], \$uikitAllowReasons)) \$unexpected = false;") !== false
+	&& strpos($read('conformance/uikit-allow.txt'), "\nreason:Script:*/RockMigrations/RockMigrations.js\n") !== false
+	&& strpos($read('tools/gate1.sh'), '[ "${UIKIT_STRICT:-}" = 1 ] && STRICT=(--uikit-strict)') !== false);
 check('BG9 release-module.sh never overwrites a published tag', strpos($read('tools/release-module.sh'), 'push -f') === false);
 
 // audit 2026-11-01, R1: the bootstrap

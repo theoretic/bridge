@@ -71,12 +71,16 @@ ok   <url>                 identical digests
 DIFF <url>                 followed by one line per difference
 FAIL <url>                 HTTP error, PHP error text or an error notice under either theme
 UIKIT <url> <reasons>      Bridge printed the UIkit layer there; "[unexpected]" when no line of
-                           uikit-allow.txt matches the url
+                           uikit-allow.txt matches the screen
 ```
 
-The summary adds "N screens load the UIkit layer, M unexpected". `uikit-allow.txt` holds one URL
-substring per line (`{admin}` allowed), the reason in a ` # ` comment: screens whose module markup
-the compat layer cannot draw. Unexpected screens fail the run only with `--uikit-strict`.
+The summary adds "N screens load the UIkit layer, M unexpected". `uikit-allow.txt` holds one line
+per allowed case, the reason in a ` # ` comment: a URL substring (`{admin}` allowed), for screens
+whose module markup the compat layer cannot draw, or `reason:<glob>` (`fnmatch()` over the
+reasons, e.g. `reason:Script:*/RockMigrations/RockMigrations.js`), for a module that asks for
+UIkit wherever it runs: a screen matches when every reason it has matches a `reason:` line.
+Unexpected screens fail the run only with `--uikit-strict`; `UIKIT_STRICT=1 bash tools/gate1.sh`
+passes it to every site.
 
 A FAIL under both themes is a site or module problem, not a theme problem; the sandbox log
 `app/assets/logs/errors.txt` has the trace. A FAIL under one theme only is what the suite is for.

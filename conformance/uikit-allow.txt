@@ -1,8 +1,18 @@
 # Screens allowed to load the UIkit layer under AdminThemeBridge (ADR 0017), read by run.php.
-# One substring of the screen URL per line ({admin} = the admin URL), the reason in a comment
-# after it (" # ..."). A screen that loads the layer and matches no line is "unexpected": listed
-# as `UIKIT <url> <reasons> [unexpected]`, a failure with --uikit-strict.
+# One substring of the screen URL per line ({admin} = the admin URL), or `reason:<glob>` matched
+# against the layer's reasons (a screen is expected when every reason it has matches a reason
+# line, on any screen and site), the reason in a comment after it (" # ..."). A screen that loads
+# the layer and matches no line is "unexpected": listed as `UIKIT <url> <reasons> [unexpected]`,
+# a failure with --uikit-strict.
 # Add a line only for markup the compat layer cannot draw, with the module and the reasons.
 #
 # atispro (2026-11-03, after 0.26.0 C1 + C2): no screen loads the layer, AgentTools v21's Process
 # screen and the PageTableNext editors included.
+#
+# 2026-11-03, 0.26.0 C4, gate1 on eight sandboxes (conformance/RESULTS-2026-11-03.md): only davinci
+# has layer screens, all from RockMigrations' admin-wide script.
+
+# RockMigrations (davinci): RockMigrations.js calls UIkit.tooltip on its field hints and
+# UIkit.notification on shift-click copy. It is a jQuery script, deferred where the stack is not
+# printed (no reason there, since 0.26.0); where the stack prints, it runs and asks for UIkit.
+reason:Script:*/RockMigrations/RockMigrations.js
