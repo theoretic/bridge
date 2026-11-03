@@ -1244,6 +1244,10 @@ if(isset($bridge) && $bridge) {
 		$tplAt = strpos($drawers, "<template class='pw-drawer-template'>");
 		check('the tree drawer holds the template the script clones', substr_count($drawers, "<template class='pw-drawer-template'>") === 1
 			&& $tplAt > strpos($drawers, "id='pw-drawer-tree'") && $tplAt < strpos($drawers, "id='pw-drawer-history'"));
+		$clearAt = strpos($drawers, "<button type='button' class='pw-drawer-action pw-history-clear' data-token-name='" . $session->CSRF->getTokenName() . "' data-token-value='" . $session->CSRF->getTokenValue() . "'>");
+		check('the history drawer\'s head has a Clear button with the CSRF token, before its close button; the tree drawer none (0.26.0)', substr_count($drawers, 'pw-history-clear') === 1
+			&& $clearAt > strpos($drawers, "id='pw-drawer-history'") && $clearAt < strrpos($drawers, "class='pw-drawer-close'")
+			&& strpos($drawers, 'data-pw-drawer=') === false, $drawers);
 		$bridge->set('pageTreeDrawer', 0);
 		check('with "Page tree on each page" off, only the history button', $bridge->drawerNames() === array('history')
 			&& strpos($bridge->renderDrawerButtons(), "data-pw-drawer='tree'") === false && substr_count($bridge->renderDrawers(), '<dialog') === 1);
@@ -1283,7 +1287,7 @@ if(isset($bridge) && $bridge) {
 		check('the template holds a tree container with its options and the CSRF token, not #PageListContainer', strpos($tpl, "<div class='PageListContainer PageListContainerRoot pw-drawer-tree' data-pw-tree='{") !== false
 			&& strpos($tpl, "data-token-name='" . $session->CSRF->getTokenName() . "'") !== false && strpos($tpl, "id='PageListContainer'") === false);
 		$wire->input->get->modal = 1;
-		check('a modal window (?modal=1) prints no drawers', $bridge->drawerNames() === array() && $bridge->renderDrawers() === '');
+		check('a modal window (?modal=1) prints no drawers, no Clear button', $bridge->drawerNames() === array() && $bridge->renderDrawers() === '');
 		$wire->input->get->remove('modal');
 		$bridge->set('pageTreeDrawer', $settingsWas[0]);
 		$bridge->set('history', $settingsWas[1]);
@@ -1439,6 +1443,42 @@ if(isset($bridge) && $bridge) {
 			strpos($sameTable, "title='page/edit/?id=1&amp;q=a&#039;b&lt;c'>Home &lt;&#039;x&#039;&gt;</a>") !== false
 			&& strpos($sameTable, "title='page/edit/?id=2'>Home &lt;&#039;x&#039;&gt;</a>") !== false && strpos($sameTable, "a'b<c") === false, $sameTable);
 		check('history table: an unknown type prints as it is, escaped', $bridge->historyTypeLabel('x<y') === 'x<y' && $bridge->historyTypeLabel('pages') !== 'pages');
+		// 0.26.0: the drawer's Clear button POSTs bridgeHistory=clear with the CSRF token
+		$clearSeed = array('setup/field/' => array('name' => 'Fields', 'type' => 'screen', 'url' => 'setup/field/', 'visits' => 1, 'last' => 1000));
+		$tokenName = $session->CSRF->getTokenName();
+		$fragment = function($method, array $post, array $get = array()) use($wire, $bridge, $config) {
+			$_SERVER['REQUEST_METHOD'] = $method;
+			foreach(array_keys($wire->input->post->getArray()) as $k) $wire->input->post->remove($k);
+			foreach(array_keys($wire->input->get->getArray()) as $k) $wire->input->get->remove($k);
+			foreach($post as $k => $v) $wire->input->post->$k = $v;
+			foreach($get as $k => $v) $wire->input->get->$k = $v;
+			$config->ajax = true;
+			$e = new HookEvent(array('object' => $wire->wire(new ProcessController()), 'method' => 'execute', 'arguments' => array()));
+			$bridge->hookHistoryFragment($e);
+			// the CLI reads no status code once output began: a refusal is the 403's ' ' answer
+			$out = array('replace' => $e->replace, 'refused' => $e->return === ' ', 'return' => $e->return);
+			foreach(array_keys($wire->input->post->getArray()) as $k) $wire->input->post->remove($k);
+			$_SERVER['REQUEST_METHOD'] = 'GET';
+			return $out;
+		};
+		$bridge->set('history', 1);
+		$visit($fieldPage, array(), 'Fields');
+		$hu->meta(AdminThemeBridge::historyMeta, $clearSeed);
+		$noToken = $fragment('POST', array('bridgeHistory' => 'clear'));
+		$badToken = $fragment('POST', array('bridgeHistory' => 'clear', $tokenName => 'wrong'));
+		check('history Clear: a POST without a valid token is refused (403) and the history stays', $noToken['replace'] && $noToken['refused']
+			&& $badToken['refused'] && count($bridge->historyEntries()) === 1, json_encode(array($noToken, $badToken)));
+		$getClear = $fragment('GET', array(), array('bridgeHistory' => 'clear'));
+		check('history Clear: a GET with bridgeHistory=clear only reads the table', !$getClear['refused'] && strpos((string) $getClear['return'], "<table class='pw-history'>") === 0
+			&& count($bridge->historyEntries()) === 1, json_encode($getClear));
+		$bridge->set('history', 0);
+		$offClear = $fragment('POST', array('bridgeHistory' => 'clear', $tokenName => $session->CSRF->getTokenValue()));
+		$bridge->set('history', 1);
+		check('history Clear: with "Show history" off, refused and nothing cleared', $offClear['refused'] && count($bridge->historyEntries()) === 1, json_encode($offClear));
+		$okClear = $fragment('POST', array('bridgeHistory' => 'clear', $tokenName => $session->CSRF->getTokenValue()));
+		check('history Clear: with the token the history is gone and the answer is the empty sentence', $okClear['replace'] && !$okClear['refused']
+			&& $hu->meta(AdminThemeBridge::historyMeta) === null && strpos((string) $okClear['return'], "<p class='pw-history-empty'>") === 0, json_encode($okClear));
+		$config->ajax = $ajaxWas;
 		$bridge->historyClear();
 		check('history: historyClear() forgets it', $bridge->historyEntries() === array());
 		check('history table: none yet, a sentence instead', strpos($bridge->renderHistoryTable(), "<p class='pw-history-empty'>") === 0);

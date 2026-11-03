@@ -20,7 +20,8 @@
  *
  * The history drawer (scripts/drawers.js) fetches its table with a GET of the screen's own URL
  * plus `bridgeHistory=1`, as XMLHttpRequest: hookHistoryFragment() answers it before the Process
- * runs, with renderHistoryTable() (the screen's own entry marked aria-current).
+ * runs, with renderHistoryTable() (the screen's own entry marked aria-current). The drawer's Clear
+ * button POSTs `bridgeHistory=clear` with the CSRF token to the admin (0.26.0).
  *
  */
 trait AdminThemeBridgeHistory {
@@ -41,22 +42,31 @@ trait AdminThemeBridgeHistory {
 
 	/**
 	 * Hook before ProcessController::execute: the history drawer's table for `?bridgeHistory=1`
-	 * (AJAX, any admin screen); read only, so no CSRF token; 403 for a guest
+	 * (AJAX GET, any admin screen; read only, so no CSRF token), and its Clear button's POST of
+	 * `bridgeHistory=clear` (AJAX, CSRF token; 0.26.0), answered with the emptied table; 403 for a
+	 * guest or a POST without a valid token
 	 *
 	 * @param HookEvent $event
 	 *
 	 */
 	public function hookHistoryFragment(HookEvent $event) {
 		$input = $this->wire()->input;
-		if($input->get('bridgeHistory') === null || !$this->wire()->config->ajax || !$input->requestMethod('GET')) return;
+		$clear = $input->requestMethod('POST') && $input->post('bridgeHistory') === 'clear';
+		if(!$clear && ($input->get('bridgeHistory') === null || !$input->requestMethod('GET'))) return;
+		if(!$this->wire()->config->ajax) return;
 		$event->replace = true;
 		$user = $this->wire()->user;
-		if(!$this->history || !$user->isLoggedin()) {
+		if(!$this->history || !$user->isLoggedin() || ($clear && !$this->wire()->session->CSRF->hasValidToken())) {
 			http_response_code(403);
 			$event->return = ' ';
 			return;
 		}
 		header('Content-Type: text/html; charset=utf-8');
+		if($clear) {
+			$this->historyClear();
+			$event->return = $this->renderHistoryTable();
+			return;
+		}
 		$process = null;
 		try {
 			/** @var ProcessController $controller */
@@ -285,7 +295,7 @@ trait AdminThemeBridgeHistory {
 	}
 
 	/**
-	 * Forget the current user's history (the smoke test; no control for it yet)
+	 * Forget the current user's history (the history drawer's Clear button, hookHistoryFragment())
 	 *
 	 */
 	public function historyClear() {

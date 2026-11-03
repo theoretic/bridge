@@ -83,7 +83,8 @@ are the point. A screen with a jQuery-era field loads that field's stack, as it 
 - The page tree is one click away on every screen: a tree button beside the logo opens it in a
   drawer, with the branches left open. A history button beside it lists the admin screens the
   user visited, newest first, with their type and how often each was visited; the history is
-  kept with the user, so it is the same on every device. With several admin tabs open, the tab
+  kept with the user, so it is the same on every device, and its Clear button empties it. With
+  several admin tabs open, the tab
   that gets the focus back updates both in the background (Features > Page tree on each page,
   Show history, History steps).
 - The keyboard reaches what the pointer does: tabs move with the arrow keys, Alt+Up and Down

@@ -300,6 +300,62 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.keyboard.press('Escape');
 		page.off('request', onReq);
 	}
+	// D (0.26.0): the Clear button asks, POSTs bridgeHistory=clear with the token, empties the table
+	{
+		const posts = [];
+		const onReq = r => { if(r.method() === 'POST' && /bridgeHistory=clear/.test(r.postData() || '')) posts.push(r.url()); };
+		const clickClear = async (answer) => {
+			await page.click(H + '.pw-history-clear');
+			await page.waitForSelector('dialog.pw-ask[open]', { timeout: 5000 });
+			await page.click('dialog.pw-ask button[value="' + answer + '"]');
+		};
+		await open('setup/template/');
+		await open('setup/field/');
+		page.on('request', onReq);
+		await openHistory();
+		const head = await page.evaluate((h) => {
+			const b = document.querySelector(h + '.pw-drawer-head .pw-history-clear');
+			const c = document.querySelector(h + '.pw-drawer-head .pw-drawer-close');
+			return { clear: !!b, before: !!(b && c && (b.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING)), token: !!(b && b.getAttribute('data-token-name') && b.getAttribute('data-token-value')),
+				drawerAttr: !!(b && b.hasAttribute('data-pw-drawer')), inTree: !!document.querySelector('#pw-drawer-tree .pw-history-clear'), rows: document.querySelectorAll(h + 'table.pw-history tbody tr').length };
+		}, H);
+		check('D the history head has a Clear button with the token, before the close button; none in the tree drawer', head.clear && head.before && head.token && !head.drawerAttr && !head.inTree && head.rows >= 2, JSON.stringify(head));
+		await clickClear('cancel');
+		await page.waitForTimeout(400);
+		const kept = await page.evaluate((h) => ({ rows: document.querySelectorAll(h + 'table.pw-history tbody tr').length, open: !!document.querySelector(h.trim() + '[open]') }), H);
+		check('D Clear, then Cancel: nothing sent, the table and the drawer stay', posts.length === 0 && kept.rows === head.rows && kept.open, JSON.stringify(kept) + ' posts ' + posts.length);
+		// a refused POST (as a wrong token would be): the alert sentence over the table, which stays
+		const refuse = route => (route.request().method() === 'POST' ? route.fulfill({ status: 403, body: ' ' }) : route.continue());
+		const adminRe = ADMIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		consoleErrors.ignore(new RegExp('status of 403 \\(Forbidden\\) ' + adminRe + '$'));
+		await page.route(ADMIN, refuse);
+		await clickClear('ok');
+		for(let t = 0; t < 5000 && !(await page.locator(H + '[role="alert"]').count()); t += 200) await page.waitForTimeout(200);
+		const refused = await page.evaluate((h) => ({ alert: !!document.querySelector(h + '.pw-drawer-body > [role="alert"]'), rows: document.querySelectorAll(h + 'table.pw-history tbody tr').length, focus: !!(document.activeElement && document.activeElement.classList.contains('pw-history-clear')) }), H);
+		check('D a refused Clear: the alert sentence, the table kept, the focus on Clear', refused.alert && refused.rows === head.rows && refused.focus && posts.length === 1, JSON.stringify(refused) + ' posts ' + posts.length);
+		await page.unroute(ADMIN, refuse);
+		await clickClear('ok');
+		for(let t = 0; t < 5000 && !(await page.locator(H + '.pw-drawer-body > p.pw-history-empty:not([role])').count()); t += 200) await page.waitForTimeout(200);
+		const cleared = await page.evaluate((h) => ({ empty: !!document.querySelector(h + '.pw-drawer-body > p.pw-history-empty:not([role])'), table: !!document.querySelector(h + 'table.pw-history'),
+			alert: !!document.querySelector(h + '[role="alert"]'), busy: document.querySelector(h + '.pw-drawer-body').getAttribute('aria-busy'), focus: !!(document.activeElement && document.activeElement.classList.contains('pw-history-clear')) }), H);
+		check('D Clear, OK: one POST to the admin, the empty sentence, no table, the focus on Clear', cleared.empty && !cleared.table && !cleared.alert && cleared.busy === null && cleared.focus
+			&& posts.length === 2 && posts[1].replace(/\?.*$/, '') === ADMIN, JSON.stringify(cleared) + ' ' + JSON.stringify(posts));
+		page.off('request', onReq);
+		// on the server too: the table fetched again is empty; a reload is a visit, the only row
+		const fresh = await page.evaluate(() => fetch(location.pathname + '?bridgeHistory=1', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(r => r.text()));
+		check('D cleared on the server: a fresh fetch answers the empty sentence', /class='pw-history-empty'/.test(fresh) && !/pw-history'>/.test(fresh), fresh.slice(0, 120));
+		await page.keyboard.press('Escape');
+		await page.goto(page.url(), { waitUntil: 'networkidle' });
+		await openHistory();
+		const after = await page.evaluate((h) => Array.from(document.querySelectorAll(h + 'table.pw-history tbody tr')).map(tr => ({ href: tr.querySelector('a').getAttribute('href'), visits: tr.children[2].textContent })), H);
+		check('D after the reload: one row, this screen, one visit', after.length === 1 && /setup\/field\/$/.test(after[0].href) && after[0].visits === '1', JSON.stringify(after));
+		await page.keyboard.press('Escape');
+		await open('setup/template/');
+		await openHistory();
+		const next = await page.evaluate((h) => document.querySelectorAll(h + 'table.pw-history tbody tr').length, H);
+		check('D the next screen visit adds its row', next === 2, 'rows ' + next);
+		await page.keyboard.press('Escape');
+	}
 
 	// E: two tabs of one user; the tab that gets the focus back refreshes both drawers
 	{

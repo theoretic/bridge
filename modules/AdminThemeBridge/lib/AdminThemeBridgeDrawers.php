@@ -46,9 +46,9 @@ trait AdminThemeBridgeDrawers {
 	}
 
 	/**
-	 * The drawers' labels: button, dialog name, close button
+	 * The drawers' labels: button, dialog name, close button, the history's Clear button
 	 *
-	 * @param string $key 'tree', 'history' or 'close'
+	 * @param string $key 'tree', 'history', 'close' or 'clear'
 	 * @return string
 	 *
 	 */
@@ -57,6 +57,7 @@ trait AdminThemeBridgeDrawers {
 			case 'tree': return __('Page tree', __FILE__);
 			case 'history': return __('History', __FILE__);
 			case 'close': return __('Close', __FILE__);
+			case 'clear': return __('Clear', __FILE__); // the history drawer's button (0.26.0)
 		}
 		return $key;
 	}
@@ -96,8 +97,15 @@ trait AdminThemeBridgeDrawers {
 		foreach($names as $name) {
 			$label = $sanitizer->entities1($this->drawerLabel($name));
 			$extra = $name === 'tree' ? "<template class='pw-drawer-template'>" . $this->renderTreeDrawerContent() . "</template>" : '';
+			// the history's Clear button (0.26.0): no data-pw-drawer, that marks the masthead toggles
+			$action = '';
+			if($name === 'history') {
+				$csrf = $this->wire()->session->CSRF;
+				$action = "<button type='button' class='pw-drawer-action pw-history-clear' data-token-name='" . $sanitizer->entities($csrf->getTokenName()) . "' " .
+					"data-token-value='" . $sanitizer->entities($csrf->getTokenValue()) . "'>" . $sanitizer->entities1($this->drawerLabel('clear')) . "</button>";
+			}
 			$out .= "<dialog class='pw-drawer' id='pw-drawer-$name' aria-label='$label' data-pw-drawer-name='$name'>" .
-				"<div class='pw-drawer-head'><h2 class='pw-drawer-title'>$label</h2>" .
+				"<div class='pw-drawer-head'><h2 class='pw-drawer-title'>$label</h2>$action" .
 				"<button type='button' class='pw-drawer-close' aria-label='$close' title='$close'><i class='fa fa-fw fa-times' aria-hidden='true'></i></button></div>" .
 				"<div class='pw-drawer-body'></div>$extra</dialog>";
 		}

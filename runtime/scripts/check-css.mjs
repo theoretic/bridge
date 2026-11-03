@@ -89,10 +89,11 @@ const scriptsDir = fileURLToPath(new URL('../../modules/AdminThemeBridge/scripts
 // main.js 11.5 and the total 42.25 kB until 2026-11-01: the CSP nonce rule (ADR 0020, audit SE2); the total
 // 43.5 and page-save.js 4 kB since the Trusted Types sweep the same day (0.18.4); main.js 12.5 and the
 // total 45 kB for keyboard and screen reader support (0.20.x, audit UX1-UX3: the drawer, tab roles,
-// reduced motion); main.js 13 kB for the tab-focus bus (pw-tab-focus, 0.25.0)
+// reduced motion); main.js 13 kB for the tab-focus bus (pw-tab-focus, 0.25.0); drawers.js 2.5 kB (from
+// the 2 kB default) for the history's Clear button, its retry and the kept focus (0.26.0)
 const CLASSIC = {
 	'main.js': 13, 'setup.js': 7, 'image-select.js': 6, 'lister.js': 4.5, 'page-save.js': 4,
-	'screens.js': 3.25, 'link.js': 3, 'wire-tabs.js': 2, 'page-edit.js': 1.75, 'save-wait.js': 1.5, 'uikit-layer.js': 2.5, 'debug-tools.js': 1,
+	'screens.js': 3.25, 'link.js': 3, 'wire-tabs.js': 2, 'page-edit.js': 1.75, 'save-wait.js': 1.5, 'uikit-layer.js': 2.5, 'drawers.js': 2.5, 'debug-tools.js': 1,
 };
 let classicTotal = 0;
 for (const f of existsSync(scriptsDir) ? readdirSync(scriptsDir).filter(f => f.endsWith('.js')).sort() : []) {
@@ -107,8 +108,9 @@ for (const f of existsSync(scriptsDir) ? readdirSync(scriptsDir).filter(f => f.e
 }
 // total raised from 40 to 42 KiB after the UIkit layer (owner's decision, 2026-10-22), and to
 // 42.25 KiB for scripts/save-wait.js (owner's decision, 2026-10-29); 46 KiB for scripts/drawers.js, the
-// page tree and history drawers (0.25.0, user request)
-const CLASSIC_TOTAL = 46 * 1024;
+// page tree and history drawers (0.25.0, user request); 46.5 KiB for the history drawer's polish: a retried
+// fetch, the focus kept over a refresh, the Clear button (0.26.0, user request)
+const CLASSIC_TOTAL = 46.5 * 1024;
 console.log(`classic scripts: ${classicTotal} B gzip (budget ${CLASSIC_TOTAL})`);
 if (classicTotal > CLASSIC_TOTAL) { console.error('classic scripts: over the total gzip budget'); failed = true; }
 

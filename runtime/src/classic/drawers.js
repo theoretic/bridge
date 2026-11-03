@@ -20,6 +20,9 @@
  * built once refresh in the background: the history table, and the tree with its open branches.
  * A keyboard focus inside a body that is refreshed goes back to the same link (the same href, the
  * same page's row), else the link at its place, else the drawer's close button (0.26.0).
+ * The history's Clear button asks first (the runtime's dialog), then POSTs bridgeHistory=clear with
+ * the CSRF token from its data attributes to the admin; the answer (the empty sentence) replaces
+ * the body; on a failure the table stays under the alert sentence (0.26.0).
  */
 (function(theme) {
 	'use strict';
@@ -109,19 +112,38 @@
 
 	var history = { loaded: false, busy: false };
 
+	function labels() { return ((window.ProcessWire && ProcessWire.config.AdminThemeBridge) || {}).labels || {}; }
+
+	function failed() {
+		var p = document.createElement('p');
+		p.className = 'pw-history-empty';
+		p.setAttribute('role', 'alert');
+		p.textContent = labels().requestFailed || 'Request failed';
+		return p;
+	}
+
+	// GET (data null) the table of this screen, or POST data to the admin; then(html) on success
+	function historyFetch(body, data, then, fail) {
+		if(history.busy) return;
+		history.busy = true;
+		body.setAttribute('aria-busy', 'true');
+		var url = new URL(data ? ((window.ProcessWire && ProcessWire.config.urls) || {}).admin || '/' : window.location.href, window.location.href);
+		url.hash = '';
+		if(!data) url.searchParams.set('bridgeHistory', '1');
+		fetch(url.href, { method: data ? 'POST' : 'GET', body: data, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) {
+			if(!r.ok) throw new Error('HTTP ' + r.status);
+			return r.text();
+		}).then(then).catch(fail).then(function() {
+			history.busy = false;
+			body.removeAttribute('aria-busy');
+		});
+	}
+
 	function loadHistory() {
 		var d = dialogOf('history');
 		var body = d && d.querySelector('.pw-drawer-body');
-		if(!body || history.busy) return;
-		history.busy = true;
-		body.setAttribute('aria-busy', 'true');
-		var url = new URL(window.location.href);
-		url.hash = '';
-		url.searchParams.set('bridgeHistory', '1');
-		fetch(url.href, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) {
-			if(!r.ok) throw new Error('HTTP ' + r.status);
-			return r.text();
-		}).then(function(html) {
+		if(!body) return;
+		historyFetch(body, null, function(html) {
 			var top = body.scrollTop, a = document.activeElement, had = body.contains(a);
 			var i = Array.prototype.indexOf.call(body.querySelectorAll('a'), a), href = had && a.getAttribute('href');
 			body.innerHTML = theme.trusted.html(html);
@@ -131,17 +153,27 @@
 			var links = Array.prototype.slice.call(body.querySelectorAll('a'));
 			var t = links.filter(function(l) { return l.getAttribute('href') === href; })[0] || links[i] || d.querySelector('.pw-drawer-close');
 			t.focus();
-		}).catch(function() {
+		}, function() {
 			// the last table stays; with none yet, say what happened
-			if(history.loaded) return;
-			var p = document.createElement('p');
-			p.className = 'pw-history-empty';
-			p.setAttribute('role', 'alert');
-			p.textContent = (((window.ProcessWire && ProcessWire.config.AdminThemeBridge) || {}).labels || {}).requestFailed || 'Request failed';
-			body.replaceChildren(p);
-		}).then(function() {
-			history.busy = false;
-			body.removeAttribute('aria-busy');
+			if(!history.loaded) body.replaceChildren(failed());
+		});
+	}
+
+	function clearHistory(b) {
+		var body = dialogOf('history').querySelector('.pw-drawer-body');
+		theme.confirm({ title: labels().historyClearConfirm || 'Clear the history?', ok: b.textContent, danger: true }, function() {
+			var data = new URLSearchParams({ bridgeHistory: 'clear' }), name = b.getAttribute('data-token-name');
+			if(name) data.set(name, b.getAttribute('data-token-value') || '');
+			historyFetch(body, data, function(html) {
+				body.innerHTML = theme.trusted.html(html);
+				history.loaded = true;
+				b.focus();
+			}, function() {
+				var old = body.querySelector('[role=alert]');
+				if(old) old.remove();
+				body.prepend(failed());
+				b.focus();
+			});
 		});
 	}
 
@@ -170,6 +202,7 @@
 		var d = t.closest && t.closest('dialog.pw-drawer');
 		if(!d) return;
 		if(t.closest('.pw-drawer-close')) { d.close(); return; }
+		if(t.closest('.pw-history-clear')) { clearHistory(t.closest('.pw-history-clear')); return; }
 		// the backdrop: a click on the dialog element outside its box, not on its padding
 		if(t !== d) return;
 		var r = d.getBoundingClientRect();
