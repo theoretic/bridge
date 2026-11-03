@@ -8,6 +8,7 @@
 - **A failed history fetch is retried**: when the drawer's first fetch failed (the alert sentence), opening it again fetches again instead of keeping the alert for the rest of the page; the drawer body is `aria-busy` while a fetch runs.
 - **The keyboard focus survives a drawer refresh**: when the tab comes back while a drawer is open with the focus inside it, the refreshed history table focuses the same link again (or the one at its place when that row is gone), and the rebuilt tree the same page's row once it is drawn (or its first row); the close button when nothing matches, never the page body.
 - **A Clear button in the history drawer**: beside the close button; it asks first (the theme's own confirmation dialog), then empties the user's history on the server (a POST with the CSRF token; without a valid token the server refuses and nothing is cleared). The history fills again from the next visit.
+- **A failed action on several tree rows shows one alert**: an extra action (Hide, Unpublish, Lock, Trash, ...) from the menu of several selected rows reports its failures once, after the last row: "2 of 3 failed:" and each failed page's title with the server's message on a line of its own, instead of one alert per row. A single row's action alerts as before.
 - Budgets (so far): `scripts/drawers.js` 2 → 2.5 KiB and the classic scripts' total 46 → 46.5 KiB, for the history drawer's retry, kept focus and Clear button.
 
 ## AdminThemeBridge 0.25.0: the page tree on every screen, the history of visited screens (2026-11-02)

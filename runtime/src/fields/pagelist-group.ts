@@ -34,8 +34,9 @@ export type GroupCtx = {
 	isModal: boolean;
 	hoverDelay: number;
 	actionsOf: (li: HTMLElement) => Action[];
-	ajaxAction: (link: HTMLAnchorElement) => Promise<void>;
+	ajaxAction: (link: HTMLAnchorElement, quiet?: boolean) => Promise<string | null>;
 	refreshList: (id: number) => void;
+	alertMsg: (m: string) => void;
 };
 
 type Dialog = { open(url: string, size: string, options: Record<string, unknown>): void };
@@ -143,6 +144,9 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 		if (shownFor) place(shownFor);
 	};
 
+	/** a row's title as text */
+	const title = (li: HTMLElement): string => text((li.querySelector(':scope > a.PageListPage') || li).innerHTML);
+
 	/** an action of one row by its cn, among its actions or their extras */
 	const actionOf = (li: HTMLElement, cn: string): Action | null => {
 		for (const action of c.actionsOf(li)) {
@@ -161,9 +165,10 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 		}, 1200);
 	};
 
-	/** AJAX actions: each row as its own extras link would post it */
+	/** AJAX actions: each row as its own extras link would post it; the failures in one alert at the end */
 	const ajaxAll = async (cn: string, rows: HTMLElement[]): Promise<void> => {
 		const ids = selected.map(c.pageId);
+		const failed: string[] = [];
 		for (const li of rows) {
 			const action = actionOf(li, cn);
 			const list = li.querySelector(':scope > ul.PageListActions');
@@ -177,9 +182,12 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 			link.setAttribute('data-ajax', '1');
 			holder.appendChild(link);
 			list.appendChild(holder);
-			await c.ajaxAction(link);
+			const name = title(li);
+			const message = await c.ajaxAction(link, true);
 			holder.remove();
+			if (message !== null) failed.push(`${name}: ${message}`);
 		}
+		if (failed.length) c.alertMsg(label('groupFailed', '%1$d of %2$d failed:').replace('%1$d', String(failed.length)).replace('%2$d', String(rows.length)) + '\n' + failed.join('\n'));
 		reselect(ids.filter(id => cn !== 'Trash' || !rows.some(r => c.pageId(r) === id)));
 	};
 
@@ -192,7 +200,6 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 		const dialog = bridge.dialog;
 		let n = 0;
 		let switching = false;
-		const title = (li: HTMLElement): string => text((li.querySelector(':scope > a.PageListPage') || li).innerHTML);
 		const done = (): void => {
 			// lists of the rows that were opened: titles and states may have changed
 			const lists = new Set<Element>();

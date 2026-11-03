@@ -419,7 +419,8 @@ function setupTree(container: HTMLElement): void {
 		if (trash) actions.appendChild(trash);
 	};
 
-	const ajaxAction = async (link: HTMLAnchorElement): Promise<void> => {
+	/** one row's AJAX extra; `quiet`: a failure is returned for the caller to report (a group of rows, pagelist-group.ts), not alerted; null when it worked */
+	const ajaxAction = async (link: HTMLAnchorElement, quiet = false): Promise<string | null> => {
 		const li = link.closest<HTMLElement>('.PageListItem') as HTMLElement;
 		const href = link.getAttribute('href') || '';
 		const action = (href.match(/[?&]action=([-_a-zA-Z0-9]+)/) || [])[1];
@@ -439,7 +440,11 @@ function setupTree(container: HTMLElement): void {
 			data = { success: false, message: o.ajaxUnknownError };
 		}
 		spin.remove();
-		if (!data.success) { kids(li, '.PageListActions').forEach(x => { x.style.display = ''; }); alertMsg(data.message || ''); return; }
+		if (!data.success) {
+			kids(li, '.PageListActions').forEach(x => { x.style.display = ''; });
+			if (!quiet) alertMsg(data.message || '');
+			return data.message || o.ajaxUnknownError;
+		}
 		const parentItem = li.closest('.PageList') ? prev(li.closest('.PageList') as HTMLElement, '.PageListItem') : null;
 		let fresh: HTMLElement | null = null;
 		let addNew = false;
@@ -458,6 +463,7 @@ function setupTree(container: HTMLElement): void {
 			else if (msg) msg.remove();
 		}, 1000);
 		if (data.refreshChildren) forceReload(root.querySelector<HTMLElement>('.PageListID' + data.refreshChildren), true);
+		return null;
 	};
 
 	/* selection and move ****************************************************************************/
@@ -496,6 +502,7 @@ function setupTree(container: HTMLElement): void {
 		actionsOf: li => actionsData.get(li) || [],
 		ajaxAction,
 		refreshList,
+		alertMsg,
 	})));
 	// moves: their own chunk, loaded once the tree is in, so the first press on a row finds it
 	let mover: Promise<void> | null = null;

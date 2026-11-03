@@ -243,6 +243,7 @@ trait AdminThemeBridgeShell {
 			'nextPage' => __('Next page', __FILE__), // the dialog that opens several selected pages in turn
 			'discardChanges' => __('This page has unsaved changes. Leave it?', __FILE__),
 			'trashPages' => __('Move %d pages to the trash?', __FILE__),
+			'groupFailed' => __('%1$d of %2$d failed:', __FILE__), // an action on several selected pages; each failed page follows on its own line (0.26.0)
 			'historyClearConfirm' => __('Clear the list of screens you visited? It is emptied on every device.', __FILE__), // the history drawer's Clear button (0.26.0)
 			// names of controls that show only an icon or a sign (0.20.0)
 			'image' => __('Image', __FILE__), // the lightbox, an image without a title

@@ -127,3 +127,5 @@ their name suffixes from core.
 
 Not in this version: touch multi-select; moves between a page and its repeater items; Extras
 actions (hide, trash, …) on a tree selection; WireTab headers that open while dragging over them.
+(2026-11-03: Extras actions on a tree selection shipped in 0.14.1, the group menu; since 0.26.0
+their failures show in one alert.)

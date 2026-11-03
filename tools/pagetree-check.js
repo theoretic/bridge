@@ -272,6 +272,35 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const shownAgain = await waitFor((rows) => rows.every(s => !document.querySelector(s).classList.contains('PageListStatusHidden')), [hRow(1), hRow(2)], 20000);
 	await page.waitForTimeout(1500);
 	check('H Unhide from the menu shows them again', shownAgain);
+	// a failed group action: one alert after the last row, naming every failed row (0.26.0)
+	{
+		const hideRoute = (url) => /[?&]action=hide&/.test(url.toString());
+		await page.route(hideRoute, r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: false, message: 'nope' }) }));
+		const names = await page.$$eval([hRow(1), hRow(2)].map(s => s + ' > a.PageListPage').join(), l => l.map(a => a.textContent.trim()));
+		const before = alerts.length;
+		await menuFor(1);
+		await menuClick(/^$/);
+		await menuClick(/^(Hide|Скрыть)/);
+		await waitFor((rows) => rows.every(s => !document.querySelector(s + ' > .PageListLoading')), [hRow(1), hRow(2)], 10000);
+		await page.waitForTimeout(800);
+		const got = alerts.slice(before);
+		const visible = await page.$$eval([hRow(1), hRow(2)].join(), l => l.every(li => !li.classList.contains('PageListStatusHidden')));
+		check('H a group Hide that fails on both rows shows one alert naming both, the rows unchanged', got.length === 1
+			&& names.every(n => got[0].indexOf(n + ': nope') > -1) && /\b2\b.*\b2\b/.test(got[0].split('\n')[0]) && visible, JSON.stringify({ got, names }));
+		await page.unroute(hideRoute);
+		await page.waitForTimeout(1500);
+		await menuFor(1);
+		await menuClick(/^$/);
+		await menuClick(/^(Hide|Скрыть)/);
+		const hidAgain = await waitFor((rows) => rows.every(s => document.querySelector(s).classList.contains('PageListStatusHidden')), [hRow(1), hRow(2)], 20000);
+		await page.waitForTimeout(1500);
+		await menuFor(1);
+		await menuClick(/^$/);
+		await menuClick(/^(Unhide|Показать|Отобразить)/);
+		const backAgain = await waitFor((rows) => rows.every(s => !document.querySelector(s).classList.contains('PageListStatusHidden')), [hRow(1), hRow(2)], 20000);
+		await page.waitForTimeout(1500);
+		check('H after the failure Hide and Unhide work as before', hidAgain && backAgain && alerts.length === before + 1, JSON.stringify(alerts.slice(before)));
+	}
 	await page.keyboard.press('Escape');
 	// dragging a selected row by its title takes the selection along
 	await ctrlClick(hRow(1));

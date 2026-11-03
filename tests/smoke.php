@@ -811,7 +811,11 @@ if(isset($bridge) && $bridge) {
 		&& strpos($treeMoveSrc, 'const THRESHOLD = 4;') !== false && strpos($treeMoveSrc, 'const HOLD = 400;') !== false && strpos($treeMoveSrc, 'e.ctrlKey || e.metaKey || e.shiftKey || e.altKey') !== false);
 	check('a tree drag swallows its click and posts nothing when nothing changed', strpos($treeMoveSrc, 'swallowClick();') !== false && strpos($treeMoveSrc, 'if (unchanged()) { cancelMove(); return; }') !== false);
 	check('a press on the group menu keeps the selection', strpos((string) @file_get_contents($rt . 'util/selection.ts'), ".pw-drag-ghost, .pw-group-actions';") !== false);
-	foreach(array('nextPage', 'discardChanges', 'trashPages') as $key) check("runtime label '$key' exists", isset($bridge->runtimeLabels()[$key]));
+	foreach(array('nextPage', 'discardChanges', 'trashPages', 'groupFailed') as $key) check("runtime label '$key' exists", isset($bridge->runtimeLabels()[$key]));
+	$treeGroupSrc = (string) @file_get_contents($rt . 'fields/pagelist-group.ts');
+	check('group extras post each row quietly and report the failures in one alert (0.26.0)', strpos($treeGroupSrc, 'await c.ajaxAction(link, true)') !== false
+		&& strpos($treeGroupSrc, "if (failed.length) c.alertMsg(label('groupFailed'") !== false
+		&& strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), 'if (!quiet) alertMsg(') !== false);
 	check('moves go through ProcessPageEdit::ajaxSave', strpos($themeSource, "addHookBefore('ProcessPageEdit::ajaxSave', \$this, 'hookPageEditAjaxSave')") !== false);
 	check('moveFiles, moveFileAllowed, filesMoved are hookable', method_exists($bridge, '___moveFiles') && method_exists($bridge, '___moveFileAllowed') && method_exists($bridge, '___filesMoved'));
 	foreach(array('selectedCount', 'moveTo', 'moveButton', 'moveGoes', 'moveBadExt', 'moveNoRoom', 'moveReplace', 'moveSwap', 'moveSkip', 'moveWait') as $key) {
