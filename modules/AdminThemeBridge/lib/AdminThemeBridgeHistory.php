@@ -113,7 +113,8 @@ trait AdminThemeBridgeHistory {
 			$visits = isset($entry['visits']) ? (int) $entry['visits'] : 1;
 			$last = isset($entry['last']) ? sprintf($lastLabel, $datetime->date($format, (int) $entry['last'])) : '';
 			$attr = $current !== '' && $url === $current ? " aria-current='page'" : '';
-			$rows .= "<tr><td><a href='" . $sanitizer->entities($admin . $url) . "'$attr>" . $sanitizer->entities($name) . "</a></td>" .
+			// the key as the link's title tells same-named screens apart (two pages called "Home")
+			$rows .= "<tr><td><a href='" . $sanitizer->entities($admin . $url) . "' title='" . $sanitizer->entities($url) . "'$attr>" . $sanitizer->entities($name) . "</a></td>" .
 				"<td>" . $sanitizer->entities($type) . "</td>" .
 				"<td class='pw-history-visits' title='" . $sanitizer->entities($last) . "'>$visits</td></tr>";
 		}

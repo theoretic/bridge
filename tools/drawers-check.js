@@ -236,7 +236,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		const tr = document.querySelector(h + 'table.pw-history tbody tr');
 		if(!tr) return null;
 		const a = tr.querySelector('a');
-		return { href: a.getAttribute('href'), name: a.textContent, type: tr.children[1].textContent, visits: parseInt(tr.children[2].textContent, 10), current: a.getAttribute('aria-current') };
+		return { href: a.getAttribute('href'), name: a.textContent, type: tr.children[1].textContent, visits: parseInt(tr.children[2].textContent, 10), current: a.getAttribute('aria-current'), title: a.getAttribute('title') };
 	}, H);
 	const rowFor = (href) => page.evaluate(([h, u]) => {
 		const rows = Array.from(document.querySelectorAll(h + 'table.pw-history tbody tr')).filter(tr => tr.querySelector('a').getAttribute('href') === u);
@@ -256,6 +256,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		let row = await firstRow();
 		const visits = row ? row.visits : 0;
 		check('D the template editor is the first row, a "template", the current screen', !!row && row.href === editorHref && row.type === 'template' && row.current === 'page' && visits >= 1, JSON.stringify(row) + ' ' + editorHref);
+		check('D its link title is the admin-relative key (0.26.0)', !!row && !!row.title && row.title.charAt(0) !== '/' && row.href.endsWith('/' + row.title), JSON.stringify(row));
 		await page.keyboard.press('Escape');
 		await page.goto(page.url(), { waitUntil: 'networkidle' });
 		await openHistory();

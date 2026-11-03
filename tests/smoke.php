@@ -1429,7 +1429,15 @@ if(isset($bridge) && $bridge) {
 			&& strpos($table, 'A &lt;b&gt;bold&lt;/b&gt; &amp; &quot;quoted&quot; one') !== false && strpos($table, '<b>') === false
 			&& strpos($table, "<td class='pw-history-visits' title='") !== false && strpos($table, '>3</td>') !== false && strpos($table, "<caption class='pw-sr-only'>") !== false, $table);
 		check('history table: the current screen\'s entry is aria-current, the other is not', substr_count($table, "aria-current='page'") === 1
-			&& strpos($table, "href='{$adminUrl}setup/field/' aria-current='page'") !== false, $table);
+			&& strpos($table, "href='{$adminUrl}setup/field/' title='setup/field/' aria-current='page'") !== false, $table);
+		$hu->meta(AdminThemeBridge::historyMeta, array(
+			"page/edit/?id=1&q=a'b<c" => array('name' => "Home <'x'>", 'type' => 'page', 'url' => "page/edit/?id=1&q=a'b<c", 'visits' => 1, 'last' => 1000),
+			'page/edit/?id=2' => array('name' => "Home <'x'>", 'type' => 'page', 'url' => 'page/edit/?id=2', 'visits' => 1, 'last' => 2000),
+		));
+		$sameTable = $bridge->renderHistoryTable();
+		check('history table: each name link has its key as title, escaped, so same-named rows differ (0.26.0)',
+			strpos($sameTable, "title='page/edit/?id=1&amp;q=a&#039;b&lt;c'>Home &lt;&#039;x&#039;&gt;</a>") !== false
+			&& strpos($sameTable, "title='page/edit/?id=2'>Home &lt;&#039;x&#039;&gt;</a>") !== false && strpos($sameTable, "a'b<c") === false, $sameTable);
 		check('history table: an unknown type prints as it is, escaped', $bridge->historyTypeLabel('x<y') === 'x<y' && $bridge->historyTypeLabel('pages') !== 'pages');
 		$bridge->historyClear();
 		check('history: historyClear() forgets it', $bridge->historyEntries() === array());
