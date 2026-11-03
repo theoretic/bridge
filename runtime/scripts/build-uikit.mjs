@@ -29,10 +29,11 @@ const dist = fileURLToPath(new URL('../../modules/AdminThemeBridge/assets/dist/'
 const styles = fileURLToPath(new URL('../src/styles/', import.meta.url));
 
 // 1. covered classes: every .uk-* class in 95-uikit-compat.css, plus the classes the theme itself
-// puts on its markup (the language tabs: uk-tab, uk-active)
+// puts on its markup (the language tabs: uk-tab, uk-active) and uk-divider (PageTableNext's button row:
+// UIkit's [class*="uk-divider"] only drops a border and sets margins, which that row sets itself)
 {
 	const compat = readFileSync(join(styles, '95-uikit-compat.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-	const covered = new Set(['uk-tab', 'uk-active']);
+	const covered = new Set(['uk-tab', 'uk-active', 'uk-divider']);
 	for (const m of compat.matchAll(/\.(uk-[\w-]+(?:\\@[a-z]+)?)/g)) covered.add(m[1].replace('\\@', '@'));
 	writeFileSync(dist + 'uikit-covered.json', JSON.stringify([...covered].sort()) + '\n');
 	console.log(`uikit-covered.json: ${covered.size} classes`);

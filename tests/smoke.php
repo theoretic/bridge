@@ -128,7 +128,7 @@ if(is_file($themeCss)) {
 	$css = file_get_contents($themeCss);
 	// 90 kB raw and 16.75 kB gzip since the page tree and history drawers (0.25.0)
 	check('theme.css under 90 kB raw (the gzip budget in check-css.mjs is the binding one)', strlen($css) < 90 * 1024, (string) strlen($css));
-	check('theme.css under 16.75 kB gzip', strlen(gzencode($css, 9)) <= 16.75 * 1024, (string) strlen(gzencode($css, 9)));
+	check('theme.css under 17 kB gzip', strlen(gzencode($css, 9)) <= 17 * 1024, (string) strlen(gzencode($css, 9)));
 	check('theme.css is flat (no nesting left)', !preg_match('/[{;]\s*&/', $css));
 	// every font the stylesheet references ships next to it (none until Geist is self-hosted)
 	preg_match_all('~url\(\.\./fonts/([^)]+)\)~', $css, $m);
@@ -385,6 +385,13 @@ if($modules->isInstalled('AdminThemeBridge')) {
 		check('an uncovered uk-* class or a UIkit attribute does', $uikitScan('<div class="uk-section-primary"></div><div uk-grid></div>') === array('Markup:uk-section-primary', 'Markup:uk-grid'));
 		check('a uk-* word in an attribute value is no attribute', $uikitScan('<a title="see the uk-grid docs" class="uk-flex">x</a>') === array());
 		check('a tooltip needs no layer (core module list, Fluency)', $uikitScan("<span title='x' data-uk-tooltip='delay:1000'>t</span><i uk-tooltip='Translate'></i>") === array());
+		// 0.26.0: compat classes for AdminPageTool, AdminPageDealers, PageTableNext, AgentTools
+		check("AdminPageTool's pager needs no layer", $uikitScan("<ul class='MarkupPagerNav uk-pagination pw-pagination apt-pager'><li class='MarkupPagerNavSeparator uk-disabled pw-disabled'><span>&hellip;</span></li><li class='MarkupPagerNavOn uk-active pw-active'><a href='./'><span>2</span></a></li></ul>") === array());
+		check("AdminPageDealers' table and button group need no layer", $uikitScan("<table class='uk-table uk-table-justify uk-table-responsive uk-table-divider'><tr><td><div class='uk-button-group'><a class='uk-button uk-button-default uk-button-small' href='#'>Edit</a></div></td></tr></table>") === array());
+		$c1Added = array('uk-margin-large-top', 'uk-margin-large-bottom', 'uk-margin-medium-top', 'uk-padding-remove-top', 'uk-text-italic', 'uk-button-default', 'uk-button-group', 'uk-pagination', 'uk-disabled', 'uk-table-justify', 'uk-table-responsive', 'uk-list-bullet', 'uk-child-width-expand@m', 'uk-width-1-3@s', 'uk-width-2-3@s', 'uk-divider');
+		$c1Covered = $bridge->getUikitCovered();
+		$c1Missing = array_values(array_filter($c1Added, function($c) use($c1Covered) { return !isset($c1Covered[$c]); }));
+		check('the covered list has the 16 classes added in 0.26.0 (127 or more in all)', !$c1Missing && count($c1Covered) >= 127, implode(',', $c1Missing) . ' / ' . count($c1Covered));
 		$uikitJs = $config->urls->wire . 'modules/AdminTheme/AdminThemeUikit/uikit/dist/js/uikit.min.js';
 		check("core's UIkit script is neither another theme's asset nor legacy", !$bridge->isOtherThemeAsset($uikitJs) && !$bridge->isLegacyScript($uikitJs));
 		check('the stand-in is no UIkit script', !AdminThemeBridge::isUikitScript($bridge->url() . 'scripts/uikit-layer.js?v=1'));

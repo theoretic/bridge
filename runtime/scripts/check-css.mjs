@@ -12,8 +12,9 @@ const FILES = [
 	// raised from 12 to 15 kB by the owner on 2026-10-15; 15.75 kB for the stacking scale and the
 	// control edges (0.20.1, audit UX5); 16 kB for the colour picker in the user menu (0.22.0); 16.25 kB for
 	// text links, code blocks, the scale in percent and the sticky tree pager (0.23.0, user requests); 16.75 kB
-	// for the page tree and history drawers (0.25.0, user request)
-	{ name: 'theme.css', budget: 16.75 * 1024 },
+	// for the page tree and history drawers (0.25.0, user request); 17 kB for compat classes for AdminPageTool,
+	// AdminPageDealers, PageTableNext, AgentTools (0.26.0: pager, button group, table and list modifiers)
+	{ name: 'theme.css', budget: 17 * 1024 },
 	// field module recolouring: selectize, images, rich-text editors, JSON editor, third-party (ADR 0014)
 	{ name: 'fields.css', budget: 6 * 1024 },
 	// the component runtime: Inputfield behaviours without jQuery grow here in Phase 2 (ADR 0015);
