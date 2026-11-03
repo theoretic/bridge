@@ -187,6 +187,8 @@ function sortable(inputfield: HTMLElement, list: HTMLElement, state: FieldState)
 			window.setTimeout(() => inputfield.classList.remove('InputfieldFileJustSorted'), 500);
 		},
 		update: item => inputfield.dispatchEvent(new CustomEvent('sorted', { bubbles: true, detail: { item } })),
+		// touch: a hold that did not move adds or removes the row (util/selection.ts)
+		held: item => { if (state.select) state.select.held(item); },
 	});
 }
 
@@ -350,6 +352,8 @@ export function init(inputfield: HTMLElement): void {
 	state.select = makeSelectable(content, {
 		items: 'li.InputfieldFileItem',
 		ignore: 'a, input, select, textarea, button, label, [contenteditable], .selectize-control, .InputfieldFileData',
+		// touch, with rows selected: a tap on the file's link selects too; the delete box keeps its tap
+		touchIgnore: 'input, select, textarea, button, label, [contenteditable], .selectize-control, .InputfieldFileData',
 		enabled: () => !legacyLoaded(),
 	});
 	state.unsort = sortable(inputfield, list, state);

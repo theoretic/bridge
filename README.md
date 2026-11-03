@@ -91,6 +91,10 @@ are the point. A screen with a jQuery-era field loads that field's stack, as it 
   sort lists and move pages in the tree, Ctrl+Space selects; dialogs take the focus and ask
   before closing over unsaved changes. Reduced motion turns the flashes and smooth scrolls off,
   and a finger scrolls a sortable list until it holds an item.
+- Touch selects too: hold a file row, an image tile or a tree row's title and lift the finger
+  without moving to select it; while something is selected a tap adds or removes an item
+  instead of opening it, a tap beside the list clears. Selected tree rows show their shared
+  menu at the row just tapped.
 
 ## Compatibility
 

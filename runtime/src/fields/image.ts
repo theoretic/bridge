@@ -647,6 +647,8 @@ export function init(inputfield: HTMLElement): void {
 					item.querySelectorAll('.Inputfield').forEach(li => li.dispatchEvent(new CustomEvent('sort-stop', { bubbles: true })));
 				},
 				update: item => grid.dispatchEvent(new CustomEvent('sorted', { bubbles: true, detail: { item } })),
+				// touch: a hold that did not move adds or removes the tile (util/selection.ts)
+				held: item => { if (state.select) state.select.held(item); },
 			});
 		}
 		setupHeader(inputfield, signal);

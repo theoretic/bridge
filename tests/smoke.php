@@ -836,6 +836,22 @@ if(isset($bridge) && $bridge) {
 		&& strpos($sortableSrc, 'if (wasStill && options.held) options.held(item, e);') !== false
 		&& strpos($pagelistMoveSrc, 'held?: (li: HTMLElement, e: PointerEvent) => void;') !== false
 		&& strpos($pagelistMoveSrc, 'if (wasStill && c.held) c.held(li, e);') !== false);
+	$selectionSrc = (string) @file_get_contents($rt . 'util/selection.ts');
+	$pagelistSrc = (string) @file_get_contents($rt . 'fields/pagelist.ts');
+	check('touch selection: a hold toggles the item; with a selection a tap toggles and does nothing else; a tap outside or on the background clears (0.26.0)',
+		strpos($selectionSrc, 'held: item => {') !== false
+		&& strpos($selectionSrc, 'if (item && sel.size && tapped(e) && !(touchIgnore && t.closest(touchIgnore))) {') !== false
+		&& strpos($selectionSrc, 'e.stopImmediatePropagation();') !== false
+		&& strpos($selectionSrc, "document.addEventListener('pointerup', e => {") !== false
+		&& strpos($selectionSrc, 'if (!inst.container.contains(t) || inst.blank(t)) inst.api.clear();') !== false);
+	check('touch selection is wired: file rows, image tiles and tree rows pass held to the selection (0.26.0)',
+		substr_count((string) @file_get_contents($rt . 'fields/file.ts'), 'held: item => { if (state.select) state.select.held(item); },') === 1
+		&& substr_count((string) @file_get_contents($rt . 'fields/image.ts'), 'held: item => { if (state.select) state.select.held(item); },') === 1
+		&& strpos($pagelistSrc, 'held: li => select.held(li),') !== false
+		&& strpos($pagelistMoveSrc, 'if (f.ripe && c.held) { swallowClick(); c.held(f.row, e); }') !== false);
+	check('touch: the menu of several tree rows shows at the row a finger toggled (0.26.0)',
+		strpos($pagelistSrc, 'loadGroup().then(g => g.showFor(li))') !== false
+		&& strpos((string) @file_get_contents($rt . 'fields/pagelist-group.ts'), 'showFor: li => {') !== false);
 	check('touch: a hold on a file row or an image tile opens no callout (0.26.0)', strpos($fieldsCss, '@media(pointer:coarse){.InputfieldFileList>.InputfieldFileItem>.InputfieldFileInfo{-webkit-touch-callout:none;') !== false
 		&& strpos($fieldsCss, '@media(pointer:coarse){.gridImage .gridImage__overflow,.gridImage .gridImage__hover{-webkit-touch-callout:none;') !== false);
 	check('files-move posts bridgeFilesMove, meta as JSON', strpos($movesSrc, "body.append('bridgeFilesMove', '1')") !== false && strpos($movesSrc, "body.append('meta', JSON.stringify(meta))") !== false);

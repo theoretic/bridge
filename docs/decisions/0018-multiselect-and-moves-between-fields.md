@@ -47,7 +47,8 @@ The same gestures in all three places, with the mouse or a pen:
   the selection. A press on an unselected item clears it too, so a drag that follows moves that
   item alone; a press on a selected item keeps it for the drag.
 - A press outside clears it; **Esc** clears; **Ctrl+A** selects all of the list last pressed.
-- Touch keeps its scroll and single drags: no multi-select on touch in this version.
+- Touch keeps its scroll and single drags: no multi-select on touch in this version (since
+  0.26.0 it has one, see the addendum).
 
 Items carry `pw-selected`; the count is announced in a polite live region.
 
@@ -129,3 +130,24 @@ Not in this version: touch multi-select; moves between a page and its repeater i
 actions (hide, trash, …) on a tree selection; WireTab headers that open while dragging over them.
 (2026-11-03: Extras actions on a tree selection shipped in 0.14.1, the group menu; since 0.26.0
 their failures show in one alert.)
+
+## Addendum: touch (0.26.0)
+
+Touch gets the selection without giving up its scroll, its drags, or what a tap does on an
+unselected list:
+- A **hold released without moving** (400 ms, 8 px; `util/sortable.ts` and
+  `fields/pagelist-move.ts` call `held`) adds or removes the item, the others stay. A hold that
+  moves drags as before, the whole selection when the item is selected. A tree row that cannot
+  move is held the same way, with no drag.
+- **While a selection exists, a tap on an item adds or removes it** and does nothing else (no edit
+  panel, no link, no row opening): a capture-phase listener on the container stops it. The
+  controls in `touchIgnore` keep their tap (form controls; the delete box and the image trash,
+  which set every selected item as before).
+- **A tap on the list's background or outside it clears**, counted at the pointer's release, so a
+  swipe that scrolls (the browser cancels its pointer) keeps the selection.
+- The tree's menu of several rows has no hover to open it: it shows at the row a finger just
+  toggled (`showFor`), is placed again after a scroll, comes back after an action reselects the
+  rows, and goes when fewer than two rows are selected. A mouse hover ends that.
+- With no selection a tap means what it meant upstream: there is no visible "selection mode".
+- Checks: `tools/image-file-check.js` W and `tools/pagetree-check.js` I drive it with Chromium's
+  CDP touch events (Playwright's touchscreen cannot hold); Firefox skips them.

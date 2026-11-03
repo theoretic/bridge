@@ -10,7 +10,8 @@
  *   a swipe still scrolls. Ctrl, Cmd or Shift make a press a selection, never a drag; the row's blank
  *   part draws the rubber band and its actions stay links (util/selection.ts).
  * - Touch (0.26.0): a hold released without moving past 8 px is a "held" gesture: after its no-op
- *   drop, `held` is called (touch selection).
+ *   drop, `held` is called (touch selection). A row that cannot move is held the same way, with no
+ *   drag (the click after it is swallowed too).
  * - While dragging: the item `PageListSortItem PageListSortPlaceholder`, the root `PageListSorting`;
  *   open items without visible children get a placeholder list to drop into. The item goes before
  *   or after the item under the pointer (an open item's child list takes it first, never between the
@@ -82,6 +83,9 @@ export function installMove(c: TreeCtx): void {
 	let holdTimer = 0;
 	// the touch hold began the drag and the finger has not moved past the slop since
 	let still = false;
+	// a finger on a row that cannot move: only a hold (`ripe` after HOLD), never a drag
+	let fixed: { row: HTMLElement; id: number; x: number; y: number; timer: number; ripe: boolean } | null = null;
+	const unfix = (): void => { if (fixed) window.clearTimeout(fixed.timer); fixed = null; };
 
 	const items = (list: Element): HTMLElement[] => kids(list, '.PageListItem').filter(x => !x.classList.contains('PageListPlaceholderItem'));
 	const busy = (): boolean => root.classList.contains('PageListSorting') || root.classList.contains('PageListSortSaving');
@@ -269,7 +273,15 @@ export function installMove(c: TreeCtx): void {
 		if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || moving || pending || busy() || c.ignoreClicks()) return;
 		const grip = (e.target as HTMLElement).closest<HTMLElement>(GRIP);
 		const row = grip ? grip.parentElement : null;
-		if (!row || !row.classList.contains('PageListItem') || !root.contains(row) || !c.canMove(row)) return;
+		if (!row || !row.classList.contains('PageListItem') || !root.contains(row)) return;
+		if (!c.canMove(row)) {
+			if (e.pointerType !== 'touch' || !c.held) return;
+			unfix();
+			const f = { row, id: e.pointerId, x: e.clientX, y: e.clientY, timer: 0, ripe: false };
+			f.timer = window.setTimeout(() => { f.ripe = true; }, HOLD);
+			fixed = f;
+			return;
+		}
 		pending = row;
 		dragId = e.pointerId;
 		startX = e.clientX;
@@ -307,11 +319,12 @@ export function installMove(c: TreeCtx): void {
 	});
 	// touch: the hold made it a drag, so the finger no longer scrolls or opens the link's menu
 	root.addEventListener('touchmove', e => { if (moving) e.preventDefault(); }, { passive: false });
-	root.addEventListener('contextmenu', e => { if (pending || moving) e.preventDefault(); });
+	root.addEventListener('contextmenu', e => { if (pending || moving || fixed) e.preventDefault(); });
 	root.addEventListener('dragstart', e => { if (pending || moving) e.preventDefault(); });
 
 	// dragging: placed before or after the item under the pointer
 	root.addEventListener('pointermove', e => {
+		if (fixed && e.pointerId === fixed.id && Math.max(Math.abs(e.clientX - fixed.x), Math.abs(e.clientY - fixed.y)) > SLOP) unfix();
 		if (e.pointerId !== dragId) return;
 		if (pending) {
 			const far = Math.max(Math.abs(e.clientX - startX), Math.abs(e.clientY - startY));
@@ -343,6 +356,12 @@ export function installMove(c: TreeCtx): void {
 		}
 	});
 	root.addEventListener('pointerup', e => {
+		if (fixed && e.pointerId === fixed.id) {
+			const f = fixed;
+			unfix();
+			if (f.ripe && c.held) { swallowClick(); c.held(f.row, e); }
+			return;
+		}
 		if (e.pointerId !== dragId) return;
 		if (!moving) { forget(); return; }
 		dragId = -1;
@@ -357,6 +376,7 @@ export function installMove(c: TreeCtx): void {
 		void stopMove(li).then(() => { if (wasStill && c.held) c.held(li, e); });
 	});
 	root.addEventListener('pointercancel', e => {
+		if (fixed && e.pointerId === fixed.id) unfix();
 		if (e.pointerId !== dragId) return;
 		still = false;
 		if (moving) abort(); else forget();

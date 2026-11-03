@@ -25,7 +25,9 @@
  *   item (fields/pagelist-move.ts, loaded with the tree). The Move action is not shown.
  * - Rows are selected with Ctrl/Cmd+click, Shift+click or a rubber band from a row's blank part
  *   (util/selection.ts, ADR 0018); dragging a selected row moves them all. A row inside a selected
- *   row is never selected on its own; the home page is not selectable.
+ *   row is never selected on its own; the home page is not selectable. On touch (0.26.0) a hold
+ *   on a title selects, and with rows selected a tap adds or removes one; the menu of several rows
+ *   then shows at that row (fields/pagelist-group.ts `showFor`).
  * - `pageListRefresh` on document (detail: page id) reloads the list holding that page.
  * - A container with data-pw-tree (the page tree drawer, 0.25.0, started by Bridge.pageTree()) has
  *   its own options, JSON merged over the global ones (cookieName and cookiePath: where it keeps its
@@ -494,8 +496,12 @@ function setupTree(container: HTMLElement): void {
 			root.classList.toggle('pw-multi-selection', rows.length > 1);
 			if (rows.length > 1 || grouper) loadGroup().then(g => g.update(rows)).catch(err => failed('page tree selection', err));
 		},
+		// touch (0.26.0): no hover, so the menu of several rows shows at the row a finger toggled
+		onTouch: li => {
+			if (select.selected().length > 1) loadGroup().then(g => g.showFor(li)).catch(err => failed('page tree selection', err));
+		},
 	});
-	type Grouper = { update(rows: HTMLElement[]): void; hide(): void };
+	type Grouper = { update(rows: HTMLElement[]): void; hide(): void; showFor(li: HTMLElement): void };
 	let grouper: Promise<Grouper> | null = null;
 	const loadGroup = (): Promise<Grouper> => grouper || (grouper = import('./pagelist-group').then(m => m.installGroup({
 		root, select, pageId, isModal, hoverDelay: o.hoverActionDelay,
@@ -511,6 +517,7 @@ function setupTree(container: HTMLElement): void {
 		spinner, alertMsg, ignoreClicks: () => ignoreClicks, select,
 		canMove: li => (actionsData.get(li) || []).some(a => a.cn === 'Move'),
 		onStart: () => { if (grouper) void grouper.then(g => g.hide()); },
+		held: li => select.held(li),
 	})));
 
 	/* events ****************************************************************************************/

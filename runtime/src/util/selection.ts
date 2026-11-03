@@ -2,7 +2,7 @@
  * Selecting several items of a list (0.14.0, ADR 0018): file rows, image tiles and page tree rows,
  * so a drag (util/sortable.ts `group`, fields/pagelist-move.ts) or a delete box takes them all.
  *
- * Gestures, as in a file manager, with the mouse or a pen (touch keeps its scroll and drags):
+ * Gestures, as in a file manager, with the mouse or a pen (touch: see below):
  * - Ctrl+click (Cmd+click on a Mac) adds or removes an item; Shift+click selects the range from
  *   the last item toggled. The click does nothing else: no edit panel, no link, no lightbox.
  * - A press on the list's background (with `marqueeFromItems`, also on an item's own blank box)
@@ -19,6 +19,14 @@
  * - Keyboard (audit UX2): with the focus on an item or a link or button in it, Ctrl+Space adds or
  *   removes that item and Shift+Space selects the range from the last item toggled, as the clicks do.
  *
+ * Touch (0.26.0) keeps its scroll, its drags and what a tap does while nothing is selected:
+ * - A hold released without moving (util/sortable.ts and fields/pagelist-move.ts `held`, passed
+ *   to `held()`) adds or removes the item, the others stay selected.
+ * - While a selection exists, a tap on an item adds or removes it and does nothing else (no edit
+ *   panel, no link), except on its `touchIgnore` controls (default: `ignore`), which keep their tap.
+ * - A tap on the container's background or outside it clears the selection; a swipe that scrolls
+ *   does not (the browser cancels its pointer).
+ *
  * State: `pw-selected` on the items, `pw-has-selection` and `data-pw-selectable` on the container;
  * the count is announced in a polite live region. Items that left the page drop out.
  */
@@ -31,6 +39,8 @@ export type SelectableOptions = {
 	items: string;
 	/** never a selection gesture: controls, panels, actions */
 	ignore?: string;
+	/** touch, while a selection exists: taps there keep their own action (default: `ignore`) */
+	touchIgnore?: string;
 	canSelect?: (item: HTMLElement) => boolean;
 	/** a press on an item's own box (not on its children) may start the rubber band */
 	marqueeFromItems?: boolean;
@@ -40,6 +50,8 @@ export type SelectableOptions = {
 	normalize?: (items: HTMLElement[]) => HTMLElement[];
 	enabled?: () => boolean;
 	onChange?: (selected: HTMLElement[]) => void;
+	/** after a touch gesture (a hold or a tap) added or removed this item */
+	onTouch?: (item: HTMLElement) => void;
 };
 
 export type Selectable = {
@@ -47,12 +59,16 @@ export type Selectable = {
 	selected(): HTMLElement[];
 	set(items: HTMLElement[]): void;
 	toggle(item: HTMLElement): void;
+	/** a touch hold on the item (a list's `held`): toggles it when it may be selected */
+	held(item: HTMLElement): void;
 	clear(): void;
 	isSelected(item: HTMLElement): boolean;
 	destroy(): void;
 };
 
 type Instance = { container: HTMLElement; api: Selectable; selectAll(): void; strip(e: PointerEvent): boolean;
+	/** the container's own background, where a tap clears */
+	blank(t: HTMLElement): boolean;
 	/** a key on this element: true when it selected (Ctrl: toggle, Shift: range) */
 	key(t: HTMLElement, range: boolean): boolean };
 
@@ -60,6 +76,12 @@ const instances = new Set<Instance>();
 let lastActive: Instance | null = null;
 let documentReady = false;
 let status: HTMLElement | null = null;
+// the type of the last press anywhere, and a finger's press until it is released or cancelled
+let lastPointer = '';
+let touchDown: { id: number; t: HTMLElement } | null = null;
+
+/** a click made by a finger: its own pointerType where the engine has it, else the last press's */
+const tapped = (e: MouseEvent): boolean => e.detail > 0 && ((e as PointerEvent).pointerType || lastPointer) === 'touch';
 
 // presses there keep every selection: dialogs, dropdowns, and the menu of several tree rows
 const OUTSIDE_KEEP = 'dialog, .pw-lightbox, .selectize-dropdown, .ui-dialog, .pw-drag-ghost, .pw-group-actions';
@@ -85,14 +107,29 @@ function setupDocument(): void {
 	documentReady = true;
 	document.addEventListener('pointerdown', e => {
 		const t = e.target as HTMLElement;
+		lastPointer = e.pointerType;
+		touchDown = null;
 		if (t.closest && t.closest(OUTSIDE_KEEP)) return;
+		const touch = e.pointerType === 'touch';
+		// a finger clears when it is released: the press may be the start of a scroll
+		if (touch) touchDown = { id: e.pointerId, t };
 		lastActive = null;
 		instances.forEach(inst => {
 			if (!inst.container.isConnected) { instances.delete(inst); return; }
 			if (inst.container.contains(t) || inst.strip(e)) lastActive = inst;
-			else if (!e.ctrlKey && !e.metaKey && !e.shiftKey) inst.api.clear();
+			else if (!touch && !e.ctrlKey && !e.metaKey && !e.shiftKey) inst.api.clear();
 		});
 	}, true);
+	// a tap (a scroll cancels the pointer instead) outside a container or on its background clears it
+	document.addEventListener('pointerup', e => {
+		if (!touchDown || e.pointerId !== touchDown.id) return;
+		const t = touchDown.t;
+		touchDown = null;
+		instances.forEach(inst => {
+			if (!inst.container.contains(t) || inst.blank(t)) inst.api.clear();
+		});
+	}, true);
+	document.addEventListener('pointercancel', e => { if (touchDown && e.pointerId === touchDown.id) touchDown = null; }, true);
 	document.addEventListener('focusin', e => {
 		const t = e.target as HTMLElement;
 		instances.forEach(inst => { if (inst.container.contains(t)) lastActive = inst; });
@@ -161,6 +198,11 @@ export function makeSelectable(container: HTMLElement, o: SelectableOptions): Se
 		toggle: item => {
 			anchor = item;
 			apply(sel.has(item) ? selected().filter(i => i !== item) : selected().concat(item));
+		},
+		held: item => {
+			if ((o.enabled && !o.enabled()) || itemOf(item) !== item || !can(item)) return;
+			api.toggle(item);
+			if (o.onTouch) o.onTouch(item);
 		},
 		clear: () => { if (sel.size) apply([]); },
 		isSelected: item => sel.has(item) && item.isConnected,
@@ -290,6 +332,16 @@ export function makeSelectable(container: HTMLElement, o: SelectableOptions): Se
 		if (o.enabled && !o.enabled()) return;
 		const t = e.target as HTMLElement;
 		const item = itemOf(t);
+		const touchIgnore = o.touchIgnore === undefined ? o.ignore : o.touchIgnore;
+		if (item && sel.size && tapped(e) && !(touchIgnore && t.closest(touchIgnore))) {
+			// a finger's tap while a selection exists: the item is added or removed, nothing else
+			e.preventDefault();
+			e.stopImmediatePropagation();
+			if (!can(item)) return;
+			api.toggle(item);
+			if (o.onTouch) o.onTouch(item);
+			return;
+		}
 		if (!item || (o.ignore && t.closest(o.ignore))) return;
 		if (e.ctrlKey || e.metaKey || e.shiftKey) {
 			e.preventDefault();
@@ -318,7 +370,8 @@ export function makeSelectable(container: HTMLElement, o: SelectableOptions): Se
 		else api.toggle(item);
 		return true;
 	};
-	const inst: Instance = { container, api, selectAll: () => apply(candidates()), strip, key };
+	const blank = (t: HTMLElement): boolean => (!o.enabled || o.enabled()) && ownTarget(t) && !itemOf(t) && !(o.ignore && t.closest(o.ignore));
+	const inst: Instance = { container, api, selectAll: () => apply(candidates()), strip, blank, key };
 	instances.add(inst);
 	return api;
 }

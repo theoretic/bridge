@@ -16,6 +16,13 @@
  * - the others (New, extras that open a page): the native dialog, one row after another, with a
  *   Next button in its footer (unsaved changes ask first); closing it ends the round. The opened
  *   rows' lists reload afterwards.
+ *
+ * Touch (0.26.0): there is no hover, so `showFor(li)` shows the menu at the row a finger just
+ * added or removed (fields/pagelist.ts, util/selection.ts `onTouch`). It stays, placed again
+ * after a scroll, until the selection drops below two rows; when the selection changes it comes
+ * back at that row (or the last selected one), also after an action reselected the rows. Hover
+ * is read from `pointerover`, so a tap's compatibility mouse events do not move or hide it; the
+ * mouse's next hover over the tree ends the pin.
  */
 
 import type { Selectable } from '../util/selection';
@@ -43,7 +50,7 @@ type Dialog = { open(url: string, size: string, options: Record<string, unknown>
 
 const text = (html: string): string => htmlText(html);
 
-export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; hide(): void } {
+export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; hide(): void; showFor(li: HTMLElement): void } {
 	const root = c.root;
 	const menu = document.createElement('ul');
 	menu.className = 'PageListActions actions pw-group-actions';
@@ -55,6 +62,8 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 	let showTimer = 0;
 	let hideTimer = 0;
 	let shownFor: HTMLElement | null = null;
+	// shown by touch: the row it is pinned to, until the selection drops below two rows
+	let pin: HTMLElement | null = null;
 
 	const hide = (): void => {
 		window.clearTimeout(showTimer);
@@ -62,7 +71,7 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 		menu.hidden = true;
 		shownFor = null;
 	};
-	const later = (): void => { window.clearTimeout(hideTimer); hideTimer = window.setTimeout(hide, 300); };
+	const later = (): void => { if (pin) return; window.clearTimeout(hideTimer); hideTimer = window.setTimeout(hide, 300); };
 
 	/** the adjacent selected rows around one: they read as one band */
 	const runOf = (li: HTMLElement): HTMLElement[] => {
@@ -130,6 +139,15 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 		shownFor = li;
 	};
 
+	/** touch: at the pinned row, else (it left the selection) at the last selected row */
+	const showPinned = (): void => {
+		if (!pin || !pin.isConnected || !pin.classList.contains('pw-selected')) pin = selected.length ? selected[selected.length - 1] : null;
+		if (!pin) return;
+		window.clearTimeout(showTimer);
+		window.clearTimeout(hideTimer);
+		show(pin);
+	};
+
 	const toggleExtras = (a: HTMLElement): void => {
 		const open = menu.querySelectorAll('li.PageListActionExtra');
 		a.querySelector('i.fa, i[class*=fa-]')?.classList.toggle('fa-flip-horizontal');
@@ -162,6 +180,8 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 		window.setTimeout(() => {
 			const rows = ids.map(id => root.querySelector<HTMLElement>('.PageListID' + id)).filter(Boolean) as HTMLElement[];
 			c.select.set(rows);
+			// touch: the same rows give no change, so the menu comes back here
+			if (pin && menu.hidden) showPinned();
 		}, 1200);
 	};
 
@@ -260,8 +280,10 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 	menu.addEventListener('mouseenter', () => window.clearTimeout(hideTimer));
 	menu.addEventListener('mouseleave', later);
 
-	root.addEventListener('mouseover', e => {
-		if (selected.length < 2) return;
+	root.addEventListener('pointerover', e => {
+		// a finger's: the touch menu is placed by showFor()
+		if (selected.length < 2 || e.pointerType === 'touch') return;
+		pin = null;
 		const li = (e.target as HTMLElement).closest<HTMLElement>('.PageListItem');
 		if (!li || !li.classList.contains('pw-selected') || !root.contains(li)) { later(); return; }
 		window.clearTimeout(hideTimer);
@@ -280,15 +302,24 @@ export function installGroup(c: GroupCtx): { update(rows: HTMLElement[]): void; 
 		menu.remove();
 		return false;
 	};
-	window.addEventListener('scroll', () => { if (alive() && !menu.hidden) hide(); }, { capture: true, signal: gone.signal });
-	window.addEventListener('resize', () => { if (alive() && !menu.hidden) hide(); }, { signal: gone.signal });
+	const moved = (): void => {
+		if (!alive() || menu.hidden) return;
+		if (pin && shownFor && shownFor.isConnected) place(shownFor); else hide();
+	};
+	window.addEventListener('scroll', moved, { capture: true, signal: gone.signal });
+	window.addEventListener('resize', moved, { signal: gone.signal });
 	document.addEventListener('pw-legacy-handover', () => { hide(); menu.remove(); gone.abort(); }, { signal: gone.signal });
 
 	return {
 		hide,
+		showFor: li => {
+			pin = li.isConnected && li.classList.contains('pw-selected') ? li : null;
+			showPinned();
+		},
 		update: rows => {
 			selected = rows;
-			if (rows.length < 2) { hide(); return; }
+			if (rows.length < 2) { pin = null; hide(); return; }
+			if (pin) { hide(); showPinned(); return; }
 			// the row under the pointer (a Ctrl+click just selected it): its menu, without waiting for a move
 			const under = root.querySelector<HTMLElement>('.PageListItem.pw-selected:hover');
 			hide();
