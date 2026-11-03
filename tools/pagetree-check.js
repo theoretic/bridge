@@ -2,8 +2,8 @@
 // (ProcessPageList, "actions" mode) in a real browser engine and verifies that it works without
 // jQuery: open and close with the remembered state, hover actions, Edit as a link and a long press
 // into the native dialog, pagination and More, extra actions over AJAX (hide, unhide), moving a
-// page (a drag on its title, saved order; no Move action since 0.16.0), pageListRefresh, the top nav's nested tree flyouts. Restores what it
-// changes.
+// page (a drag on its title, saved order; no Move action since 0.16.0), pageListRefresh, the top nav's nested tree flyouts,
+// touch selection (K, Chromium only: tools/lib/touch.cjs). Restores what it changes.
 // Needs a Playwright install with its browsers (any project's node_modules/playwright-core).
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
@@ -390,6 +390,94 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			&& fly.left >= fly.outerRight - 2 && Math.abs(fly.top - fly.itemTop) <= 8 && !fly.outerScrollbarX, JSON.stringify(fly));
 	} else {
 		check('J a flyout inside a flyout opens beside its item, outside its parent', false, 'no Tree flyout item for TREE_ID ' + TREE);
+	}
+
+	// K (0.26.0): touch selection. A hold on a title selects the row, a tap toggles while a
+	// selection exists, the menu of several rows shows at the tapped row and its taps act as clicks,
+	// a tap outside clears; with no selection a tap opens a row as before. CDP touch
+	// (tools/lib/touch.cjs): Chromium only. Hide is undone by Unhide on the same two fixture rows.
+	if(browserName === 'chromium') {
+		const tctx = await browser.newContext({ viewport: { width: 1300, height: 950 }, hasTouch: true, storageState: await ctx.storageState() });
+		const tErrors = require('./console-errors')(tctx);
+		const tp = await tctx.newPage();
+		tp.on('pageerror', e => { if(!ignore || !ignore.test(e.message)) errors.push('touch: ' + e.message); });
+		tp.on('dialog', d => d.accept());
+		let tSorts = 0;
+		tp.on('request', r => { if(r.url().indexOf('/page/sort/') > -1) tSorts++; });
+		const t = await require('./lib/touch.cjs')(tp, browserName);
+		const tWait = async (fn, arg, ms = 10000) => {
+			for(let n = 0; n < ms; n += 200) {
+				if(await tp.evaluate(fn, arg)) return true;
+				await tp.waitForTimeout(200);
+			}
+			return false;
+		};
+		const kRow = (n) => T + ` + .PageList > .PageListItem:nth-of-type(${n})`;
+		const kTitle = (n) => kRow(n) + ' > a.PageListPage';
+		const kSel = () => tp.$$eval('.PageListRoot .PageListItem.pw-selected', l => l.map(li => li.getAttribute('data-page-id')));
+		const kOpen = (n) => tp.$eval(kRow(n), li => li.classList.contains('PageListItemOpen'));
+		const kHidden = () => tp.$$eval([kRow(1), kRow(2)].join(), l => l.map(li => li.classList.contains('PageListStatusHidden')));
+		const MENU = '.pw-group-actions';
+		// the menu is fixed: no offsetParent, so its boxes tell whether it shows
+		const menuShown = () => tp.evaluate((m) => { const el = document.querySelector(m); return !!el && !el.hidden && el.getClientRects().length > 0; }, MENU);
+		// a tap on the menu's link whose text matches (the Extras toggle has none)
+		const menuTap = async (re) => {
+			const links = tp.locator(MENU + ' a');
+			const texts = await links.allTextContents();
+			const i = texts.findIndex(x => re.test(x.trim()));
+			if(i < 0) return texts;
+			const b = await links.nth(i).boundingBox();
+			if(b) await t.tap({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+			return texts;
+		};
+		await tp.goto(ADMIN + 'page/', { waitUntil: 'networkidle' });
+		if(await tp.locator('#login_name').count()) throw new Error('touch context: not logged in');
+		await tp.waitForTimeout(500);
+		if(!(await tp.locator(T + '.PageListItemOpen').count())) await t.tap(T + ' > a.PageListPage', 0.3);
+		check('K with no selection a tap on a title opens the row, as before', await tWait((s) => document.querySelectorAll(s + ' + .PageList > .PageListItem').length >= 50, T));
+		const kIds = await tp.$$eval(T + ' + .PageList > .PageListItem', l => l.slice(0, 3).map(li => li.getAttribute('data-page-id')));
+		const hidden0 = await kHidden();
+		const sorts0 = tSorts;
+		await t.hold(kTitle(1), 500, 0.3);
+		await tp.waitForTimeout(300);
+		const k1 = { sel: await kSel(), open: await kOpen(1), sorts: tSorts - sorts0 };
+		check('K a touch hold on a title selects the row, which does not open or move', k1.sel.join() === kIds[0] && !k1.open && !k1.sorts, JSON.stringify(k1));
+		await t.tap(kTitle(2), 0.3);
+		await tWait((m) => { const el = document.querySelector(m); return !!el && !el.hidden; }, MENU, 5000);
+		const k2 = await tp.evaluate(([m, r1, r2]) => {
+			const menu = document.querySelector(m);
+			const a = document.querySelector(r1).getBoundingClientRect();
+			const b = document.querySelector(r2).getBoundingClientRect();
+			const r = menu ? menu.getBoundingClientRect() : null;
+			return { shown: !!menu && !menu.hidden, near: !!r && r.top < b.bottom && r.bottom > a.top, open2: document.querySelector(r2).classList.contains('PageListItemOpen') };
+		}, [MENU, kRow(1), kRow(2)]);
+		k2.sel = await kSel();
+		check('K a tap on a second title selects it too, the menu of both shows beside them, nothing opens', k2.sel.join() === kIds.slice(0, 2).join() && k2.shown && k2.near && !k2.open2, JSON.stringify(k2));
+		await menuTap(/^$/); // the Extras toggle: an icon only
+		const kExtras = await menuTap(/^(Hide|Скрыть)/);
+		const kHid = await tWait((rows) => rows.every(s => document.querySelector(s).classList.contains('PageListStatusHidden')), [kRow(1), kRow(2)], 20000);
+		await tp.waitForTimeout(1500);
+		const k3 = { hid: kHid, hidden0, sel: await kSel(), menu: await menuShown(), extras: kExtras };
+		check('K Hide by taps in the menu hides both rows, which stay selected, the menu back', kHid && k3.sel.length === 2 && k3.menu, JSON.stringify(k3));
+		await menuTap(/^$/);
+		await menuTap(/^(Unhide|Показать|Отобразить)/);
+		const kBack = await tWait((rows) => rows.every(s => !document.querySelector(s).classList.contains('PageListStatusHidden')), [kRow(1), kRow(2)], 20000);
+		await tp.waitForTimeout(1500);
+		check('K Unhide by taps shows them again, as they were', kBack && JSON.stringify(await kHidden()) === JSON.stringify(hidden0), JSON.stringify({ hidden0, now: await kHidden() }));
+		await t.tap('#pw-content-title');
+		await tp.waitForTimeout(300);
+		check('K a tap outside the tree clears the selection and hides the menu', !(await kSel()).length && !(await menuShown()), JSON.stringify({ sel: await kSel(), menu: await menuShown() }));
+		await t.tap(kTitle(3), 0.3);
+		const k4 = await tWait((s) => document.querySelector(s).classList.contains('PageListItemOpen'), kRow(3), 5000);
+		check('K then a tap on a title opens that row, nothing selected', k4 && !(await kSel()).length);
+		await t.tap(kTitle(3), 0.3);
+		check('K still no jQuery after the touch gestures', !(await tp.evaluate(() => !!window.jQuery)));
+		await t.detach();
+		await tErrors.settle();
+		tErrors.check((name, ok, info) => check('K ' + name, ok, info));
+		await tctx.close();
+	} else {
+		check('K touch selection: CDP touch events are Chromium only, skipped', true);
 	}
 
 	check('no page errors', errors.length === 0, errors.join(' | '));

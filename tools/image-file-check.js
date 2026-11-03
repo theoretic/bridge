@@ -2,8 +2,8 @@
 // the fields of the native fixture page in a real browser engine and verifies that they work
 // without jQuery: view modes and size (cookie), edit panel, rename, delete, sort, lightbox, focus,
 // action note, uploads (file input and drop, errors), file tags and delete, save round trip, and
-// Crop opening the native dialog (milestone 3.9). Restores what it changes (uploaded
-// files are deleted again).
+// Crop opening the native dialog (milestone 3.9), touch selection (W, Chromium only:
+// tools/lib/touch.cjs). Restores what it changes (uploaded files are deleted again).
 // Needs a Playwright install with its browsers (any project's node_modules/playwright-core).
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
@@ -581,6 +581,75 @@ const PNG = makePng(48, 32, [40, 120, 220]);
 		await open(NATIVE);
 		check('V the fixture is as before', vBack.ok && JSON.stringify(await fieldNames(FILES)) === JSON.stringify(vFiles)
 			&& JSON.stringify(await fieldNames(TABF)) === JSON.stringify(vTab) && !(await jq()), JSON.stringify({ vBack, files: await fieldNames(FILES), tab: await fieldNames(TABF) }));
+	}
+
+	// W (0.26.0): touch selection. A hold selects, a tap toggles while a selection exists and opens
+	// nothing, a tap outside clears; with no selection a tap does what it did. CDP touch
+	// (tools/lib/touch.cjs): Chromium only. Nothing is saved: every case ends in a reload.
+	if(browserName === 'chromium') {
+		const tctx = await browser.newContext({ viewport: { width: 1300, height: 2400 }, hasTouch: true, storageState: await ctx.storageState() });
+		const tErrors = require('./console-errors')(tctx);
+		const tp = await tctx.newPage();
+		tp.on('pageerror', e => { if(!ignore || !ignore.test(e.message)) errors.push('touch: ' + e.message); });
+		tp.on('dialog', d => d.accept());
+		const t = await require('./lib/touch.cjs')(tp, browserName);
+		const tOpen = async () => {
+			await tp.goto(ADMIN + 'page/edit/?id=' + NATIVE, { waitUntil: 'networkidle' });
+			if(await tp.locator('#login_name').count()) throw new Error('touch context: not logged in');
+			await tp.waitForTimeout(500);
+			await tp.$eval(IMG, el => el.scrollIntoView({ block: 'start' }));
+		};
+		const tSel = (s) => tp.$$eval(s + ' .pw-selected', l => l.map(li => li.id));
+		const tNames = () => tp.$$eval(IMG + ' .gridImages > li.gridImage .gridImage__overflow img', imgs => imgs.map(i => (i.getAttribute('data-original') || '').split('/').pop().split('?')[0]));
+		const tState = () => tp.evaluate((s) => ({ editor: !!document.querySelector(s + ' .InputfieldImageEdit--active'), lightbox: !!document.querySelector('dialog.pw-lightbox[open]'),
+			dragging: !!document.querySelector('.pw-sorting, .pw-drag-ghost') }), IMG);
+		const OUT = '#pw-content-title';
+		await tOpen();
+		const ids = await tp.$$eval(IMG + ' .gridImages > li.gridImage', l => l.map(li => li.id));
+		const w0 = await tNames();
+		await t.hold(tile(1), 500);
+		const w1 = { sel: await tSel(IMG), names: await tNames(), ...(await tState()) };
+		check('W a touch hold on an image selects it, drags nothing, opens no editor', w1.sel.join() === ids[0] && w1.names.join() === w0.join() && !w1.editor && !w1.lightbox && !w1.dragging, JSON.stringify(w1));
+		await t.tap(tile(2));
+		const w2 = { sel: await tSel(IMG), ...(await tState()) };
+		check('W with a selection a tap adds an image, the editor stays closed', w2.sel.join() === [ids[0], ids[1]].join() && !w2.editor && !w2.lightbox, JSON.stringify(w2));
+		await t.tap(tile(1));
+		const w3 = { sel: await tSel(IMG), ...(await tState()) };
+		check('W a tap on a selected image removes it', w3.sel.join() === ids[1] && !w3.editor, JSON.stringify(w3));
+		await t.tap(OUT);
+		check('W a tap outside the grid clears the selection', !(await tSel(IMG)).length && !(await tp.evaluate((s) => document.querySelector(s + ' > .InputfieldContent').classList.contains('pw-has-selection'), IMG)));
+		await tp.$eval(IMG, el => el.scrollIntoView({ block: 'start' }));
+		await t.tap(tile(1));
+		const w4 = await tState();
+		check('W with no selection a tap on an image opens its editor, as before', w4.editor && !(await tSel(IMG)).length, JSON.stringify(w4));
+		await tOpen();
+		// to the far side of the second image: a hold that moves is a single drag, as before
+		await t.holdMove(tile(1), tile(2), 500, { tx: 0.8 });
+		const w5 = { names: await tNames(), sel: await tSel(IMG), ...(await tState()) };
+		check('W a touch hold that then moves drags the image alone, nothing selected', w5.names.join() === [w0[1], w0[0], w0[2]].join() && !w5.sel.length && !w5.editor, JSON.stringify({ w0, ...w5 }));
+		// files: the row's link selects too, the delete box keeps its tap
+		await tOpen();
+		await tp.$eval(FILES, el => el.scrollIntoView({ block: 'center' }));
+		const fIds = await tp.$$eval(FILES + ' .InputfieldFileList > li.InputfieldFileItem', l => l.map(li => li.id));
+		await t.hold(row(1) + ' .InputfieldFileInfo', 500, 0.6);
+		check('W a touch hold on a file row selects it', (await tSel(FILES)).join() === fIds[0], JSON.stringify(await tSel(FILES)));
+		const url0 = tp.url();
+		await t.tap(row(2) + ' a.InputfieldFileName');
+		check('W with a selection a tap on the next row\'s link selects it and follows nothing', (await tSel(FILES)).join() === fIds.slice(0, 2).join() && tp.url() === url0 && tctx.pages().length === 1,
+			JSON.stringify({ sel: await tSel(FILES), url: tp.url().replace(ADMIN, ''), pages: tctx.pages().length }));
+		await t.tap(row(1) + ' .InputfieldFileDelete');
+		const boxes = await tp.$$eval(FILES + ' .InputfieldFileDelete input', b => b.map(x => x.checked));
+		check('W a tap on a selected row\'s delete box sets every selected row, the selection stays', JSON.stringify(boxes) === '[true,true]' && (await tSel(FILES)).length === 2, JSON.stringify(boxes));
+		await t.tap(OUT);
+		check('W a tap outside clears the file selection', !(await tSel(FILES)).length);
+		await tOpen();
+		check('W still no jQuery after the touch gestures', !(await tp.evaluate(() => !!window.jQuery)));
+		await t.detach();
+		await tErrors.settle();
+		tErrors.check((name, ok, info) => check('W ' + name, ok, info));
+		await tctx.close();
+	} else {
+		check('W touch selection: CDP touch events are Chromium only, skipped', true);
 	}
 	await page.setViewportSize({ width: 1300, height: 950 });
 	await open(NATIVE);
