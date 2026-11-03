@@ -1,10 +1,11 @@
 /**
  * The UIkit layer (ADR 0017): assets/dist/uikit.css, derived from core's stock uikit.css, and
- * assets/dist/uikit-covered.json, the uk-* classes the theme's own compat rules already style.
+ * assets/dist/uikit-covered.json, what the theme's own compat rules already draw: { classes: the
+ * uk-* classes, icons: the uk-icon names drawn with a Font Awesome glyph }.
  *
  *   uikit.css          printed (or loaded) only on pages that need UIkit, with core's uikit.min.js
- *   uikit-covered.json read by the theme (a page using only these classes needs no layer) and
- *                      handed to the theme script for AJAX content
+ *   uikit-covered.json read by the theme (a page using only these needs no layer) and handed to
+ *                      the theme script for AJAX content
  *
  * From stock uikit.css the build keeps only selectors that name a UIkit class or attribute (bare
  * element selectors go; the Base component's are kept only for documents that load the admin's
@@ -30,13 +31,23 @@ const styles = fileURLToPath(new URL('../src/styles/', import.meta.url));
 
 // 1. covered classes: every .uk-* class in 95-uikit-compat.css, plus the classes the theme itself
 // puts on its markup (the language tabs: uk-tab, uk-active) and uk-divider (PageTableNext's button row:
-// UIkit's [class*="uk-divider"] only drops a border and sets margins, which that row sets itself)
+// UIkit's [class*="uk-divider"] only drops a border and sets margins, which that row sets itself) and
+// uk-icon (the class UIkit's JS puts on icon elements, PageTableNext prints it on its action links:
+// UIkit's .uk-icon only resets the box of the SVG it injects; without UIkit the glyph is a ::before)
 {
 	const compat = readFileSync(join(styles, '95-uikit-compat.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-	const covered = new Set(['uk-tab', 'uk-active', 'uk-divider']);
+	const covered = new Set(['uk-tab', 'uk-active', 'uk-divider', 'uk-icon']);
 	for (const m of compat.matchAll(/\.(uk-[\w-]+(?:\\@[a-z]+)?)/g)) covered.add(m[1].replace('\\@', '@'));
-	writeFileSync(dist + 'uikit-covered.json', JSON.stringify([...covered].sort()) + '\n');
-	console.log(`uikit-covered.json: ${covered.size} classes`);
+	// uk-icon names drawn with a glyph: a name counts only with all four value forms the scans accept
+	// (scanUikitMarkup(), uikit-layer.js): "NAME", "icon: NAME", "icon: NAME; ..." and "NAME; ..."
+	const icons = [], partial = [];
+	for (const name of new Set([...compat.matchAll(/\[uk-icon\^?="(?:icon: )?([\w-]+);?"\]/g)].map(m => m[1]))) {
+		const forms = [`[uk-icon="${name}"]`, `[uk-icon="icon: ${name}"]`, `[uk-icon^="icon: ${name};"]`, `[uk-icon^="${name};"]`];
+		(forms.every(sel => compat.includes(sel)) ? icons : partial).push(name);
+	}
+	if (partial.length) { console.error('build-uikit: uk-icon names without the four value forms: ' + partial.join(', ')); process.exit(1); }
+	writeFileSync(dist + 'uikit-covered.json', JSON.stringify({ classes: [...covered].sort(), icons: icons.sort() }) + '\n');
+	console.log(`uikit-covered.json: ${covered.size} classes, ${icons.length} icons`);
 }
 
 const wire = process.env.BRIDGE_WIRE || '';

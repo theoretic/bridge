@@ -152,3 +152,25 @@ canvas follows. ProcessShowcase's UIkit preview, for instance, sets the class on
   - the inverse colours on Bridge's custom primary;
   - synchronous use of the stand-in's return value (`UIkit.util.$()` before UIkit loaded);
   - modules that test `$adminTheme instanceof AdminThemeUikit`.
+
+## Addendum: covered icons (0.26.0, 2026-11-03)
+
+`uk-icon` was a reason on every element that carried it, although `95-uikit-compat.css` already
+draws about sixty icon names with Font Awesome glyphs. PageTableNext prints two on every row and
+four on its action links, so every page with a PageTableNext field loaded the layer.
+
+- **The rule.** A `uk-icon` or `data-uk-icon` attribute is no reason when its value is one of the
+  spellings the compat rules match, `NAME`, `icon: NAME`, `icon: NAME; ...` or `NAME; ...`, and
+  `NAME` is an icon the compat file draws. Any other name or spelling (`icon:pencil` without the
+  space, an empty value) stays `Markup:uk-icon`: UIkit's parser would draw it, the compat rules
+  would not. The server (`scanUikitMarkup()`, the value read attribute by attribute from the tag)
+  and the client scan (`scripts/uikit-layer.js`, added content) apply the same rule. The client
+  also copies `data-uk-icon` to `uk-icon` while UIkit is not loaded, since the compat rules
+  select on `uk-icon`.
+- **The list.** The build writes `uikit-covered.json` as `{classes, icons}`. A name enters
+  `icons` only when the compat file has all four spellings for it; a name with fewer fails the
+  build. The manifest keeps `uikitCovered` (the flat class list site copies of `_head.php` read)
+  and adds `uikitIcons`.
+- **The class.** `uk-icon` is also seeded as a covered class: UIkit's JS puts it on icon
+  elements, and PageTableNext prints it on its action links. UIkit's `.uk-icon` only resets the
+  box of the SVG it injects; without UIkit the glyph is a `::before`.

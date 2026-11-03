@@ -55,21 +55,60 @@ trait AdminThemeBridgeUikit {
 	 *
 	 */
 	public function getUikitCovered() {
-		if($this->uikitCovered === null) {
-			$list = $this->manifest('uikitCovered');
-			if(!is_array($list)) {
-				$file = $this->path() . 'assets/dist/uikit-covered.json';
-				$list = is_file($file) ? json_decode((string) file_get_contents($file), true) : null;
-			}
-			$this->uikitCovered = is_array($list) ? array_fill_keys($list, true) : array();
-		}
+		if($this->uikitCovered === null) $this->uikitCovered = $this->uikitCoveredList('classes');
 		return $this->uikitCovered;
 	}
 
 	/**
+	 * The uk-icon names the theme's own compat rules draw with a Font Awesome glyph
+	 * (95-uikit-compat.css, listed by the build in assets/dist/uikit-covered.json)
+	 *
+	 * @return array name => true
+	 *
+	 */
+	public function getUikitIcons() {
+		if($this->uikitIcons === null) $this->uikitIcons = $this->uikitCoveredList('icons');
+		return $this->uikitIcons;
+	}
+
+	/**
+	 * One list of the build's covered UIkit names, from the manifest or uikit-covered.json
+	 *
+	 * @param string $key 'classes' or 'icons'
+	 * @return array name => true
+	 *
+	 */
+	protected function uikitCoveredList($key) {
+		$list = $this->manifest($key === 'icons' ? 'uikitIcons' : 'uikitCovered');
+		if(!is_array($list)) {
+			$file = $this->path() . 'assets/dist/uikit-covered.json';
+			$data = is_file($file) ? json_decode((string) file_get_contents($file), true) : null;
+			// before 0.26.0 the file was the flat class list
+			if(is_array($data) && isset($data[0])) $data = array('classes' => $data);
+			$list = is_array($data) && isset($data[$key]) ? $data[$key] : null;
+		}
+		return is_array($list) ? array_fill_keys($list, true) : array();
+	}
+
+	/**
+	 * Does the compat file draw this uk-icon value? The forms its rules match: "NAME",
+	 * "icon: NAME", "icon: NAME; ..." and "NAME; ..." (UIkit's own parser is more lenient: any
+	 * other spelling is drawn by UIkit only, so it stays a reason)
+	 *
+	 * @param string|null $value The uk-icon or data-uk-icon attribute's value
+	 * @return bool
+	 *
+	 */
+	public function isUikitIconCovered($value) {
+		if(!is_string($value) || !preg_match('~^(?:icon: )?([\w-]+)(?:;|$)~', $value, $m)) return false;
+		$icons = $this->getUikitIcons();
+		return isset($icons[$m[1]]);
+	}
+
+	/**
 	 * Record what in this markup needs the UIkit layer: a UIkit attribute (uk-grid,
-	 * data-uk-modal: UIkit's JS components; not uk-tooltip) or a uk-* class that
-	 * getUikitCovered() lacks
+	 * data-uk-modal: UIkit's JS components; not uk-tooltip, not a uk-icon getUikitIcons() has)
+	 * or a uk-* class that getUikitCovered() lacks
 	 *
 	 * @param string $html
 	 *
@@ -81,13 +120,17 @@ trait AdminThemeBridgeUikit {
 		foreach($tags[0] as $tag) {
 			// attribute names, with the attribute values out of the way
 			$bare = preg_replace('~=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)~', '', $tag);
-			if(preg_match_all('~\s(?:data-)?(uk-[a-z][a-z0-9-]*)(?=[\s/>])~i', $bare, $m)) {
-				foreach($m[1] as $name) {
-					$name = strtolower($name);
+			if(preg_match_all('~\s((?:data-)?uk-[a-z][a-z0-9-]*)(?=[\s/>])~i', $bare, $m)) {
+				foreach($m[1] as $attr) {
+					$attr = strtolower($attr);
+					$name = strpos($attr, 'data-') === 0 ? substr($attr, 5) : $attr;
 					// a tooltip is no reason: the theme script gives it the browser's own (its text
 					// as the title; core's module list: data-uk-tooltip on elements with a title,
 					// Fluency's translate icons)
 					if($name === 'uk-tooltip') continue;
+					// nor an icon the compat rules draw (PageTableNext's rows: uk-icon="icon:
+					// chevron-right; ratio: 1"); the theme script copies data-uk-icon to uk-icon
+					if($name === 'uk-icon' && $this->isUikitIconCovered($this->tagAttribute($tag, $attr))) continue;
 					$this->needUikit("Markup:$name");
 				}
 			}
@@ -98,6 +141,23 @@ trait AdminThemeBridgeUikit {
 				if(!isset($covered[$class])) $this->needUikit("Markup:$class");
 			}
 		}
+	}
+
+	/**
+	 * One attribute's value in an HTML start tag, as written (no entity decoding)
+	 *
+	 * @param string $tag
+	 * @param string $name Lowercase attribute name
+	 * @return string|null Null when the tag has no such attribute, '' for a bare one
+	 *
+	 */
+	protected function tagAttribute($tag, $name) {
+		// attribute by attribute, so a name inside another attribute's value never matches
+		if(!preg_match_all('~\s([^\s"\'=/>]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s"\'>]+)))?~', $tag, $a, PREG_SET_ORDER)) return null;
+		foreach($a as $attr) {
+			if(strtolower($attr[1]) === $name) return implode('', array_slice($attr, 2));
+		}
+		return null;
 	}
 
 	/**

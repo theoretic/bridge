@@ -329,6 +329,13 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	protected $uikitCovered = null;
 
 	/**
+	 * uk-icon names the theme's own compat rules draw (assets/dist/uikit-covered.json)
+	 *
+	 * @var array|null name => true
+	 */
+	protected $uikitIcons = null;
+
+	/**
 	 * Script verdicts for UIkit: 'file|mtime' => bool (does it name the UIkit global?), in WireCache
 	 *
 	 * @var array|null

@@ -8,10 +8,13 @@
  *     theme, core's uikit.min.js and uikit-icons.min.js) and replays the call there. A call
  *     returns a stand-in for its result: chain on it (UIkit.modal('#x').show()) or await it.
  *   - Content added later (AJAX, dialogs) with a UIkit attribute (uk-grid, data-uk-modal) or a
- *     uk-* class the theme's compat rules do not cover (uikit-covered.json) loads the layer too.
+ *     uk-* class or uk-icon name the theme's compat rules do not cover (uikit-covered.json) loads
+ *     the layer too.
  *   - Tooltips are no reason: uk-tooltip's text becomes the element's title (the browser's own).
+ *   - Covered icons are no reason: the compat rules draw uk-icon; data-uk-icon is copied to it.
  *
- * API: ProcessWireAdminTheme.uikit.load() -> Promise, .loaded, .scan(element), .tooltips(element).
+ * API: ProcessWireAdminTheme.uikit.load() -> Promise, .loaded, .scan(element), .tooltips(element),
+ * .icons(element).
  * Event: 'pw-uikit-loaded' on document.
  */
 (function() {
@@ -94,19 +97,24 @@
 			var self = this;
 			var nodes = [el].concat([].slice.call(el.querySelectorAll('*')));
 			var classes = [];
+			var icons = [];
 			for(var i = 0; i < nodes.length; i++) {
 				var attrs = nodes[i].attributes;
 				for(var j = 0; j < attrs.length; j++) {
 					// a tooltip alone is no reason: tooltips() gives it the browser's own (as the server decides)
 					if(!/^(data-)?uk-[a-z]/.test(attrs[j].name) || /^(data-)?uk-tooltip$/.test(attrs[j].name)) continue;
+					// nor an icon the compat rules draw: checked against the list below
+					if(/^(data-)?uk-icon$/.test(attrs[j].name)) { icons.push(attrs[j].value); continue; }
 					return void self.load();
 				}
 				var cls = typeof nodes[i].className === 'string' ? nodes[i].className : '';
 				if(cls.indexOf('uk-') > -1) classes = classes.concat(cls.match(/(^|\s)uk-[\w@-]+/g).map(function(c) { return c.trim(); }));
 			}
-			if(!classes.length) return;
+			if(!classes.length && !icons.length) return;
 			self.coveredList().then(function(covered) {
-				if(classes.some(function(c) { return !covered[c]; })) self.load();
+				// the value forms the compat rules match, as scanUikitMarkup(): "NAME", "icon: NAME", "icon: NAME; ...", "NAME; ..."
+				var drawn = function(v) { var m = /^(?:icon: )?([\w-]+)(?:;|$)/.exec(v); return !!m && !!covered.icons[m[1]]; };
+				if(classes.some(function(c) { return !covered.classes[c]; }) || !icons.every(drawn)) self.load();
 			});
 		},
 
@@ -128,10 +136,27 @@
 			});
 		},
 
+		/**
+		 * The compat rules' icons need uk-icon: data-uk-icon is copied to it while UIkit is not there
+		 * @param {Element} el
+		 */
+		icons: function(el) {
+			if(!el || el.nodeType !== 1 || (window.UIkit && !window.UIkit.pwStandIn)) return;
+			var list = [].slice.call(el.querySelectorAll('[data-uk-icon]:not([uk-icon])'));
+			if(el.matches('[data-uk-icon]:not([uk-icon])')) list.push(el);
+			list.forEach(function(item) { item.setAttribute('uk-icon', item.getAttribute('data-uk-icon')); });
+		},
+
+		/**
+		 * uikit-covered.json as maps: { classes: {name: true}, icons: {name: true} }
+		 * @returns {Promise}
+		 */
 		coveredList: function() {
 			if(this.covered) return this.covered;
-			this.covered = (cfg.covered ? fetch(cfg.covered).then(function(r) { return r.json(); }) : Promise.resolve([]))
-				.then(function(list) { var map = {}; list.forEach(function(c) { map[c] = true; }); return map; }, function() { return {}; });
+			var map = function(list) { var m = {}; (list || []).forEach(function(c) { m[c] = true; }); return m; };
+			this.covered = (cfg.covered ? fetch(cfg.covered).then(function(r) { return r.json(); }) : Promise.resolve({}))
+				.then(function(data) { return Array.isArray(data) ? { classes: map(data), icons: {} } : { classes: map(data.classes), icons: map(data.icons) }; },
+					function() { return { classes: {}, icons: {} }; });
 			return this.covered;
 		}
 	};
@@ -178,6 +203,7 @@
 		theme.uikit = api;
 		if(api.loaded || !theme.observe) return;
 		api.tooltips(doc.body);
+		api.icons(doc.body);
 		var stop = theme.observe(function(records) {
 			if(api.loaded) { if(stop) stop(); return; }
 			// a node removed and added in the same batch only moved: scanned where it came from (PF2)
@@ -188,6 +214,7 @@
 				for(var j = 0; j < added.length; j++) {
 					if(added[j].nodeType !== 1 || moved.indexOf(added[j]) > -1) continue;
 					api.tooltips(added[j]);
+					api.icons(added[j]);
 					if(cfg.mode !== 'never') api.scan(added[j]);
 				}
 			}

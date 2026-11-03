@@ -4,7 +4,8 @@
  *
  * - runtimeChunks: the chunks runtime.js imports statically (modulepreload links);
  * - fontPreloads: per Font Awesome version, the solid subset's hashed file name (font preload);
- * - uikitCovered: the UIkit classes theme.css covers (scanUikitMarkup()).
+ * - uikitCovered, uikitIcons: the UIkit classes and uk-icon names theme.css covers
+ *   (scanUikitMarkup()); uikitCovered stays a flat class list.
  *
  * A PHP file, so opcache keeps it; the readers fall back to the files when it is missing (a
  * `vite build` alone does not write it).
@@ -28,7 +29,9 @@ for (const dir of readdirSync(theme + 'assets/fonts').filter(d => /^fa-\d/.test(
 }
 
 const coveredFile = dist + 'uikit-covered.json';
-const uikitCovered = existsSync(coveredFile) ? JSON.parse(readFileSync(coveredFile, 'utf8')) : [];
+const covered = existsSync(coveredFile) ? JSON.parse(readFileSync(coveredFile, 'utf8')) : {};
+const uikitCovered = Array.isArray(covered) ? covered : covered.classes || [];
+const uikitIcons = Array.isArray(covered) ? [] : covered.icons || [];
 
 const php = (value, indent = '') => {
 	if (Array.isArray(value)) return 'array(' + value.map(v => php(v)).join(', ') + ')';
@@ -39,5 +42,5 @@ const php = (value, indent = '') => {
 };
 
 writeFileSync(dist + 'manifest.php', '<?php\n// built by runtime/scripts/manifest.mjs; read by AdminThemeBridge::manifest()\nreturn ' +
-	php({ runtimeChunks, fontPreloads, uikitCovered }) + ';\n');
-console.log(`manifest.php: ${runtimeChunks.length} runtime chunk(s), ${Object.keys(fontPreloads).length} font preload(s), ${uikitCovered.length} UIkit classes`);
+	php({ runtimeChunks, fontPreloads, uikitCovered, uikitIcons }) + ';\n');
+console.log(`manifest.php: ${runtimeChunks.length} runtime chunk(s), ${Object.keys(fontPreloads).length} font preload(s), ${uikitCovered.length} UIkit classes, ${uikitIcons.length} icons`);
