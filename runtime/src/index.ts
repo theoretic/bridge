@@ -17,6 +17,7 @@ import { load as loadComponent, loadFrom as loadComponentsFrom, loadProcess, loa
 import type { AskOptions } from './util/ask';
 import { pwConfig } from './util/pw';
 import { failed } from './util/fail';
+import { importAgain } from './util/retry';
 
 export const version = '1.0.0';
 
@@ -52,7 +53,8 @@ export const Bridge = {
 		defineTabs();
 		defineDialog();
 		setupModalLinks();
-		if (pwConfig<{ dangerWarn?: boolean }>('AdminThemeBridge').dangerWarn) import('./guards').then(m => m.start()).catch(err => failed('risky-action warnings', err));
+		// once more after a second: Firefox rejects the import of a page that is being left
+		if (pwConfig<{ dangerWarn?: boolean }>('AdminThemeBridge').dangerWarn) importAgain(() => import('./guards')).then(m => m.start()).catch(err => failed('risky-action warnings', err));
 		Inputfields.init(document);
 		void loadProcess();
 		void loadComponentsFrom(document);

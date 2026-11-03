@@ -27,8 +27,9 @@ module.exports = function watchConsole(ctx, ignoreAlso) {
 			if(/^Failed to load resource/.test(raw)) return add(raw + (loc && loc.url ? ' ' + loc.url : ''));
 			// Firefox reports an Error argument as JSHandle@object: ask the page for its text
 			if(!/JSHandle@/.test(raw)) return add(raw);
-			pending.push(Promise.all(msg.args().map(a => a.evaluate(v => v instanceof Error ? v.name + ': ' + v.message : String(v)).catch(() => '?')))
-				.then(parts => add(parts.join(' ')), () => add(raw)));
+			// a page gone meanwhile answers nothing: the raw text then (string arguments are in it)
+			pending.push(Promise.all(msg.args().map(a => a.evaluate(v => v instanceof Error ? v.name + ': ' + v.message : String(v)).catch(() => null)))
+				.then(parts => add(parts.includes(null) ? raw : parts.join(' ')), () => add(raw)));
 		});
 	};
 	ctx.pages().forEach(watch);

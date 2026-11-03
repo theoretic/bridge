@@ -689,6 +689,8 @@ if(isset($bridge) && $bridge) {
 	check('B16 conformance keys fields without an id by position', strpos((string) file_get_contents(dirname(__DIR__) . '/conformance/run.php'), 'spl_object_hash') === false);
 	$rt = dirname(__DIR__) . '/runtime/src/';
 	check('R4 repeater, page table, page list select use fetchOk/failed', count(array_filter(array('fields/repeater.ts', 'fields/pagetable.ts', 'fields/pagelistselect.ts'), function($f) use($rt) { return strpos((string) file_get_contents($rt . $f), "from '../util/fail'") !== false; })) === 3);
+	check('page-load chunks (guards, image upload) retry once, so a page being left logs nothing (0.26.0)', strpos((string) file_get_contents($rt . 'index.ts'), "importAgain(() => import('./guards'))") !== false
+		&& strpos((string) file_get_contents($rt . 'fields/image.ts'), "importAgain(() => import('./image-upload'))") !== false);
 	check('R6 datetime listens for outside presses only while open', strpos((string) file_get_contents($rt . 'fields/datetime.ts'), "document.addEventListener('mousedown', outside)") !== false);
 	check('the runtime labels include the request failure notice', isset($bridge->runtimeLabels()['requestFailed']));
 }
@@ -1040,7 +1042,7 @@ if(isset($bridge) && $bridge) {
 	foreach(array('drop', 'change', 'click', 'submit') as $type) {
 		check("guards: a capture listener on window for $type", strpos($guardsSrc, "window.addEventListener('$type', on") !== false);
 	}
-	check('the guards load only while the setting is on', strpos((string) @file_get_contents($rt . 'index.ts'), "dangerWarn) import('./guards')") !== false);
+	check('the guards load only while the setting is on', strpos((string) @file_get_contents($rt . 'index.ts'), "dangerWarn) importAgain(() => import('./guards'))") !== false);
 	$left = array();
 	foreach(array('fields/pagelist-group.ts', 'fields/repeater.ts', 'classic/page-edit.js', 'classic/lister.js', 'classic/setup.js') as $file) {
 		if(strpos((string) @file_get_contents($rt . $file), 'window.confirm(') !== false) $left[] = $file;

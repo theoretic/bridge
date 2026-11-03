@@ -274,6 +274,8 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.click(T + ' tbody tr:nth-child(1) .InputfieldPageTableEdit');
 		const frame = page.frameLocator('dialog.pw-dialog[open] iframe');
 		await frame.locator('#Inputfield_title').waitFor({ timeout: 15000 });
+		// the footer fills on the frame's load, after the title field shows
+		await waitFor(() => !!document.querySelector('dialog.pw-dialog[open] .pw-dialog-buttons button'), null, 15000);
 		const footer = await page.$$eval('dialog.pw-dialog[open] .pw-dialog-buttons button', b => b.map(x => x.textContent.trim()));
 		check('K the editor opens in the dialog, its Save in the footer', footer.length > 0, JSON.stringify(footer));
 		check('K the window\'s own buttons are hidden', await frame.locator('#submit_save').evaluate(b => getComputedStyle(b).display === 'none').catch(() => false));

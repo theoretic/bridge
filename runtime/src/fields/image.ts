@@ -39,6 +39,7 @@ import { onRemoval } from '../util/removal';
 import { esc } from '../util/html';
 import { toHTML } from '../util/trusted';
 import { failed } from '../util/fail';
+import { importAgain } from '../util/retry';
 import { label } from '../util/labels';
 
 type Focus = { top: number; left: number; zoom: number };
@@ -660,5 +661,5 @@ export function init(inputfield: HTMLElement): void {
 		signal.addEventListener('abort', () => ro.disconnect());
 	}
 	// upload: its own chunk, loaded where uploads are possible
-	if (!renderValue && uploadAllowed()) import('./image-upload').then(m => { if (!signal.aborted) m.setupUpload(inputfield, content, grid, signal); }).catch(err => failed('image upload', err));
+	if (!renderValue && uploadAllowed()) importAgain(() => import('./image-upload')).then(m => { if (!signal.aborted) m.setupUpload(inputfield, content, grid, signal); }).catch(err => failed('image upload', err));
 }

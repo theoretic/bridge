@@ -162,6 +162,30 @@ function scan(opts) {
 				await scanAll(name);
 			} catch(e) { results.push({ scheme, screen: name, kind: 'error', sig: '', value: e.message.slice(0, 200) }); }
 		}
+		// theme states (0.26.0): the history drawer open (its Clear button), the tree's group menu
+		// over two Ctrl-selected rows
+		const chrome = [
+			['history drawer', 'setup/field/', async () => {
+				await page.click('[data-pw-drawer="history"]');
+				await page.waitForSelector('dialog.pw-drawer[open] table.pw-history, dialog.pw-drawer[open] .pw-history-empty', { timeout: 10000 });
+			}],
+			['tree group menu', 'page/', async () => {
+				const rows = page.locator('.PageListRoot a.PageListPage');
+				await rows.nth(2).waitFor({ timeout: 10000 });
+				await rows.nth(1).click({ modifiers: ['Control'] });
+				await rows.nth(2).click({ modifiers: ['Control'] });
+				await rows.nth(2).hover();
+				await page.waitForSelector('.pw-group-actions:not([hidden])', { timeout: 5000 });
+			}],
+		];
+		for(const [name, path, act] of chrome) {
+			try {
+				await open(path);
+				await act();
+				await page.waitForTimeout(500);
+				await scanAll(name);
+			} catch(e) { results.push({ scheme, screen: name, kind: 'error', sig: '', value: e.message.split('\n')[0].slice(0, 200) }); }
+		}
 		// fixture states: tag dropdown, image edit panel and tooltip, CKEditor Format list, datepicker
 		if(fixture) {
 			const states = [
