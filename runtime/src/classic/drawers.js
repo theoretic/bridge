@@ -15,7 +15,8 @@
  * builds it again with the branches open now (its cookie, options.cookieName), unless a drag is on.
  *
  * The history drawer fetches its table on the first open (the screen's URL plus bridgeHistory=1,
- * AdminThemeBridgeHistory). On pw-tab-focus (the user is back in this tab) both drawers that were
+ * AdminThemeBridgeHistory), and again on a later open while no table came yet (a failed fetch is
+ * retried); aria-busy on its body while a fetch runs. On pw-tab-focus (the user is back in this tab) both drawers that were
  * built once refresh in the background: the history table, and the tree with its open branches.
  */
 (function(theme) {
@@ -99,6 +100,7 @@
 		var body = d && d.querySelector('.pw-drawer-body');
 		if(!body || history.busy) return;
 		history.busy = true;
+		body.setAttribute('aria-busy', 'true');
 		var url = new URL(window.location.href);
 		url.hash = '';
 		url.searchParams.set('bridgeHistory', '1');
@@ -118,13 +120,17 @@
 			p.setAttribute('role', 'alert');
 			p.textContent = (((window.ProcessWire && ProcessWire.config.AdminThemeBridge) || {}).labels || {}).requestFailed || 'Request failed';
 			body.replaceChildren(p);
-		}).then(function() { history.busy = false; });
+		}).then(function() {
+			history.busy = false;
+			body.removeAttribute('aria-busy');
+		});
 	}
 
 	document.addEventListener('pw-drawer-open', function(e) {
-		if(!e.detail || !e.detail.first) return;
-		if(e.detail.name === 'tree') buildTree(false);
-		if(e.detail.name === 'history') loadHistory();
+		if(!e.detail) return;
+		if(e.detail.name === 'tree' && e.detail.first) buildTree(false);
+		// no table yet: the first open, or a reopen after a failed fetch
+		if(e.detail.name === 'history' && (e.detail.first || !history.loaded)) loadHistory();
 	});
 
 	// back in this tab: what other tabs changed (main.js setupTabFocus)

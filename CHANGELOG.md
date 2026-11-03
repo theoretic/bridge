@@ -5,6 +5,7 @@
 - **History keys without request-only parameters**: `?reset=`, `?login=` and `?uninstalled=` (the modules screen after a refresh, a field list reached from login) no longer make a second entry for the same screen.
 - **The current screen in the history drawer follows `___historyEntry()`**: the row marked as current is the key the hook returns for the running Process, so a hook that rewrites `url` keeps the mark; the plain URL when the screen records nothing.
 - **Same-named rows in the history drawer carry their URL**: each name link's `title` is its admin-relative key, so two pages called "Home" can be told apart.
+- **A failed history fetch is retried**: when the drawer's first fetch failed (the alert sentence), opening it again fetches again instead of keeping the alert for the rest of the page; the drawer body is `aria-busy` while a fetch runs.
 
 ## AdminThemeBridge 0.25.0: the page tree on every screen, the history of visited screens (2026-11-02)
 

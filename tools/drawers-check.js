@@ -270,6 +270,35 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		check('D the table has a caption and a header row', await page.evaluate((h) => !!document.querySelector(h + 'table.pw-history caption') && document.querySelectorAll(h + 'table.pw-history thead th').length === 3, H));
 		await page.keyboard.press('Escape');
 	}
+	// D (0.26.0): a failed first fetch shows the alert and the next open retries, once
+	{
+		let sent = 0;
+		const onReq = r => { if(r.url().includes('bridgeHistory=1')) sent++; };
+		const abort = route => route.abort();
+		// the aborted fetch is provoked here (Chromium logs it as a failed resource)
+		consoleErrors.ignore(/Failed to load resource: net::ERR_FAILED .*bridgeHistory=1/);
+		await page.route('**/*bridgeHistory=1*', abort);
+		await open('setup/field/');
+		page.on('request', onReq);
+		await openHistory();
+		const failed = await page.evaluate((h) => {
+			const p = document.querySelector(h + '.pw-drawer-body > p.pw-history-empty[role="alert"]');
+			return { alert: !!p, text: p ? p.textContent : '', table: !!document.querySelector(h + 'table.pw-history'), busy: document.querySelector(h + '.pw-drawer-body').getAttribute('aria-busy') };
+		}, H);
+		check('D a failed first fetch: the alert sentence, no table, aria-busy gone', failed.alert && failed.text !== '' && !failed.table && failed.busy === null && sent === 1, JSON.stringify(failed) + ' sent ' + sent);
+		await page.keyboard.press('Escape');
+		await page.unroute('**/*bridgeHistory=1*', abort);
+		await openHistory();
+		for(let t = 0; t < 5000 && !(await page.locator(H + 'table.pw-history').count()); t += 200) await page.waitForTimeout(200);
+		const retried = await page.evaluate((h) => ({ table: !!document.querySelector(h + 'table.pw-history'), alert: !!document.querySelector(h + '[role="alert"]') }), H);
+		check('D a reopen after the failure retries: the table, one more request', retried.table && !retried.alert && sent === 2, JSON.stringify(retried) + ' sent ' + sent);
+		await page.keyboard.press('Escape');
+		await page.click('[data-pw-drawer="history"]');
+		await page.waitForTimeout(600);
+		check('D a third open, once loaded, sends nothing', sent === 2, 'sent ' + sent);
+		await page.keyboard.press('Escape');
+		page.off('request', onReq);
+	}
 
 	// E: two tabs of one user; the tab that gets the focus back refreshes both drawers
 	{
