@@ -50,6 +50,8 @@ export type Mover = {
 const FIELD = CORE_FIELD;
 const ITEM = 'li.InputfieldFileItem, li.gridImage:not(.gridImagePlaceholder):not(.gridImageUploading)';
 const STATES = ['pw-drop-ok', 'pw-drop-partial', 'pw-drop-no'];
+/** a closed tab with content (not the View link, not Delete, which hides the save buttons) */
+const TAB = 'ul.WireTabs a[role="tab"]:not(.on):not(#_ProcessPageEditDelete)';
 
 const contentOf = (field: Element): Element | null => field.querySelector(':scope > .InputfieldContent');
 const listOf = (field: Element): HTMLElement | null => {
@@ -200,9 +202,14 @@ export function mover(src: HTMLElement, list: HTMLElement): Mover {
 	let state: State = 'no';
 	let rows: Row[] = [];
 	let spring = 0;
+	// a WireTab header under the pointer: it opens after the same wait as a collapsed field (0.26.0)
+	let tab: HTMLElement | null = null;
+	let tabSpring = 0;
 
 	const unmark = (): void => {
 		window.clearTimeout(spring);
+		window.clearTimeout(tabSpring);
+		tab = null;
 		if (current) current.classList.remove(...STATES);
 		if (placeholder) placeholder.remove();
 		placeholder = null;
@@ -266,6 +273,14 @@ export function mover(src: HTMLElement, list: HTMLElement): Mover {
 			unmark();
 			current = field;
 			if (field && field.classList.contains('InputfieldStateCollapsed')) spring = window.setTimeout(() => openField(field as HTMLElement), 600);
+		}
+		// after unmark(): a field left for the header must not cancel the header's wait
+		const header = under ? under.closest<HTMLElement>(TAB) : null;
+		if (header !== tab) {
+			window.clearTimeout(tabSpring);
+			tab = header;
+			// clicked as a user would: the cookie, pw-wiretabs-change and an AJAX tab's load follow
+			if (header) tabSpring = window.setTimeout(() => { if (tab === header && header.isConnected) header.click(); }, 600);
 		}
 		if (!current) { ghost.removeAttribute('data-pw-drop'); rows = []; state = 'no'; return true; }
 		const usable = !current.classList.contains('InputfieldRenderValueMode') && !!listOf(current) && !!uploadOf(current)

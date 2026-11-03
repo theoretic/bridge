@@ -148,6 +148,23 @@ export function setupFormEvents(): void {
 	};
 	document.addEventListener('dragover', keepFile);
 	document.addEventListener('drop', keepFile);
+	// held over a closed tab's header for 600 ms, they open that tab (0.26.0; moves between
+	// fields do the same, fields/files-move.ts)
+	let tab: HTMLElement | null = null;
+	let tabTimer = 0;
+	const tabAt = (header: HTMLElement | null): void => {
+		if (header === tab) return;
+		window.clearTimeout(tabTimer);
+		tab = header;
+		if (header) tabTimer = window.setTimeout(() => { if (tab === header) header.click(); }, 600);
+	};
+	// capture: a field's drop zone stops its dragover, and the header's wait must end there
+	document.addEventListener('dragover', e => {
+		tabAt(draggingFiles(e) ? (e.target as Element)?.closest?.<HTMLElement>('ul.WireTabs a[role="tab"]:not(.on):not(#_ProcessPageEditDelete)') || null : null);
+	}, true);
+	document.addEventListener('dragleave', e => { if (!e.relatedTarget) tabAt(null); });
+	document.addEventListener('drop', () => tabAt(null));
+	document.addEventListener('dragend', () => tabAt(null));
 
 	// invalid controls: 'invalid' does not bubble, so listen in the capture phase
 	document.addEventListener('invalid', e => {

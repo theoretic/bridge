@@ -506,6 +506,82 @@ const PNG = makePng(48, 32, [40, 120, 220]);
 	const nU = await allNames();
 	check('U the endpoint moves back, the fixture is as before', u1.ok && u2.ok && u3.ok && JSON.stringify(nU) === JSON.stringify(n0), JSON.stringify({ n0, nU }));
 	check('U the endpoint refuses a txt for an image field', !u4.ok && u4.errors.length === 1 && /txt/.test(u4.errors[0].message), JSON.stringify(u4));
+
+	// V (0.26.0): a closed tab's header opens under a drag held on it for 600 ms (bf_tab "Extra"
+	// holds bf_tab_files, tools/sandbox-fixture.php); files from the desktop do the same
+	{
+		const HEAD = '#_Inputfield_bf_tab';
+		const TABF = '#wrap_Inputfield_bf_tab_files';
+		const tabOn = () => page.evaluate(([h, c]) => document.querySelector(h).classList.contains('on') && getComputedStyle(document.querySelector(c)).display !== 'none', [HEAD, '#Inputfield_bf_tab']);
+		const centre = async (sel) => { const b = await (await page.$(sel)).boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+		const press = async (sel) => {
+			const a = await (await page.$(sel)).boundingBox();
+			await page.mouse.move(a.x + a.width * 0.6, a.y + a.height / 2);
+			await page.mouse.down();
+			await page.mouse.move(a.x + a.width * 0.6 + 10, a.y + a.height / 2 + 10, { steps: 3 });
+		};
+		await open(NATIVE);
+		await page.evaluate(() => window.scrollTo(0, 0));
+		const vFiles = await fieldNames(FILES);
+		const vTab = await fieldNames(TABF);
+		await page.evaluate(() => { window.__moved = []; document.addEventListener('pw-files-moved', e => { window.__moved.push(e.target.id); }); });
+		// crossing: 300 ms on the header, then away; Esc ends the drag
+		await press(row(1) + ' .InputfieldFileInfo');
+		const h = await centre(HEAD);
+		await page.mouse.move(h.x, h.y, { steps: 12 });
+		await page.mouse.move(h.x + 2, h.y + 1);
+		await page.waitForTimeout(300);
+		const d = await centre(DOCS + ' > .InputfieldContent');
+		await page.mouse.move(d.x, d.y, { steps: 6 });
+		await page.waitForTimeout(700);
+		const crossed = await tabOn();
+		await page.keyboard.press('Escape');
+		await page.mouse.up();
+		await settled();
+		check('V a drag that leaves a tab header within 600 ms does not open the tab', !crossed && JSON.stringify(await fieldNames(FILES)) === JSON.stringify(vFiles));
+		// held: the tab opens, the drag goes on to a field there
+		await page.evaluate(() => window.scrollTo(0, 0));
+		await press(row(1) + ' .InputfieldFileInfo');
+		await page.mouse.move(h.x, h.y, { steps: 12 });
+		await page.mouse.move(h.x + 2, h.y + 1);
+		await page.waitForTimeout(800);
+		const opened = await tabOn();
+		const during = await page.evaluate(() => ({ ghost: !!document.querySelector('.pw-drag-ghost') }));
+		const t = await centre(TABF + ' > .InputfieldContent');
+		await page.mouse.move(t.x, t.y, { steps: 12 });
+		await page.waitForTimeout(400);
+		await page.mouse.move(t.x + 3, t.y + 3, { steps: 2 });
+		await page.waitForTimeout(200);
+		const ring = await page.evaluate((s) => document.querySelector(s).classList.contains('pw-drop-ok'), TABF);
+		await page.mouse.up();
+		await settled();
+		check('V a drag held on a closed tab\'s header opens that tab, the ghost still follows', opened && during.ghost, JSON.stringify({ opened, during }));
+		const vAfter = { files: await fieldNames(FILES), tab: await fieldNames(TABF) };
+		check('V the drop on a field of the opened tab moves the file there', ring && vAfter.tab.indexOf(vFiles[0]) > -1 && vAfter.files.indexOf(vFiles[0]) < 0
+			&& await page.evaluate(() => window.__moved.join()) === 'wrap_Inputfield_bf_files,wrap_Inputfield_bf_tab_files', JSON.stringify({ ring, vFiles, vTab, vAfter, moved: await page.evaluate(() => window.__moved.join()) }));
+		const vBack = await apiMove('bf_tab_files', 'bf_files', [vFiles[0]], 0, '', { description: '' });
+		// files from the desktop: dragover events carrying a file
+		await open(NATIVE);
+		const osDrag = (sel, ms) => page.evaluate(async ([sel, ms]) => {
+			const dt = new DataTransfer();
+			dt.items.add(new File(['x'], 'x.txt', { type: 'text/plain' }));
+			const el = document.querySelector(sel);
+			for(let t = 0; t < ms; t += 100) {
+				el.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+				await new Promise(r => setTimeout(r, 100));
+			}
+		}, [sel, ms]);
+		await osDrag(HEAD, 300);
+		await osDrag('#Inputfield_title', 700);
+		const osCrossed = await tabOn();
+		await osDrag(HEAD, 800);
+		const osOpened = await tabOn();
+		await page.evaluate(() => document.dispatchEvent(new DragEvent('drop', { bubbles: true })));
+		check('V files from the desktop open a closed tab held over for 600 ms, not one crossed in 300 ms', !osCrossed && osOpened, JSON.stringify({ osCrossed, osOpened }));
+		await open(NATIVE);
+		check('V the fixture is as before', vBack.ok && JSON.stringify(await fieldNames(FILES)) === JSON.stringify(vFiles)
+			&& JSON.stringify(await fieldNames(TABF)) === JSON.stringify(vTab) && !(await jq()), JSON.stringify({ vBack, files: await fieldNames(FILES), tab: await fieldNames(TABF) }));
+	}
 	await page.setViewportSize({ width: 1300, height: 950 });
 	await open(NATIVE);
 

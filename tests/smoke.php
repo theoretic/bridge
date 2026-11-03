@@ -793,6 +793,9 @@ if(isset($bridge) && $bridge) {
 	check('sortable: groups travel together, a handler may take the drag outside', strpos($sortableSrc, 'group?: (item: HTMLElement) => HTMLElement[]') !== false && strpos($sortableSrc, 'outside?: (item: HTMLElement') !== false && strpos($sortableSrc, 'export function edgeScroll(') !== false);
 	check('file and image fields select and drag out', strpos((string) @file_get_contents($rt . 'fields/file.ts'), 'export function dragOut(') !== false && strpos((string) @file_get_contents($rt . 'fields/image.ts'), 'dragOut(inputfield, grid)') !== false);
 	$movesSrc = (string) @file_get_contents($rt . 'fields/files-move.ts');
+	check('a file move held on a closed tab header opens it after 600 ms, never Delete (0.26.0)', strpos($movesSrc, "const TAB = 'ul.WireTabs a[role=\"tab\"]:not(.on):not(#_ProcessPageEditDelete)';") !== false
+		&& strpos($movesSrc, 'header.click(); }, 600)') !== false);
+	check('files from the desktop held on a closed tab header open it (0.26.0)', strpos((string) @file_get_contents($rt . 'inputfields/forms.ts'), "closest?.<HTMLElement>('ul.WireTabs a[role=\"tab\"]:not(.on):not(#_ProcessPageEditDelete)')") !== false);
 	check('files-move posts bridgeFilesMove, meta as JSON', strpos($movesSrc, "body.append('bridgeFilesMove', '1')") !== false && strpos($movesSrc, "body.append('meta', JSON.stringify(meta))") !== false);
 	check('the page tree\'s moves are their own chunk, loaded with the tree', is_file($rt . 'fields/pagelist-move.ts') && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "import('./pagelist-move')") !== false && strpos((string) @file_get_contents($rt . 'fields/pagelist.ts'), "root, 0, true).then(() => loadMove())") !== false);
 	check('the tree takes an empty sort answer as success', strpos((string) @file_get_contents($rt . 'fields/pagelist-move.ts'), 'if (!text && res.ok) return {};') !== false);
