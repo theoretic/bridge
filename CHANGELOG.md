@@ -6,6 +6,7 @@
 - **The current screen in the history drawer follows `___historyEntry()`**: the row marked as current is the key the hook returns for the running Process, so a hook that rewrites `url` keeps the mark; the plain URL when the screen records nothing.
 - **Same-named rows in the history drawer carry their URL**: each name link's `title` is its admin-relative key, so two pages called "Home" can be told apart.
 - **A failed history fetch is retried**: when the drawer's first fetch failed (the alert sentence), opening it again fetches again instead of keeping the alert for the rest of the page; the drawer body is `aria-busy` while a fetch runs.
+- **The keyboard focus survives a drawer refresh**: when the tab comes back while a drawer is open with the focus inside it, the refreshed history table focuses the same link again (or the one at its place when that row is gone), and the rebuilt tree the same page's row once it is drawn (or its first row); the close button when nothing matches, never the page body.
 
 ## AdminThemeBridge 0.25.0: the page tree on every screen, the history of visited screens (2026-11-02)
 

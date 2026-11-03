@@ -1,6 +1,7 @@
 // Drawers check (tools/drawers-check.js, 0.25.0): the theme's tab-focus bus (pw-tab-focus) that
 // the drawers refresh on (A), the drawer shell (B), the page tree in its drawer (C), the history
-// drawer (D) and two tabs of one user: the tab that gets the focus back refreshes both (E).
+// drawer (D) and two tabs of one user: the tab that gets the focus back refreshes both, a focus
+// inside an open drawer stays on the same link (E, 0.26.0).
 // Needs a Playwright install with its browsers (any project's node_modules/playwright-core).
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
@@ -374,6 +375,62 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			await b.waitForTimeout(800);
 		}
 		await b.close();
+	}
+	// E (0.26.0): the keyboard focus inside an open drawer survives its refresh
+	{
+		const back = (p) => p.evaluate(() => {
+			ProcessWireAdminTheme.tabFocusDelay = 0;
+			window.dispatchEvent(new Event('blur'));
+			window.dispatchEvent(new Event('focus'));
+		});
+		const focusNow = (h) => page.evaluate((h) => {
+			const a = document.activeElement;
+			return { inDrawer: !!(a && a.closest(h)), tag: a ? a.tagName : '', href: a ? a.getAttribute('href') : null, fresh: !!a && !a.__old, close: !!a && a.classList.contains('pw-drawer-close') };
+		}, h);
+		const waitFresh = async (h) => {
+			for(let t = 0; t < 5000; t += 100) {
+				const f = await focusNow(h);
+				if(f.fresh && f.tag !== 'BODY') return f;
+				await page.waitForTimeout(100);
+			}
+			return focusNow(h);
+		};
+		const mark = () => page.evaluate(() => { document.activeElement.__old = true; });
+		await open('setup/field/');
+		await openHistory();
+		for(let i = 0; i < 6 && !(await page.evaluate((h) => !!document.activeElement.closest(h + 'table.pw-history'), H)); i++) await page.keyboard.press('Tab');
+		const before = await focusNow(H);
+		await mark();
+		await back(page);
+		let after = await waitFresh(H);
+		check('E history: a focused row link is focused again after the refresh (same href)', before.inDrawer && before.tag === 'A' && after.fresh && after.href === before.href, JSON.stringify({ before, after }));
+		// the focused row is gone from the next answer: the link at its place takes the focus
+		const idx = await page.evaluate((h) => Array.from(document.querySelectorAll(h + '.pw-drawer-body a')).indexOf(document.activeElement), H);
+		const drop = async (route) => {
+			const r = await route.fetch();
+			const html = (await r.text()).replace(/<tr><td><a [^>]*>[^]*?<\/tr>/g, (tr) => tr.includes("href='" + before.href + "'") ? '' : tr);
+			await route.fulfill({ response: r, body: html });
+		};
+		await page.route('**/*bridgeHistory=1*', drop);
+		await mark();
+		await back(page);
+		after = await waitFresh(H);
+		const placed = await page.evaluate(([h, i]) => Array.from(document.querySelectorAll(h + '.pw-drawer-body a')).indexOf(document.activeElement) === i, [H, idx]);
+		check('E history: the focused row gone, the link at the same place gets the focus', after.fresh && after.tag === 'A' && after.href !== before.href && placed, JSON.stringify({ idx, after }));
+		await page.unroute('**/*bridgeHistory=1*', drop);
+		await page.keyboard.press('Escape');
+
+		const R = '#pw-drawer-tree .PageListID' + TREE + ' > a.PageListPage';
+		await page.click('[data-pw-drawer="tree"]');
+		for(let t = 0; t < 10000 && !(await page.locator(R).count()); t += 200) await page.waitForTimeout(200);
+		await page.focus(R);
+		const tBefore = await focusNow('#pw-drawer-tree');
+		await mark();
+		await back(page);
+		const tAfter = await waitFresh('#pw-drawer-tree');
+		const same = await page.evaluate((r) => document.activeElement === document.querySelector(r), R);
+		check('E tree: the focused row of the branch page is focused again in the rebuilt tree', tBefore.inDrawer && tAfter.fresh && same, JSON.stringify({ tBefore, tAfter }));
+		await page.keyboard.press('Escape');
 	}
 
 	check('no page errors', errors.length === 0, errors.join(' | '));

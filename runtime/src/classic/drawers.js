@@ -18,6 +18,8 @@
  * AdminThemeBridgeHistory), and again on a later open while no table came yet (a failed fetch is
  * retried); aria-busy on its body while a fetch runs. On pw-tab-focus (the user is back in this tab) both drawers that were
  * built once refresh in the background: the history table, and the tree with its open branches.
+ * A keyboard focus inside a body that is refreshed goes back to the same link (the same href, the
+ * same page's row), else the link at its place, else the drawer's close button (0.26.0).
  */
 (function(theme) {
 	'use strict';
@@ -86,11 +88,23 @@
 		var d = dialogOf('tree');
 		var old = d && d.querySelector('.pw-drawer-body [data-pw-tree]');
 		if(!old || old.querySelector('.PageListSorting, .PageListSortSaving')) return false;
-		var body = old.parentNode, top = body.scrollTop;
+		var body = old.parentNode, top = body.scrollTop, a = document.activeElement;
+		var had = old.contains(a), m = had && ((a.closest('.PageListItem') || {}).className || '').match(/PageListID(\d+)/);
 		old.remove();
 		buildTree(true);
 		body.scrollTop = top;
+		if(had) refocusTree(d, body, m ? '.PageListID' + m[1] + ' > a.PageListPage' : 'a.PageListPage', Date.now());
 		return true;
+	}
+
+	// the new tree draws its rows after Bridge.pageTree() resolves: wait for the row, up to 2 s
+	function refocusTree(d, body, sel, t0) {
+		var a = document.activeElement;
+		if(a && a !== document.body && a !== d) return; // the focus went somewhere meanwhile
+		var t = body.querySelector(sel);
+		if(!t && Date.now() - t0 > 2000) t = body.querySelector('a.PageListPage') || d.querySelector('.pw-drawer-close');
+		if(t) t.focus();
+		else requestAnimationFrame(function() { refocusTree(d, body, sel, t0); });
 	}
 
 	var history = { loaded: false, busy: false };
@@ -108,10 +122,15 @@
 			if(!r.ok) throw new Error('HTTP ' + r.status);
 			return r.text();
 		}).then(function(html) {
-			var top = body.scrollTop;
+			var top = body.scrollTop, a = document.activeElement, had = body.contains(a);
+			var i = Array.prototype.indexOf.call(body.querySelectorAll('a'), a), href = had && a.getAttribute('href');
 			body.innerHTML = theme.trusted.html(html);
 			body.scrollTop = top;
 			history.loaded = true;
+			if(!had) return;
+			var links = Array.prototype.slice.call(body.querySelectorAll('a'));
+			var t = links.filter(function(l) { return l.getAttribute('href') === href; })[0] || links[i] || d.querySelector('.pw-drawer-close');
+			t.focus();
 		}).catch(function() {
 			// the last table stays; with none yet, say what happened
 			if(history.loaded) return;
