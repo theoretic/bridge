@@ -97,8 +97,8 @@ test compares the two, and the `hooks` line with the methods the class declares.
 - **reads**: `useLegacyStack`, `componentInfo`, `extensions`, `extensionInfo`, `extensionAllowed`, `cspNonce`, `nonceAttr`, `nonceScriptTag`, `themeAssetUrl`, `getVariant`, `getColorScheme`, `shellLabel`, `getHistorySteps`
 - **settings**: `legacyStack`, `uikit`, `maxWidth`, `variant`, `primaryColor`, `colorScheme`, `logoURL`, `logoURLDark`, `extendedBreadcrumbs`, `pageTreeDrawer`, `history`, `historySteps`, `pageSaveInPlace`, `pageAddSkipTemplate`, `dangerWarn`, `userColors`, `dataTableSortRows`, `printScripts`, `nativeOverrides`
 - **slots**: `head`, `masthead`, `masthead-right`, `user-nav`, `content-head-buttons`, `footer`, `drawer`, `body`
-- **events**: `pw-runtime-ready`, `pw-legacy-loaded`, `pw-legacy-handover`, `pw-uikit-loaded`, `pw-component-loaded`, `pw-component-failed`, `pw-modal-opened`, `pw-modal-closed`, `pw-wiretabs-change`, `pw-tab-focus`, `pw-drawer-open`, `pw-drawer-close`, `pw-page-save`, `pw-page-saved`, `pw-form-save`, `pw-form-saved`, `pw-files-moved`, `opened`, `closed`, `reloaded`, `showIf`, `changed`
-- **runtime**: `contract`, `version`, `Inputfields`, `components`, `dialog`, `legacy`, `tables`, `pageTree`, `sortable`, `confirm`, `guard`
+- **events**: `pw-runtime-ready`, `pw-legacy-loaded`, `pw-legacy-handover`, `pw-uikit-loaded`, `pw-component-loaded`, `pw-component-failed`, `pw-modal-opened`, `pw-modal-closed`, `pw-wiretabs-change`, `pw-tab-focus`, `pw-drawer-open`, `pw-drawer-close`, `pw-page-save`, `pw-page-saved`, `pw-form-save`, `pw-form-saved`, `pw-files-moved`, `pw-extension-loaded`, `pw-extensions-ready`, `opened`, `closed`, `reloaded`, `showIf`, `changed`
+- **runtime**: `contract`, `version`, `Inputfields`, `components`, `dialog`, `legacy`, `tables`, `pageTree`, `sortable`, `confirm`, `guard`, `extensions`
 
 Hooks attach as anywhere in ProcessWire: `$this->addHookAfter('AdminThemeBridge::renderBreadcrumbs', ...)`.
 What each method, event and runtime key does is in `docs/contract.md`. Upstream's own regions
@@ -146,3 +146,33 @@ out; the page renders without it.
 
 Upstream's own regions keep working: `$adminTheme->addExtraMarkup('head'|'masthead'|'body', $html)`
 prints before the slot of the same name.
+
+## 5. Client
+
+The runtime imports each listed extension's `module` (an ES module, as for a component:
+`docs/contract.md` 2) through `Bridge.components.load()`: one registry, the same retry, and on a
+failure the same `pw-component-failed` event and notice. The extensions code is a chunk of its
+own, loaded only on a page whose list is not empty. An extension whose `compatible` is false
+(its `contract` range does not take the theme's) is not imported; its slots are not printed
+either.
+
+- `Bridge.extensions.list()`: the manifests as the theme sent them (`name`, `module`,
+  `contract`, `compatible`, `priority`).
+- `Bridge.extensions.loaded()`: per extension `name`, `url` (the module URL imported last, `null`
+  without one), `tag` and `version` (the module's default export `{ tag, version }`), `error`
+  (the import's error message, `incompatible contract <range>`, or `null`). Empty until the
+  extensions chunk has arrived.
+- `Bridge.extensions.reload(name)`: imports the module again with a fresh `?v=` and fires
+  `pw-extension-loaded` again (the basis of dev mode). A module defines its custom element
+  guarded by `customElements.get()`: a defined element cannot be defined again, so a reload
+  runs the module's other code, not a new class.
+
+Events, on `document`: `pw-extension-loaded` (`detail.name`, `detail.module`: the default
+export, `null` for an extension without a module) per extension once its module is in, and
+`pw-extensions-ready` (`detail.names`) once after all of them, failed ones included. Neither
+fires on a page without extensions.
+
+The bus is DOM events, and no other. An extension listens on `document` for the contract's
+bubbling events (section 3) and dispatches its own as bubbling `CustomEvent`s named
+`pw-<name>-<event>`, `<name>` its name in lower case (`pw-bridgesample-refresh`). It does not
+dispatch the theme's events.

@@ -1905,6 +1905,32 @@ if(isset($bridge)) {
 		}
 	}
 	check('docs/extensions.md section 3 is extensionSurface(), word for word', $docSurface === $surface, json_encode(array_keys($docSurface)));
+	// step 3: the client side (runtime/src/extensions.ts, a chunk of its own)
+	$rtIndex = (string) @file_get_contents($runtimeSrc . 'index.ts');
+	$rtExt = (string) @file_get_contents($runtimeSrc . 'extensions.ts');
+	$bridgeKeys = array();
+	if(preg_match('/\nexport const Bridge = \{\n(.*?)\n\};/s', $rtIndex, $bm)) {
+		preg_match_all('/^\t(\w+)(?:: |\(|,$)/m', $bm[1], $bk);
+		$bridgeKeys = $bk[1];
+	}
+	$rtMissing = array_diff($surface['runtime'], $bridgeKeys);
+	check('extensionSurface() runtime keys are keys of window.Bridge (index.ts)', count($bridgeKeys) > 0 && !count($rtMissing), implode(', ', $rtMissing));
+	check('Bridge.extensions has list(), loaded(), reload()', (bool) preg_match('/\textensions: \{\n\t\tlist: .*\n\t\tloaded: .*\n\t\treload: /', $rtIndex));
+	preg_match_all("/new CustomEvent\('(pw-[\w-]+)'/", $rtExt, $extEvents);
+	check('the extensions chunk fires pw-extension-loaded and pw-extensions-ready, both on the surface', $extEvents[1] === array('pw-extension-loaded', 'pw-extensions-ready')
+		&& !count(array_diff($extEvents[1], $surface['events'])), implode(', ', $extEvents[1]));
+	check('extension modules load through components.load() (one registry, retry, failure notice)', strpos($rtExt, "import { load, loaded as componentsLoaded, ComponentModule } from './components';") !== false && strpos($rtExt, 'import(') === false);
+	check('the runtime imports the extensions chunk only when the page lists extensions', strpos($rtIndex, "if (extensionList().length) importAgain(() => import('./extensions'))") !== false && !preg_match("/^import (?!type )[^\n]*from '\.\/extensions';/m", $rtIndex));
+	check('an incompatible extension is not imported', strpos($rtExt, 'if (!ext.compatible) return Promise.resolve();') !== false);
+	$distRt = $themeDir . 'assets/dist/';
+	$rtBuilt = (string) @file_get_contents($distRt . 'runtime.js');
+	preg_match_all('/from\s*["\']\.\/(chunks\/[^"\']+)["\']/', $rtBuilt, $rtStatic);
+	foreach($rtStatic[1] as $part) $rtBuilt .= (string) @file_get_contents($distRt . $part);
+	$extChunks = glob($distRt . 'chunks/extensions-*.js') ?: array();
+	$extBuilt = false;
+	foreach($extChunks as $f) if(strpos((string) file_get_contents($f), 'pw-extensions-ready') !== false) $extBuilt = true;
+	check('built: the extensions chunk exists and is not part of the runtime entry', $extBuilt && strpos($rtBuilt, 'pw-extensions-ready') === false && (bool) preg_match('/import\(["\']\.\/extensions-[\w-]+\.js["\']\)/', $rtBuilt));
+	check('docs/extensions.md section 5 documents the client API and the DOM-event bus', strpos($extDoc, "\n## 5. Client\n") !== false && strpos($extDoc, '`Bridge.extensions.reload(name)`') !== false && strpos($extDoc, 'The bus is DOM events, and no other.') !== false);
 	// the client list: signed-in users only; no extension on the sandbox until the bundled ones declare themselves (step 6)
 	$initSrc = (string) file_get_contents($themeDir . 'init.php');
 	check('init.php hands the client the extensions and the contract', strpos($initSrc, "'extensions' => \$adminTheme->extensionsClientConfig(),") !== false && strpos($initSrc, "'extensionContract' => AdminThemeBridge::extensionContract,") !== false);

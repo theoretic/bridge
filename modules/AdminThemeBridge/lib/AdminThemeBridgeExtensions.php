@@ -347,11 +347,12 @@ trait AdminThemeBridgeExtensions {
 				'pw-runtime-ready', 'pw-legacy-loaded', 'pw-legacy-handover', 'pw-uikit-loaded', 'pw-component-loaded',
 				'pw-component-failed', 'pw-modal-opened', 'pw-modal-closed', 'pw-wiretabs-change', 'pw-tab-focus',
 				'pw-drawer-open', 'pw-drawer-close', 'pw-page-save', 'pw-page-saved', 'pw-form-save', 'pw-form-saved',
-				'pw-files-moved', 'opened', 'closed', 'reloaded', 'showIf', 'changed',
+				'pw-files-moved', 'pw-extension-loaded', 'pw-extensions-ready', 'opened', 'closed', 'reloaded', 'showIf',
+				'changed',
 			),
 			'runtime' => array(
 				'contract', 'version', 'Inputfields', 'components', 'dialog', 'legacy', 'tables', 'pageTree', 'sortable',
-				'confirm', 'guard',
+				'confirm', 'guard', 'extensions',
 			),
 		);
 	}

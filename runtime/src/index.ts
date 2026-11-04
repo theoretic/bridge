@@ -18,14 +18,25 @@ import type { AskOptions } from './util/ask';
 import { pwConfig } from './util/pw';
 import { failed } from './util/fail';
 import { importAgain } from './util/retry';
+import type * as ExtensionsChunk from './extensions';
 
 export const version = '1.0.0';
+
+// the extensions chunk, once a page lists extensions (it is not loaded on a page without any)
+let ext: typeof ExtensionsChunk | null = null;
+const extensionList = (): Array<{ name: string }> => pwConfig<{ extensions?: Array<{ name: string }> }>('AdminThemeBridge').extensions || [];
 
 export const Bridge = {
 	version,
 	contract: '1',
 	Inputfields,
 	components: { load: loadComponent, loadFrom: loadComponentsFrom, loaded: loadedComponents },
+	// extension modules (extension contract, docs/extensions.md 5)
+	extensions: {
+		list: () => extensionList().slice(),
+		loaded: () => (ext ? ext.loaded() : []),
+		reload: (name: string): Promise<unknown> => (ext ? ext.reload(name) : Promise.resolve()),
+	},
 	dialog: {
 		open: (url: string, size?: 'small' | 'medium' | 'large' | 'full', options?: DialogOptions) => sharedDialog().open(url, size, options),
 		close: (abort = false) => sharedDialog().close(abort),
@@ -58,6 +69,7 @@ export const Bridge = {
 		Inputfields.init(document);
 		void loadProcess();
 		void loadComponentsFrom(document);
+		if (extensionList().length) importAgain(() => import('./extensions')).then(m => (ext = m).init()).catch(err => failed('extensions', err));
 		observeContent();
 		onLegacyLoaded(() => document.body.classList.add('pw-runtime-passive'));
 		document.body.classList.add('pw-runtime-ready');
