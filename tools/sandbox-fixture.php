@@ -121,8 +121,7 @@ foreach(array('bf_pages_auto', 'bf_page_auto_one') as $name) {
 	if(!$f || $f->get('labelFieldName')) continue;
 	$f->set('labelFieldName', 'title');
 	$fields->save($f);
-	echo "ok   field $name labels by title
-";
+	echo "ok   field $name labels by title\n";
 }
 
 $page = $pages->get('/bridge-fixture/');

@@ -36,7 +36,9 @@ for entry in "${SITES[@]}"; do
 	if up "$port"; then
 		echo "== $site: server already on :$port"
 	else
-		"$PHP" -S "localhost:$port" -t "$HERE/sandbox/$site" "$HERE/tools/router.php" > "$HERE/sandbox/server-$site.log" 2>&1 &
+		# PHP_CLI_SERVER_WORKERS: php -S is single-threaded by default and refuses a parallel
+		# request for a static file (net::ERR_CONNECTION_REFUSED in the browser checks)
+		PHP_CLI_SERVER_WORKERS=4 "$PHP" -S "localhost:$port" -t "$HERE/sandbox/$site" "$HERE/tools/router.php" > "$HERE/sandbox/server-$site.log" 2>&1 &
 		started+=($!)
 		for _ in $(seq 1 20); do up "$port" && break; sleep 0.5; done
 		up "$port" || { echo "== $site: server on :$port did not come up"; failed=$((failed + 1)); continue; }

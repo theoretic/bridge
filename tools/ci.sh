@@ -13,7 +13,9 @@
 #   SKIP       steps to leave out, space separated: lint build smoke browser conformance
 #   PHP        default D:/work/sites/modules/PHP-8.5/php
 # The sandbox server must be running for the browser checks (gate1.sh starts one for its own run
-# when none is). Exit code: the number of failed steps.
+# when none is). Start it with PHP_CLI_SERVER_WORKERS=4: a single-threaded php -S refuses a
+# parallel static-file request, and a browser check then fails on "no console errors"
+# (net::ERR_CONNECTION_REFUSED). Exit code: the number of failed steps.
 #
 # Original work, MIT.
 set -uo pipefail
