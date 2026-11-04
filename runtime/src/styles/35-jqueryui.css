@@ -60,7 +60,13 @@
 .ui-datepicker td a.ui-state-active { background: var(--primary); color: var(--primary-foreground); }
 
 /* menus, autocomplete, progress, tooltips */
+/* z-index (0.26.1): the menu hangs off <body> (native port and jQuery UI both), and upstream themes
+ * lift it with `.ui-front{z-index:100}`, which Bridge never had. Without it the menu sat under any
+ * stacking context it overlapped, like `.InputfieldRepeater{z-index:1}`: the suggestions showed but
+ * a click hit the repeater, so nothing was picked or saved. The popup level keeps it under the
+ * sticky masthead and the drawers. */
 .ui-menu.ui-autocomplete, .ui-autocomplete {
+	z-index: var(--pw-z-popup);
 	padding: 4px;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
