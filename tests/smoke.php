@@ -1948,9 +1948,19 @@ if(isset($bridge)) {
 		$wire->users->setCurrentUser($eu);
 		$extList = $bridge->extensionsClientConfig();
 		$wire->users->setCurrentUser($guest);
-		// BridgeDemo requires the theme but declares no manifest until step 6; BridgeSample (step 4) does
-		check('the sandbox lists BridgeSample alone, with its module URL and compatible', array_column($extList, 'name') === array('BridgeSample')
-			&& $extList[0]['module'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.mjs?v=0.1.0' && $extList[0]['compatible'] === true, json_encode($extList));
+		// the three bundled extensions (step 6): BridgeCsp by its 'bridge' info key, ProcessBridgeDemo and BridgeSample by the interface; ties by class name
+		$extByName = array_column($extList, null, 'name');
+		check('the sandbox lists the three bundled extensions, compatible, with their module URLs', array_column($extList, 'name') === array('BridgeCsp', 'BridgeSample', 'ProcessBridgeDemo')
+			&& count(array_filter(array_column($extList, 'compatible'))) === 3
+			&& $extByName['BridgeCsp']['module'] === ''
+			&& $extByName['BridgeSample']['module'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.mjs?v=0.1.0'
+			&& $extByName['ProcessBridgeDemo']['module'] === $config->urls->siteModules . 'BridgeDemo/ProcessBridgeDemo.mjs?v=' . $modules->getModuleInfoProperty('ProcessBridgeDemo', 'version'), json_encode($extList));
+		$cspExt = $modules->getModuleInfo('BridgeCsp');
+		check('BridgeCsp declares itself by the bridge info key: hooks nonce, reads useLegacyStack', isset($cspExt['bridge']) && $cspExt['bridge']['hooks'] === array('nonce') && $cspExt['bridge']['reads'] === array('useLegacyStack')
+			&& !in_array('AdminThemeBridge', (array) $modules->getModuleInfoProperty('BridgeCsp', 'requires'), true));
+		check('ProcessBridgeDemo is a component and an extension (reads nonceAttr, page-edit)', is_subclass_of(__NAMESPACE__ . '\ProcessBridgeDemo', __NAMESPACE__ . '\BridgeExtension')
+			&& is_subclass_of(__NAMESPACE__ . '\ProcessBridgeDemo', __NAMESPACE__ . '\BridgeComponent')
+			&& isset($bridge->extensions()['ProcessBridgeDemo']) && $bridge->extensions()['ProcessBridgeDemo']['reads'] === array('nonceAttr') && $bridge->extensions()['ProcessBridgeDemo']['permission'] === 'page-edit');
 	}
 	$probe = $bridge->extensionInfo('ProcessBridgeDemo', array('contract' => '^0.1', 'module' => 'x.mjs', 'priority' => '7', 'slots' => array('footer' => 'f', 3 => 'g'), 'hooks' => array('nonce', 'nonce', ''), 'oops' => 1));
 	check('extensionInfo() normalises a manifest', $probe['name'] === 'ProcessBridgeDemo' && $probe['compatible'] === true && $probe['priority'] === 7 && $probe['slots'] === array('footer' => 'f')

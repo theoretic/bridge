@@ -151,7 +151,7 @@ function rawManifest(Modules $modules, $name) {
 	if(!$class || !class_exists($class, false)) $modules->includeModule($name);
 	$class = $modules->getModuleClass($name, true);
 	if($class && class_exists($class) && is_subclass_of($class, __NAMESPACE__ . '\\BridgeExtension')) {
-		$module = $modules->get($name);
+		$module = $modules->getModule($name, array('noPermissionCheck' => true));
 		if($module instanceof BridgeExtension) {
 			$manifest = $module->getBridgeExtension();
 			return is_array($manifest) ? $manifest : array('(not an array)' => gettype($manifest));
@@ -181,7 +181,7 @@ if($json) {
 	$out = array();
 	foreach($checked as $name => $manifest) {
 		$info = $theme->extensionInfo($name, $manifest);
-		$module = $modules->get($name);
+		$module = $modules->getModule($name, array('noPermissionCheck' => true));
 		$filled = array();
 		foreach($info['slots'] as $slot => $method) {
 			try {
@@ -275,7 +275,7 @@ foreach($checked as $name => $manifest) {
 	}
 
 	// slots: known, methods there, the right type back
-	$module = $modules->get($name);
+	$module = $modules->getModule($name, array('noPermissionCheck' => true));
 	if(isset($manifest['slots'])) {
 		if(!is_array($manifest['slots'])) check("$ext: slots is an array slot => method", false, gettype($manifest['slots']));
 		foreach((array) $manifest['slots'] as $slot => $method) {
@@ -595,7 +595,7 @@ if($http && count($checked)) {
 				$ext = $info['name'];
 				$entity = $wire->sanitizer->entities($ext);
 				check("$ext: in ProcessWire.config.AdminThemeBridge.extensions on the page tree", strpos($r['body'], '"name":' . json_encode($ext, JSON_UNESCAPED_SLASHES)) !== false);
-				$module = $modules->get($name);
+				$module = $modules->getModule($name, array('noPermissionCheck' => true));
 				foreach($info['slots'] as $slot => $method) {
 					if(!isset($slotTags[$slot]) || $slot === 'head') continue; // head parts carry no wrapper
 					try {
@@ -633,7 +633,7 @@ foreach($checked as $name => $manifest) {
 	if(!is_file($file)) continue;
 	note("\n== $name.check.php");
 	try {
-		extensionOwnChecks($file, $wire, $modules->get($name));
+		extensionOwnChecks($file, $wire, $modules->getModule($name, array('noPermissionCheck' => true)));
 	} catch(\Throwable $e) {
 		check("$name.check.php runs", false, get_class($e) . ': ' . $e->getMessage());
 	}

@@ -11,6 +11,16 @@ if(!interface_exists("ProcessWire\\BridgeComponent", false)) {
 	}
 	unset($bridgeComponentFile);
 }
+// the same for the extension interface (docs/extensions.md 2)
+if(!interface_exists("ProcessWire\\BridgeExtension", false)) {
+	$bridgeExtensionFile = dirname(__DIR__) . '/AdminThemeBridge/BridgeExtension.php';
+	if(is_file($bridgeExtensionFile)) {
+		require_once($bridgeExtensionFile);
+	} else {
+		interface BridgeExtension { public function getBridgeExtension(); }
+	}
+	unset($bridgeExtensionFile);
+}
 
 /**
  * ProcessBridgeDemo
@@ -22,12 +32,12 @@ if(!interface_exists("ProcessWire\\BridgeComponent", false)) {
  *
  * Original work, MIT. Demo and test fixture, not for production sites.
  */
-class ProcessBridgeDemo extends Process implements Module, BridgeComponent {
+class ProcessBridgeDemo extends Process implements Module, BridgeComponent, BridgeExtension {
 
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge demo',
-			'version' => '0.2.0',
+			'version' => '0.3.0',
 			'summary' => 'Test page for AdminThemeBridge: a Process without jQuery, with lazy-loaded legacy field.',
 			'author' => 'Alexei Tarasov',
 			'permission' => 'page-edit',
@@ -44,6 +54,22 @@ class ProcessBridgeDemo extends Process implements Module, BridgeComponent {
 
 	public function getBridgeComponent() {
 		return array('tag' => 'pw-bridge-demo', 'module' => 'ProcessBridgeDemo.mjs', 'version' => '1');
+	}
+
+	/**
+	 * The extension manifest (docs/extensions.md 2): the same module, on every admin page for users
+	 * who may edit pages; ___executeCsp() reads the theme's nonceAttr()
+	 *
+	 * @return array
+	 *
+	 */
+	public function getBridgeExtension() {
+		return array(
+			'contract' => '^0.1',
+			'module' => 'ProcessBridgeDemo.mjs',
+			'reads' => array('nonceAttr'),
+			'permission' => 'page-edit',
+		);
 	}
 
 	public function ___execute() {

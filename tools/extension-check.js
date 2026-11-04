@@ -107,6 +107,8 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			check(`${name}: slot ${slot}: the custom elements in it are defined`, parts.undef === 0, parts.undef);
 		}
 		if(m.module) {
+			// the exported tag need not be a custom element (a Process component's is its own name)
+			const definedBefore = !!(state.loaded && state.loaded.tag) && await page.evaluate((tag) => !!customElements.get(tag), state.loaded.tag);
 			const reloaded = await page.evaluate(async (name) => {
 				const before = window.__extLoaded.filter(d => d.name === name).length;
 				let error = '';
@@ -115,7 +117,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 				return { fired: window.__extLoaded.filter(d => d.name === name).length - before, error, loaded };
 			}, name);
 			check(`${name}: reload() fires pw-extension-loaded again, no error`, reloaded.fired === 1 && reloaded.error === '' && reloaded.loaded && reloaded.loaded.error === null, JSON.stringify(reloaded));
-			if(state.loaded && state.loaded.tag) {
+			if(definedBefore) {
 				check(`${name}: ${state.loaded.tag} still defined after reload()`, await page.evaluate((tag) => !!customElements.get(tag), state.loaded.tag));
 			}
 		}

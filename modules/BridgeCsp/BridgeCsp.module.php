@@ -33,7 +33,7 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge CSP',
-			'version' => '0.1.2',
+			'version' => '0.1.3',
 			'summary' => 'Nonce-based Content-Security-Policy and Trusted Types for the Bridge admin (report-only or enforced).',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -41,6 +41,12 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 			'requires' => 'ProcessWire>=3.0.227, PHP>=8.1',
 			'icon' => 'shield',
 			'href' => 'https://github.com/theoretic/bridge',
+			// Bridge extension manifest (docs/extensions.md 2), declarative: no dependency on the theme
+			'bridge' => array(
+				'contract' => '^0.1',
+				'hooks' => array('nonce'),
+				'reads' => array('useLegacyStack'),
+			),
 		);
 	}
 

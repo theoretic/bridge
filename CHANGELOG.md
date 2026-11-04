@@ -1,5 +1,11 @@
 # Changelog
 
+## AdminThemeBridge 0.27.0: the extension kit (unreleased)
+
+Work in progress on the branch `sprint/extension-kit`; this entry is completed at the release.
+
+- **The bundled modules declare themselves as extensions** (`docs/extensions.md` 7). Bridge CSP 0.1.3 gives its manifest as the `bridge` module info key (contract `^0.1`, hooks `nonce`, reads `useLegacyStack`), so it still does not require the theme. ProcessBridgeDemo 0.3.0 implements `BridgeExtension` next to `BridgeComponent` (contract `^0.1`, its `ProcessBridgeDemo.mjs`, reads `nonceAttr`, permission `page-edit`): the runtime now imports that module on every admin page for users who may edit pages, not only on Setup > Bridge demo. Behaviour of both otherwise unchanged. `tools/extension-check.php` gets the module it checks without the permission check (a Process extension failed in the command line, where the user is a guest).
+
 ## AdminThemeBridge 0.26.1: a picked page shows and saves in a repeater (2026-11-04)
 
 User report: in 0.24.1 a page autocomplete (InputfieldPageAutocomplete) answered the search with the right pages, but the pick did not show in the field and was not saved.
