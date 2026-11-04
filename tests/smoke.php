@@ -1217,7 +1217,7 @@ if(is_file($cspFile) && $modules->isInstalled('BridgeCsp')) {
 		&& strpos($cspSrc, "addHookAfter('ProcessController::execute', \$this, 'sendPolicy')") !== false);
 	check('SE6 BridgeCsp adds its policy next to a site\'s own, never in its place', strpos((string) file_get_contents($cspFile), 'header("$name: $policy", false);') !== false);
 	check('CSP the sandbox installs BridgeCsp and junctions it', strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-admin.php'), "'BridgeCsp'") !== false
-		&& strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-site.sh'), 'for m in AdminThemeBridge BridgeDemo BridgeCsp; do') !== false);
+		&& strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-site.sh'), 'for m in AdminThemeBridge BridgeDemo BridgeCsp BridgeSample; do') !== false);
 } else {
 	check('BridgeCsp is installed in this sandbox (tools/sandbox-csp.php installs it)', false);
 }
@@ -1296,6 +1296,11 @@ if(isset($bridge) && $bridge) {
 		$wire->users->setCurrentUser($su);
 		$loggedInWas = $loggedIn->getValue($bridge);
 		$loggedIn->setValue($bridge, true);
+		// the theme's own drawers: no extension's (BridgeSample is installed on the sandbox, 0.27.0)
+		$drawerExtList = new \ReflectionProperty($bridge, 'extensionsList');
+		$drawerSlotCache = new \ReflectionProperty($bridge, 'slotPartsCache');
+		$drawerExtList->setValue($bridge, array());
+		$drawerSlotCache->setValue($bridge, array());
 		$settingsWas = array($bridge->pageTreeDrawer, $bridge->history);
 		$bridge->set('pageTreeDrawer', 1);
 		$bridge->set('history', 1);
@@ -1360,6 +1365,8 @@ if(isset($bridge) && $bridge) {
 		$bridge->set('history', $settingsWas[1]);
 		$loggedIn->setValue($bridge, $loggedInWas);
 		$wire->users->setCurrentUser($guest);
+		$drawerExtList->setValue($bridge, null);
+		$drawerSlotCache->setValue($bridge, array());
 	}
 	$headSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php');
 	check('the drawers script is printed where a drawer is, deferred', strpos($headSrc, "if(count(\$this->drawerNames())) \$print[] = \$this->themeAssetUrl('scripts/drawers.js');") !== false
@@ -1941,7 +1948,9 @@ if(isset($bridge)) {
 		$wire->users->setCurrentUser($eu);
 		$extList = $bridge->extensionsClientConfig();
 		$wire->users->setCurrentUser($guest);
-		check('the sandbox has no extension yet: BridgeDemo requires the theme but declares no manifest', $extList === array(), json_encode($extList));
+		// BridgeDemo requires the theme but declares no manifest until step 6; BridgeSample (step 4) does
+		check('the sandbox lists BridgeSample alone, with its module URL and compatible', array_column($extList, 'name') === array('BridgeSample')
+			&& $extList[0]['module'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.mjs?v=0.1.0' && $extList[0]['compatible'] === true, json_encode($extList));
 	}
 	$probe = $bridge->extensionInfo('ProcessBridgeDemo', array('contract' => '^0.1', 'module' => 'x.mjs', 'priority' => '7', 'slots' => array('footer' => 'f', 3 => 'g'), 'hooks' => array('nonce', 'nonce', ''), 'oops' => 1));
 	check('extensionInfo() normalises a manifest', $probe['name'] === 'ProcessBridgeDemo' && $probe['compatible'] === true && $probe['priority'] === 7 && $probe['slots'] === array('footer' => 'f')
@@ -1970,6 +1979,8 @@ if(isset($bridge) && $bridge) {
 		$extModules->setValue($bridge, array());
 		$slotCache->setValue($bridge, array());
 	};
+	// a guest, with BridgeSample installed (0.27.0): still nothing
+	$resetSlots();
 	$empty = '';
 	foreach($slotNames as $s) $empty .= $bridge->renderSlot($s);
 	check('a guest gets no slot markup', $empty === '' && $bridge->extensionDrawers() === array());
@@ -1979,6 +1990,7 @@ if(isset($bridge) && $bridge) {
 		$loggedInWas = $loggedIn->getValue($bridge);
 		$loggedIn->setValue($bridge, true);
 		$resetSlots();
+		$extList->setValue($bridge, array());
 		$empty = '';
 		foreach($slotNames as $s) $empty .= $bridge->renderSlot($s);
 		check('signed in, with no extension filling a slot, no slot markup at all (no empty wrappers)', $empty === '' && $bridge->extensionDrawers() === array()
@@ -2052,6 +2064,71 @@ if(isset($bridge) && $bridge) {
 		$loggedIn->setValue($bridge, $loggedInWas);
 		$resetSlots();
 	}
+}
+// 0.27.0: the scaffold and its sample (sprint extension-kit, step 4)
+$scaffold = dirname(__DIR__) . '/tools/scaffold-extension.php';
+$sampleDir = dirname(__DIR__) . '/modules/BridgeSample/';
+$scaffoldSrc = (string) @file_get_contents($scaffold);
+if(isset($bridge) && $bridge && preg_match("/const BRIDGE_SCAFFOLD_SLOTS = array\(([^)]*)\);/", $scaffoldSrc, $sm)) {
+	preg_match_all("/'([\w-]+)'/", $sm[1], $smSlots);
+	check('the scaffold knows the slots of the theme (slotTags())', $smSlots[1] === array_keys($bridge->slotTags()), implode(',', $smSlots[1]));
+} else {
+	check('the scaffold lists its slots in BRIDGE_SCAFFOLD_SLOTS', false);
+}
+$runScaffold = function(array $args) {
+	$proc = proc_open(array_merge(array(PHP_BINARY, dirname(__DIR__) . '/tools/scaffold-extension.php'), $args), array(1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+	$out = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+	fclose($pipes[1]);
+	fclose($pipes[2]);
+	return array(proc_close($proc), $out);
+};
+// the scaffold never drifts from the committed sample: regenerate with the command the sample names
+preg_match('/Generated by: php tools\/scaffold-extension\.php (.+)\n/', (string) @file_get_contents($sampleDir . 'BridgeSample.module.php'), $genCmd);
+$scaffoldTmp = sys_get_temp_dir() . '/bridge-scaffold-' . getmypid();
+@mkdir($scaffoldTmp);
+list($scCode, $scOut) = $runScaffold(array_merge(isset($genCmd[1]) ? explode(' ', trim($genCmd[1])) : array('BridgeSample'), array('--dir=' . $scaffoldTmp)));
+$drift = array();
+$sampleFiles = array_values(array_diff(scandir($sampleDir), array('.', '..')));
+$genFiles = is_dir("$scaffoldTmp/BridgeSample") ? array_values(array_diff(scandir("$scaffoldTmp/BridgeSample"), array('.', '..'))) : array();
+if($sampleFiles !== $genFiles) $drift[] = 'files: ' . implode(',', $genFiles);
+foreach($genFiles as $f) if(@file_get_contents("$scaffoldTmp/BridgeSample/$f") !== @file_get_contents($sampleDir . $f)) $drift[] = $f;
+check('the scaffold regenerates modules/BridgeSample byte for byte', $scCode === 0 && isset($genCmd[1]) && count($sampleFiles) === 4 && !count($drift), "exit $scCode " . implode(', ', $drift));
+list($scCode2, $scOut2) = $runScaffold(array('BridgeSample', '--dir=' . $scaffoldTmp));
+check('the scaffold refuses a directory that exists', $scCode2 === 1 && strpos($scOut2, 'exists') !== false, trim($scOut2));
+list($scCode3) = $runScaffold(array('BridgeOther', '--slots=sidebar', '--dir=' . $scaffoldTmp));
+check('the scaffold refuses an unknown slot and writes nothing', $scCode3 === 1 && !file_exists("$scaffoldTmp/BridgeOther"));
+foreach(array_merge(glob("$scaffoldTmp/*/*") ?: array()) as $f) @unlink($f);
+foreach(glob("$scaffoldTmp/*") ?: array() as $d) @rmdir($d);
+@rmdir($scaffoldTmp);
+$sampleSrc = (string) @file_get_contents($sampleDir . 'BridgeSample.module.php');
+check('BridgeSample requires the theme, loads the interface defensively, contract ^0.1', strpos($sampleSrc, "'requires' => 'AdminThemeBridge',") !== false
+	&& strpos($sampleSrc, 'if(!interface_exists("ProcessWire\\\\BridgeExtension", false)) {') !== false && strpos($sampleSrc, "'contract' => '^0.1',") !== false);
+// the sample fills six slots on the sandbox, signed in (step 2's criterion; step 5's harness repeats it)
+if(isset($bridge) && $bridge && $wire->modules->isInstalled('BridgeSample')) {
+	$su = $wire->users->get('name=bridge');
+	$loggedIn = new \ReflectionProperty($bridge, 'isLoggedIn');
+	$smList = new \ReflectionProperty($bridge, 'extensionsList');
+	$smCache = new \ReflectionProperty($bridge, 'slotPartsCache');
+	$guest = $wire->user;
+	$wire->users->setCurrentUser($su);
+	$loggedInWas = $loggedIn->getValue($bridge);
+	$loggedIn->setValue($bridge, true);
+	$smList->setValue($bridge, null);
+	$smCache->setValue($bridge, array());
+	$tags = $bridge->slotTags();
+	foreach(array('masthead-right', 'user-nav', 'content-head-buttons', 'footer', 'body') as $s) {
+		$part = $bridge->renderSlot($s);
+		check("BridgeSample fills the $s slot", $part === "<{$tags[$s]} data-bridge-slot='$s' data-bridge-extension='BridgeSample'><pw-bridgesample data-slot='$s'>BridgeSample</pw-bridgesample></{$tags[$s]}>", $part);
+	}
+	check('BridgeSample has a drawer, and no head or masthead part', array_keys($bridge->extensionDrawers()) === array('ext-bridgesample')
+		&& strpos($bridge->renderDrawers(), "<div class='pw-drawer-body'><pw-bridgesample data-slot='drawer'>") !== false
+		&& $bridge->renderSlot('head') === '' && $bridge->renderSlot('masthead') === '');
+	$loggedIn->setValue($bridge, $loggedInWas);
+	$wire->users->setCurrentUser($guest);
+	$smList->setValue($bridge, null);
+	$smCache->setValue($bridge, array());
+} else {
+	check('BridgeSample is installed on the sandbox (php tools/sandbox-modules.php <sandbox> BridgeSample)', false);
 }
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

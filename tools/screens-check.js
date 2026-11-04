@@ -206,7 +206,13 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const wide = await ctx.newPage();
 	await wide.setViewportSize({ width: 1100, height: 800 });
 	await wide.goto(ADMIN + 'page/edit/?id=' + NATIVE, { waitUntil: 'networkidle' });
-	const fits = await wide.evaluate(() => document.body.classList.contains('pw-nav-overflow'));
+	// the theme's own bar: extension parts (BridgeSample's masthead-right on the sandbox, 0.27.0) taken out first
+	const fits = await wide.evaluate(async () => {
+		document.querySelectorAll('[data-bridge-extension]').forEach(el => el.remove());
+		window.dispatchEvent(new Event('resize'));
+		await new Promise(r => setTimeout(r, 300));
+		return document.body.classList.contains('pw-nav-overflow');
+	});
 	await wide.evaluate(() => {
 		const list = document.querySelector('.pw-primary-nav');
 		for(let i = 0; i < 8; i++) { const li = document.createElement('li'); li.className = 'pw-nav-item pw-nav-item-top'; const a = document.createElement('a'); a.href = '#'; a.textContent = 'Section with a long name ' + i; li.appendChild(a); list.appendChild(li); }

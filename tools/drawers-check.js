@@ -114,7 +114,8 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		tree: !!document.querySelector('dialog#pw-drawer-tree[open]'),
 		history: !!document.querySelector('dialog#pw-drawer-history[open]'),
 		focus: document.activeElement ? (document.activeElement.closest('dialog.pw-drawer') || {}).id || document.activeElement.getAttribute('data-pw-drawer') || document.activeElement.tagName : '',
-		expanded: Array.from(document.querySelectorAll('[data-pw-drawer]')).map(b => b.getAttribute('aria-expanded')).join(','),
+		// the theme's own two buttons: an extension's drawer (ext-*, BridgeSample on the sandbox) is not counted
+		expanded: Array.from(document.querySelectorAll('[data-pw-drawer]:not([data-pw-drawer^="ext-"])')).map(b => b.getAttribute('aria-expanded')).join(','),
 	}));
 	await page.click('[data-pw-drawer="tree"]');
 	await page.waitForTimeout(300);
