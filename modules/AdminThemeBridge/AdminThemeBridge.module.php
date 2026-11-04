@@ -2,6 +2,7 @@
 
 // a module may have declared the interface already (docs/contract.md 2)
 if(!interface_exists('ProcessWire\\BridgeComponent', false)) require_once(__DIR__ . '/BridgeComponent.php');
+if(!interface_exists('ProcessWire\\BridgeExtension', false)) require_once(__DIR__ . '/BridgeExtension.php');
 // the class, split by job into traits (lib/, audit PA1)
 require_once(__DIR__ . '/lib/AdminThemeBridgeShell.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeHealth.php');
@@ -20,6 +21,7 @@ require_once(__DIR__ . '/lib/AdminThemeBridgeCsp.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeUserColors.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeDrawers.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeHistory.php');
+require_once(__DIR__ . '/lib/AdminThemeBridgeExtensions.php');
 
 /**
  * AdminThemeBridge
@@ -56,6 +58,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	use AdminThemeBridgeUserColors;
 	use AdminThemeBridgeDrawers;
 	use AdminThemeBridgeHistory;
+	use AdminThemeBridgeExtensions;
 
 	public static function getModuleInfo() {
 		return array(
@@ -70,6 +73,13 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			'href' => 'https://github.com/theoretic/bridge',
 		);
 	}
+
+	/**
+	 * Version of the extension contract (BridgeExtension, docs/extensions.md), semver'd apart from
+	 * the module version and from the component contract (`Bridge.contract`). Pre-1.0: may change
+	 *
+	 */
+	const extensionContract = '0.1';
 
 	const legacyAlways = 'always';
 	const legacyAuto = 'auto';
@@ -453,6 +463,14 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * @var array
 	 */
 	protected $otherThemeModules = array();
+
+	/**
+	 * extensions() for this request (null before it is asked)
+	 *
+	 * @var array|null
+	 *
+	 */
+	protected $extensionsList = null;
 
 	/**
 	 * cspNonce() for this request, once asked (null before; ADR 0020)

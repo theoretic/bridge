@@ -114,4 +114,7 @@ $config->js('AdminThemeBridge', array(
 	'legacyStack' => $adminTheme->legacyStack,
 	// the user's display settings in this browser (scripts/main.js prefs; empty for a guest)
 	'prefsKey' => $adminTheme->prefsKey(),
+	// the extensions the client loads, and the contract they are checked against (docs/extensions.md)
+	'extensions' => $adminTheme->extensionsClientConfig(),
+	'extensionContract' => AdminThemeBridge::extensionContract,
 ));

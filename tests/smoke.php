@@ -1860,5 +1860,66 @@ check('a handled Alt+arrow sort does not move a list around it', (bool) preg_mat
 check('file items get the same nonce handling as wrappers', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "addHookAfter('InputfieldFile::renderItem', \$this, 'hookFormRender'") !== false);
 // 0.26.1: the autocomplete menu floats over repeaters (behaviour: tools/autocomplete-check.js e, f)
 check('the autocomplete menu has the popup z-index', strpos($themeCss, '.ui-autocomplete{z-index:var(--pw-z-popup)') !== false);
+// 0.27.0: the extension contract (docs/extensions.md; sprint extension-kit, step 1)
+check('BridgeExtension declares one method, getBridgeExtension()', interface_exists('ProcessWire\\BridgeExtension')
+	&& array_map(function($m) { return $m->getName(); }, (new \ReflectionClass('ProcessWire\\BridgeExtension'))->getMethods()) === array('getBridgeExtension'));
+check('the theme module loads the interface as defensively as BridgeComponent', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "if(!interface_exists('ProcessWire\\\\BridgeExtension', false)) require_once(__DIR__ . '/BridgeExtension.php');") !== false);
+check('extensionContract is a version string (x.y or x.y.z)', (bool) preg_match('/^\d+\.\d+(\.\d+)?$/', AdminThemeBridge::extensionContract), AdminThemeBridge::extensionContract);
+$rangeCases = array(array('^0.1', '0.1', true), array('^0.1', '0.1.9', true), array('^0.1', '0.2', false), array('^1.2', '1.9', true), array('^1.2', '2.0', false),
+	array('~1.2', '1.3', false), array('>=0.1 <1', '0.9', true), array('>=0.1 <1', '1.0', false), array('^1 || ^0.1', '0.1', true), array('*', '3.4.5', true), array('bogus', '0.1', false));
+$rangeBad = array();
+foreach($rangeCases as $c) if(AdminThemeBridge::contractSatisfies($c[0], $c[1]) !== $c[2]) $rangeBad[] = "$c[0] vs $c[1]";
+check('contractSatisfies() reads caret, tilde, comparisons, lists and alternatives', !count($rangeBad), implode(', ', $rangeBad));
+check('contractRangeValid() takes a range and refuses an empty or unreadable one', AdminThemeBridge::contractRangeValid('^0.1') && !AdminThemeBridge::contractRangeValid('') && !AdminThemeBridge::contractRangeValid('soon'));
+if(isset($bridge)) {
+	$surface = $bridge->extensionSurface();
+	$declared = array();
+	foreach((new \ReflectionClass($bridge))->getMethods() as $m) {
+		if(strpos($m->getName(), '___') === 0 && $m->getDeclaringClass()->getName() === get_class($bridge)) $declared[] = substr($m->getName(), 3);
+	}
+	$listed = $surface['hooks'];
+	sort($declared);
+	sort($listed);
+	check('extensionSurface() hooks are every ___ method the theme declares', $declared === $listed, 'missing: ' . implode(',', array_diff($declared, $listed)) . ' extra: ' . implode(',', array_diff($listed, $declared)));
+	check('extensionSurface() contract is extensionContract', $surface['contract'] === AdminThemeBridge::extensionContract);
+	$readsBad = array();
+	foreach($surface['reads'] as $name) {
+		if(!method_exists($bridge, $name) || !(new \ReflectionMethod($bridge, $name))->isPublic() || method_exists($bridge, "___$name")) $readsBad[] = $name;
+	}
+	check('extensionSurface() reads are public, non-hookable theme methods', !count($readsBad), implode(', ', $readsBad));
+	preg_match('/public function __construct\(\) \{(.*?)\n\t\}/s', (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), $ctor);
+	preg_match_all("/\\\$this->set\('(\w+)'/", $ctor[1] ?? '', $ctorKeys);
+	$settings = $surface['settings'];
+	sort($settings);
+	$ctorKeys = $ctorKeys[1];
+	sort($ctorKeys);
+	check('extensionSurface() settings are the keys __construct() sets', count($ctorKeys) > 0 && $settings === $ctorKeys, 'missing: ' . implode(',', array_diff($ctorKeys, $settings)) . ' extra: ' . implode(',', array_diff($settings, $ctorKeys)));
+	// docs that follow the code (BG10): section 3 of docs/extensions.md lists the surface word for word
+	$extDoc = (string) @file_get_contents(dirname(__DIR__) . '/docs/extensions.md');
+	$docSurface = array();
+	if(preg_match('/\n## 3\. The surface\n(.*?)(\n## |$)/s', $extDoc, $sec)) {
+		preg_match_all('/^- \*\*(\w+)\*\*: (.*)$/m', $sec[1], $rows, PREG_SET_ORDER);
+		foreach($rows as $row) {
+			preg_match_all('/`([^`]+)`/', $row[2], $items);
+			$docSurface[$row[1]] = $row[1] === 'contract' ? ($items[1][0] ?? '') : $items[1];
+		}
+	}
+	check('docs/extensions.md section 3 is extensionSurface(), word for word', $docSurface === $surface, json_encode(array_keys($docSurface)));
+	// the client list: signed-in users only; no extension on the sandbox until the bundled ones declare themselves (step 6)
+	$initSrc = (string) file_get_contents($themeDir . 'init.php');
+	check('init.php hands the client the extensions and the contract', strpos($initSrc, "'extensions' => \$adminTheme->extensionsClientConfig(),") !== false && strpos($initSrc, "'extensionContract' => AdminThemeBridge::extensionContract,") !== false);
+	check('a guest gets no extension list', $wire->user->isGuest() && $bridge->extensionsClientConfig() === array());
+	$eu = $wire->users->get('name=bridge');
+	if($eu && $eu->id) {
+		$guest = $wire->user;
+		$wire->users->setCurrentUser($eu);
+		$extList = $bridge->extensionsClientConfig();
+		$wire->users->setCurrentUser($guest);
+		check('the sandbox has no extension yet: BridgeDemo requires the theme but declares no manifest', $extList === array(), json_encode($extList));
+	}
+	$probe = $bridge->extensionInfo('ProcessBridgeDemo', array('contract' => '^0.1', 'module' => 'x.mjs', 'priority' => '7', 'slots' => array('footer' => 'f', 3 => 'g'), 'hooks' => array('nonce', 'nonce', ''), 'oops' => 1));
+	check('extensionInfo() normalises a manifest', $probe['name'] === 'ProcessBridgeDemo' && $probe['compatible'] === true && $probe['priority'] === 7 && $probe['slots'] === array('footer' => 'f')
+		&& $probe['hooks'] === array('nonce') && $probe['unknown'] === array('oops') && $probe['permission'] === '' && $probe['module'] === $config->urls('ProcessBridgeDemo') . 'x.mjs?v=' . $modules->getModuleInfoProperty('ProcessBridgeDemo', 'version'), json_encode($probe));
+}
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);
