@@ -28,6 +28,7 @@ $homeUrl = $adminTheme->isLoggedIn ? $config->urls->admin : $config->urls->root;
 		</nav>
 		<div class='pw-masthead-right'>
 			<?php
+			echo $adminTheme->renderSlot('masthead-right');
 			echo $adminTheme->renderViewControls();
 			echo $adminTheme->renderUserNav();
 			if($adminTheme->isEditor) {
@@ -52,3 +53,4 @@ $homeUrl = $adminTheme->isLoggedIn ? $config->urls->admin : $config->urls->root;
 // on the login screen the notices (a failed login) go into the card, below the mark (_content.php)
 if(!$adminTheme->isLoginScreen()) echo $adminTheme->renderNotices($notices);
 echo $adminTheme->renderExtraMarkup('masthead');
+echo $adminTheme->renderSlot('masthead');

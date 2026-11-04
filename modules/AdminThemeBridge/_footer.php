@@ -25,6 +25,7 @@ if(!defined("PROCESSWIRE")) die();
 			<?php endif; ?>
 		</p>
 		<?php
+		echo $adminTheme->renderSlot('footer');
 		if($adminTheme->isSuperuser && $config->debug) {
 			// upstream's panel without its inline script, a jQuery $(document).ready() that threw where
 			// the legacy stack is not loaded and left the whole panel open below the footer;

@@ -473,6 +473,22 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	protected $extensionsList = null;
 
 	/**
+	 * slotParts() for this request: slot name => (extension name => output)
+	 *
+	 * @var array
+	 *
+	 */
+	protected $slotPartsCache = array();
+
+	/**
+	 * extensionModule() for this request: module class => instance (false: not available)
+	 *
+	 * @var array
+	 *
+	 */
+	protected $extensionModules = array();
+
+	/**
 	 * cspNonce() for this request, once asked (null before; ADR 0020)
 	 *
 	 * @var string|null

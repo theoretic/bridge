@@ -506,7 +506,7 @@ trait AdminThemeBridgeShell {
 			"<ul class='pw-user-nav'><li class='pw-dropdown'>" .
 			"<a id='tools-toggle' class='pw-dropdown-toggle' aria-haspopup='true' aria-expanded='false'$profile>" .
 			$this->renderNavIcon('user') . $name . "</a>" .
-			"<ul class='pw-dropdown-menu' data-my='right top' data-at='right bottom' style='display:none'>$out" . $this->renderColorPicker() . "</ul>" .
+			"<ul class='pw-dropdown-menu' data-my='right top' data-at='right bottom' style='display:none'>$out" . $this->renderSlot('user-nav') . $this->renderColorPicker() . "</ul>" .
 			"</li></ul>";
 	}
 

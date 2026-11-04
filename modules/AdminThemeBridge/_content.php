@@ -22,7 +22,7 @@ if(!defined("PROCESSWIRE")) die();
 	<div id='content' class='pw-content'>
 		<header id='pw-content-head'>
 			<?php if($layout !== 'modal') echo $adminTheme->renderBreadcrumbs(); ?>
-			<div id='pw-content-head-buttons'><?php echo $adminTheme->renderAddNewButton(); ?></div>
+			<div id='pw-content-head-buttons'><?php echo $adminTheme->renderAddNewButton() . $adminTheme->renderSlot('content-head-buttons'); ?></div>
 			<?php
 			if($adminTheme->isLoginScreen()) {
 				// login card: the mark (or the site's logo) as title; the headline stays for screen readers

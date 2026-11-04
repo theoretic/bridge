@@ -1921,5 +1921,111 @@ if(isset($bridge)) {
 	check('extensionInfo() normalises a manifest', $probe['name'] === 'ProcessBridgeDemo' && $probe['compatible'] === true && $probe['priority'] === 7 && $probe['slots'] === array('footer' => 'f')
 		&& $probe['hooks'] === array('nonce') && $probe['unknown'] === array('oops') && $probe['permission'] === '' && $probe['module'] === $config->urls('ProcessBridgeDemo') . 'x.mjs?v=' . $modules->getModuleInfoProperty('ProcessBridgeDemo', 'version'), json_encode($probe));
 }
+// 0.27.0: shell slots (docs/extensions.md 4; sprint extension-kit, step 2)
+$tplSrc = array();
+foreach(array('_main.php', '_masthead.php', '_content.php', '_footer.php', 'lib/AdminThemeBridgeShell.php') as $f) $tplSrc[$f] = (string) file_get_contents($themeDir . $f);
+check('slots in the frame: head and body after upstream\'s extra markup', strpos($tplSrc['_main.php'], "renderExtraMarkup('head'));\n\techo \$adminTheme->renderSlot('head');") !== false
+	&& strpos($tplSrc['_main.php'], "echo \$adminTheme->renderExtraMarkup('body');\n\techo \$adminTheme->renderSlot('body');") !== false);
+check('slots in the masthead: masthead-right before the display controls, masthead after the extra markup', strpos($tplSrc['_masthead.php'], "echo \$adminTheme->renderSlot('masthead-right');\n\t\t\techo \$adminTheme->renderViewControls();") !== false
+	&& strpos($tplSrc['_masthead.php'], "echo \$adminTheme->renderExtraMarkup('masthead');\necho \$adminTheme->renderSlot('masthead');") !== false);
+check('slots in the content head, the footer and the user menu', strpos($tplSrc['_content.php'], "<div id='pw-content-head-buttons'><?php echo \$adminTheme->renderAddNewButton() . \$adminTheme->renderSlot('content-head-buttons'); ?></div>") !== false
+	&& strpos($tplSrc['_footer.php'], "</p>\n\t\t<?php\n\t\techo \$adminTheme->renderSlot('footer');") !== false
+	&& strpos($tplSrc['lib/AdminThemeBridgeShell.php'], "\$out\" . \$this->renderSlot('user-nav') . \$this->renderColorPicker()") !== false);
+if(isset($bridge) && $bridge) {
+	$slotNames = array_keys($bridge->slotTags());
+	check('the surface lists the slots', $bridge->extensionSurface()['slots'] === $slotNames && count($slotNames) === 8);
+	$su = $wire->users->get('name=bridge');
+	$loggedIn = new \ReflectionProperty($bridge, 'isLoggedIn');
+	$extList = new \ReflectionProperty($bridge, 'extensionsList');
+	$extModules = new \ReflectionProperty($bridge, 'extensionModules');
+	$slotCache = new \ReflectionProperty($bridge, 'slotPartsCache');
+	$resetSlots = function() use($bridge, $extList, $extModules, $slotCache) {
+		$extList->setValue($bridge, null);
+		$extModules->setValue($bridge, array());
+		$slotCache->setValue($bridge, array());
+	};
+	$empty = '';
+	foreach($slotNames as $s) $empty .= $bridge->renderSlot($s);
+	check('a guest gets no slot markup', $empty === '' && $bridge->extensionDrawers() === array());
+	if($su && $su->id) {
+		$guest = $wire->user;
+		$wire->users->setCurrentUser($su);
+		$loggedInWas = $loggedIn->getValue($bridge);
+		$loggedIn->setValue($bridge, true);
+		$resetSlots();
+		$empty = '';
+		foreach($slotNames as $s) $empty .= $bridge->renderSlot($s);
+		check('signed in, with no extension filling a slot, no slot markup at all (no empty wrappers)', $empty === '' && $bridge->extensionDrawers() === array()
+			&& strpos($bridge->renderUserNav() . $bridge->renderDrawers(), 'data-bridge-slot') === false);
+		// a probe extension: its manifest normalised as discovery would, its instance in the per-request cache
+		$probeModule = new class extends WireData {
+			public function part($slot) { return "<span class='probe-$slot'>&lt;$slot&gt;</span>"; }
+			public function drawer($slot) { return array('content' => "<p class='probe-drawer'>in</p>", 'label' => 'Probe <b>', 'icon' => 'flask'); }
+			public function nothing($slot) { return null; }
+			public function boom($slot) { throw new WireException('probe slot failure'); }
+			public function wrong($slot) { return 42; }
+		};
+		$probeSlots = array('drawer' => 'drawer');
+		foreach($slotNames as $s) if($s !== 'drawer') $probeSlots[$s] = 'part';
+		$probeInfo = $bridge->extensionInfo('ProcessBridgeDemo', array('name' => 'Probe', 'contract' => '^0.1', 'slots' => $probeSlots));
+		$failInfo = $bridge->extensionInfo('BridgeCsp', array('name' => 'Failing', 'contract' => '^0.1', 'priority' => 50,
+			'slots' => array('footer' => 'boom', 'masthead' => 'missing', 'body' => 'wrong', 'head' => 'nothing')));
+		$oldInfo = $bridge->extensionInfo('InputfieldBridgeText', array('name' => 'Old', 'contract' => '^1.0', 'slots' => array('footer' => 'part')));
+		$setProbe = function(array $infos) use($bridge, $extList, $extModules, $slotCache, $probeModule) {
+			$list = array();
+			$mods = array();
+			foreach($infos as $info) {
+				$list[$info['name']] = $info;
+				$mods[$info['class']] = $probeModule;
+			}
+			$extList->setValue($bridge, $list);
+			$extModules->setValue($bridge, $mods);
+			$slotCache->setValue($bridge, array());
+		};
+		$setProbe(array($failInfo, $probeInfo, $oldInfo));
+		$logFile = $config->paths->logs . 'bridge-extensions.txt';
+		$logWas = is_file($logFile) ? (string) file_get_contents($logFile) : '';
+		$tags = $bridge->slotTags();
+		$slotBad = array();
+		foreach($slotNames as $s) {
+			if($s === 'drawer') continue;
+			$inner = "<span class='probe-$s'>&lt;$s&gt;</span>";
+			$want = $tags[$s] === '' ? $inner : "<{$tags[$s]} data-bridge-slot='$s' data-bridge-extension='Probe'>$inner</{$tags[$s]}>";
+			if($bridge->renderSlot($s) !== $want) $slotBad[] = "$s: " . $bridge->renderSlot($s);
+		}
+		check('each slot prints the extension\'s part in its element (head as given, user-nav an <li>), the failing ones left out', !count($slotBad), implode(' | ', $slotBad));
+		$logNew = substr(is_file($logFile) ? (string) file_get_contents($logFile) : '', strlen($logWas));
+		check('a slot method that throws, is missing or returns a non-string is logged to bridge-extensions; null is not', strpos($logNew, 'Failing: ProcessWire\WireException: probe slot failure') !== false
+			&& strpos($logNew, 'Failing: slot masthead: no method missing()') !== false && strpos($logNew, 'Failing: slot body: wrong() returned integer') !== false
+			&& strpos($logNew, 'nothing') === false, $logNew);
+		check('an extension whose contract range does not take the theme\'s fills no slot', strpos($bridge->renderSlot('footer'), "data-bridge-extension='Old'") === false);
+		$drawers = $bridge->extensionDrawers();
+		check('the drawer slot: a drawer named ext-<name>, its label and icon', array_keys($drawers) === array('ext-probe') && $drawers['ext-probe']['label'] === 'Probe <b>' && $drawers['ext-probe']['icon'] === 'flask');
+		$names = $bridge->drawerNames();
+		$buttons = $bridge->renderDrawerButtons();
+		$dialogs = $bridge->renderDrawers();
+		check('an extension drawer comes after the theme\'s, with its button and dialog, label escaped, body as given', end($names) === 'ext-probe'
+			&& strpos($buttons, "data-pw-drawer='ext-probe' aria-controls='pw-drawer-ext-probe'") !== false && strpos($buttons, 'fa-flask') !== false && strpos($buttons, "aria-label='Probe &lt;b&gt;'") !== false
+			&& strpos($dialogs, "id='pw-drawer-ext-probe' aria-label='Probe &lt;b&gt;' data-pw-drawer-name='ext-probe' data-bridge-slot='drawer' data-bridge-extension='Probe'>") !== false
+			&& strpos($dialogs, "<div class='pw-drawer-body'><p class='probe-drawer'>in</p></div>") !== false, $buttons . $dialogs);
+		$hookId = $bridge->addHookAfter('drawerNames', function(HookEvent $e) { $e->return = array_values(array_diff($e->return, array('ext-probe'))); });
+		check('drawerNames() is hookable: an after hook that drops the drawer drops its button and dialog', strpos($bridge->renderDrawerButtons() . $bridge->renderDrawers(), 'ext-probe') === false);
+		$bridge->removeHook($hookId);
+		$hookId = $bridge->addHookAfter('drawerNames', function(HookEvent $e) { $e->return = array_merge($e->return, array('nowhere')); });
+		check('a drawer name a hook adds with nothing behind it prints no button and no dialog', strpos($bridge->renderDrawerButtons() . $bridge->renderDrawers(), 'nowhere') === false);
+		$bridge->removeHook($hookId);
+		$wire->input->get->modal = 1;
+		$slotCache->setValue($bridge, array());
+		check('in a modal window only head and body', $bridge->renderSlot('footer') === '' && $bridge->renderSlot('user-nav') === '' && $bridge->extensionDrawers() === array()
+			&& $bridge->renderSlot('head') !== '' && $bridge->renderSlot('body') !== '');
+		$wire->input->get->remove('modal');
+		$setProbe(array(array_merge($probeInfo, array('permission' => 'bridge-no-such-permission'))));
+		$wire->users->setCurrentUser($guest);
+		$loggedIn->setValue($bridge, true); // a signed-in user without the permission: the guest role has none
+		check('an extension the user may not have fills no slot', $bridge->renderSlot('footer') === '');
+		$loggedIn->setValue($bridge, $loggedInWas);
+		$resetSlots();
+	}
+}
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

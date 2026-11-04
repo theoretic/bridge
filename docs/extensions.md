@@ -93,10 +93,10 @@ The list below is `AdminThemeBridge::extensionSurface()` (hookable), word for wo
 test compares the two, and the `hooks` line with the methods the class declares.
 
 - **contract**: `0.1`
-- **hooks**: `install`, `uninstall`, `nonce`, `moveFiles`, `moveFileAllowed`, `filesMoved`, `historyEntry`, `nativeMap`, `isNativeProcess`, `isNativeInputfield`, `scriptNeeds`, `renderBreadcrumbs`, `sortableDataTable`, `uikitReasons`, `extensionSurface`
+- **hooks**: `install`, `uninstall`, `nonce`, `moveFiles`, `moveFileAllowed`, `filesMoved`, `historyEntry`, `nativeMap`, `isNativeProcess`, `isNativeInputfield`, `scriptNeeds`, `renderBreadcrumbs`, `sortableDataTable`, `uikitReasons`, `extensionSurface`, `drawerNames`
 - **reads**: `useLegacyStack`, `componentInfo`, `extensions`, `extensionInfo`, `extensionAllowed`, `cspNonce`, `nonceAttr`, `nonceScriptTag`, `themeAssetUrl`, `getVariant`, `getColorScheme`, `shellLabel`, `getHistorySteps`
 - **settings**: `legacyStack`, `uikit`, `maxWidth`, `variant`, `primaryColor`, `colorScheme`, `logoURL`, `logoURLDark`, `extendedBreadcrumbs`, `pageTreeDrawer`, `history`, `historySteps`, `pageSaveInPlace`, `pageAddSkipTemplate`, `dangerWarn`, `userColors`, `dataTableSortRows`, `printScripts`, `nativeOverrides`
-- **slots**: none yet
+- **slots**: `head`, `masthead`, `masthead-right`, `user-nav`, `content-head-buttons`, `footer`, `drawer`, `body`
 - **events**: `pw-runtime-ready`, `pw-legacy-loaded`, `pw-legacy-handover`, `pw-uikit-loaded`, `pw-component-loaded`, `pw-component-failed`, `pw-modal-opened`, `pw-modal-closed`, `pw-wiretabs-change`, `pw-tab-focus`, `pw-drawer-open`, `pw-drawer-close`, `pw-page-save`, `pw-page-saved`, `pw-form-save`, `pw-form-saved`, `pw-files-moved`, `opened`, `closed`, `reloaded`, `showIf`, `changed`
 - **runtime**: `contract`, `version`, `Inputfields`, `components`, `dialog`, `legacy`, `tables`, `pageTree`, `sortable`, `confirm`, `guard`
 
@@ -108,3 +108,41 @@ The contract range: `^x.y` keeps the major version (for `0.y`, the minor one), `
 one; comparisons `>= > <= < =`, all of a space-separated list must hold, `||` separates
 alternatives. `AdminThemeBridge::contractSatisfies($range, $version)` and
 `contractRangeValid($range)` do the same in PHP.
+
+## 4. Slots
+
+A slot is a named place in the shell that extensions fill through their manifest's `slots`:
+slot name => a public method on the module (a hookable `___` method works too). The theme gets
+the module (`$modules->get()`, so it is inited), calls the method with the slot name and prints
+what it returns. The method returns a string of markup it has escaped itself; `null` or `''`
+prints nothing. A slot that nothing fills prints nothing at all, not an empty element.
+
+| Slot | Where it lands | Element per extension |
+|---|---|---|
+| `head` | In `<head>`, after upstream's `head` extra markup | none, printed as given |
+| `masthead` | After the masthead and the notices, after upstream's `masthead` extra markup | `<div>` |
+| `masthead-right` | In the masthead's right group, before the display controls | `<div>` |
+| `user-nav` | In the user menu, after its links, before the colour picker | `<li>` |
+| `content-head-buttons` | In `#pw-content-head-buttons`, after the Add New button | `<div>` |
+| `footer` | In `#pw-footer`, after the version line, before the debug panel | `<div>` |
+| `drawer` | A drawer of its own: a button beside the logo and a `<dialog class='pw-drawer'>` | the dialog |
+| `body` | At the end of `<body>`, after upstream's `body` extra markup, before the scripts | `<div>` |
+
+Each element carries `data-bridge-slot='<slot>'` and `data-bridge-extension='<name>'`. Several
+extensions in one slot come in `priority` order. Slots print for signed-in users only, for the
+extensions they may have (`permission`) and whose `contract` range takes the theme's; in a
+modal window only `head` and `body`. Slots get no CSS of their own: use the `pw-*` classes.
+
+The `drawer` method returns the drawer's body, or an array: `content` (the body), `label`
+(the button's and dialog's name, default the extension's name), `icon` (a Font Awesome name
+without `fa-`, default `puzzle-piece`). Its drawer is named `ext-` and the extension's name in
+lower case (`ext-bridgesample`: `dialog#pw-drawer-ext-bridgesample`); it opens and closes as the
+theme's own drawers do and fires the same `pw-drawer-open` / `pw-drawer-close` events.
+`AdminThemeBridge::drawerNames()` is hookable: an after hook may drop a drawer.
+
+A method that is missing or throws, or returns something else than a string (an array for
+`drawer`), is logged to `bridge-extensions` (`site/assets/logs/bridge-extensions.txt`) and left
+out; the page renders without it.
+
+Upstream's own regions keep working: `$adminTheme->addExtraMarkup('head'|'masthead'|'body', $html)`
+prints before the slot of the same name.

@@ -33,6 +33,7 @@ if($headlinePos && $headlinePos > 500) $headline = '';
 	<?php
 	$adminTheme->includeFile('_head.php', array('layout' => $layout));
 	echo $adminTheme->deferLegacyInline($adminTheme->renderExtraMarkup('head'));
+	echo $adminTheme->renderSlot('head');
 	?>
 </head>
 <body class='<?php echo $adminTheme->getBodyClass(); ?>'>
@@ -53,6 +54,7 @@ if($headlinePos && $headlinePos > 500) $headline = '';
 	if($layout !== 'modal') $adminTheme->includeFile('_footer.php');
 
 	echo $adminTheme->renderExtraMarkup('body');
+	echo $adminTheme->renderSlot('body');
 	$adminTheme->includeFile('_body-scripts.php', array('layout' => $layout));
 	?>
 

@@ -169,11 +169,146 @@ trait AdminThemeBridgeExtensions {
 	 * Log an extension's failure (site/assets/logs/bridge-extensions.txt); the admin goes on
 	 *
 	 * @param string $name
-	 * @param \Throwable $e
+	 * @param \Throwable|string $e
 	 *
 	 */
-	protected function extensionError($name, \Throwable $e) {
-		$this->wire()->log->save('bridge-extensions', "$name: " . get_class($e) . ': ' . $e->getMessage());
+	protected function extensionError($name, $e) {
+		$text = $e instanceof \Throwable ? get_class($e) . ': ' . $e->getMessage() : (string) $e;
+		$this->wire()->log->save('bridge-extensions', "$name: $text");
+	}
+
+	/**
+	 * The shell slots of contract 0.1 (docs/extensions.md 4): name => the element that wraps each
+	 * extension's part ('' = none: `head` takes head markup as it is, `drawer` gets a dialog of
+	 * its own, renderDrawers())
+	 *
+	 * @return array
+	 *
+	 */
+	public function slotTags() {
+		return array(
+			'head' => '',
+			'masthead' => 'div',
+			'masthead-right' => 'div',
+			'user-nav' => 'li',
+			'content-head-buttons' => 'div',
+			'footer' => 'div',
+			'drawer' => '',
+			'body' => 'div',
+		);
+	}
+
+	/**
+	 * The parts extensions give a slot on this request, by priority: extension name => output
+	 *
+	 * Signed-in users only, the extensions they may have (extensionAllowed()) and whose contract
+	 * range takes this theme's; in a modal window only `head` and `body`. Each declaring extension's
+	 * module is got (and inited) and its slot method called with the slot name. Output that is not a
+	 * string (for `drawer`: nor an array) is left out; a method that is missing or throws is logged
+	 * (bridge-extensions) and left out. Asked once per slot and request.
+	 *
+	 * @param string $name Slot name (slotTags())
+	 * @return array
+	 *
+	 */
+	public function slotParts($name) {
+		$name = (string) $name;
+		if(isset($this->slotPartsCache[$name])) return $this->slotPartsCache[$name];
+		$parts = array();
+		$tags = $this->slotTags();
+		$modal = $this->isModal || $this->wire()->input->get('modal');
+		if(array_key_exists($name, $tags) && $this->isLoggedIn && (!$modal || $name === 'head' || $name === 'body')) {
+			foreach($this->extensions() as $info) {
+				if(!isset($info['slots'][$name]) || !$info['compatible'] || !$this->extensionAllowed($info)) continue;
+				$method = $info['slots'][$name];
+				try {
+					$module = $this->extensionModule($info['class']);
+					if(!$module) continue;
+					if(!method_exists($module, $method) && !method_exists($module, "___$method")) {
+						$this->extensionError($info['name'], "slot $name: no method $method()");
+						continue;
+					}
+					$out = $module->$method($name);
+				} catch(\Throwable $e) {
+					$this->extensionError($info['name'], $e);
+					continue;
+				}
+				if(is_string($out) || ($name === 'drawer' && is_array($out))) {
+					$parts[$info['name']] = $out;
+				} else if($out !== null) {
+					$this->extensionError($info['name'], "slot $name: $method() returned " . gettype($out));
+				}
+			}
+		}
+		$this->slotPartsCache[$name] = $parts;
+		return $parts;
+	}
+
+	/**
+	 * A slot's markup: each extension's part in its own element, data-bridge-slot and
+	 * data-bridge-extension on it; '' when nothing fills the slot (no empty wrappers)
+	 *
+	 * The parts are printed as the extensions give them: an extension escapes its own output.
+	 * Not for `drawer` (renderDrawers() prints extension drawers).
+	 *
+	 * @param string $name Slot name (slotTags())
+	 * @return string
+	 *
+	 */
+	public function renderSlot($name) {
+		$tags = $this->slotTags();
+		if(!isset($tags[$name]) || $name === 'drawer') return '';
+		$sanitizer = $this->wire()->sanitizer;
+		$tag = $tags[$name];
+		$out = '';
+		foreach($this->slotParts($name) as $extension => $part) {
+			if(trim($part) === '') continue;
+			$out .= $tag === '' ? $part :
+				"<$tag data-bridge-slot='" . $sanitizer->entities($name) . "' data-bridge-extension='" . $sanitizer->entities($extension) . "'>$part</$tag>";
+		}
+		return $out;
+	}
+
+	/**
+	 * Drawers extensions fill (the `drawer` slot), by priority: drawer name ('ext-' and the
+	 * extension's name in lower case) => ['extension', 'label', 'icon', 'content']
+	 *
+	 * The slot method returns the drawer's body markup, or an array with `content` and optionally
+	 * `label` (default: the extension's name) and `icon` (a Font Awesome name, default puzzle-piece).
+	 * An empty body gives no drawer.
+	 *
+	 * @return array
+	 *
+	 */
+	public function extensionDrawers() {
+		$out = array();
+		foreach($this->slotParts('drawer') as $extension => $part) {
+			$part = is_array($part) ? $part : array('content' => $part);
+			$content = isset($part['content']) && is_string($part['content']) ? $part['content'] : '';
+			if(trim($content) === '') continue;
+			$key = 'ext-' . trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($extension)), '-');
+			if($key === 'ext-' || isset($out[$key])) continue;
+			$label = isset($part['label']) && is_string($part['label']) && $part['label'] !== '' ? $part['label'] : $extension;
+			$icon = isset($part['icon']) && is_string($part['icon']) && preg_match('/^[a-z0-9-]+$/', $part['icon']) ? $part['icon'] : 'puzzle-piece';
+			$out[$key] = array('extension' => $extension, 'label' => $label, 'icon' => $icon, 'content' => $content);
+		}
+		return $out;
+	}
+
+	/**
+	 * An extension's module instance for its slot methods (got once per request; null when the
+	 * module cannot be had)
+	 *
+	 * @param string $class
+	 * @return Module|null
+	 *
+	 */
+	protected function extensionModule($class) {
+		if(!array_key_exists($class, $this->extensionModules)) {
+			$module = $this->wire()->modules->get($class);
+			$this->extensionModules[$class] = is_object($module) ? $module : false;
+		}
+		return $this->extensionModules[$class] ?: null;
 	}
 
 	/**
@@ -194,7 +329,7 @@ trait AdminThemeBridgeExtensions {
 			'hooks' => array(
 				'install', 'uninstall', 'nonce', 'moveFiles', 'moveFileAllowed', 'filesMoved', 'historyEntry',
 				'nativeMap', 'isNativeProcess', 'isNativeInputfield', 'scriptNeeds', 'renderBreadcrumbs',
-				'sortableDataTable', 'uikitReasons', 'extensionSurface',
+				'sortableDataTable', 'uikitReasons', 'extensionSurface', 'drawerNames',
 			),
 			'reads' => array(
 				'useLegacyStack', 'componentInfo', 'extensions', 'extensionInfo', 'extensionAllowed', 'cspNonce', 'nonceAttr',
@@ -206,8 +341,8 @@ trait AdminThemeBridgeExtensions {
 				'extendedBreadcrumbs', 'pageTreeDrawer', 'history', 'historySteps', 'pageSaveInPlace', 'pageAddSkipTemplate',
 				'dangerWarn', 'userColors', 'dataTableSortRows', 'printScripts', 'nativeOverrides',
 			),
-			// none yet: the shell slots come with step 2 of the extension kit
-			'slots' => array(),
+			// the shell slots (slotTags())
+			'slots' => array_keys($this->slotTags()),
 			'events' => array(
 				'pw-runtime-ready', 'pw-legacy-loaded', 'pw-legacy-handover', 'pw-uikit-loaded', 'pw-component-loaded',
 				'pw-component-failed', 'pw-modal-opened', 'pw-modal-closed', 'pw-wiretabs-change', 'pw-tab-focus',

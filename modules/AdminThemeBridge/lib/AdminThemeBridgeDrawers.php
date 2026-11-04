@@ -16,16 +16,21 @@
 trait AdminThemeBridgeDrawers {
 
 	/**
-	 * The drawers this request shows, in masthead order: 'tree', 'history'
+	 * The drawers this request shows, in masthead order: 'tree', 'history', then the drawers
+	 * extensions fill (the `drawer` slot, extensionDrawers(): 'ext-<name>')
+	 *
+	 * Hookable (extension contract 0.1): an after hook may drop names; a name added here needs
+	 * a drawer behind it (renderDrawers() prints only the ones it knows).
 	 *
 	 * @return array
 	 *
 	 */
-	public function drawerNames() {
+	public function ___drawerNames() {
 		if(!$this->isLoggedIn || $this->isModal || $this->wire()->input->get('modal')) return array();
 		$names = array();
 		if($this->pageTreeDrawer && $this->treeDrawerAllowed()) $names[] = 'tree';
 		if($this->history) $names[] = 'history';
+		foreach(array_keys($this->extensionDrawers()) as $name) $names[] = $name;
 		return $names;
 	}
 
@@ -59,7 +64,8 @@ trait AdminThemeBridgeDrawers {
 			case 'close': return __('Close', __FILE__);
 			case 'clear': return __('Clear', __FILE__); // the history drawer's button (0.26.0)
 		}
-		return $key;
+		$drawers = $this->extensionDrawers();
+		return isset($drawers[$key]) ? $drawers[$key]['label'] : $key;
 	}
 
 	/**
@@ -73,8 +79,10 @@ trait AdminThemeBridgeDrawers {
 		if(!count($names)) return '';
 		$sanitizer = $this->wire()->sanitizer;
 		$icons = array('tree' => 'sitemap', 'history' => 'history');
+		foreach($this->extensionDrawers() as $key => $drawer) $icons[$key] = $drawer['icon'];
 		$out = '';
 		foreach($names as $name) {
+			if(!isset($icons[$name])) continue; // a name a hook added, with no drawer behind it
 			$label = $sanitizer->entities1($this->drawerLabel($name));
 			$out .= "<button type='button' class='pw-drawer-button' data-pw-drawer='$name' aria-controls='pw-drawer-$name' aria-expanded='false' " .
 				"title='$label' aria-label='$label'><i class='fa fa-fw fa-$icons[$name]' aria-hidden='true'></i></button>";
@@ -93,10 +101,16 @@ trait AdminThemeBridgeDrawers {
 		if(!count($names)) return '';
 		$sanitizer = $this->wire()->sanitizer;
 		$close = $sanitizer->entities1($this->drawerLabel('close'));
+		$extensionDrawers = $this->extensionDrawers();
 		$out = '';
 		foreach($names as $name) {
+			$isExtension = isset($extensionDrawers[$name]);
+			if(!$isExtension && $name !== 'tree' && $name !== 'history') continue;
 			$label = $sanitizer->entities1($this->drawerLabel($name));
 			$extra = $name === 'tree' ? "<template class='pw-drawer-template'>" . $this->renderTreeDrawerContent() . "</template>" : '';
+			// an extension's drawer: its body as the extension gave it (it escapes its own output)
+			$body = $isExtension ? $extensionDrawers[$name]['content'] : '';
+			$slot = $isExtension ? " data-bridge-slot='drawer' data-bridge-extension='" . $sanitizer->entities($extensionDrawers[$name]['extension']) . "'" : '';
 			// the history's Clear button (0.26.0): no data-pw-drawer, that marks the masthead toggles
 			$action = '';
 			if($name === 'history') {
@@ -104,10 +118,10 @@ trait AdminThemeBridgeDrawers {
 				$action = "<button type='button' class='pw-drawer-action pw-history-clear' data-token-name='" . $sanitizer->entities($csrf->getTokenName()) . "' " .
 					"data-token-value='" . $sanitizer->entities($csrf->getTokenValue()) . "'>" . $sanitizer->entities1($this->drawerLabel('clear')) . "</button>";
 			}
-			$out .= "<dialog class='pw-drawer' id='pw-drawer-$name' aria-label='$label' data-pw-drawer-name='$name'>" .
+			$out .= "<dialog class='pw-drawer' id='pw-drawer-$name' aria-label='$label' data-pw-drawer-name='$name'$slot>" .
 				"<div class='pw-drawer-head'><h2 class='pw-drawer-title'>$label</h2>$action" .
 				"<button type='button' class='pw-drawer-close' aria-label='$close' title='$close'><i class='fa fa-fw fa-times' aria-hidden='true'></i></button></div>" .
-				"<div class='pw-drawer-body'></div>$extra</dialog>";
+				"<div class='pw-drawer-body'>$body</div>$extra</dialog>";
 		}
 		return $out;
 	}
