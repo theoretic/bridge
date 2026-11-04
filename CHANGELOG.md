@@ -1,5 +1,12 @@
 # Changelog
 
+## AdminThemeBridge 0.26.1: a picked page shows and saves in a repeater (2026-11-04)
+
+User report: in 0.24.1 a page autocomplete (InputfieldPageAutocomplete) answered the search with the right pages, but the pick did not show in the field and was not saved.
+
+- **The autocomplete menu floats over repeaters**: the suggestion menu hangs off `<body>`, and Bridge gave it no z-index (upstream themes lift it with `.ui-front{z-index:100}`). Where it overlapped a repeater (`.InputfieldRepeater` is its own stacking context, `z-index:1`), it was drawn under it: the suggestions showed, but a click hit the repeater, so nothing was picked, the old label came back on blur and the save posted the old value. It hit a page autocomplete inside a repeater item (AJAX-loaded or added, in the page editor or in a modal tab) and one just above a repeater; elsewhere it worked. `.ui-autocomplete` now has `z-index: var(--pw-z-popup)`: over the fields, under the sticky masthead and the drawers. The same rule lifts upstream's jQuery UI menu under the legacy stack. Present since the native port of the field, at least since 0.24.1.
+- Checks: `tools/autocomplete-check.js` (new, in `tools/ci.sh`): types, picks with a real click, saves and reloads, for the multiple and the single field, natively, under the legacy stack, after a handover, in a modal tab and in a repeater item there (existing and added); it also checks that the option is what a click at its place hits. `tools/sandbox-fixture.php` adds `bf_page_auto_one` and the page `/bridge-autocomplete/`. The smoke test checks the menu's z-index. Budgets unchanged (theme.css 17385 of 17408 B).
+
 ## AdminThemeBridge 0.26.0: history and tree polish, tabs open under a drag, fewer UIkit layers, touch selection (2026-11-03)
 
 User request: the items left open after 0.25.0, in one release: the history drawer's rough edges and a way to clear it, one alert for a failed action on several tree rows, tabs that open under a dragged file, fewer screens loading the UIkit layer, and selecting several items on a touch screen.

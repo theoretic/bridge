@@ -1858,5 +1858,7 @@ if(is_file($upstreamHt)) {
 check('Bridge.sortable loads the shared sortable chunk', strpos($srcOf('index.ts'), "import('./util/sortable').then(m => m.makeSortable(list, options))") !== false);
 check('a handled Alt+arrow sort does not move a list around it', (bool) preg_match('/e\.preventDefault\(\);\s*(\/\/[^\n]*\n\s*)*e\.stopPropagation\(\);\s*if \(options\.start\) options\.start\(item, block\);/', $srcOf('util/sortable.ts')));
 check('file items get the same nonce handling as wrappers', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "addHookAfter('InputfieldFile::renderItem', \$this, 'hookFormRender'") !== false);
+// 0.26.1: the autocomplete menu floats over repeaters (behaviour: tools/autocomplete-check.js e, f)
+check('the autocomplete menu has the popup z-index', strpos($themeCss, '.ui-autocomplete{z-index:var(--pw-z-popup)') !== false);
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);
