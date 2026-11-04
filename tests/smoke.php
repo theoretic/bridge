@@ -2176,5 +2176,51 @@ if($wire->modules->isInstalled('BridgeSample')) {
 	list($ecCode, $ecOut) = $runExtCheck(array('NoSuchExtensionDir'));
 	check('extension-check.php refuses a name that is neither a module nor a directory', $ecCode === 1 && strpos($ecOut, 'FAIL NoSuchExtensionDir') !== false, trim($ecOut));
 }
+// 0.27.0: the compatibility checker (sprint extension-kit, step 7)
+$surfaceJson = json_decode((string) @file_get_contents($themeDir . 'assets/dist/extension-surface.json'), true);
+if(isset($bridge)) {
+	check('assets/dist/extension-surface.json is extensionSurface() (rebuild the runtime after a surface change)', is_array($surfaceJson) && $surfaceJson === $bridge->extensionSurface(),
+		is_array($surfaceJson) ? json_encode(array_keys($surfaceJson)) : 'missing');
+}
+check('the runtime build writes extension-surface.json from the theme source', strpos((string) @file_get_contents(dirname(__DIR__) . '/runtime/scripts/manifest.mjs'), "writeFileSync(dist + 'extension-surface.json'") !== false);
+$extCompat = dirname(__DIR__) . '/tools/extension-compat.php';
+$runCompat = function(array $args) use($extCompat) {
+	$proc = proc_open(array_merge(array(PHP_BINARY, $extCompat), $args), array(1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+	$out = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+	fclose($pipes[1]);
+	fclose($pipes[2]);
+	return array(proc_close($proc), $out);
+};
+list($ccCode, $ccOut) = $runCompat(array());
+$ccOk = function($out, $name) { return (bool) preg_match('/^' . $name . ' .* ok\s*$/m', $out); };
+check('extension-compat.php on this checkout: the three bundled extensions, 0 incompatible, exit 0', $ccCode === 0 && strpos($ccOut, "\n3 extensions, 0 incompatible") !== false
+	&& $ccOk($ccOut, 'BridgeCsp') && $ccOk($ccOut, 'ProcessBridgeDemo') && $ccOk($ccOut, 'BridgeSample'), "exit $ccCode: " . trim($ccOut));
+$ccTmp = sys_get_temp_dir() . '/bridge-compat-' . getmypid();
+@mkdir("$ccTmp/old", 0777, true);
+@mkdir("$ccTmp/ext/CompatDynamic", 0777, true);
+@mkdir("$ccTmp/ext/CompatPlain", 0777, true);
+if(is_array($surfaceJson)) {
+	$edited = $surfaceJson;
+	$edited['contract'] = '1.0';
+	$edited['slots'] = array_values(array_diff($edited['slots'], array('footer')));
+	file_put_contents("$ccTmp/surface.json", json_encode($edited));
+	list($ccCode, $ccOut) = $runCompat(array("--surface=$ccTmp/surface.json"));
+	check('extension-compat.php against contract 1.0 without footer: all three incompatible, BridgeSample also on its slot, exit 3', $ccCode === 3
+		&& substr_count($ccOut, 'INCOMPATIBLE  contract ^0.1 does not take 1.0') === 3 && (bool) preg_match('/^BridgeSample .*slots footer not on the target surface$/m', $ccOut), "exit $ccCode: " . trim($ccOut));
+}
+file_put_contents("$ccTmp/old/AdminThemeBridge.module.php", "<?php namespace ProcessWire;\nclass AdminThemeBridge {}\n");
+list($ccCode, $ccOut) = $runCompat(array("--bridge=$ccTmp/old", dirname(__DIR__) . '/modules'));
+check('extension-compat.php against a Bridge without an extension contract: all incompatible', $ccCode === 3 && substr_count($ccOut, 'the target has no extension contract') === 3, "exit $ccCode");
+file_put_contents("$ccTmp/ext/CompatDynamic/CompatDynamic.module.php", "<?php namespace ProcessWire;\nclass CompatDynamic extends WireData implements Module, BridgeExtension {\n\tpublic static function getModuleInfo() { return array('requires' => 'AdminThemeBridge'); }\n\tpublic function getBridgeExtension() { \$m = array('contract' => '^0.1'); return \$m; }\n}\n");
+file_put_contents("$ccTmp/ext/CompatPlain/CompatPlain.module.php", "<?php namespace ProcessWire;\nclass CompatPlain extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('requires' => 'AdminThemeBridge'); }\n}\n");
+list($ccCode, $ccOut) = $runCompat(array("$ccTmp/ext"));
+check('extension-compat.php: a manifest built at run time is incompatible, a module without one is skipped, not listed', $ccCode === 1
+	&& strpos($ccOut, 'manifest not readable statically') !== false && strpos($ccOut, 'CompatPlain') === false && strpos($ccOut, '(1 module without a manifest skipped)') !== false, "exit $ccCode: " . trim($ccOut));
+list($ccCode, $ccOut) = $runCompat(array("--bridge=$ccTmp/nowhere"));
+check('extension-compat.php: an unreadable target exits 255', $ccCode === 255);
+foreach(array("$ccTmp/ext/CompatDynamic/CompatDynamic.module.php", "$ccTmp/ext/CompatPlain/CompatPlain.module.php", "$ccTmp/old/AdminThemeBridge.module.php", "$ccTmp/surface.json") as $f) @unlink($f);
+foreach(array("$ccTmp/ext/CompatDynamic", "$ccTmp/ext/CompatPlain", "$ccTmp/ext", "$ccTmp/old", $ccTmp) as $d) @rmdir($d);
+$extDoc8 = (string) @file_get_contents(dirname(__DIR__) . '/docs/extensions.md');
+check('docs/extensions.md section 8 documents the compatibility checker', strpos($extDoc8, "\n## 8. Compatibility\n") !== false && strpos($extDoc8, 'php tools/extension-compat.php [--bridge=') !== false);
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

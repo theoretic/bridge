@@ -2,6 +2,9 @@
  * Post-build check for the theme assets: flat CSS (no nesting or @import left), font URLs
  * untouched, and each file's gzip size against its budget (the stylesheets, the runtime script and
  * the classic scripts, scripts/build-classic.mjs). Exit 1 on a hard failure.
+ *
+ * Not budgeted: assets/dist/extension-surface.json (scripts/manifest.mjs), which no page loads;
+ * only tools/extension-compat.php reads it.
  */
 import { readFileSync, statSync, readdirSync, existsSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';

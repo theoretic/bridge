@@ -9,6 +9,11 @@
  *
  * A PHP file, so opcache keeps it; the readers fall back to the files when it is missing (a
  * `vite build` alone does not write it).
+ *
+ * Also assets/dist/extension-surface.json: the static part of AdminThemeBridge::extensionSurface()
+ * (lib/AdminThemeBridgeExtensions.php; `slots` from slotTags()) and the module's extensionContract,
+ * read from the PHP source. tools/extension-compat.php reads a Bridge checkout's surface from it
+ * without booting; a smoke line compares it with the booted method's output.
  */
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
@@ -44,3 +49,27 @@ const php = (value, indent = '') => {
 writeFileSync(dist + 'manifest.php', '<?php\n// built by runtime/scripts/manifest.mjs; read by AdminThemeBridge::manifest()\nreturn ' +
 	php({ runtimeChunks, fontPreloads, uikitCovered, uikitIcons }) + ';\n');
 console.log(`manifest.php: ${runtimeChunks.length} runtime chunk(s), ${Object.keys(fontPreloads).length} font preload(s), ${uikitCovered.length} UIkit classes, ${uikitIcons.length} icons`);
+
+// extension-surface.json (tools/extension-compat.php, docs/extensions.md 8)
+const extSrc = readFileSync(theme + 'lib/AdminThemeBridgeExtensions.php', 'utf8');
+const body = (name) => {
+	const start = extSrc.indexOf(`function ${name}() {`);
+	if (start < 0) throw new Error(`extension-surface.json: no ${name}() in AdminThemeBridgeExtensions.php`);
+	return extSrc.slice(start, extSrc.indexOf('\n\t}\n', start)).replace(/\/\/[^\n]*/g, '');
+};
+const contractMatch = readFileSync(theme + 'AdminThemeBridge.module.php', 'utf8').match(/const extensionContract = '([^']+)';/);
+if (!contractMatch) throw new Error('extension-surface.json: no extensionContract in AdminThemeBridge.module.php');
+const surface = { contract: contractMatch[1] };
+const surfaceBody = body('___extensionSurface');
+if (!/'slots' => array_keys\(\$this->slotTags\(\)\)/.test(surfaceBody)) throw new Error("extension-surface.json: 'slots' is no longer the keys of slotTags()");
+for (const key of ['hooks', 'reads', 'settings', 'slots', 'events', 'runtime']) {
+	if (key === 'slots') {
+		surface.slots = [...body('slotTags').matchAll(/'([\w-]+)' =>/g)].map(m => m[1]);
+		continue;
+	}
+	const m = surfaceBody.match(new RegExp(`'${key}' => array\\(([^)]*)\\)`));
+	if (!m) throw new Error(`extension-surface.json: no '${key}' list in ___extensionSurface()`);
+	surface[key] = [...m[1].matchAll(/'([^']*)'/g)].map(s => s[1]);
+}
+writeFileSync(dist + 'extension-surface.json', JSON.stringify(surface, null, '\t') + '\n');
+console.log(`extension-surface.json: contract ${surface.contract}, ${surface.hooks.length} hooks, ${surface.reads.length} reads, ${surface.slots.length} slots`);
