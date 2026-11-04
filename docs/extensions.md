@@ -176,3 +176,49 @@ The bus is DOM events, and no other. An extension listens on `document` for the 
 bubbling events (section 3) and dispatches its own as bubbling `CustomEvent`s named
 `pw-<name>-<event>`, `<name>` its name in lower case (`pw-bridgesample-refresh`). It does not
 dispatch the theme's events.
+
+## 6. Contract tests
+
+Two harnesses check an extension against a sandbox (`tools/sandbox-site.sh`; the module's
+directory placed under the sandbox's site modules, as a junction). `<Module>` is a module class,
+or a directory name: then every module in it with a manifest is checked, the others are skipped.
+Both print `ok` / `FAIL` lines and exit 1 on a failure.
+
+```bash
+php tools/extension-check.php sandbox/atispro <Module> [--base=http://localhost:8089] [--no-http]
+node tools/extension-check.js <playwright-core dir> chromium <Module>    # PHP=<php>, SANDBOX=<root>
+php tools/extension-check.php sandbox/atispro --self-test
+```
+
+`extension-check.php` installs the module if needed, then checks:
+
+- the manifest: known keys only (section 2), each of its type; `contract` a range that takes
+  `extensionContract`; `hooks`, `reads` and `settings` on the surface (section 3; a hook also
+  declared by the theme as `___<hook>`); each `slots` entry a slot of section 4 whose method
+  exists and returns a string (`drawer`: or an array with `content`); `module` a file that exists;
+  `permission` an existing permission; the theme discovers the extension and finds it compatible;
+- surface only, by a static scan of every PHP file in the module's directory: each method called
+  on the theme (`->adminTheme->x()`, `wire('adminTheme')->x()`, a variable assigned the theme),
+  each `AdminThemeBridge::x` and each hook string `'AdminThemeBridge::x'`. Upstream's AdminTheme
+  methods are always allowed; the theme's own only when they are on the surface **and** the
+  manifest declares them (`hooks` for a hook, `hooks` or `reads` for a call). A path to a theme
+  file other than `BridgeExtension.php` / `BridgeComponent.php`, and a file write under
+  `paths->wire`, fail too. Each failure names file and line. The scan is a heuristic: a theme
+  reached another way (`$event->object` in a hook, a variable passed from elsewhere) is not seen;
+  review still matters;
+- over HTTP, signed in as the sandbox user `bridge`: the page tree and the module's own screens
+  (admin pages running it, its settings) answer 200 without PHP error text; the page tree lists
+  the extension in `ProcessWire.config.AdminThemeBridge.extensions` and carries a part of each
+  slot it fills;
+- the module's own `<Name>.check.php`, if it has one (the scaffold writes it): included with
+  `$wire`, `$module` and `check($label, $ok, $detail = '')` at hand.
+
+`extension-check.js` loads the page tree in a browser, signed in as `bridge`: the extension is in
+`Bridge.extensions.list()` (compatible) and in `loaded()` without error, `pw-extension-loaded`
+fired with its name, each slot it fills has its part in the DOM with its custom elements
+defined, `reload()` fires `pw-extension-loaded` again; `pw-extensions-ready` fired once, no
+jQuery unless the theme recorded legacy reasons, no console errors.
+
+`--self-test` writes a module with four faults into the sandbox (an unknown manifest key, a hook
+the theme does not have, a call to a theme method off the surface, an include of a `lib/` file),
+expects exactly those four failures, and removes the module again.

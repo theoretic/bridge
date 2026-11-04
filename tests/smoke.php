@@ -2130,5 +2130,41 @@ if(isset($bridge) && $bridge && $wire->modules->isInstalled('BridgeSample')) {
 } else {
 	check('BridgeSample is installed on the sandbox (php tools/sandbox-modules.php <sandbox> BridgeSample)', false);
 }
+// 0.27.0: the contract tests (sprint extension-kit, step 5)
+$extCheck = dirname(__DIR__) . '/tools/extension-check.php';
+$extCheckSrc = (string) @file_get_contents($extCheck);
+$extTraitSrc = (string) @file_get_contents(dirname(__DIR__) . '/modules/AdminThemeBridge/lib/AdminThemeBridgeExtensions.php');
+$knownKeys = function($src) {
+	if(!preg_match('/\$known = array\(([^)]*)\);/', $src, $m)) return array();
+	preg_match_all("/'(\w+)'/", $m[1], $k);
+	return $k[1];
+};
+check('extension-check.php knows the manifest keys extensionInfo() knows', count($knownKeys($extCheckSrc)) > 5 && $knownKeys($extCheckSrc) === $knownKeys($extTraitSrc),
+	implode(',', $knownKeys($extCheckSrc)) . ' vs ' . implode(',', $knownKeys($extTraitSrc)));
+check('extension-check.php looks for slot parts as renderSlot() and renderDrawers() print them',
+	strpos($extCheckSrc, "\"data-bridge-slot='\$slot' data-bridge-extension='\$entity'\"") !== false
+	&& strpos($extTraitSrc, "data-bridge-slot='\" . \$sanitizer->entities(\$name) . \"' data-bridge-extension='") !== false
+	&& strpos((string) @file_get_contents(dirname(__DIR__) . '/modules/AdminThemeBridge/lib/AdminThemeBridgeDrawers.php'), "\" data-bridge-slot='drawer' data-bridge-extension='\"") !== false);
+$extDoc6 = (string) @file_get_contents(dirname(__DIR__) . '/docs/extensions.md');
+check('docs/extensions.md section 6 documents the contract tests', strpos($extDoc6, "\n## 6. Contract tests\n") !== false
+	&& strpos($extDoc6, 'php tools/extension-check.php sandbox/atispro --self-test') !== false);
+check('extension-check.js takes the manifests from extension-check.php --json', strpos((string) @file_get_contents(dirname(__DIR__) . '/tools/extension-check.js'), "'extension-check.php'), SANDBOX, target, '--json']") !== false);
+if($wire->modules->isInstalled('BridgeSample')) {
+	$runExtCheck = function(array $args) use($extCheck, $root) {
+		$proc = proc_open(array_merge(array(PHP_BINARY, $extCheck, $root), $args), array(1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+		$out = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+		fclose($pipes[1]);
+		fclose($pipes[2]);
+		return array(proc_close($proc), $out);
+	};
+	list($ecCode, $ecOut) = $runExtCheck(array('BridgeSample', '--no-http'));
+	check('extension-check.php BridgeSample --no-http: exit 0, no FAIL', $ecCode === 0 && strpos($ecOut, "\nFAIL ") === false && strpos($ecOut, 'all passed') !== false, "exit $ecCode");
+	list($ecCode, $ecOut) = $runExtCheck(array('BridgeSample', '--json'));
+	$ecJson = json_decode(substr($ecOut, (int) strpos($ecOut, '[')), true);
+	check('extension-check.php --json: BridgeSample, its module, six slots filled', $ecCode === 0 && is_array($ecJson) && count($ecJson) === 1 && $ecJson[0]['name'] === 'BridgeSample'
+		&& strpos((string) $ecJson[0]['module'], 'BridgeSample.mjs?v=') !== false && array_keys(array_filter($ecJson[0]['slots'])) === array('masthead-right', 'user-nav', 'content-head-buttons', 'footer', 'drawer', 'body'), trim($ecOut));
+	list($ecCode, $ecOut) = $runExtCheck(array('NoSuchExtensionDir'));
+	check('extension-check.php refuses a name that is neither a module nor a directory', $ecCode === 1 && strpos($ecOut, 'FAIL NoSuchExtensionDir') !== false, trim($ecOut));
+}
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);
