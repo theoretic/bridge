@@ -16,6 +16,10 @@
  * Also adds /bridge-nesting/ (template "bridge_nesting"): fieldsets in fieldsets, a repeater with
  * depth holding a fieldset and a nested repeater with depth, a FieldsetPage in a tab.
  *
+ * Also adds /bridge-autocomplete/ (template "bridge_autocomplete", 0.26.1): a tab that opens in a
+ * modal, with the multiple PageAutocomplete and a repeater (AJAX items) of the single one
+ * (tools/autocomplete-check.js opens it).
+ *
  * Usage: php tools/sandbox-fixture.php /path/to/sandbox/root
  */
 
@@ -63,6 +67,9 @@ $defs = array(
 		'parent_id' => 1)),
 	'bf_pages_auto' => array('FieldtypePage', 'Pages (autocomplete)', array('derefAsPage' => 0,
 		'inputfield' => 'InputfieldPageAutocomplete', 'parent_id' => 1)),
+	// 0.26.1: the single mode (no_list text input, maxSelectedItems 1), as a repeater item's field too
+	'bf_page_auto_one' => array('FieldtypePage', 'Page (autocomplete, single)', array('derefAsPage' => 1,
+		'inputfield' => '_InputfieldPageAutocomplete', 'parent_id' => 1, 'labelFieldName' => 'title')),
 	'bf_pages_list' => array('FieldtypePage', 'Pages (list select)', array('derefAsPage' => 0,
 		'inputfield' => 'InputfieldPageListSelectMultiple', 'parent_id' => 1)),
 	'bf_options' => array('FieldtypeOptions', 'Options (radios)', array('inputfieldClass' => 'InputfieldRadios')),
@@ -105,6 +112,17 @@ foreach($defs as $name => $def) {
 		$tpl->fieldgroup->add($f);
 		$tpl->fieldgroup->save();
 	}
+}
+
+// 0.26.1: the autocompletes label their suggestions by title (upstream's script shows empty rows
+// without a label field; the native port falls back to title)
+foreach(array('bf_pages_auto', 'bf_page_auto_one') as $name) {
+	$f = $fields->get($name);
+	if(!$f || $f->get('labelFieldName')) continue;
+	$f->set('labelFieldName', 'title');
+	$fields->save($f);
+	echo "ok   field $name labels by title
+";
 }
 
 $page = $pages->get('/bridge-fixture/');
@@ -191,7 +209,7 @@ if(!$tabClose && $tabOpen) {
 }
 $order = array('title', 'bf_text', 'bf_textarea', 'bf_integer', 'bf_checkbox', 'bf_toggle', 'bf_options',
 	'bf_images', 'bf_files', 'bf_docs', 'bf_image', 'bf_repeater', 'bf_repeater_depth', 'bf_pagetable',
-	'bf_tab', 'bf_tab_files', 'bf_tags', 'bf_date', 'bf_pages_asm', 'bf_pages_auto', 'bf_pages_list', 'bf_selector', 'bf_tab_END');
+	'bf_tab', 'bf_tab_files', 'bf_tags', 'bf_date', 'bf_pages_asm', 'bf_pages_auto', 'bf_page_auto_one', 'bf_pages_list', 'bf_selector', 'bf_tab_END');
 // milestone 3.3: repeaters of native fields (a plain one; one with depth and limits) and a page
 // table whose items live under their own parent (no Children tab on the fixture page)
 $makeTemplate = function($name, array $names, array $settings = array()) use($templates, $fields) {
@@ -571,3 +589,65 @@ if($btpl->hasField('bn_fsp')) {
 }
 $bpage->save();
 echo "ok   nesting page id {$bpage->id}\n";
+
+// 0.26.1: /bridge-autocomplete/ (template "bridge_autocomplete"), the PageAutocomplete cases of
+// tools/autocomplete-check.js. Its one tab opens in a modal (the tab field's "modal" setting, as
+// on the site where the bug was found) and holds the multiple autocomplete and a repeater whose
+// items load by AJAX, each with the single autocomplete (bf_page_auto_one) and a text.
+$baTab = $fields->get('ba_tab');
+if(!$baTab) {
+	$baTab = new Field();
+	$baTab->type = $modules->get('FieldtypeFieldsetTabOpen');
+	$baTab->name = 'ba_tab';
+	$baTab->label = 'Results';
+	$baTab->set('modal', 1);
+	$fields->save($baTab);
+	echo "ok   field ba_tab\n";
+}
+$baTabEnd = $fields->get('ba_tab_END');
+if(!$baTabEnd) $baTabEnd = $baTab->type->getFieldsetCloseField($baTab, true);
+$baRep = $fields->get('ba_results');
+if(!$baRep && $modules->isInstalled('FieldtypeRepeater') && $fields->get('bf_page_auto_one')) {
+	$baRep = new Field();
+	$baRep->type = $modules->get('FieldtypeRepeater');
+	$baRep->name = 'ba_results';
+	$baRep->label = 'Results repeater';
+	$baRep->set('repeaterLoading', 1); // items load by AJAX when opened
+	$baRep->set('repeaterCollapse', 0);
+	$fields->save($baRep);
+	$rtpl = $baRep->type->_getRepeaterTemplate($baRep);
+	$ids = array();
+	foreach(array('bf_page_auto_one', 'bf_text') as $n) {
+		$rtpl->fieldgroup->add($fields->get($n));
+		$ids[] = $fields->get($n)->id;
+	}
+	$rtpl->fieldgroup->save();
+	$baRep->set('repeaterFields', $ids);
+	$fields->save($baRep);
+	echo "ok   field ba_results\n";
+}
+$atpl = $makeTemplate('bridge_autocomplete', array('title', 'ba_tab', 'bf_pages_auto', 'ba_results', 'ba_tab_END'),
+	array('noChildren' => 1));
+$apage = $pages->get('/bridge-autocomplete/');
+if(!$apage->id) {
+	$apage = new Page();
+	$apage->template = $atpl;
+	$apage->parent = $pages->get('/');
+	$apage->name = 'bridge-autocomplete';
+	$apage->title = 'Bridge autocomplete';
+	$apage->addStatus(Page::statusHidden);
+	$apage->save();
+	echo "ok   page /bridge-autocomplete/\n";
+}
+$apage->of(false);
+if($atpl->hasField('ba_results') && !$apage->ba_results->count()) {
+	foreach(array('First result', 'Second result') as $label) {
+		$item = $apage->ba_results->getNew();
+		$item->of(false);
+		$item->bf_text = $label;
+		$item->save();
+		$apage->ba_results->add($item);
+	}
+	$apage->save();
+}
+echo "ok   autocomplete page id {$apage->id}\n";

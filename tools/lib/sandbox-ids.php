@@ -3,7 +3,8 @@
 /**
  * Prints the ids of the fixture pages the browser checks drive (tools/sandbox-fixture.php), as
  * shell assignments for tools/ci.sh: NATIVE_ID (/bridge-native/), FIXTURE_ID (/bridge-fixture/),
- * PARENT_ID (/bridge-native-parent/), TREE_ID (/bridge-tree/), NESTING_ID (/bridge-nesting/).
+ * PARENT_ID (/bridge-native-parent/), TREE_ID (/bridge-tree/), NESTING_ID (/bridge-nesting/),
+ * AUTO_ID (/bridge-autocomplete/).
  * A page that is missing prints nothing; the check that needs it then uses its own default.
  * Reads only. Boots the sandbox behind tools/lib/sandbox-guard.php.
  *
@@ -23,7 +24,7 @@ ob_end_clean();
 bridgeSandboxBooted($config, $root);
 $pages = wire('pages');
 foreach(array('NATIVE_ID' => '/bridge-native/', 'FIXTURE_ID' => '/bridge-fixture/', 'PARENT_ID' => '/bridge-native-parent/',
-	'TREE_ID' => '/bridge-tree/', 'NESTING_ID' => '/bridge-nesting/') as $name => $path) {
+	'TREE_ID' => '/bridge-tree/', 'NESTING_ID' => '/bridge-nesting/', 'AUTO_ID' => '/bridge-autocomplete/') as $name => $path) {
 	$page = $pages->get("path=$path, include=all");
 	if($page->id) echo "$name={$page->id}\n";
 }
