@@ -184,6 +184,10 @@ directory placed under the sandbox's site modules, as a junction). `<Module>` is
 or a directory name: then every module in it with a manifest is checked, the others are skipped.
 Both print `ok` / `FAIL` lines and exit 1 on a failure.
 
+The commands in this document are written for Git Bash (`VAR=value command`). In PowerShell set
+the variable first, `$env:PW = '<playwright-core dir>'; node tools/...`; in cmd, `set PW=<dir>`
+on a line of its own, then the command.
+
 ```bash
 php tools/extension-check.php sandbox/atispro <Module> [--base=http://localhost:8089] [--no-http]
 node tools/extension-check.js <playwright-core dir> chromium <Module>    # PHP=<php>, SANDBOX=<root>
@@ -319,3 +323,39 @@ again but an edited element class takes a page load; state the old module kept i
 a stylesheet the module injects is the module's own business on `pw-extension-loaded`. Real HMR
 would need a dev server and a bundler contract with extensions, which the extension model leaves out
 on purpose (no build step shared between Bridge and an extension).
+
+## 10. Scaffold
+
+`tools/scaffold-extension.php` writes the skeleton of a new extension:
+
+```bash
+php tools/scaffold-extension.php <Name> [--dir=modules] [--slots=footer,user-nav] [--module]
+```
+
+Into `<dir>/<Name>/` (a directory that exists is refused): `<Name>.module.php` (module info with
+`requires AdminThemeBridge`, the interface check of section 2, a manifest with `contract ^0.1`,
+one method per slot returning escaped markup, an empty settings screen), with `--module`
+`<Name>.mjs` (defines `<pw-<name in lower case>>` guarded by `customElements.get()`, exports
+`{ tag, version }`), `<Name>.check.php` (one check per slot, run by `extension-check.php`) and a
+`README.md`. `--slots` takes the slot names of section 4. It boots nothing, and the output depends
+on the arguments only: `modules/BridgeSample` is its output for
+`BridgeSample --slots=masthead-right,user-nav,content-head-buttons,footer,drawer,body --module`,
+and the smoke test generates it again and compares the two byte for byte.
+
+Then: place the directory under a sandbox's site modules (a junction), install it
+(`php tools/sandbox-modules.php sandbox/<site> <Name>`, or Modules > Refresh and Install), run the
+contract tests (section 6) and the dev watcher (section 9) while working on it.
+
+## 11. Not in contract 0.1
+
+- **Access control.** The ACL extension the extension model was designed around (branch
+  restrictions on top of ProcessWire's per-template `page-edit`) is left to a release of its own,
+  built through this kit as a fourth bundled extension. Hiding a slot or a menu item is not
+  security: enforcement belongs on the server.
+- **Middleware, endpoint registration, response shaping.** Bridge is an admin theme on upstream's
+  URLs and JSON contracts, not an API layer: upstream's Process modules and hooks are the request
+  pipeline, and an extension uses them as any module does. There is no `$bridge` facade object;
+  the facade is the surface of section 3, which the contract tests hold an extension to.
+- **More declarative weight.** The `bridge` info key declares what a module uses; hiding,
+  renaming or reordering menu items without code is not part of 0.1.
+- **Hot module replacement** (section 9), and a directory or registry of extensions.

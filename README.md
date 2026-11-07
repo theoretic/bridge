@@ -4,8 +4,8 @@ A [ProcessWire](https://processwire.com) admin built from native web components 
 every existing Inputfield and Process module.
 
 The name says what it is: a bridge between the jQuery-era admin and the modern web stack.
-"Bridge" is a working name. Status: beta, AdminThemeBridge 0.26.1; the component contract is
-version 1 and may still change before 1.0.
+"Bridge" is a working name. Status: beta, AdminThemeBridge 0.27.0; the component contract is
+version 1 and may still change before 1.0, the extension contract is 0.1.
 
 ## What it is
 
@@ -161,6 +161,19 @@ map with a hook on `AdminThemeBridge::nativeMap`. Both are described in
 `$adminTheme->nonceAttr()`, also in markup loaded over AJAX, and HTML written from JavaScript goes
 through `ProcessWireAdminTheme.trusted` (contract 2.1 and 4.1).
 
+## Extensions
+
+An extension is an ordinary module that changes the Bridge admin only through a published
+surface (the theme's hookable methods, a few public methods and settings, named slots in the
+shell, `window.Bridge` and the DOM events) and declares what it uses in a manifest: the
+`BridgeExtension` interface or a `bridge` module info key. The theme loads its client module and
+fills its slots from that manifest. The kit: a scaffold (`tools/scaffold-extension.php`), contract
+tests against a sandbox (`tools/extension-check.php`, `tools/extension-check.js`), a compatibility
+checker that needs only the files (`tools/extension-compat.php`) and a dev mode that re-imports
+an edited client module in place (`tools/extension-dev.js`). Bridge CSP, the demo module and
+`BridgeSample` are extensions themselves. See [docs/extensions.md](docs/extensions.md) (extension
+contract 0.1, ADR 0021).
+
 ## Development
 
 ```
@@ -168,6 +181,7 @@ bootstrap/                 front controller and project.php layout config
 modules/AdminThemeBridge/  the admin theme; assets/dist/ and scripts/ hold built files (committed)
 modules/BridgeDemo/        native Process and Inputfield used as a test fixture
 modules/BridgeCsp/         optional: a nonce-based Content-Security-Policy for the admin (ADR 0020)
+modules/BridgeSample/      the scaffolded sample extension, fixture of the extension contract tests
 runtime/                   TypeScript runtime, stylesheets (Vite) and the theme's classic
                            scripts (src/classic/, minified with esbuild into scripts/,
                            type-checked with types/classic.d.ts)

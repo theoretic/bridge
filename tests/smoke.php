@@ -2333,5 +2333,15 @@ check('tools/extension-dev.js watches the module directory and calls Bridge.exte
 check('extension-check.js reloads an edited copy of the module and looks for its version', strpos((string) @file_get_contents(dirname(__DIR__) . '/tools/extension-check.js'), 'reload() imports an edited copy, loaded() has its version') !== false);
 check('docs/extensions.md section 9 documents dev mode and says it is not HMR', strpos($devDoc, "\n## 9. Dev mode\n") !== false && strpos($devDoc, 'PW=<playwright-core dir> node tools/extension-dev.js modules/BridgeSample') !== false
 	&& strpos($devDoc, 'it is not hot module replacement') !== false);
+// 0.27.0: the kit in CI and in the docs (sprint extension-kit, step 9)
+$ciSrc = (string) @file_get_contents(dirname(__DIR__) . '/tools/ci.sh');
+check('tools/ci.sh runs the compatibility checker and both contract tests on the three bundled extensions', strpos($ciSrc, 'EXTENSIONS="BridgeCsp BridgeDemo BridgeSample"') !== false
+	&& strpos($ciSrc, '"$PHP" tools/extension-compat.php') !== false && strpos($ciSrc, '"$PHP" tools/extension-check.php "$SANDBOX" "$m"') !== false
+	&& strpos($ciSrc, 'node tools/extension-check.js "$PW" "$browser" "$m"') !== false && strpos($ciSrc, 'failed+=("extensions")') !== false);
+check('docs/extensions.md documents the scaffold and what contract 0.1 leaves out', strpos($devDoc, "\n## 10. Scaffold\n") !== false && strpos($devDoc, "\n## 11. Not in contract 0.1\n") !== false
+	&& strpos($devDoc, 'php tools/scaffold-extension.php <Name> [--dir=modules] [--slots=footer,user-nav] [--module]') !== false);
+check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
+	&& is_file(dirname(__DIR__) . '/docs/decisions/0021-extensions-are-modules-on-a-published-surface.md'));
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

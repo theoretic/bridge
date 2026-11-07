@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Every check in one run (audit AR5): PHP lint, the runtime build (type checks of the TypeScript
 # and of the classic scripts, the sink guard, the gzip budgets), the smoke test, the browser
-# checks (the enforced CSP pass among them) and the conformance suite (tools/gate1.sh). Stops at
+# checks (the enforced CSP pass among them), the extension contract tests on the bundled
+# extensions (0.27.0, docs/extensions.md 6 and 8) and the conformance suite (tools/gate1.sh). Stops at
 # nothing: each step runs, and the
 # summary lists the ones that failed.
 #
@@ -10,7 +11,7 @@
 #   PW         a Playwright install (any project's node_modules/playwright-core); without it the
 #              browser checks are skipped and reported as skipped
 #   BROWSERS   default "chromium"; "chromium firefox" runs every browser check in both
-#   SKIP       steps to leave out, space separated: lint build smoke browser conformance
+#   SKIP       steps to leave out, space separated: lint build smoke browser extensions conformance
 #   PHP        default D:/work/sites/modules/PHP-8.5/php
 # The sandbox server must be running for the browser checks (gate1.sh starts one for its own run
 # when none is). Start it with PHP_CLI_SERVER_WORKERS=4: a single-threaded php -S refuses a
@@ -31,6 +32,8 @@ PORT="${SITE_PORT##*:}"
 SANDBOX="$HERE/sandbox/$SITE"
 BROWSERS="${BROWSERS:-chromium}"
 SKIP=" ${SKIP:-} "
+# the bundled extensions, checked by tools/extension-check.php and .js
+EXTENSIONS="BridgeCsp BridgeDemo BridgeSample"
 # the browser checks, in the order they run: each needs only the sandbox and its fixture pages
 CHECKS="native-check screens-check pagetree-check repeater-check image-file-check setup-check page-edit-check page-save-check lister-check form-save-check image-select-check a11y-check csp-check drawers-check autocomplete-check"
 
@@ -99,6 +102,55 @@ if ! skip browser; then
 		done
 		[ "$bfail" -eq 0 ] || failed+=("browser")
 	fi
+fi
+
+if ! skip extensions; then
+	step "extensions (${EXTENSIONS// /, })"
+	efail=0
+	if "$PHP" tools/extension-compat.php > sandbox/ci-extension-compat.log 2>&1; then
+		echo "   ok    extension-compat.php: $(tail -1 sandbox/ci-extension-compat.log)"
+	else
+		echo "   FAIL  extension-compat.php: sandbox/ci-extension-compat.log"
+		efail=$((efail + 1))
+	fi
+	if ! curl -s --max-time 20 "http://localhost:$PORT/" > /dev/null 2>&1; then
+		echo "   no server on :$PORT (serve the sandbox, see CLAUDE.md or tools/router.php)"
+		efail=$((efail + 1))
+	else
+		# each extension-check.php run signs in as `bridge`; ProcessWire's login throttle makes the
+		# n-th attempt of a name within 60 s wait (n - 1) * 5 s after the one before
+		n=0
+		for m in $EXTENSIONS; do
+			[ "$n" -gt 0 ] && sleep $((n * 5 + 1))
+			n=$((n + 1))
+			if "$PHP" tools/extension-check.php "$SANDBOX" "$m" --base="http://localhost:$PORT" > "sandbox/ci-extension-check-$m.log" 2>&1; then
+				echo "   ok    extension-check.php $m"
+			else
+				echo "   FAIL  extension-check.php $m: sandbox/ci-extension-check-$m.log"
+				efail=$((efail + 1))
+			fi
+		done
+		# the next sign-in as `bridge` (extension-check.js without a saved login, the conformance
+		# runner) is the (n + 1)-th within 60 s
+		sleep $((n * 5 + 1))
+		if [ -z "${PW:-}" ]; then
+			echo "   skipped: extension-check.js (set PW to a playwright-core directory)"
+		else
+			export SANDBOX PHP
+			export PW_STATE="${PW_STATE:-$HERE/sandbox/pw-state.json}"
+			for browser in $BROWSERS; do
+				for m in $EXTENSIONS; do
+					if MSYS_NO_PATHCONV=1 node tools/extension-check.js "$PW" "$browser" "$m" > "sandbox/ci-extension-check-$m-$browser.log" 2>&1; then
+						echo "   ok    extension-check.js $m ($browser)"
+					else
+						echo "   FAIL  extension-check.js $m ($browser): sandbox/ci-extension-check-$m-$browser.log"
+						efail=$((efail + 1))
+					fi
+				done
+			done
+		fi
+	fi
+	[ "$efail" -eq 0 ] || failed+=("extensions")
 fi
 
 if ! skip conformance; then
