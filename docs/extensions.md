@@ -260,10 +260,19 @@ php tools/extension-compat.php --verbose path/to/site/modules        # also list
   `sandbox/<site>/app/modules/`) whose manifest can be read from the source: the literal array
   `getBridgeExtension()` returns when the class implements `BridgeExtension`, otherwise the
   `bridge` key of the module info (`getModuleInfo()`, `<Name>.info.php` or `<Name>.info.json`).
-  Modules with neither are skipped and only counted (`--verbose` lists them). A module found
-  twice counts once, where it was found first. A directory's own module files come before its
-  subdirectories, so an old copy kept below a module (`<Module>/legacy/…`) is the one reported as
-  found twice, never the module itself.
+  Modules with neither are skipped and only counted (`--verbose` lists them).
+- **Discovery** follows ProcessWire's own rule, `ModulesFiles::findModuleFiles()`
+  (`wire/core/Modules/ModulesFiles.php:87–169`, 3.0.274): hidden files and directories are
+  skipped (:131–134); every directory of a scanned directory is entered, and below it only a
+  directory that holds `<DirName>.module` or `<DirName>.module.php` (:137), at any depth; a module
+  file is `<Name>.module` or `<Name>.module.php`, the name being the part before the first dot
+  (:142–145); the info files are read beside it. So a stray copy kept in a directory that is not
+  a module (`<Module>/legacy/…`) is not seen at all. A module found twice counts once, where it
+  was found first; a directory's own module files come before its subdirectories, so a copy in a
+  module-named subdirectory is the one reported as found twice, never the module itself.
+  ProcessWire walks a directory in file-system order and loads modules with an autoload order
+  first; the checker walks in sorted order and knows neither that order nor a copy an admin
+  chose for a duplicate (`ModulesDuplicates`).
 - **Per extension**: the `contract` range takes the target's contract (the theme's own
   `contractSatisfies()`); `hooks`, `reads`, `settings` and `slots` are on the target's surface;
   the `module` file exists; the theme would discover the extension (by the interface it also needs

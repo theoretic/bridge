@@ -2227,19 +2227,36 @@ check('extension-compat.php --verbose: a module found twice and the theme itself
 	&& strpos($ccVOut, '(1 module without a manifest skipped)') !== false, "exit $ccVCode: " . trim($ccVOut));
 list($ccCode, $ccOut) = $runCompat(array("--bridge=$ccTmp/nowhere"));
 check('extension-compat.php: an unreadable target exits 255', $ccCode === 255);
-// copy precedence: the module's own file wins over an old copy below it (a/legacy/), with no manifest
-@mkdir("$ccTmp/prec/CompatCopy/a/legacy", 0777, true);
+// copy precedence: the module's own file wins over a copy ProcessWire would also see (in a
+// module-named subdirectory, Aaa/ holding Aaa.module, sorting before the own file), with no manifest
+@mkdir("$ccTmp/prec/CompatCopy/Aaa", 0777, true);
 file_put_contents("$ccTmp/prec/CompatCopy/CompatCopy.module.php", "<?php namespace ProcessWire;\nclass CompatCopy extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('version' => 2, 'bridge' => array('contract' => '^0.1')); }\n}\n");
-file_put_contents("$ccTmp/prec/CompatCopy/a/legacy/CompatCopy.module", "<?php namespace ProcessWire;\nclass CompatCopy extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('version' => 1); }\n}\n");
+file_put_contents("$ccTmp/prec/CompatCopy/Aaa/Aaa.module", "<?php namespace ProcessWire;\nclass Aaa extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('version' => 1); }\n}\n");
+file_put_contents("$ccTmp/prec/CompatCopy/Aaa/CompatCopy.module", "<?php namespace ProcessWire;\nclass CompatCopy extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('version' => 1); }\n}\n");
 list($ccVCode, $ccVOut) = $runCompat(array('--verbose', "$ccTmp/prec"));
-check('extension-compat.php: a directory\'s own module file wins over a copy in its subdirectories (the copy is the one found twice)', $ccVCode === 0
+check('extension-compat.php: a directory\'s own module file wins over a copy in a module-named subdirectory (the copy is the one found twice)', $ccVCode === 0
 	&& (bool) preg_match('#^CompatCopy +2 +\S*/prec/CompatCopy +\^0\.1 +ok$#m', $ccVOut)
-	&& (bool) preg_match('#^CompatCopy +\S*/prec/CompatCopy/a/legacy +found twice, counted in \S*/prec/CompatCopy$#m', $ccVOut)
-	&& strpos($ccVOut, "\n1 extension, 0 incompatible\n") !== false, "exit $ccVCode: " . trim($ccVOut));
+	&& (bool) preg_match('#^CompatCopy +\S*/prec/CompatCopy/Aaa +found twice, counted in \S*/prec/CompatCopy$#m', $ccVOut)
+	&& strpos($ccVOut, "\n1 extension, 0 incompatible (1 module without a manifest skipped)\n") !== false, "exit $ccVCode: " . trim($ccVOut));
+// ProcessWire's discovery rule (ModulesFiles.php:137): below the top level only a directory holding a
+// module named after it is entered, so Alpha/legacy/Beta.module is not seen and Beta counts from Beta/
+@mkdir("$ccTmp/sib/Alpha/legacy", 0777, true);
+@mkdir("$ccTmp/sib/Beta", 0777, true);
+file_put_contents("$ccTmp/sib/Alpha/Alpha.module", "<?php namespace ProcessWire;\nclass Alpha extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('version' => 1); }\n}\n");
+file_put_contents("$ccTmp/sib/Alpha/legacy/Beta.module", "<?php namespace ProcessWire;\nclass Beta extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('version' => 1); }\n}\n");
+file_put_contents("$ccTmp/sib/Beta/Beta.module", "<?php namespace ProcessWire;\nclass Beta extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('version' => 2, 'bridge' => array('contract' => '^0.1')); }\n}\n");
+list($ccVCode, $ccVOut) = $runCompat(array('--verbose', "$ccTmp/sib"));
+check('extension-compat.php follows ProcessWire\'s discovery rule: a copy in a directory not named like a module (Alpha/legacy/) is not seen, Beta counts from Beta/', $ccVCode === 0
+	&& (bool) preg_match('#^Beta +2 +\S*/sib/Beta +\^0\.1 +ok$#m', $ccVOut) && strpos($ccVOut, 'legacy') === false && strpos($ccVOut, 'found twice') === false
+	&& (bool) preg_match('#^Alpha +\S*/sib/Alpha +no manifest$#m', $ccVOut)
+	&& strpos($ccVOut, "\n1 extension, 0 incompatible (1 module without a manifest skipped)\n") !== false, "exit $ccVCode: " . trim($ccVOut));
 foreach(array("$ccTmp/ext/CompatDynamic/CompatDynamic.module.php", "$ccTmp/ext/CompatPlain/CompatPlain.module.php", "$ccTmp/old/AdminThemeBridge.module.php", "$ccTmp/surface.json",
-	"$ccTmp/prec/CompatCopy/CompatCopy.module.php", "$ccTmp/prec/CompatCopy/a/legacy/CompatCopy.module") as $f) @unlink($f);
+	"$ccTmp/prec/CompatCopy/CompatCopy.module.php", "$ccTmp/prec/CompatCopy/Aaa/Aaa.module", "$ccTmp/prec/CompatCopy/Aaa/CompatCopy.module",
+	"$ccTmp/sib/Alpha/Alpha.module", "$ccTmp/sib/Alpha/legacy/Beta.module", "$ccTmp/sib/Beta/Beta.module") as $f) @unlink($f);
 foreach(array("$ccTmp/ext/CompatDynamic", "$ccTmp/ext/CompatPlain", "$ccTmp/ext", "$ccTmp/old",
-	"$ccTmp/prec/CompatCopy/a/legacy", "$ccTmp/prec/CompatCopy/a", "$ccTmp/prec/CompatCopy", "$ccTmp/prec", $ccTmp) as $d) @rmdir($d);
+	"$ccTmp/prec/CompatCopy/Aaa", "$ccTmp/prec/CompatCopy", "$ccTmp/prec",
+	"$ccTmp/sib/Alpha/legacy", "$ccTmp/sib/Alpha", "$ccTmp/sib/Beta", "$ccTmp/sib", $ccTmp) as $d) @rmdir($d);
+check('extension-compat.php smoke fixtures removed', !is_dir($ccTmp), $ccTmp);
 $extDoc8 = (string) @file_get_contents(dirname(__DIR__) . '/docs/extensions.md');
 check('docs/extensions.md section 8 documents the compatibility checker', strpos($extDoc8, "\n## 8. Compatibility\n") !== false && strpos($extDoc8, 'php tools/extension-compat.php [--bridge=') !== false);
 check('docs/extensions.md section 8 documents --verbose', strpos($extDoc8, '[--surface=<json>] [--verbose] [<dir>...]') !== false && strpos($extDoc8, 'With `--verbose` it also lists') !== false);

@@ -15,13 +15,16 @@
  *    instead (`contract` and the lists of AdminThemeBridge::extensionSurface()); a Bridge without
  *    the constant has no extension contract, and every extension is incompatible with it;
  *  - the extensions: every module under the directories (default: this checkout's modules/ and,
- *    when present, sandbox/<site>/app/modules/), by static parsing (token_get_all) of
- *    `<Name>.module(.php)`, `<Name>.info.php` and `<Name>.info.json`: the manifest is the literal
- *    array getBridgeExtension() returns when the class implements BridgeExtension, otherwise the
- *    module info's `bridge` key. Modules with neither are skipped. A module found twice (the
- *    sandboxes junction this checkout's modules) counts once, where it was found first; a
- *    directory's own module files are read before its subdirectories, so a copy kept below a
- *    module (an old version in legacy/) never wins over the module itself.
+ *    when present, sandbox/<site>/app/modules/), found as ProcessWire finds module files
+ *    (ModulesFiles::findModuleFiles(): every directory of a scanned directory is entered, below it
+ *    only a directory holding a module named after it, so a stray copy in legacy/ is not seen),
+ *    by static parsing (token_get_all) of `<Name>.module(.php)` and the `<Name>.info.php` and
+ *    `<Name>.info.json` beside it: the manifest is the literal array getBridgeExtension() returns
+ *    when the class implements BridgeExtension, otherwise the module info's `bridge` key. Modules
+ *    with neither are skipped. A module found twice (the sandboxes junction this checkout's
+ *    modules) counts once, where it was found first; a directory's own module files are read
+ *    before its subdirectories, so a copy in a module-named subdirectory never wins over the
+ *    module itself.
  *
  * Per extension, against the target: the `contract` range takes the target's contract
  * (AdminThemeBridge::contractSatisfies(), the same code as the theme's); `hooks`, `reads` and
@@ -253,22 +256,28 @@ foreach(array('hooks', 'reads', 'settings', 'slots') as $key) {
 
 $modules = array();
 $notCounted = array(); // skipped, not counted in the summary: array(name, dir, reason)
-$walk = function($dir, $depth) use(&$walk, &$modules, &$notCounted) {
+// ProcessWire's discovery rule, ModulesFiles::findModuleFiles() (wire/core/Modules/ModulesFiles.php
+// :87-169, 3.0.274): hidden entries skipped (:131-134); every directory of the scanned directory is
+// entered, below it only a directory holding <DirName>.module or <DirName>.module.php (:137), at any
+// depth; a module file is <Name>.module or <Name>.module.php, Name the part before the first dot
+// (:142-145). The info files are read beside the module file, as ModulesInfo does.
+$walk = function($dir, $level) use(&$walk, &$modules, &$notCounted) {
 	$names = @scandir($dir) ?: array();
 	sort($names);
 	$found = array();
 	$subdirs = array();
 	foreach($names as $entry) {
-		if($entry === '' || $entry[0] === '.' || $entry === 'node_modules') continue;
+		if($entry === '' || $entry[0] === '.') continue;
 		$path = "$dir/$entry";
 		if(is_dir($path)) {
-			if($depth < 4) $subdirs[] = $path;
-		} else if(preg_match('/^([A-Za-z_]\w*)\.(module|module\.php|info\.php|info\.json)$/', $entry, $m)) {
-			$kind = $m[2] === 'module.php' ? 'module' : str_replace('.', '_', $m[2]);
-			$found[$m[1]][$kind] = $path;
+			if($level < 1 || is_file("$path/$entry.module") || is_file("$path/$entry.module.php")) $subdirs[] = $path;
+		} else if(preg_match('/^([^.]+)\.(module|module\.php)$/', $entry, $m)) {
+			// both <Name>.module and <Name>.module.php in one directory: one module (ProcessWire
+			// records no duplicate in one directory, ModulesLoader.php:506-512); .module.php is read
+			$found[$m[1]] = $path;
 		}
 	}
-	foreach($found as $name => $files) {
+	foreach($found as $name => $file) {
 		if($name === 'AdminThemeBridge') {
 			$notCounted[] = array($name, $dir, 'the theme itself');
 			continue;
@@ -277,10 +286,13 @@ $walk = function($dir, $depth) use(&$walk, &$modules, &$notCounted) {
 			$notCounted[] = array($name, $dir, 'found twice, counted in ' . $modules[$name]['dir']);
 			continue;
 		}
-		$modules[$name] = $files + array('dir' => $dir);
+		$files = array('module' => $file, 'dir' => $dir);
+		if(is_file("$dir/$name.info.php")) $files['info_php'] = "$dir/$name.info.php";
+		if(is_file("$dir/$name.info.json")) $files['info_json'] = "$dir/$name.info.json";
+		$modules[$name] = $files;
 	}
-	// after the directory's own files: a copy below (an old version kept in legacy/) never wins
-	foreach($subdirs as $path) $walk($path, $depth + 1);
+	// after the directory's own files: a copy below (in a module-named subdirectory) never wins
+	foreach($subdirs as $path) $walk($path, $level + 1);
 };
 foreach($dirs as $dir) $walk(rtrim(str_replace('\\', '/', $dir), '/'), 0);
 
