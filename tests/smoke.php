@@ -2216,11 +2216,21 @@ file_put_contents("$ccTmp/ext/CompatPlain/CompatPlain.module.php", "<?php namesp
 list($ccCode, $ccOut) = $runCompat(array("$ccTmp/ext"));
 check('extension-compat.php: a manifest built at run time is incompatible, a module without one is skipped, not listed', $ccCode === 1
 	&& strpos($ccOut, 'manifest not readable statically') !== false && strpos($ccOut, 'CompatPlain') === false && strpos($ccOut, '(1 module without a manifest skipped)') !== false, "exit $ccCode: " . trim($ccOut));
+list($ccVCode, $ccVOut) = $runCompat(array('--verbose', "$ccTmp/ext"));
+check('extension-compat.php --verbose: lists the skipped module with its directory and reason, same table, summary and exit', $ccVCode === 1
+	&& (bool) preg_match('/^CompatPlain +\S*CompatPlain +no manifest$/m', $ccVOut) && strpos($ccVOut, "\nSkipped ") !== false
+	&& strpos($ccVOut, 'manifest not readable statically') !== false && substr($ccVOut, -strlen('(1 module without a manifest skipped)' . "\n")) === '(1 module without a manifest skipped)' . "\n", "exit $ccVCode: " . trim($ccVOut));
+check('extension-compat.php without --verbose prints no skipped list', strpos($ccOut, 'Skipped') === false && strpos($ccOut, 'no manifest') === false);
+list($ccVCode, $ccVOut) = $runCompat(array('--verbose', "$ccTmp/ext", "$ccTmp/old", "$ccTmp/ext"));
+check('extension-compat.php --verbose: a module found twice and the theme itself are listed, not counted', $ccVCode === 1
+	&& (bool) preg_match('/^CompatPlain +\S+ +found twice, counted in /m', $ccVOut) && (bool) preg_match('/^AdminThemeBridge +\S+ +the theme itself$/m', $ccVOut)
+	&& strpos($ccVOut, '(1 module without a manifest skipped)') !== false, "exit $ccVCode: " . trim($ccVOut));
 list($ccCode, $ccOut) = $runCompat(array("--bridge=$ccTmp/nowhere"));
 check('extension-compat.php: an unreadable target exits 255', $ccCode === 255);
 foreach(array("$ccTmp/ext/CompatDynamic/CompatDynamic.module.php", "$ccTmp/ext/CompatPlain/CompatPlain.module.php", "$ccTmp/old/AdminThemeBridge.module.php", "$ccTmp/surface.json") as $f) @unlink($f);
 foreach(array("$ccTmp/ext/CompatDynamic", "$ccTmp/ext/CompatPlain", "$ccTmp/ext", "$ccTmp/old", $ccTmp) as $d) @rmdir($d);
 $extDoc8 = (string) @file_get_contents(dirname(__DIR__) . '/docs/extensions.md');
 check('docs/extensions.md section 8 documents the compatibility checker', strpos($extDoc8, "\n## 8. Compatibility\n") !== false && strpos($extDoc8, 'php tools/extension-compat.php [--bridge=') !== false);
+check('docs/extensions.md section 8 documents --verbose', strpos($extDoc8, '[--surface=<json>] [--verbose] [<dir>...]') !== false && strpos($extDoc8, 'With `--verbose` it also lists') !== false);
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

@@ -5,7 +5,7 @@
  * extensions in the given directories break on a given Bridge.
  *
  * Usage:
- *   php tools/extension-compat.php [--bridge=<Bridge checkout or AdminThemeBridge dir>] [--surface=<json>] [<dir>...]
+ *   php tools/extension-compat.php [--bridge=<Bridge checkout or AdminThemeBridge dir>] [--surface=<json>] [--verbose] [<dir>...]
  *
  * Reads, without booting anything and without writing anything:
  *
@@ -28,7 +28,9 @@
  * AdminThemeBridge` or a `bridge` info key). A manifest that is not a literal array (built at run
  * time) cannot be checked and is reported as incompatible.
  *
- * Prints a table and a summary. Exit code: the number of incompatible extensions (at most 254);
+ * Prints a table and a summary; --verbose also lists, between the two, the modules skipped as not
+ * extensions with the reason (no manifest, an empty manifest, found twice, the theme itself).
+ * Exit code: the number of incompatible extensions (at most 254);
  * 255 when the target or the --surface file cannot be read.
  *
  * Original work, MIT.
@@ -49,12 +51,15 @@ function bridgeCompatFail($message) {
 $repo = dirname(__DIR__);
 $bridgeArg = '';
 $surfaceArg = '';
+$verbose = false;
 $dirs = array();
 foreach(array_slice($argv, 1) as $arg) {
 	if(strpos($arg, '--bridge=') === 0) $bridgeArg = substr($arg, 9);
 	else if(strpos($arg, '--surface=') === 0) $surfaceArg = substr($arg, 10);
+	else if($arg === '--verbose') $verbose = true;
 	else if($arg === '-h' || $arg === '--help') {
-		echo "Usage: php tools/extension-compat.php [--bridge=<Bridge checkout or AdminThemeBridge dir>] [--surface=<json>] [<dir>...]\n";
+		echo "Usage: php tools/extension-compat.php [--bridge=<Bridge checkout or AdminThemeBridge dir>] [--surface=<json>] [--verbose] [<dir>...]\n";
+		echo "  --verbose  also list the modules skipped as not extensions, and why\n";
 		exit(0);
 	} else if(strpos($arg, '--') === 0) bridgeCompatFail("unknown option $arg");
 	else $dirs[] = $arg;
@@ -245,7 +250,8 @@ foreach(array('hooks', 'reads', 'settings', 'slots') as $key) {
 // ---- the extensions
 
 $modules = array();
-$walk = function($dir, $depth) use(&$walk, &$modules) {
+$notCounted = array(); // skipped, not counted in the summary: array(name, dir, reason)
+$walk = function($dir, $depth) use(&$walk, &$modules, &$notCounted) {
 	$names = @scandir($dir) ?: array();
 	sort($names);
 	$found = array();
@@ -260,7 +266,14 @@ $walk = function($dir, $depth) use(&$walk, &$modules) {
 		}
 	}
 	foreach($found as $name => $files) {
-		if($name === 'AdminThemeBridge' || isset($modules[$name])) continue;
+		if($name === 'AdminThemeBridge') {
+			$notCounted[] = array($name, $dir, 'the theme itself');
+			continue;
+		}
+		if(isset($modules[$name])) {
+			$notCounted[] = array($name, $dir, 'found twice, counted in ' . $modules[$name]['dir']);
+			continue;
+		}
 		$modules[$name] = $files + array('dir' => $dir);
 	}
 };
@@ -268,6 +281,7 @@ foreach($dirs as $dir) $walk(rtrim(str_replace('\\', '/', $dir), '/'), 0);
 
 $rows = array();
 $skipped = 0;
+$skippedList = array(); // array(name, dir, reason)
 foreach($modules as $name => $files) {
 	$tokens = isset($files['module']) ? bridgeCompatTokens($files['module']) : array();
 	$info = array();
@@ -315,6 +329,10 @@ foreach($modules as $name => $files) {
 	}
 	if($manifest === null || $manifest === array()) {
 		$skipped++;
+		if($implements) $reason = 'getBridgeExtension() returns an empty array';
+		else if($declared !== null) $reason = 'empty bridge info key';
+		else $reason = 'no manifest';
+		$skippedList[] = array($name, $files['dir'], $reason);
 		continue;
 	}
 	$version = $infoKey('version');
@@ -380,6 +398,20 @@ foreach(count($rows) ? $table : array() as $r => $line) {
 		echo implode('  ', $rule) . "\n";
 	}
 }
-echo (count($rows) ? "\n" : '') . count($rows) . ' extension' . (count($rows) === 1 ? '' : 's') . ", $bad incompatible";
+if($verbose) {
+	// the skipped modules: no manifest first, in the order found, then the ones not counted
+	$list = array_merge($skippedList, $notCounted);
+	$lines = array(array('Skipped', 'Directory', 'Reason'));
+	foreach($list as $item) $lines[] = array($item[0], $short($item[1]), str_replace($repoSlash, '', str_replace('\\', '/', $item[2])));
+	$w = array();
+	foreach($lines as $line) foreach($line as $c => $cell) $w[$c] = max($w[$c] ?? 0, strlen($cell));
+	if(count($rows)) echo "\n";
+	if(!count($list)) echo "no modules skipped\n";
+	foreach(count($list) ? $lines : array() as $r => $line) {
+		echo rtrim(str_pad($line[0], $w[0]) . '  ' . str_pad($line[1], $w[1]) . '  ' . $line[2]) . "\n";
+		if(!$r) echo str_repeat('-', $w[0]) . '  ' . str_repeat('-', $w[1]) . '  ' . str_repeat('-', strlen($line[2])) . "\n";
+	}
+}
+echo (count($rows) || $verbose ? "\n" : '') . count($rows) . ' extension' . (count($rows) === 1 ? '' : 's') . ", $bad incompatible";
 echo $skipped ? " ($skipped module" . ($skipped === 1 ? '' : 's') . " without a manifest skipped)\n" : "\n";
 exit(min($bad, 254));

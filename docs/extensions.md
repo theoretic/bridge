@@ -243,10 +243,11 @@ anything and without writing anything: it reads PHP as tokens (`token_get_all`),
 over any site's modules.
 
 ```bash
-php tools/extension-compat.php [--bridge=<Bridge checkout or AdminThemeBridge dir>] [--surface=<json>] [<dir>...]
+php tools/extension-compat.php [--bridge=<Bridge checkout or AdminThemeBridge dir>] [--surface=<json>] [--verbose] [<dir>...]
 php tools/extension-compat.php                                       # this checkout's modules/ and sandboxes
 php tools/extension-compat.php path/to/site/modules                  # a site's modules against this checkout
 php tools/extension-compat.php --bridge=path/to/other/bridge modules # this checkout's extensions against another Bridge
+php tools/extension-compat.php --verbose path/to/site/modules        # also list the skipped modules, and why
 ```
 
 - **The target** is a Bridge (default: this checkout): the `extensionContract` constant of
@@ -259,7 +260,8 @@ php tools/extension-compat.php --bridge=path/to/other/bridge modules # this chec
   `sandbox/<site>/app/modules/`) whose manifest can be read from the source: the literal array
   `getBridgeExtension()` returns when the class implements `BridgeExtension`, otherwise the
   `bridge` key of the module info (`getModuleInfo()`, `<Name>.info.php` or `<Name>.info.json`).
-  Modules with neither are skipped and only counted. A module found twice counts once.
+  Modules with neither are skipped and only counted (`--verbose` lists them). A module found
+  twice counts once.
 - **Per extension**: the `contract` range takes the target's contract (the theme's own
   `contractSatisfies()`); `hooks`, `reads`, `settings` and `slots` are on the target's surface;
   the `module` file exists; the theme would discover the extension (by the interface it also needs
@@ -267,6 +269,10 @@ php tools/extension-compat.php --bridge=path/to/other/bridge modules # this chec
   array) cannot be checked and counts as incompatible.
 
 It prints a table (extension, version, directory, contract, result, problems) and a summary.
+With `--verbose` it also lists, between the two, every module it skipped with its directory and
+the reason: `no manifest`, `empty bridge info key`, `getBridgeExtension() returns an empty array`,
+`found twice, counted in <dir>` or `the theme itself` (the last two are not in the summary's
+count). Without it the output is the table and the summary only.
 Exit code: the number of incompatible extensions (at most 254); 255 when the target or the
 `--surface` file cannot be read. The contract tests (section 6) check far more, but need a
 sandbox; this checker needs only the files.
