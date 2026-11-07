@@ -2076,6 +2076,9 @@ if(isset($bridge) && $bridge) {
 	}
 }
 // 0.27.0: the scaffold and its sample (sprint extension-kit, step 4)
+// audit A1.1: a rebuilt sandbox installs the fixtures the smoke and ci.sh expect, not a hand install
+check('the sandbox installs BridgeSample with the other fixtures (tools/sandbox-admin.php)', strpos((string) file_get_contents(dirname(__DIR__) . '/tools/sandbox-admin.php'),
+	"array('ProcessBridgeDemo', 'BridgeCsp', 'BridgeSample')") !== false);
 $scaffold = dirname(__DIR__) . '/tools/scaffold-extension.php';
 $sampleDir = dirname(__DIR__) . '/modules/BridgeSample/';
 $scaffoldSrc = (string) @file_get_contents($scaffold);

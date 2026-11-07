@@ -7,7 +7,9 @@
 #   sandbox/<site>/vendor/autoload.php       when the site has Composer packages (webroot/vendor): loads
 #                                            the site's own autoloader, so site code using them runs
 #   sandbox/<site>/app/                      copy of the site's site/ (no files, cache, logs, sessions, backups)
-#   sandbox/<site>/app/modules/{AdminThemeBridge,BridgeDemo,BridgeCsp,BridgeSample}  junctions -> modules/
+#   sandbox/<site>/app/modules/{AdminThemeBridge,BridgeDemo,BridgeCsp,BridgeSample}  junctions -> modules/;
+#                                            tools/sandbox-admin.php installs the theme, ProcessBridgeDemo,
+#                                            BridgeCsp (mode off) and BridgeSample
 #   DB <dbName>_bridge                       dump of the site's database, plus sandbox superusers (see .credentials)
 #
 # Site code that hardcodes DOCUMENT_ROOT."/site/..." is rewritten to "/app/..." inside the copy, so
