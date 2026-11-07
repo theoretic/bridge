@@ -82,7 +82,8 @@ trait AdminThemeBridgeExtensions {
 	 *
 	 * `module` is resolved as componentInfo() resolves a component's: absolute URLs and
 	 * root-relative paths are kept, anything else is relative to the module's own directory,
-	 * with `?v=<module version>`. Keys the contract does not know are kept apart in `unknown`
+	 * with `?v=<module version>` (in dev mode `?v=<file time>`: extensionDevVersion()). Keys the
+	 * contract does not know are kept apart in `unknown`
 	 * (the contract tests fail on them; the theme ignores them).
 	 *
 	 * @param string $name Module class name
@@ -109,7 +110,10 @@ trait AdminThemeBridgeExtensions {
 		if($url !== '' && strpos($url, '/') !== 0 && strpos($url, '://') === false) {
 			$url = (string) $this->wire()->config->urls($name) . $url;
 		}
-		if($url !== '' && strpos($url, '?') === false) {
+		$dev = $url !== '' && strpos($url, '?') === false ? $this->extensionDevVersion($url) : '';
+		if($dev !== '') {
+			$url .= '?v=' . $dev;
+		} else if($url !== '' && strpos($url, '?') === false) {
 			$version = (string) $this->wire()->modules->getModuleInfoProperty($name, 'version');
 			if($version !== '') $url .= '?v=' . rawurlencode($version);
 		}
@@ -127,6 +131,33 @@ trait AdminThemeBridgeExtensions {
 			'priority' => isset($manifest['priority']) && is_numeric($manifest['priority']) ? (int) $manifest['priority'] : 100,
 			'unknown' => array_values(array_diff(array_keys($manifest), $known)),
 		);
+	}
+
+	/**
+	 * Dev mode: the `?v=` of a client module's URL while extensions are being developed
+	 *
+	 * With the setting `extensionDev` on (Features > Extension development) and a superuser signed
+	 * in, a module URL under the site modules gets its file's modification time instead of the
+	 * module version, so an edited `.mjs` is fetched fresh on the next page load without a cache
+	 * clear or a version bump (docs/extensions.md 9). Never for core modules or other URLs.
+	 *
+	 * @param string $url Module URL without a query
+	 * @return string The file time (10 digits), or '' when dev mode does not apply
+	 *
+	 */
+	protected function extensionDevVersion($url) {
+		if(!$this->get('extensionDev')) return '';
+		$user = $this->wire()->user;
+		if(!$user || !$user->isSuperuser()) return '';
+		$config = $this->wire()->config;
+		$base = (string) $config->urls->siteModules;
+		if($base === '' || strpos($url, $base) !== 0) return '';
+		if(!array_key_exists($url, $this->extensionDevTimes)) {
+			$rel = substr($url, strlen($base));
+			$file = $config->paths->siteModules . $rel;
+			$this->extensionDevTimes[$url] = $rel !== '' && strpos($rel, '..') === false && is_file($file) ? (string) filemtime($file) : '';
+		}
+		return $this->extensionDevTimes[$url];
 	}
 
 	/**
@@ -339,7 +370,7 @@ trait AdminThemeBridgeExtensions {
 			'settings' => array(
 				'legacyStack', 'uikit', 'maxWidth', 'variant', 'primaryColor', 'colorScheme', 'logoURL', 'logoURLDark',
 				'extendedBreadcrumbs', 'pageTreeDrawer', 'history', 'historySteps', 'pageSaveInPlace', 'pageAddSkipTemplate',
-				'dangerWarn', 'userColors', 'dataTableSortRows', 'printScripts', 'nativeOverrides',
+				'dangerWarn', 'userColors', 'dataTableSortRows', 'printScripts', 'nativeOverrides', 'extensionDev',
 			),
 			// the shell slots (slotTags())
 			'slots' => array_keys($this->slotTags()),

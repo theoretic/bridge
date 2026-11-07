@@ -95,7 +95,7 @@ test compares the two, and the `hooks` line with the methods the class declares.
 - **contract**: `0.1`
 - **hooks**: `install`, `uninstall`, `nonce`, `moveFiles`, `moveFileAllowed`, `filesMoved`, `historyEntry`, `nativeMap`, `isNativeProcess`, `isNativeInputfield`, `scriptNeeds`, `renderBreadcrumbs`, `sortableDataTable`, `uikitReasons`, `extensionSurface`, `drawerNames`
 - **reads**: `useLegacyStack`, `componentInfo`, `extensions`, `extensionInfo`, `extensionAllowed`, `cspNonce`, `nonceAttr`, `nonceScriptTag`, `themeAssetUrl`, `getVariant`, `getColorScheme`, `shellLabel`, `getHistorySteps`
-- **settings**: `legacyStack`, `uikit`, `maxWidth`, `variant`, `primaryColor`, `colorScheme`, `logoURL`, `logoURLDark`, `extendedBreadcrumbs`, `pageTreeDrawer`, `history`, `historySteps`, `pageSaveInPlace`, `pageAddSkipTemplate`, `dangerWarn`, `userColors`, `dataTableSortRows`, `printScripts`, `nativeOverrides`
+- **settings**: `legacyStack`, `uikit`, `maxWidth`, `variant`, `primaryColor`, `colorScheme`, `logoURL`, `logoURLDark`, `extendedBreadcrumbs`, `pageTreeDrawer`, `history`, `historySteps`, `pageSaveInPlace`, `pageAddSkipTemplate`, `dangerWarn`, `userColors`, `dataTableSortRows`, `printScripts`, `nativeOverrides`, `extensionDev`
 - **slots**: `head`, `masthead`, `masthead-right`, `user-nav`, `content-head-buttons`, `footer`, `drawer`, `body`
 - **events**: `pw-runtime-ready`, `pw-legacy-loaded`, `pw-legacy-handover`, `pw-uikit-loaded`, `pw-component-loaded`, `pw-component-failed`, `pw-modal-opened`, `pw-modal-closed`, `pw-wiretabs-change`, `pw-tab-focus`, `pw-drawer-open`, `pw-drawer-close`, `pw-page-save`, `pw-page-saved`, `pw-form-save`, `pw-form-saved`, `pw-files-moved`, `pw-extension-loaded`, `pw-extensions-ready`, `opened`, `closed`, `reloaded`, `showIf`, `changed`
 - **runtime**: `contract`, `version`, `Inputfields`, `components`, `dialog`, `legacy`, `tables`, `pageTree`, `sortable`, `confirm`, `guard`, `extensions`
@@ -163,7 +163,7 @@ either.
   (the import's error message, `incompatible contract <range>`, or `null`). Empty until the
   extensions chunk has arrived.
 - `Bridge.extensions.reload(name)`: imports the module again with a fresh `?v=` and fires
-  `pw-extension-loaded` again (the basis of dev mode). A module defines its custom element
+  `pw-extension-loaded` again (the basis of dev mode, section 9). A module defines its custom element
   guarded by `customElements.get()`: a defined element cannot be defined again, so a reload
   runs the module's other code, not a new class.
 
@@ -216,7 +216,9 @@ php tools/extension-check.php sandbox/atispro --self-test
 `extension-check.js` loads the page tree in a browser, signed in as `bridge`: the extension is in
 `Bridge.extensions.list()` (compatible) and in `loaded()` without error, `pw-extension-loaded`
 fired with its name, each slot it fills has its part in the DOM with its custom elements
-defined, `reload()` fires `pw-extension-loaded` again; `pw-extensions-ready` fired once, no
+defined, `reload()` fires `pw-extension-loaded` again, and `reload()` of an edited copy of the
+module (served in its place from a temp file, its exported version literal changed; the module
+file is not touched) shows the new version in `loaded()` (section 9); `pw-extensions-ready` fired once, no
 jQuery unless the theme recorded legacy reasons, no console errors.
 
 `--self-test` writes a module with four faults into the sandbox (an unknown manifest key, a hook
@@ -287,3 +289,33 @@ count). Without it the output is the table and the summary only.
 Exit code: the number of incompatible extensions (at most 254); 255 when the target or the
 `--surface` file cannot be read. The contract tests (section 6) check far more, but need a
 sandbox; this checker needs only the files.
+
+## 9. Dev mode
+
+Two pieces, both for working on an extension's client module against a sandbox or a local site.
+
+- **The setting** *Extension development* (`extensionDev`, the theme's settings, Features; off by
+  default). While it is on, and only for a superuser, the `module` URL of an extension
+  (`extensionInfo()`) and of a component (`componentInfo()`) whose file lies under the site
+  modules ends in `?v=<file time>` (the file's modification time, 10 digits) instead of
+  `?v=<module version>`: an edited `.mjs` is fetched fresh on the next page load, without a
+  cache clear or a version bump. Core modules and other URLs keep the module version; with the
+  setting off nothing changes. Leave it off on a live site.
+- **The watcher** `tools/extension-dev.js` opens the admin's page tree in a browser (Playwright,
+  signed in as the sandbox user `bridge`), watches the module's directory and, when a file in it
+  changes, calls `Bridge.extensions.reload(<name>)` for each extension whose module lies in that
+  directory. The page stays; the module is imported again with a fresh `?v=` and
+  `pw-extension-loaded` fires again. Each reload prints one line with the extension's error or
+  exported version; the page's console errors are printed too. A changed PHP file is only
+  reported: PHP takes a page load. Ctrl+C (or closing the browser) stops it.
+
+```bash
+PW=<playwright-core dir> node tools/extension-dev.js modules/BridgeSample [admin url]   # HEADLESS=1 for no window; SANDBOX=, PROBE_PASS= as for the harnesses
+```
+
+What a reload does not do: it is not hot module replacement. A custom element, once defined, stays
+the class it was (`customElements.define()` cannot redefine a tag), so the module's other code runs
+again but an edited element class takes a page load; state the old module kept is not carried over;
+a stylesheet the module injects is the module's own business on `pw-extension-loaded`. Real HMR
+would need a dev server and a bundler contract with extensions, which the extension model leaves out
+on purpose (no build step shared between Bridge and an extension).

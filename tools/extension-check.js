@@ -5,7 +5,9 @@
 // without error, `pw-extension-loaded` fired with its name (when it has a module), each slot it fills
 // has its part in the DOM (data-bridge-slot + data-bridge-extension; `head` parts carry no wrapper
 // and are not looked for), the custom elements in its parts are defined, Bridge.extensions.reload()
-// fires `pw-extension-loaded` again without an error; and for the page: `pw-extensions-ready` fired
+// fires `pw-extension-loaded` again without an error, and reload() of an edited copy of the module
+// (a temp file served in its place, the exported version literal changed) shows the new version in
+// Bridge.extensions.loaded() (dev mode); and for the page: `pw-extensions-ready` fired
 // once, no jQuery unless the theme recorded legacy reasons (the --gate idea of native-check.js), no
 // console errors.
 //
@@ -21,6 +23,7 @@
 'use strict';
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { execFileSync } = require('child_process');
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'chromium';
@@ -34,6 +37,7 @@ const ADMIN = sandbox.adminUrl(process.argv[5] || '');
 const PHP = process.env.PHP || 'php';
 const SANDBOX = sandbox.info().root;
 const results = [];
+const skips = [];
 const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info === undefined ? '' : String(info).slice(0, 300) }); };
 
 (async () => {
@@ -120,6 +124,33 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			if(definedBefore) {
 				check(`${name}: ${state.loaded.tag} still defined after reload()`, await page.evaluate((tag) => !!customElements.get(tag), state.loaded.tag));
 			}
+			// dev mode (docs/extensions.md 9): an edited copy of the module (a temp file, its exported
+			// version literal changed) is what reload() imports; the module file itself is not touched
+			const version = state.loaded && state.loaded.version;
+			const source = version ? await page.evaluate(async (u) => { try { return await (await fetch(u)).text(); } catch(e) { return ''; } }, state.loaded.url) : '';
+			const literal = version ? [`'${version}'`, `"${version}"`].filter(q => source.split(q).length === 2)[0] : '';
+			if(!literal) {
+				skips.push(`${name}: reload() of an edited copy (no single version literal in the module to edit)`);
+			} else {
+				const edited = `${version}-edited`;
+				const tmp = path.join(os.tmpdir(), `bridge-ext-dev-${process.pid}-${path.basename(new URL(state.loaded.url, ADMIN).pathname)}`);
+				fs.writeFileSync(tmp, source.replace(literal, literal[0] + edited + literal[0]));
+				const modulePath = new URL(state.loaded.url, ADMIN).pathname;
+				const match = (u) => u.pathname === modulePath;
+				await page.route(match, (route) => route.fulfill({ path: tmp, contentType: 'text/javascript' }));
+				const dev = await page.evaluate(async (name) => {
+					await Bridge.extensions.reload(name);
+					return Bridge.extensions.loaded().filter(e => e.name === name)[0] || null;
+				}, name).catch(e => ({ error: e.message }));
+				await page.unroute(match);
+				fs.unlinkSync(tmp);
+				check(`${name}: reload() imports an edited copy, loaded() has its version ${edited}`, dev && dev.error === null && dev.version === edited, JSON.stringify(dev));
+				const back = await page.evaluate(async (name) => {
+					await Bridge.extensions.reload(name);
+					return (Bridge.extensions.loaded().filter(e => e.name === name)[0] || {}).version;
+				}, name).catch(() => null);
+				check(`${name}: reload() of the file again gives ${version} back`, back === version, back);
+			}
 		}
 	}
 	check('page: no page errors', errors.length === 0, errors.join(' | '));
@@ -128,6 +159,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	await browser.close();
 	const failed = results.filter(r => !r.ok);
 	for(const r of results) console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.name}${r.info && !r.ok ? '  [' + r.info + ']' : ''}`);
+	for(const s of skips) console.log(`skip ${s}`);
 	console.log(`\n${browserName}: ${results.length - failed.length}/${results.length} passed`);
 	process.exit(failed.length ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(2); });

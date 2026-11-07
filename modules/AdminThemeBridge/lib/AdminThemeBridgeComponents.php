@@ -30,7 +30,8 @@ trait AdminThemeBridgeComponents {
 	 * Normalised component descriptor for a BridgeComponent module
 	 *
 	 * `module` is resolved to a URL: absolute URLs and root-relative paths are kept, anything
-	 * else is relative to the module's own directory ($config->urls->ClassName).
+	 * else is relative to the module's own directory ($config->urls->ClassName). The URL gets
+	 * `?v=<module version>`, or in dev mode `?v=<file time>` (extensionDevVersion()).
 	 *
 	 * @param Module|BridgeComponent $module
 	 * @return array ['tag' => string, 'module' => string, 'version' => string]
@@ -53,7 +54,11 @@ trait AdminThemeBridgeComponents {
 			}
 			$url = $this->componentBase[$class] . $url;
 		}
-		if($url !== '' && strpos($url, '?') === false) {
+		$dev = $url !== '' && strpos($url, '?') === false ? $this->extensionDevVersion($url) : '';
+		if($dev !== '') {
+			// dev mode (extensionDev, superusers): the file time, so an edited module is fetched fresh
+			$url .= '?v=' . $dev;
+		} else if($url !== '' && strpos($url, '?') === false) {
 			if(!isset($this->componentVersion[$class])) {
 				$this->componentVersion[$class] = (string) $this->wire()->modules->getModuleInfoProperty($module, 'version');
 			}

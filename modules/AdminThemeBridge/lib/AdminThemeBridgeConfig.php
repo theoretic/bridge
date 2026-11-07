@@ -208,6 +208,17 @@ trait AdminThemeBridgeConfig {
 		$f->columnWidth = 50;
 		$fs->add($f);
 
+		/** @var InputfieldCheckbox $f */
+		$f = $modules->get('InputfieldCheckbox');
+		$f->attr('name', 'extensionDev');
+		$f->label = __('Extension development', __FILE__);
+		$f->description = __('For superusers only: the client module of an extension or component in the site modules is loaded by its file time instead of its module version, so an edited module is fetched fresh on the next page load. Leave it off on a live site.', __FILE__);
+		$f->notes = __('With tools/extension-dev.js the page also reloads the module when its file changes.', __FILE__);
+		$f->attr('value', 1);
+		if($this->get('extensionDev')) $f->attr('checked', 'checked');
+		$f->columnWidth = 50;
+		$fs->add($f);
+
 		/** @var InputfieldFieldset $fs */
 		$fs = $modules->get('InputfieldFieldset');
 		$fs->attr('name', '_legacy');

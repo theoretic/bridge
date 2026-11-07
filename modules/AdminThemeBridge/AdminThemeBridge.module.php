@@ -292,6 +292,12 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	protected $componentVersion = array();
 
 	/**
+	 * extensionDevVersion(): the file time of a client module under site modules, by URL (dev mode)
+	 *
+	 */
+	protected $extensionDevTimes = array();
+
+	/**
 	 * bossForcesUikit() and printScriptsList() answers, per instance (audit B12: method statics
 	 * were shared by every instance)
 	 *
@@ -528,6 +534,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->set('dataTableSortRows', 10);
 		$this->set('printScripts', '');
 		$this->set('nativeOverrides', '');
+		$this->set('extensionDev', 0);
 		$this->setClasses(array(
 			'input' => 'pw-input',
 			'input-small' => 'pw-input pw-input-small',

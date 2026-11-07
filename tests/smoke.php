@@ -2260,5 +2260,78 @@ check('extension-compat.php smoke fixtures removed', !is_dir($ccTmp), $ccTmp);
 $extDoc8 = (string) @file_get_contents(dirname(__DIR__) . '/docs/extensions.md');
 check('docs/extensions.md section 8 documents the compatibility checker', strpos($extDoc8, "\n## 8. Compatibility\n") !== false && strpos($extDoc8, 'php tools/extension-compat.php [--bridge=') !== false);
 check('docs/extensions.md section 8 documents --verbose', strpos($extDoc8, '[--surface=<json>] [--verbose] [<dir>...]') !== false && strpos($extDoc8, 'With `--verbose` it also lists') !== false);
+// 0.27.0: dev mode for an extension's JS (docs/extensions.md 9; sprint extension-kit, step 8)
+$devModuleSrc = (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php');
+$devConfigSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeConfig.php');
+check('extensionDev: a setting, off by default, a checkbox under Features', strpos($devModuleSrc, "\$this->set('extensionDev', 0);") !== false
+	&& strpos($devConfigSrc, "\$f->attr('name', 'extensionDev');") !== false && strpos($devConfigSrc, "__('Extension development', __FILE__)") !== false
+	&& strpos($devConfigSrc, "'extensionDev'") > strpos($devConfigSrc, "'_features'") && strpos($devConfigSrc, "'extensionDev'") < strpos($devConfigSrc, "'_legacy'"));
+if(isset($bridge) && $bridge && $modules->isInstalled('BridgeSample') && $modules->isInstalled('InputfieldBridgeText')) {
+	$devSu = $wire->users->get('name=bridge');
+	$devGuest = $wire->user;
+	$devTimes = new \ReflectionProperty($bridge, 'extensionDevTimes');
+	$devDb = function() use($wire) {
+		$q = $wire->database->prepare('SELECT data FROM modules WHERE class=:c');
+		$q->execute(array(':c' => 'AdminThemeBridge'));
+		$data = json_decode((string) $q->fetchColumn(), true);
+		return is_array($data) && !empty($data['extensionDev']);
+	};
+	$devUrls = function() use($bridge, $modules, $devTimes, $wire) {
+		$devTimes->setValue($bridge, array());
+		$out = array();
+		foreach(array('BridgeSample', 'ProcessBridgeDemo') as $n) {
+			$m = $modules->getModule($n, array('noPermissionCheck' => true, 'noInit' => true));
+			$out[$n] = $bridge->extensionInfo($n, $m->getBridgeExtension())['module'];
+		}
+		$out['InputfieldBridgeText'] = $bridge->componentInfo($modules->getModule('InputfieldBridgeText', array('noPermissionCheck' => true)))['module'];
+		$out['core'] = $bridge->extensionInfo('ProcessBridgeDemo', array('contract' => '^0.1', 'module' => $wire->config->urls->modules . 'Process/ProcessPageList/x.mjs'))['module'];
+		return $out;
+	};
+	$devVersions = array();
+	foreach(array('BridgeSample', 'ProcessBridgeDemo', 'InputfieldBridgeText') as $n) $devVersions[$n] = '?v=' . $modules->getModuleInfoProperty($n, 'version');
+	$devEnds = function($url, $end) { return substr((string) $url, -strlen($end)) === $end; };
+	$devFile = $config->paths->siteModules . 'BridgeSample/BridgeSample.mjs';
+	$devConfigWas = (array) $modules->getConfig('AdminThemeBridge');
+	$devWas = $bridge->get('extensionDev');
+	check('extensionDev is off on the sandbox before the dev-mode lines', !$devWas && !$devDb());
+	$wire->users->setCurrentUser($devSu);
+	$off = $devUrls();
+	check('dev mode off: module URLs carry the module version', $off['BridgeSample'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.mjs' . $devVersions['BridgeSample']
+		&& $devEnds($off['ProcessBridgeDemo'], $devVersions['ProcessBridgeDemo']) && $devEnds($off['InputfieldBridgeText'], $devVersions['InputfieldBridgeText'])
+		&& $devEnds($off['core'], $devVersions['ProcessBridgeDemo']), json_encode($off));
+	try {
+		// toggled on the sandbox (saved in its database, as the settings screen does) and on the running theme
+		$modules->saveConfig('AdminThemeBridge', 'extensionDev', 1);
+		$bridge->set('extensionDev', 1);
+		check('extensionDev saved on in the sandbox database', $devDb());
+		$on = $devUrls();
+		check('dev mode on, superuser: BridgeSample\'s URL ends in ?v=<10-digit file time>', $on['BridgeSample'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.mjs?v=' . filemtime($devFile)
+			&& (bool) preg_match('/\?v=\d{10}$/', $on['BridgeSample']), $on['BridgeSample']);
+		check('dev mode on: ProcessBridgeDemo\'s module and InputfieldBridgeText\'s component carry their file time too', (bool) preg_match('/\.mjs\?v=\d{10}$/', $on['ProcessBridgeDemo'])
+			&& (bool) preg_match('#/pw-text\.js\?v=\d{10}$#', $on['InputfieldBridgeText']), json_encode($on));
+		check('dev mode on: a module URL outside the site modules (core) keeps the module version', $on['core'] === $off['core'], $on['core']);
+		$wire->users->setCurrentUser($devGuest);
+		$onGuest = $devUrls();
+		check('dev mode on, not a superuser: module versions as with it off', $onGuest === $off, json_encode($onGuest));
+	} finally {
+		$wire->users->setCurrentUser($devGuest);
+		$modules->saveConfig('AdminThemeBridge', $devConfigWas);
+		$bridge->set('extensionDev', $devWas);
+		$devTimes->setValue($bridge, array());
+	}
+	$wire->users->setCurrentUser($devSu);
+	$back = $devUrls();
+	$wire->users->setCurrentUser($devGuest);
+	check('extensionDev restored to off on the sandbox (database and theme), URLs as before', !$devDb() && !$bridge->get('extensionDev') && $back === $off, json_encode($back));
+} else {
+	check('dev mode lines need BridgeSample and InputfieldBridgeText installed on the sandbox', false);
+}
+$devDoc = (string) @file_get_contents(dirname(__DIR__) . '/docs/extensions.md');
+$devTool = (string) @file_get_contents(dirname(__DIR__) . '/tools/extension-dev.js');
+check('tools/extension-dev.js watches the module directory and calls Bridge.extensions.reload()', strpos($devTool, 'fs.watch(dir, { recursive: true }') !== false
+	&& strpos($devTool, 'await Bridge.extensions.reload(name);') !== false && strpos($devTool, "-> Bridge.extensions.reload('") !== false);
+check('extension-check.js reloads an edited copy of the module and looks for its version', strpos((string) @file_get_contents(dirname(__DIR__) . '/tools/extension-check.js'), 'reload() imports an edited copy, loaded() has its version') !== false);
+check('docs/extensions.md section 9 documents dev mode and says it is not HMR', strpos($devDoc, "\n## 9. Dev mode\n") !== false && strpos($devDoc, 'PW=<playwright-core dir> node tools/extension-dev.js modules/BridgeSample') !== false
+	&& strpos($devDoc, 'it is not hot module replacement') !== false);
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

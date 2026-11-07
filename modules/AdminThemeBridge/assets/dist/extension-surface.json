@@ -52,7 +52,8 @@
 		"userColors",
 		"dataTableSortRows",
 		"printScripts",
-		"nativeOverrides"
+		"nativeOverrides",
+		"extensionDev"
 	],
 	"slots": [
 		"head",
