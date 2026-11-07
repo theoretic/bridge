@@ -2227,8 +2227,19 @@ check('extension-compat.php --verbose: a module found twice and the theme itself
 	&& strpos($ccVOut, '(1 module without a manifest skipped)') !== false, "exit $ccVCode: " . trim($ccVOut));
 list($ccCode, $ccOut) = $runCompat(array("--bridge=$ccTmp/nowhere"));
 check('extension-compat.php: an unreadable target exits 255', $ccCode === 255);
-foreach(array("$ccTmp/ext/CompatDynamic/CompatDynamic.module.php", "$ccTmp/ext/CompatPlain/CompatPlain.module.php", "$ccTmp/old/AdminThemeBridge.module.php", "$ccTmp/surface.json") as $f) @unlink($f);
-foreach(array("$ccTmp/ext/CompatDynamic", "$ccTmp/ext/CompatPlain", "$ccTmp/ext", "$ccTmp/old", $ccTmp) as $d) @rmdir($d);
+// copy precedence: the module's own file wins over an old copy below it (a/legacy/), with no manifest
+@mkdir("$ccTmp/prec/CompatCopy/a/legacy", 0777, true);
+file_put_contents("$ccTmp/prec/CompatCopy/CompatCopy.module.php", "<?php namespace ProcessWire;\nclass CompatCopy extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('version' => 2, 'bridge' => array('contract' => '^0.1')); }\n}\n");
+file_put_contents("$ccTmp/prec/CompatCopy/a/legacy/CompatCopy.module", "<?php namespace ProcessWire;\nclass CompatCopy extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('version' => 1); }\n}\n");
+list($ccVCode, $ccVOut) = $runCompat(array('--verbose', "$ccTmp/prec"));
+check('extension-compat.php: a directory\'s own module file wins over a copy in its subdirectories (the copy is the one found twice)', $ccVCode === 0
+	&& (bool) preg_match('#^CompatCopy +2 +\S*/prec/CompatCopy +\^0\.1 +ok$#m', $ccVOut)
+	&& (bool) preg_match('#^CompatCopy +\S*/prec/CompatCopy/a/legacy +found twice, counted in \S*/prec/CompatCopy$#m', $ccVOut)
+	&& strpos($ccVOut, "\n1 extension, 0 incompatible\n") !== false, "exit $ccVCode: " . trim($ccVOut));
+foreach(array("$ccTmp/ext/CompatDynamic/CompatDynamic.module.php", "$ccTmp/ext/CompatPlain/CompatPlain.module.php", "$ccTmp/old/AdminThemeBridge.module.php", "$ccTmp/surface.json",
+	"$ccTmp/prec/CompatCopy/CompatCopy.module.php", "$ccTmp/prec/CompatCopy/a/legacy/CompatCopy.module") as $f) @unlink($f);
+foreach(array("$ccTmp/ext/CompatDynamic", "$ccTmp/ext/CompatPlain", "$ccTmp/ext", "$ccTmp/old",
+	"$ccTmp/prec/CompatCopy/a/legacy", "$ccTmp/prec/CompatCopy/a", "$ccTmp/prec/CompatCopy", "$ccTmp/prec", $ccTmp) as $d) @rmdir($d);
 $extDoc8 = (string) @file_get_contents(dirname(__DIR__) . '/docs/extensions.md');
 check('docs/extensions.md section 8 documents the compatibility checker', strpos($extDoc8, "\n## 8. Compatibility\n") !== false && strpos($extDoc8, 'php tools/extension-compat.php [--bridge=') !== false);
 check('docs/extensions.md section 8 documents --verbose', strpos($extDoc8, '[--surface=<json>] [--verbose] [<dir>...]') !== false && strpos($extDoc8, 'With `--verbose` it also lists') !== false);

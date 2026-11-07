@@ -261,7 +261,9 @@ php tools/extension-compat.php --verbose path/to/site/modules        # also list
   `getBridgeExtension()` returns when the class implements `BridgeExtension`, otherwise the
   `bridge` key of the module info (`getModuleInfo()`, `<Name>.info.php` or `<Name>.info.json`).
   Modules with neither are skipped and only counted (`--verbose` lists them). A module found
-  twice counts once.
+  twice counts once, where it was found first. A directory's own module files come before its
+  subdirectories, so an old copy kept below a module (`<Module>/legacy/…`) is the one reported as
+  found twice, never the module itself.
 - **Per extension**: the `contract` range takes the target's contract (the theme's own
   `contractSatisfies()`); `hooks`, `reads`, `settings` and `slots` are on the target's surface;
   the `module` file exists; the theme would discover the extension (by the interface it also needs

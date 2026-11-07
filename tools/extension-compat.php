@@ -19,7 +19,9 @@
  *    `<Name>.module(.php)`, `<Name>.info.php` and `<Name>.info.json`: the manifest is the literal
  *    array getBridgeExtension() returns when the class implements BridgeExtension, otherwise the
  *    module info's `bridge` key. Modules with neither are skipped. A module found twice (the
- *    sandboxes junction this checkout's modules) counts once, where it was found first.
+ *    sandboxes junction this checkout's modules) counts once, where it was found first; a
+ *    directory's own module files are read before its subdirectories, so a copy kept below a
+ *    module (an old version in legacy/) never wins over the module itself.
  *
  * Per extension, against the target: the `contract` range takes the target's contract
  * (AdminThemeBridge::contractSatisfies(), the same code as the theme's); `hooks`, `reads` and
@@ -255,11 +257,12 @@ $walk = function($dir, $depth) use(&$walk, &$modules, &$notCounted) {
 	$names = @scandir($dir) ?: array();
 	sort($names);
 	$found = array();
+	$subdirs = array();
 	foreach($names as $entry) {
 		if($entry === '' || $entry[0] === '.' || $entry === 'node_modules') continue;
 		$path = "$dir/$entry";
 		if(is_dir($path)) {
-			if($depth < 4) $walk($path, $depth + 1);
+			if($depth < 4) $subdirs[] = $path;
 		} else if(preg_match('/^([A-Za-z_]\w*)\.(module|module\.php|info\.php|info\.json)$/', $entry, $m)) {
 			$kind = $m[2] === 'module.php' ? 'module' : str_replace('.', '_', $m[2]);
 			$found[$m[1]][$kind] = $path;
@@ -276,6 +279,8 @@ $walk = function($dir, $depth) use(&$walk, &$modules, &$notCounted) {
 		}
 		$modules[$name] = $files + array('dir' => $dir);
 	}
+	// after the directory's own files: a copy below (an old version kept in legacy/) never wins
+	foreach($subdirs as $path) $walk($path, $depth + 1);
 };
 foreach($dirs as $dir) $walk(rtrim(str_replace('\\', '/', $dir), '/'), 0);
 
