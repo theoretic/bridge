@@ -1,5 +1,14 @@
 # Changelog
 
+## AdminThemeBridge 0.27.1: content centred in draggable rows (2026-11-08)
+
+Owner's report: in rows that are dragged to sort, the content sat high instead of in the middle of the row. Blast radius asked for: every text-only draggable row (text and icons, not image thumbnails).
+
+- **Template field list** (Setup > Templates > edit, the asmSelect of fields): the field label column (`.asmListItemDesc`) hung from the top of the row (upstream `top:0; padding-top:3px`), 6.5 px above the row's centre. It is now centred like the status text and the trash icon already were (`top:50%`, `translateY(-50%)`). Also any asmSelect with a description.
+- **Repeater item header** (Repeater, and Repeater Matrix through the same classes): the item controls (delete, on/off, clone, insert after, insert before, open/close) hung from the top (upstream: absolute, `margin-top:.5em`, icons floated right, the open/close icon 3 px lower), 7 px above the centre with the 0.27.0 header padding. They are now a flex row (`row-reverse`, the floats' order) spanning the header's height, centred; not on an out-of-bounds item, which upstream hides. On touch screens they already sat beside the label, centred; that rule now shares the flex part.
+- Checked and already centred within 1.5 px, unchanged: asmSelect rows of page fields, PageAutocomplete rows, PageListSelectMultiple rows, file field rows (the header of each file), tag chips (TextTags, file tags), PageTable rows, page tree rows, a tree row while it is dragged. Measured in Chromium and Firefox on the sandbox: each visible child's centre against the centre of the row's content box, before and after.
+- Budgets: theme.css 17414 of 17908 B gzip, fields.css 5922 of 6144 B. The smoke test checks the three rules.
+
 ## AdminThemeBridge 0.27.0: the extension kit (2026-11-07)
 
 Owner's brief: extensions should be ProcessWire modules that use a published Bridge contract, with Bridge's own features built the same way, and a kit to build and check them (scaffold, contract tests, dev mode, a compatibility checker). Bridge being an admin theme on upstream's URLs, the contract is the theme's surface, not an API layer (ADR 0021, `docs/extensions.md`).

@@ -26,9 +26,11 @@ html .InputfieldToggleGroup input:focus-visible + label { box-shadow: 0 0 0 var(
 /* side panel (JqueryUI/panel.css) */
 .pw-panel-content { background: var(--background); }
 
-/* asmSelect rows: upstream pins the remove link and the status text to the top and nudges the
- * trash icon down by hand; centre both on the row instead */
-.asmList .asmListItem .asmListItemRemove, .asmList .asmListItem span.asmListItemStatus { top: 50%; transform: translateY(-50%); line-height: 1; }
+/* asmSelect rows: upstream pins the remove link, the status text and the description (the field
+ * label in a template's field list) to the top and nudges the trash icon down by hand; centre them
+ * on the row instead */
+.asmList .asmListItem .asmListItemRemove, .asmList .asmListItem span.asmListItemStatus, .asmList .asmListItem span.asmListItemDesc { top: 50%; transform: translateY(-50%); line-height: 1; }
+.asmList .asmListItem span.asmListItemDesc { padding-top: 0; }
 .asmList .asmListItem .asmListItemRemove { right: 8px; }
 .Inputfields .asmList .asmListItem .asmListItemRemove i { top: 0; right: 0; }
 

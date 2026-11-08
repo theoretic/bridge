@@ -2346,5 +2346,14 @@ check('docs/extensions.md documents the scaffold and what contract 0.1 leaves ou
 check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
 	&& is_file(dirname(__DIR__) . '/docs/decisions/0021-extensions-are-modules-on-a-published-surface.md'));
+// 0.27.1: content of draggable rows centred vertically (template field list, repeater item header)
+if(isset($bridge) && $bridge) {
+	$themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
+	$fieldsCss = (string) @file_get_contents($themeDir . 'assets/dist/fields.css');
+	check('draggable rows: repeater item controls and asmSelect description centred on the row', strpos($themeCss, '.InputfieldRepeaterHeaderInit:not(.InputfieldRepeaterItemOOB)>.InputfieldRepeaterItemControls{display:flex;flex-direction:row-reverse;align-items:center;top:0;bottom:0;height:auto;margin-top:0}') !== false
+		&& strpos($themeCss, '.InputfieldRepeaterItemControls>i.toggle-icon{margin-top:0}') !== false
+		&& strpos($fieldsCss, '.asmList .asmListItem span.asmListItemDesc{top:50%;transform:translateY(-50%);line-height:1}') !== false);
+}
+
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

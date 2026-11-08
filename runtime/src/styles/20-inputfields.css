@@ -83,11 +83,16 @@
 .InputfieldRepeaterItem > .InputfieldHeader, .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader { padding: 10px var(--pw-field-pad); background: var(--muted); font-size: .875rem; line-height: 1.25rem; color: var(--foreground); text-overflow: ellipsis; }
 /* item controls show on hover upstream: also with keyboard focus inside, and always on touch */
 .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit:focus-within > .InputfieldRepeaterItemControls { opacity: 1 !important; }
+/* the controls centred on the header: upstream hangs them from the top (margin-top .5em, icons
+ * floated right, the toggle icon 3px lower); row-reverse keeps the floats' order. Not on an OOB item
+ * (upstream display:none) */
+.Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader.InputfieldRepeaterHeaderInit:not(.InputfieldRepeaterItemOOB) > .InputfieldRepeaterItemControls { display: flex; flex-direction: row-reverse; align-items: center; top: 0; bottom: 0; height: auto; margin-top: 0; }
+.InputfieldRepeaterItemControls > i.toggle-icon { margin-top: 0; }
 /* there the controls sit beside the label instead of over it (upstream: absolute), or on a line of
  * their own when the label would get less than 6em */
 @media (hover: none) {
 	.Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit { display: flex; flex-wrap: wrap; align-items: center; }
-	.Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader.InputfieldRepeaterHeaderInit > .InputfieldRepeaterItemControls { opacity: 1 !important; order: 1; display: flex; flex-direction: row-reverse; position: static; height: auto; margin: 0 0 0 auto; padding: 0 0 0 8px; }
+	.Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader.InputfieldRepeaterHeaderInit > .InputfieldRepeaterItemControls { opacity: 1 !important; order: 1; position: static; margin: 0 0 0 auto; padding: 0 0 0 8px; }
 	.InputfieldRepeaterHeaderInit > :is(.InputfieldRepeaterItemControls, .InputfieldRepeaterDrag) { flex: none; }
 	.InputfieldRepeaterHeaderInit > .InputfieldRepeaterItemLabel { flex: 1 1 6em; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 }
