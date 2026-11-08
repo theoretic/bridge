@@ -49,7 +49,7 @@ Every admin screen asks the page whether the user may list, view, edit, add, mov
 trash or delete it, so the page tree, the editor and the page actions follow the rules. Screens
 built on a find (search, autocomplete, the live search, the lister) get the same limits through
 their selectors. Requests to a screen under a denied menu are refused, and the item leaves the
-menu.
+menu. With Pages denied, Bridge shows no page tree drawer button; its other drawers stay.
 
 The hooks are the core's, so the rules hold for a user on another admin theme; the instant menu
 update is Bridge's.

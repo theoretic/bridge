@@ -31,7 +31,7 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 			// Bridge extension manifest (docs/extensions.md 2), declarative: no dependency on the theme
 			'bridge' => array(
 				'contract' => '^0.1',
-				'hooks' => array('navCacheKey'),
+				'hooks' => array('navCacheKey', 'drawerNames'),
 			),
 		);
 	}
@@ -135,6 +135,7 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 		$this->addHookBefore('ProcessHome::execute', $this, 'hookHomeExecute');
 		if($this->bridgeThemePresent()) {
 			$this->addHookAfter('AdminThemeBridge::navCacheKey', $this, 'hookNavCacheKey');
+			$this->addHookAfter('AdminThemeBridge::drawerNames', $this, 'hookDrawerNames');
 		}
 	}
 
@@ -202,9 +203,7 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	 *
 	 */
 	public function hookHomeExecute(HookEvent $event) {
-		$menus = $this->coreMenus();
-		if(!isset($menus[self::pagesMenuId]) || !$this->menuDenied($menus[self::pagesMenuId], $this->wire()->user)) return;
-		$this->wire()->session->location($this->landingUrl());
+		if($this->pagesMenuDenied()) $this->wire()->session->location($this->landingUrl());
 	}
 
 	/**
@@ -218,6 +217,18 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 		$user = $this->wire()->user;
 		if(!count($this->rulesFor($user))) return;
 		$event->return .= '-acl' . (int) $this->get('rulesVersion') . '-' . (int) $user->id;
+	}
+
+	/**
+	 * Hook after AdminThemeBridge::drawerNames: with Pages denied the page tree drawer would open
+	 * empty (its request is refused), so it goes; the other drawers stay
+	 *
+	 * @param HookEvent $event
+	 *
+	 */
+	public function hookDrawerNames(HookEvent $event) {
+		if(!is_array($event->return) || !$this->pagesMenuDenied()) return;
+		$event->return = array_values(array_diff($event->return, array('tree')));
 	}
 
 	/**
@@ -420,6 +431,17 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 		$note->label = $this->_('Rules');
 		$note->value = '<p>' . $this->wire()->sanitizer->entities($this->_('The rules are not editable here yet.')) . '</p>';
 		$inputfields->add($note);
+	}
+
+	/**
+	 * Is the Pages menu denied to the current user?
+	 *
+	 * @return bool
+	 *
+	 */
+	protected function pagesMenuDenied() {
+		$menus = $this->coreMenus();
+		return isset($menus[self::pagesMenuId]) && $this->menuDenied($menus[self::pagesMenuId], $this->wire()->user);
 	}
 
 	/**

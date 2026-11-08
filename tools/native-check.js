@@ -27,7 +27,9 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	// PW_STATE=<file>: reuse a saved login (repeated logins trip ProcessWire's login throttle)
 	const fs = require('fs');
 	const statePath = process.env.PW_STATE || '';
-	const ctx = await browser.newContext(Object.assign({ viewport: { width: 1280, height: 900 } },
+	// --gate hovers the primary nav: at 1280 px the sandbox's six top-level items collapse it by
+	// design (pw-nav-overflow, the nav is display:none), so the gate needs a wider window
+	const ctx = await browser.newContext(Object.assign({ viewport: { width: GATE ? 1440 : 1280, height: 900 } },
 		statePath && fs.existsSync(statePath) ? { storageState: statePath } : {}));
 	const consoleErrors = require('./console-errors')(ctx);
 	const page = await ctx.newPage();

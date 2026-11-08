@@ -2391,7 +2391,7 @@ check('ACL fixtures: tools/lib/sandbox-ids.php prints CUSTOM_MENU_ID', $aclCusto
 $aclName = 'BridgeAdminAccessControl';
 check('ACL the module is installed in this sandbox', $modules->isInstalled($aclName));
 $aclModuleSrc = (string) @file_get_contents(dirname(__DIR__) . "/modules/$aclName/$aclName.module.php");
-check('ACL the manifest is the bridge info key, hooks navCacheKey, no dependency on the theme', strpos($aclModuleSrc, "'hooks' => array('navCacheKey')") !== false
+check('ACL the manifest is the bridge info key, hooks navCacheKey and drawerNames, no dependency on the theme', strpos($aclModuleSrc, "'hooks' => array('navCacheKey', 'drawerNames')") !== false
 	&& strpos($aclModuleSrc, "'contract' => '^0.1'") !== false && strpos($aclModuleSrc, "'requires' => 'ProcessWire>=3.0.227, PHP>=8.1'") !== false
 	&& strpos($aclModuleSrc, 'getBridgeExtension') === false && strpos($aclModuleSrc, "'autoload' => 'template=admin'") !== false);
 $aclEditor = $wire->roles->get('acl-editor');
@@ -2546,8 +2546,8 @@ check('ACL enforcement: the gate is a before-hook on ProcessController::execute'
 check('ACL enforcement: the hooks on the nav array, navCacheKey and ProcessHome are there', strpos($aclModuleSrc, "addHookAfter('AdminThemeFramework::getPrimaryNavArray'") !== false
 	&& strpos($aclModuleSrc, "addHookAfter('AdminThemeBridge::navCacheKey'") !== false && strpos($aclModuleSrc, "addHookBefore('ProcessHome::execute'") !== false);
 $aclBranch = preg_match('/if\(\$this->bridgeThemePresent\(\)\) \{(.*?)\n\t\t\}/s', $aclModuleSrc, $aclMatch) ? $aclMatch[1] : '';
-check('ACL enforcement: navCacheKey is hooked inside the bridgeThemePresent() branch, nothing else is', substr_count($aclBranch, 'addHook') === 1 && strpos($aclBranch, 'AdminThemeBridge::navCacheKey') !== false
-	&& substr_count($aclModuleSrc, "'AdminThemeBridge::") === 1 && substr_count($aclModuleSrc, 'bridgeThemePresent()) {') === 1);
+check('ACL enforcement: navCacheKey and drawerNames are hooked inside the bridgeThemePresent() branch, nothing else is', substr_count($aclBranch, 'addHook') === 2 && strpos($aclBranch, "addHookAfter('AdminThemeBridge::navCacheKey'") !== false && strpos($aclBranch, "addHookAfter('AdminThemeBridge::drawerNames'") !== false
+	&& substr_count($aclModuleSrc, "'AdminThemeBridge::") === 2 && substr_count($aclModuleSrc, 'bridgeThemePresent()) {') === 1);
 if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $aclSuper, $aclRule, $aclSet, $aclX, $bridge) && $bridge) {
 	$aclPredicates = array('listable', 'viewable', 'editable', 'publishable', 'addable', 'moveable', 'deleteable', 'deletable', 'trashable', 'restorable', 'sortable', 'cloneable');
 	$aclHooksOn = function($method) use($wire, $acl, $aclTree) {
@@ -2596,6 +2596,9 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 	$aclAsWas = $wire->user;
 	$aclSavedStep2 = $modules->getConfig($aclName);
 	$aclVersionStep2 = (int) $acl->get('rulesVersion');
+	$aclLoggedIn = new \ReflectionProperty($bridge, 'isLoggedIn');
+	$aclLoggedInWas = $aclLoggedIn->getValue($bridge);
+	$aclDrawerSettings = array($bridge->pageTreeDrawer, $bridge->history);
 	try {
 		// the values with no rule, as acl and as the superuser, hooks in place
 		$aclSet(array());
@@ -2654,6 +2657,30 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 		$aclNav = $aclNavIds();
 		check('ACL menus: Setup denied: dropped from the nav, every other item as it was', $aclNav === array_values(array_diff($aclNavBefore, array(22))), implode(',', $aclNav));
 
+		// the tree drawer's button: gone with the Pages menu, the other drawers stay
+		$aclLoggedIn->setValue($bridge, true);
+		$bridge->set('pageTreeDrawer', 1);
+		$bridge->set('history', 1);
+		$aclSet(array());
+		$aclDrawersBefore = $bridge->drawerNames();
+		check('ACL drawers: no rules, acl: the tree button and the history one', in_array('tree', $aclDrawersBefore, true) && in_array('history', $aclDrawersBefore, true)
+			&& strpos($bridge->renderDrawerButtons(), "data-pw-drawer='tree'") !== false, implode(',', $aclDrawersBefore));
+		$aclSet(array($aclRule($aclEditor, $pages->get(22), 'deny')));
+		check('ACL drawers: another menu denied: the same drawers', $bridge->drawerNames() === $aclDrawersBefore, implode(',', $bridge->drawerNames()));
+		$aclSet(array($aclRule($aclEditor, $pages->get(3), 'deny')));
+		$aclDrawersDenied = $bridge->drawerNames();
+		check('ACL drawers: Pages denied: no tree button or dialog, every other drawer stays', $aclDrawersDenied === array_values(array_diff($aclDrawersBefore, array('tree')))
+			&& strpos($bridge->renderDrawerButtons(), "data-pw-drawer='tree'") === false && strpos($bridge->renderDrawerButtons(), "data-pw-drawer='history'") !== false
+			&& strpos($bridge->renderDrawers(), "id='pw-drawer-tree'") === false && strpos($bridge->renderDrawers(), "id='pw-drawer-history'") !== false, implode(',', $aclDrawersDenied));
+		$aclBecome($aclSuper);
+		check('ACL drawers: Pages denied to a role: the superuser keeps the tree button', in_array('tree', $bridge->drawerNames(), true), implode(',', $bridge->drawerNames()));
+		$aclBecome($aclUser);
+		$aclSet(array($aclRule($aclRestricted, $pages->get(3), 'deny')));
+		check('ACL drawers, two roles: acl, without the denying role, keeps the tree button', in_array('tree', $bridge->drawerNames(), true), implode(',', $bridge->drawerNames()));
+		$aclBecome($aclUser2);
+		check('ACL drawers, two roles: a deny held by one role drops the tree button', !in_array('tree', $bridge->drawerNames(), true) && in_array('history', $bridge->drawerNames(), true), implode(',', $bridge->drawerNames()));
+		$aclBecome($aclUser);
+
 		// the deny of one role, on a user with two
 		$aclSet(array($aclRule($aclRestricted, $aclModules, 'deny')));
 		$aclBecome($aclUser2);
@@ -2668,6 +2695,9 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 		check('ACL exempt: for the superuser every value is the no-rule value', $aclPredicateValues($aclTree) === $aclSuperTree && $aclNavIds() === $aclSuperNav && $bridge->navCacheKey() === $aclSuperKey && $aclSuperKey === 'prnav'
 			&& !$acl->menuGateDenies($aclTemplatesPage, $aclSuper));
 	} finally {
+		$aclLoggedIn->setValue($bridge, $aclLoggedInWas);
+		$bridge->set('pageTreeDrawer', $aclDrawerSettings[0]);
+		$bridge->set('history', $aclDrawerSettings[1]);
 		$wire->users->setCurrentUser($aclAsWas);
 		foreach(array($aclUser, $aclUser2, $aclSuper) as $aclU) {
 			if(isset($aclLanguageWas[$aclU->id])) $aclU->setLanguage($aclLanguageWas[$aclU->id]);
