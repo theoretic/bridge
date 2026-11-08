@@ -20,6 +20,10 @@
  * modal, with the multiple PageAutocomplete and a repeater (AJAX items) of the single one
  * (tools/autocomplete-check.js opens it).
  *
+ * Also gives role acl-editor (tools/sandbox-admin.php, which runs first) view, edit, add and create
+ * access on the fixture templates, and adds the custom top-level admin item bridge-custom-menu: the
+ * fixtures of the access-control checks.
+ *
  * Usage: php tools/sandbox-fixture.php /path/to/sandbox/root
  */
 
@@ -34,6 +38,7 @@ bridgeSandboxBooted($config, $root);
 /** @var Fields $fields */
 /** @var Templates $templates */
 /** @var Pages $pages */
+/** @var Roles $roles */
 /** @var Config $config */
 
 foreach(array('InputfieldTinyMCE', 'InputfieldCKEditor', 'FieldtypeToggle', 'InputfieldToggle', 'InputfieldTextTags',
@@ -650,3 +655,38 @@ if($atpl->hasField('ba_results') && !$apage->ba_results->count()) {
 	$apage->save();
 }
 echo "ok   autocomplete page id {$apage->id}\n";
+
+// the access-control checks: role acl-editor may view, edit and add under the fixture pages and the
+// tree page (these templates had no access of their own, so they inherited the home page's)
+$aclRole = $roles->get('name=acl-editor');
+$guestRole = $roles->getGuestRole();
+foreach(array('bridge_fixture', 'bridge_native', 'bridge_native_parent', 'bridge_nesting', 'bridge_autocomplete',
+	'bridge_pt_parent', 'bridge_pt_item') as $name) {
+	$tpl = $templates->get($name);
+	if(!$tpl) { echo "skip template access $name: no such template\n"; continue; }
+	if(!$aclRole->id) { echo "skip template access $name: no role acl-editor (run tools/sandbox-admin.php first)\n"; continue; }
+	if($tpl->useRoles && $tpl->hasRole($aclRole)) { echo "ok   template access $name kept\n"; continue; }
+	$tpl->useRoles = 1;
+	$tpl->setRoles(array($guestRole->id, $aclRole->id));
+	foreach(array('edit', 'add', 'create') as $type) $tpl->setRoles(array($aclRole->id), $type);
+	$tpl->save();
+	echo "ok   template access $name set\n";
+}
+
+// a custom top-level admin item (what a module's 'page' info key or a site makes), which menu rules
+// must leave alone; the process's permission is page-edit, so acl-editor may open it
+$adminRoot = $pages->get($config->adminRootPageID);
+$custom = $adminRoot->child('name=bridge-custom-menu, include=all');
+if(!$custom->id && $modules->isInstalled('ProcessBridgeDemo')) {
+	$languages = $wire->languages;
+	if($languages) $languages->setDefault(); // as Process::installPage(), the title in the default language
+	$custom = $pages->newPage('admin');
+	$custom->parent = $adminRoot;
+	$custom->name = 'bridge-custom-menu';
+	$custom->process = 'ProcessBridgeDemo';
+	$custom->title = 'Custom menu';
+	$custom->save();
+	if($languages) $languages->unsetDefault();
+	echo "ok   page bridge-custom-menu\n";
+}
+echo $custom->id ? "ok   custom menu page id {$custom->id}\n" : "skip custom menu page: ProcessBridgeDemo not installed\n";

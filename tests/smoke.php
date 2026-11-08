@@ -2355,5 +2355,37 @@ if(isset($bridge) && $bridge) {
 		&& strpos($fieldsCss, '.asmList .asmListItem span.asmListItemDesc{top:50%;transform:translateY(-50%);line-height:1}') !== false);
 }
 
+// access-control fixtures: installed by the sandbox builder, the baseline before any rule
+$aclAdminSrc = (string) @file_get_contents(dirname(__DIR__) . '/tools/sandbox-admin.php');
+check('ACL fixtures: tools/sandbox-admin.php makes the roles and the users', strpos($aclAdminSrc, "'acl-editor'") !== false && strpos($aclAdminSrc, "'acl-restricted'") !== false
+	&& strpos($aclAdminSrc, "'acl'") !== false && strpos($aclAdminSrc, "'acl2'") !== false);
+check('ACL fixtures: tools/sandbox-fixture.php makes bridge-custom-menu', strpos((string) @file_get_contents(dirname(__DIR__) . '/tools/sandbox-fixture.php'), 'bridge-custom-menu') !== false);
+$aclCredentials = (string) @file_get_contents("$root/.credentials");
+check('ACL fixtures: .credentials has the acl and acl2 lines', (bool) preg_match('/^acl:.+$/m', $aclCredentials) && (bool) preg_match('/^acl2:.+$/m', $aclCredentials));
+$aclUser = $users->get('name=acl');
+$aclUser2 = $users->get('name=acl2');
+$aclRoleNames = function(Page $u) {
+	$names = array_values(array_diff($u->roles->explode('name'), array('guest'))); // every user has guest
+	sort($names);
+	return implode(' ', $names);
+};
+check('ACL fixtures: acl has exactly acl-editor, on AdminThemeBridge', $aclUser->id && $aclRoleNames($aclUser) === 'acl-editor' && $aclUser->admin_theme === 'AdminThemeBridge', $aclRoleNames($aclUser));
+check('ACL fixtures: acl2 has exactly acl-editor + acl-restricted, on AdminThemeUikit', $aclUser2->id && $aclRoleNames($aclUser2) === 'acl-editor acl-restricted' && $aclUser2->admin_theme === 'AdminThemeUikit', $aclRoleNames($aclUser2));
+$aclTree = $pages->get('/bridge-tree/');
+$aclAdminRoot = $pages->get($config->adminRootPageID);
+$aclCustom = $aclAdminRoot->child('name=bridge-custom-menu, include=all');
+check('ACL fixtures: the tree page and the custom menu item exist', $aclTree->id && $aclCustom->id && $aclCustom->template->name === 'admin' && (string) $aclCustom->process === 'ProcessBridgeDemo');
+if($aclUser->id && $aclTree->id && $aclCustom->id) {
+	$aclCurrent = $wire->user;
+	$wire->users->setCurrentUser($aclUser);
+	$aclModule = $aclAdminRoot->child('name=module, include=all');
+	check('ACL baseline as acl: the tree page is editable and addable', $aclTree->editable() && $aclTree->addable());
+	check('ACL baseline as acl: Modules is not viewable, the custom menu item is', $aclModule->id && !$aclModule->viewable() && $aclCustom->viewable());
+	$wire->users->setCurrentUser($aclCurrent);
+}
+$aclIdsOut = array();
+exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/tools/lib/sandbox-ids.php') . ' ' . escapeshellarg($root), $aclIdsOut);
+check('ACL fixtures: tools/lib/sandbox-ids.php prints CUSTOM_MENU_ID', $aclCustom->id && in_array("CUSTOM_MENU_ID={$aclCustom->id}", $aclIdsOut, true), implode(' ', $aclIdsOut));
+
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);
