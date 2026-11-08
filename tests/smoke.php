@@ -1715,7 +1715,7 @@ if(isset($bridge) && $bridge) {
 // 0.19.0: performance (audit PF1, PF2)
 if(isset($bridge) && $bridge) {
 	$shellSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
-	check('PF1 the primary nav is kept in the session and dropped when it may change', strpos($shellSrc, "\$session->setFor(\$this, 'prnav', \$out);") !== false
+	check('PF1 the primary nav is kept in the session and dropped when it may change', strpos($shellSrc, "\$session->setFor(\$this, \$key, \$out);") !== false
 		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "addHookAfter('saved', \$this, 'hookClearNavCache')") !== false);
 	// the page editor's admin page lies under Pages: Pages is the one current section
 	$pagesSection = $pages->get((int) $config->adminRootPageID)->child('name=page, include=all');
@@ -1948,10 +1948,10 @@ if(isset($bridge)) {
 		$wire->users->setCurrentUser($eu);
 		$extList = $bridge->extensionsClientConfig();
 		$wire->users->setCurrentUser($guest);
-		// the three bundled extensions (step 6): BridgeCsp by its 'bridge' info key, ProcessBridgeDemo and BridgeSample by the interface; ties by class name
+		// the four bundled extensions (step 6): BridgeCsp and BridgeAdminAccessControl by the 'bridge' info key, ProcessBridgeDemo and BridgeSample by the interface; ties by class name
 		$extByName = array_column($extList, null, 'name');
-		check('the sandbox lists the three bundled extensions, compatible, with their module URLs', array_column($extList, 'name') === array('BridgeCsp', 'BridgeSample', 'ProcessBridgeDemo')
-			&& count(array_filter(array_column($extList, 'compatible'))) === 3
+		check('the sandbox lists the four bundled extensions, compatible, with their module URLs', array_column($extList, 'name') === array('BridgeAdminAccessControl', 'BridgeCsp', 'BridgeSample', 'ProcessBridgeDemo')
+			&& count(array_filter(array_column($extList, 'compatible'))) === 4
 			&& $extByName['BridgeCsp']['module'] === ''
 			&& $extByName['BridgeSample']['module'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.mjs?v=0.1.0'
 			&& $extByName['ProcessBridgeDemo']['module'] === $config->urls->siteModules . 'BridgeDemo/ProcessBridgeDemo.mjs?v=' . $modules->getModuleInfoProperty('ProcessBridgeDemo', 'version'), json_encode($extList));
@@ -2196,8 +2196,8 @@ $runCompat = function(array $args) use($extCompat) {
 };
 list($ccCode, $ccOut) = $runCompat(array());
 $ccOk = function($out, $name) { return (bool) preg_match('/^' . $name . ' .* ok\s*$/m', $out); };
-check('extension-compat.php on this checkout: the three bundled extensions, 0 incompatible, exit 0', $ccCode === 0 && strpos($ccOut, "\n3 extensions, 0 incompatible") !== false
-	&& $ccOk($ccOut, 'BridgeCsp') && $ccOk($ccOut, 'ProcessBridgeDemo') && $ccOk($ccOut, 'BridgeSample'), "exit $ccCode: " . trim($ccOut));
+check('extension-compat.php on this checkout: the four bundled extensions, 0 incompatible, exit 0', $ccCode === 0 && strpos($ccOut, "\n4 extensions, 0 incompatible") !== false
+	&& $ccOk($ccOut, 'BridgeAdminAccessControl') && $ccOk($ccOut, 'BridgeCsp') && $ccOk($ccOut, 'ProcessBridgeDemo') && $ccOk($ccOut, 'BridgeSample'), "exit $ccCode: " . trim($ccOut));
 $ccTmp = sys_get_temp_dir() . '/bridge-compat-' . getmypid();
 @mkdir("$ccTmp/old", 0777, true);
 @mkdir("$ccTmp/ext/CompatDynamic", 0777, true);
@@ -2208,12 +2208,12 @@ if(is_array($surfaceJson)) {
 	$edited['slots'] = array_values(array_diff($edited['slots'], array('footer')));
 	file_put_contents("$ccTmp/surface.json", json_encode($edited));
 	list($ccCode, $ccOut) = $runCompat(array("--surface=$ccTmp/surface.json"));
-	check('extension-compat.php against contract 1.0 without footer: all three incompatible, BridgeSample also on its slot, exit 3', $ccCode === 3
-		&& substr_count($ccOut, 'INCOMPATIBLE  contract ^0.1 does not take 1.0') === 3 && (bool) preg_match('/^BridgeSample .*slots footer not on the target surface$/m', $ccOut), "exit $ccCode: " . trim($ccOut));
+	check('extension-compat.php against contract 1.0 without footer: all four incompatible, BridgeSample also on its slot, exit 4', $ccCode === 4
+		&& substr_count($ccOut, 'INCOMPATIBLE  contract ^0.1 does not take 1.0') === 4 && (bool) preg_match('/^BridgeSample .*slots footer not on the target surface$/m', $ccOut), "exit $ccCode: " . trim($ccOut));
 }
 file_put_contents("$ccTmp/old/AdminThemeBridge.module.php", "<?php namespace ProcessWire;\nclass AdminThemeBridge {}\n");
 list($ccCode, $ccOut) = $runCompat(array("--bridge=$ccTmp/old", dirname(__DIR__) . '/modules'));
-check('extension-compat.php against a Bridge without an extension contract: all incompatible', $ccCode === 3 && substr_count($ccOut, 'the target has no extension contract') === 3, "exit $ccCode");
+check('extension-compat.php against a Bridge without an extension contract: all incompatible', $ccCode === 4 && substr_count($ccOut, 'the target has no extension contract') === 4, "exit $ccCode");
 file_put_contents("$ccTmp/ext/CompatDynamic/CompatDynamic.module.php", "<?php namespace ProcessWire;\nclass CompatDynamic extends WireData implements Module, BridgeExtension {\n\tpublic static function getModuleInfo() { return array('requires' => 'AdminThemeBridge'); }\n\tpublic function getBridgeExtension() { \$m = array('contract' => '^0.1'); return \$m; }\n}\n");
 file_put_contents("$ccTmp/ext/CompatPlain/CompatPlain.module.php", "<?php namespace ProcessWire;\nclass CompatPlain extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('requires' => 'AdminThemeBridge'); }\n}\n");
 list($ccCode, $ccOut) = $runCompat(array("$ccTmp/ext"));
@@ -2386,6 +2386,158 @@ if($aclUser->id && $aclTree->id && $aclCustom->id) {
 $aclIdsOut = array();
 exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/tools/lib/sandbox-ids.php') . ' ' . escapeshellarg($root), $aclIdsOut);
 check('ACL fixtures: tools/lib/sandbox-ids.php prints CUSTOM_MENU_ID', $aclCustom->id && in_array("CUSTOM_MENU_ID={$aclCustom->id}", $aclIdsOut, true), implode(' ', $aclIdsOut));
+
+// BridgeAdminAccessControl: the rules engine and the theme's navCacheKey (sprint bridge-admin-access-control, step 1)
+$aclName = 'BridgeAdminAccessControl';
+check('ACL the module is installed in this sandbox', $modules->isInstalled($aclName));
+$aclModuleSrc = (string) @file_get_contents(dirname(__DIR__) . "/modules/$aclName/$aclName.module.php");
+check('ACL the manifest is the bridge info key, hooks navCacheKey, no dependency on the theme', strpos($aclModuleSrc, "'hooks' => array('navCacheKey')") !== false
+	&& strpos($aclModuleSrc, "'contract' => '^0.1'") !== false && strpos($aclModuleSrc, "'requires' => 'ProcessWire>=3.0.227, PHP>=8.1'") !== false
+	&& strpos($aclModuleSrc, 'getBridgeExtension') === false && strpos($aclModuleSrc, "'autoload' => 'template=admin'") !== false);
+$aclEditor = $wire->roles->get('acl-editor');
+$aclRestricted = $wire->roles->get('acl-restricted');
+$aclNative = $pages->get('/bridge-native/');
+if($modules->isInstalled($aclName) && $aclUser->id && $aclUser2->id && $aclTree->id && $aclNative->id && $aclEditor->id && $aclRestricted->id && $aclCustom->id) {
+	$acl = $modules->get($aclName);
+	$aclSaved = $modules->getConfig($aclName);
+	$aclVersion = (int) $acl->get('rulesVersion');
+	$aclSuper = $users->get('name=bridge');
+	$aclChildren = $aclTree->children('limit=2, include=all');
+	$aclX = $aclChildren->first();
+	$aclSibling = $aclChildren->last();
+	$aclHome = $pages->get(1);
+	$aclRoot = $pages->get((int) $config->adminRootPageID);
+	$aclModules = $pages->get(21);
+	$aclRule = function($role, $page, $mode, $inherit = true) { return array('role' => $role->id, 'page' => $page->id, 'mode' => $mode, 'inherit' => $inherit); };
+	$aclSet = function(array $list) use($acl, $wire) {
+		$rules = $wire->wire(new BridgeAccessRules())->fromConfig(array());
+		foreach($list as $rule) $rules->add($rule);
+		$acl->saveRules($rules);
+	};
+	$aclRefused = function(array $rule) use($wire) {
+		try {
+			$wire->wire(new BridgeAccessRules())->fromConfig(array())->add($rule);
+		} catch(WireException $e) {
+			return true;
+		}
+		return false;
+	};
+	$ALLOW = BridgeAdminAccessControl::ALLOW;
+	$DENY = BridgeAdminAccessControl::DENY;
+	$PASS = BridgeAdminAccessControl::DENY_PASS;
+	try {
+		$aclSet(array());
+		check('ACL engine: without rules, allow for home, the tree page and the admin root', $acl->verdict($aclHome, $aclUser) === $ALLOW && $acl->verdict($aclTree, $aclUser) === $ALLOW && $acl->verdict($aclRoot, $aclUser) === $ALLOW);
+
+		$aclVersionBefore = (int) $acl->get('rulesVersion');
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny')));
+		check('ACL engine: every change bumps rulesVersion, written to the config', (int) $acl->get('rulesVersion') === $aclVersionBefore + 1 && (int) $modules->getConfig($aclName, 'rulesVersion') === $aclVersionBefore + 1);
+		check('ACL engine: deny + inherit denies the page and its child, not another page', $acl->verdict($aclTree, $aclUser) === $DENY && $acl->verdict($aclX, $aclUser) === $DENY && $acl->verdict($aclNative, $aclUser) === $ALLOW);
+		check('ACL engine: roleVerdict() is the role\'s, deniedRoots() names the page with inherit', $acl->roleVerdict($aclX, $aclEditor) === $DENY && $acl->roleVerdict($aclX, $aclRestricted) === $ALLOW && $acl->deniedRoots($aclUser) === array($aclTree->id => true));
+
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow')));
+		check('ACL engine: an allow below a deny: pass-through above, allow on it, deny on its sibling', $acl->verdict($aclTree, $aclUser) === $PASS && $acl->verdict($aclX, $aclUser) === $ALLOW && $acl->verdict($aclSibling, $aclUser) === $DENY);
+
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny', false)));
+		check('ACL engine: a deny without inherit leaves the child allowed', $acl->verdict($aclTree, $aclUser) === $DENY && $acl->verdict($aclX, $aclUser) === $ALLOW && $acl->deniedRoots($aclUser) === array($aclTree->id => false));
+
+		$aclSet(array($aclRule($aclRestricted, $aclNative, 'deny')));
+		check('ACL engine, two roles: a deny of one role denies acl2, not acl', $acl->verdict($aclNative, $aclUser2) === $DENY && $acl->verdict($aclNative, $aclUser) === $ALLOW);
+		$aclSet(array($aclRule($aclRestricted, $aclNative, 'deny'), $aclRule($aclEditor, $aclNative, 'allow')));
+		check('ACL engine, two roles: another role\'s allow does not lift the deny', $acl->verdict($aclNative, $aclUser2) === $DENY && $acl->verdict($aclNative, $aclUser) === $ALLOW);
+		$aclSet(array($aclRule($aclRestricted, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow')));
+		check('ACL engine, two roles: an allow another role denies makes no pass-through', $acl->verdict($aclTree, $aclUser2) === $DENY && $acl->verdict($aclX, $aclUser2) === $DENY);
+
+		$aclSet(array($aclRule($aclEditor, $aclHome, 'deny'), $aclRule($aclEditor, $aclNative, 'allow')));
+		check('ACL engine: a deny on home with an allow below: content follows, the admin does not', $acl->verdict($aclHome, $aclUser) === $PASS && $acl->verdict($aclNative, $aclUser) === $ALLOW && $acl->verdict($aclTree, $aclUser) === $DENY
+			&& $acl->verdict($aclRoot, $aclUser) === $ALLOW && $acl->verdict($aclModules, $aclUser) === $ALLOW && !$acl->menuDenied($aclModules, $aclUser));
+
+		foreach(array('superuser', 'guest') as $aclRoleName) {
+			check("ACL rules: a rule for $aclRoleName is refused", $aclRefused($aclRule($wire->roles->get($aclRoleName), $aclTree, 'deny')));
+		}
+		$aclTemplates = $pages->get('parent=22, name=template, include=all');
+		foreach(array(2 => 'the admin root', 7 => 'the trash', 23 => 'Login', 304 => 'Profile') as $aclId => $aclLabel) {
+			check("ACL rules: a rule on $aclLabel is refused", $aclRefused(array('role' => $aclEditor->id, 'page' => $aclId, 'mode' => 'deny', 'inherit' => true)));
+		}
+		check('ACL rules: a rule on a child of Setup is refused', $aclTemplates->id && $aclRefused($aclRule($aclEditor, $aclTemplates, 'deny')), (string) $aclTemplates->id);
+		check('ACL rules: a rule on a custom top-level item is refused', $aclRefused($aclRule($aclEditor, $aclCustom, 'deny')));
+		check('ACL rules: an unknown mode and a missing page are refused', $aclRefused($aclRule($aclEditor, $aclTree, 'maybe')) && $aclRefused(array('role' => $aclEditor->id, 'page' => 99999999, 'mode' => 'deny')));
+		$aclIds = array_keys($acl->coreMenus());
+		check('ACL rules: coreMenus() is exactly the four, not the custom items', $aclIds === array(3, 22, 21, 28) && !in_array(1139, $aclIds, true) && !in_array($aclCustom->id, $aclIds, true), implode(',', $aclIds));
+		$aclList = $wire->wire(new BridgeAccessRules())->fromConfig(array());
+		$aclStored = $aclList->add(array('role' => $aclEditor->id, 'page' => 21, 'mode' => 'allow', 'inherit' => false));
+		check('ACL rules: a rule on Modules comes back as deny + inherit', $aclStored['mode'] === 'deny' && $aclStored['inherit'] === true);
+		$aclList->add($aclRule($aclEditor, $aclTree, 'deny'));
+		$aclList->add($aclRule($aclEditor, $aclTree, 'allow', false));
+		$aclRows = $aclList->rules();
+		check('ACL rules: one rule per role and page, the newer replaces', count($aclRows) === 2 && $aclRows[1]['mode'] === 'allow' && $aclRows[1]['inherit'] === false);
+		check('ACL rules: remove() takes the index', $aclList->remove(0) && !$aclList->remove(5) && count($aclList->rules()) === 1);
+		$aclStale = $wire->wire(new BridgeAccessRules())->fromConfig(array('rules' => array(
+			array('role' => 99999999, 'page' => $aclTree->id, 'mode' => 'deny', 'inherit' => true),
+			array('role' => $aclEditor->id, 'page' => $aclTree->id, 'mode' => 'deny', 'inherit' => true),
+			'not a rule',
+		)));
+		check('ACL rules: a role that no longer exists is ignored by forRoles() and pruned by toConfig()', count($aclStale->forRoles(array(99999999, $aclEditor->id))) === 1 && count($aclStale->toConfig()['rules']) === 1);
+
+		$aclSet(array($aclRule($aclEditor, $aclModules, 'deny')));
+		check('ACL engine: menuDenied() on the item with a deny, not for a user without it or another item', $acl->menuDenied($aclModules, $aclUser) && !$acl->menuDenied($pages->get(3), $aclUser) && !$acl->menuDenied($aclCustom, $aclUser) && !$acl->menuDenied($aclModules, $aclSuper));
+		$aclSuper->roles->add($aclEditor);
+		$acl->set('rules', $acl->get('rules'));
+		check('ACL engine: rulesFor() a superuser is empty, whatever role they hold', $acl->rulesFor($aclSuper) === array() && count($acl->rulesFor($aclUser)) === 1);
+		$aclSuper->roles->remove($aclEditor);
+
+		$aclProbe = new Page();
+		$aclProbe->template = $aclX->template;
+		$aclProbe->parent = $aclTree;
+		$aclProbe->name = 'acl-prune-probe';
+		$aclProbe->save();
+		$aclSet(array($aclRule($aclEditor, $aclProbe, 'deny'), $aclRule($aclEditor, $aclTree, 'deny')));
+		$aclVersionBefore = (int) $acl->get('rulesVersion');
+		$pages->delete($aclProbe);
+		$aclRows = $modules->getConfig($aclName, 'rules');
+		check('ACL engine: a deleted page\'s rules are pruned, the stamp bumped', is_array($aclRows) && count($aclRows) === 1 && (int) $aclRows[0]['page'] === $aclTree->id && (int) $acl->get('rulesVersion') === $aclVersionBefore + 1);
+		check('ACL bridgeThemePresent(): the theme of this checkout is new enough', $acl->bridgeThemePresent());
+	} finally {
+		$modules->saveConfig($aclName, $aclSaved);
+		$acl->set('rules', isset($aclSaved['rules']) ? $aclSaved['rules'] : array());
+		$acl->set('rulesVersion', $aclVersion);
+	}
+	check('ACL the config is left as found', $modules->getConfig($aclName) === $aclSaved);
+}
+if(isset($bridge) && $bridge) {
+	$aclSurface = $bridge->extensionSurface();
+	check('navCacheKey is on the surface and declared by the class', in_array('navCacheKey', $aclSurface['hooks'], true) && method_exists($bridge, '___navCacheKey') && $bridge->navCacheKey() === 'prnav');
+	$aclJson = json_decode((string) @file_get_contents($themeDir . 'assets/dist/extension-surface.json'), true);
+	check('navCacheKey is in assets/dist/extension-surface.json', is_array($aclJson) && in_array('navCacheKey', $aclJson['hooks'], true));
+	check('the extension contract stays 0.1', $aclSurface['contract'] === '0.1');
+	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
+	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
+		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
+	check('the theme version is 0.28.0', $themeVersion === '0.28.0', $themeVersion);
+	$aclSession = $wire->session;
+	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
+	$aclBuilt = 0;
+	$aclNav = $bridge->addHookBefore('getPrimaryNavArray', function(HookEvent $e) use(&$aclBuilt) {
+		$aclBuilt++;
+		$e->replace = true;
+		$e->return = array(array('id' => 3, 'parent_id' => 2, 'url' => '/probe/', 'name' => 'page', 'title' => 'Probe', 'children' => array()));
+	});
+	$aclSession->removeFor($bridge, 'prnav');
+	$aclSession->removeFor($bridge, 'prnavKey');
+	$bridge->renderPrimaryNav();
+	$aclPlain = (string) $aclSession->getFor($bridge, 'prnav');
+	$aclHook = $bridge->addHookAfter('navCacheKey', function(HookEvent $e) { $e->return .= '-probe'; });
+	$bridge->renderPrimaryNav();
+	check('a hook on navCacheKey is a cache miss: the nav moves to the new key, the old one is dropped', $aclPlain !== '' && $aclBuilt === 2 && (string) $aclSession->getFor($bridge, 'prnav-probe') !== '' && $aclSession->getFor($bridge, 'prnav') === null && $aclSession->getFor($bridge, 'prnavKey') === 'prnav-probe');
+	$bridge->removeHook($aclHook);
+	$bridge->renderPrimaryNav();
+	check('back to the plain key: the stamped one is dropped', (string) $aclSession->getFor($bridge, 'prnav') !== '' && $aclSession->getFor($bridge, 'prnav-probe') === null);
+	$aclSession->removeFor($bridge, 'prnav');
+	$aclSession->removeFor($bridge, 'prnavKey');
+	$bridge->removeHook($aclNav);
+}
+$aclDoc = (string) @file_get_contents(dirname(__DIR__) . '/docs/access-control.md');
+check('docs/access-control.md has Model, Storage, Covered, Not covered', (bool) preg_match('/^## Model$/m', $aclDoc) && (bool) preg_match('/^## Storage$/m', $aclDoc) && (bool) preg_match('/^## Covered$/m', $aclDoc) && (bool) preg_match('/^## Not covered$/m', $aclDoc));
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

@@ -360,7 +360,7 @@ trait AdminThemeBridgeExtensions {
 			'hooks' => array(
 				'install', 'uninstall', 'nonce', 'moveFiles', 'moveFileAllowed', 'filesMoved', 'historyEntry',
 				'nativeMap', 'isNativeProcess', 'isNativeInputfield', 'scriptNeeds', 'renderBreadcrumbs',
-				'sortableDataTable', 'uikitReasons', 'extensionSurface', 'drawerNames',
+				'sortableDataTable', 'uikitReasons', 'extensionSurface', 'drawerNames', 'navCacheKey',
 			),
 			'reads' => array(
 				'useLegacyStack', 'componentInfo', 'extensions', 'extensionInfo', 'extensionAllowed', 'cspNonce', 'nonceAttr',

@@ -16,7 +16,8 @@
 		"sortableDataTable",
 		"uikitReasons",
 		"extensionSurface",
-		"drawerNames"
+		"drawerNames",
+		"navCacheKey"
 	],
 	"reads": [
 		"useLegacyStack",

@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.28.0: admin access control, the fourth bundled extension (2026-11-xx)
+
+In progress. So far: the new hookable `AdminThemeBridge::navCacheKey()`, a surface addition (extension contract stays 0.1); the module `BridgeAdminAccessControl` 0.1.0 with its rules engine (`docs/access-control.md`).
+
 ## AdminThemeBridge 0.27.1: content centred in draggable rows (2026-11-08)
 
 Owner's report: in rows that are dragged to sort, the content sat high instead of in the middle of the row. Blast radius asked for: every text-only draggable row (text and icons, not image thumbnails).

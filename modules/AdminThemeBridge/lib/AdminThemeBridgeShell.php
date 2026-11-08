@@ -373,14 +373,32 @@ trait AdminThemeBridgeShell {
 	 */
 	public function renderPrimaryNav() {
 		$session = $this->wire()->session;
-		$out = (string) $session->getFor($this, 'prnav');
+		$key = (string) $this->navCacheKey();
+		$previous = (string) $session->getFor($this, 'prnavKey');
+		if($previous !== $key) {
+			if($previous !== '') $session->removeFor($this, $previous);
+			$session->setFor($this, 'prnavKey', $key);
+		}
+		$out = (string) $session->getFor($this, $key);
 		if($out === '') {
 			foreach($this->getPrimaryNavArray() as $item) {
 				$out .= $this->renderNavItem($item, 0);
 			}
-			$session->setFor($this, 'prnav', $out);
+			$session->setFor($this, $key, $out);
 		}
 		return "<ul class='pw-primary-nav'>" . $this->markCurrentNavItem($out) . "</ul>";
+	}
+
+	/**
+	 * The session key the primary nav is kept under (renderPrimaryNav()). A module that changes what
+	 * a user's menu holds hooks this to add its own stamp: a changed key is a miss on that user's
+	 * next request, which no code running in another user's request could do.
+	 *
+	 * @return string
+	 *
+	 */
+	public function ___navCacheKey() {
+		return 'prnav';
 	}
 
 	/**
@@ -421,7 +439,7 @@ trait AdminThemeBridgeShell {
 			$clear = $page->template->name === 'admin' || ($user && $page->id === $user->id && is_array($changes) && in_array('language', $changes));
 			if(!$clear) return;
 		}
-		$this->wire()->session->removeFor($this, 'prnav');
+		$this->wire()->session->removeFor($this, (string) $this->navCacheKey());
 	}
 
 	/**

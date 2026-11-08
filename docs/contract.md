@@ -14,6 +14,7 @@ Upstream markup, ids, classes and endpoints are kept byte-compatible (ADR 0003):
 - AJAX contracts: `?modal=1`, `?render=JSON`, `renderInputfieldAjax=<id>`, and `X-Requested-With: XMLHttpRequest` makes `$config->ajax` true so the admin returns the Process output without the frame.
 - `ProcessWire.config` is the only server-to-client channel (`$config->js()`); the shell adds `ProcessWire.config.AdminThemeBridge`.
 - The `li.Inputfield` element is the unit everything addresses. Bridge never wraps it in another element; a component wraps its own content inside `.InputfieldContent`.
+- The primary nav's markup is kept in the session under `AdminThemeBridge::navCacheKey()` (hookable, default `prnav`): a module that changes what a user's menu holds adds its stamp to the key, and that user's next request builds the menu anew.
 
 ## 2. Server side: `BridgeComponent`
 
