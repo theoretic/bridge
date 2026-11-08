@@ -64,3 +64,10 @@ update is Bridge's.
   and dropping an option would lose a stored value on save.
 - Admin pages below the four menu items as targets of their own, and the trash page.
 - Rules per user: rules belong to roles.
+
+## Known limits
+
+- The child count of a row in the page tree comes from the core and is not filtered: a parent shows
+  its number of children even when some are denied and left out of the list.
+- A page in the trash is no longer under its old parent, so a deny inherited from that parent does
+  not reach it. A rule on the page itself still does.

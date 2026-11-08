@@ -2539,5 +2539,145 @@ if(isset($bridge) && $bridge) {
 $aclDoc = (string) @file_get_contents(dirname(__DIR__) . '/docs/access-control.md');
 check('docs/access-control.md has Model, Storage, Covered, Not covered', (bool) preg_match('/^## Model$/m', $aclDoc) && (bool) preg_match('/^## Storage$/m', $aclDoc) && (bool) preg_match('/^## Covered$/m', $aclDoc) && (bool) preg_match('/^## Not covered$/m', $aclDoc));
 
+// BridgeAdminAccessControl: page predicates, the menu gate, the nav array (sprint bridge-admin-access-control, step 2)
+check('ACL enforcement: every Page:: hook is added after, with priority 200', substr_count($aclModuleSrc, 'addHookAfter("Page::$method", $this, $handler, array(\'priority\' => 200))') === 1
+	&& preg_match_all('/addHook\w*\(["\']Page::/', $aclModuleSrc) === 1);
+check('ACL enforcement: the gate is a before-hook on ProcessController::execute', strpos($aclModuleSrc, "addHookBefore('ProcessController::execute', \$this, 'hookControllerExecute')") !== false);
+check('ACL enforcement: the hooks on the nav array, navCacheKey and ProcessHome are there', strpos($aclModuleSrc, "addHookAfter('AdminThemeFramework::getPrimaryNavArray'") !== false
+	&& strpos($aclModuleSrc, "addHookAfter('AdminThemeBridge::navCacheKey'") !== false && strpos($aclModuleSrc, "addHookBefore('ProcessHome::execute'") !== false);
+$aclBranch = preg_match('/if\(\$this->bridgeThemePresent\(\)\) \{(.*?)\n\t\t\}/s', $aclModuleSrc, $aclMatch) ? $aclMatch[1] : '';
+check('ACL enforcement: navCacheKey is hooked inside the bridgeThemePresent() branch, nothing else is', substr_count($aclBranch, 'addHook') === 1 && strpos($aclBranch, 'AdminThemeBridge::navCacheKey') !== false
+	&& substr_count($aclModuleSrc, "'AdminThemeBridge::") === 1 && substr_count($aclModuleSrc, 'bridgeThemePresent()) {') === 1);
+if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $aclSuper, $aclRule, $aclSet, $aclX, $bridge) && $bridge) {
+	$aclPredicates = array('listable', 'viewable', 'editable', 'publishable', 'addable', 'moveable', 'deleteable', 'deletable', 'trashable', 'restorable', 'sortable', 'cloneable');
+	$aclHooksOn = function($method) use($wire, $acl, $aclTree) {
+		return array_values(array_filter($wire->hooks->getHooks($aclTree, $method), function($h) use($acl) { return $h['toObject'] === $acl; }));
+	};
+	$aclGuestHooks = 0;
+	foreach($aclPredicates as $aclMethod) $aclGuestHooks += count($aclHooksOn($aclMethod));
+	check('ACL enforcement: a user without rules gets no hook at all', $aclGuestHooks === 0, (string) $aclGuestHooks);
+	$acl->addEnforcementHooks();
+	$acl->addEnforcementHooks();
+	$aclPriorities = true;
+	foreach($aclPredicates as $aclMethod) {
+		$aclFound = $aclHooksOn($aclMethod);
+		if(count($aclFound) !== 1 || (int) $aclFound[0]['options']['priority'] !== 200 || empty($aclFound[0]['options']['after'])) $aclPriorities = false;
+	}
+	check('ACL enforcement: the twelve predicates have one after-hook each, priority 200', $aclPriorities);
+
+	// a default language not named `default` reports isDefault() only on the object $languages holds;
+	// a reloaded copy on the user breaks the finds the nav runs (docs/upstream/language-isdefault.md)
+	$aclLanguages = $wire->languages;
+	$aclLanguageWas = array();
+	$aclBecome = function(User $u) use($wire, $aclLanguages, &$aclLanguageWas) {
+		if($aclLanguages) {
+			$aclDefault = $aclLanguages->getDefault();
+			if(!isset($aclLanguageWas[$u->id])) $aclLanguageWas[$u->id] = $u->language;
+			if($u->language && (int) $u->language->id === (int) $aclDefault->id) $u->setLanguage($aclDefault);
+		}
+		$wire->users->setCurrentUser($u);
+	};
+	$aclPredicateValues = function(Page $p) use($aclPredicates) {
+		$out = array();
+		foreach($aclPredicates as $m) $out[$m] = (bool) $p->$m();
+		return $out;
+	};
+	$aclNavIds = function() use($bridge) { return array_map('intval', array_column($bridge->getPrimaryNavArray(), 'id')); };
+	$aclHas = function(array $ids, array $wanted) { return !array_diff($wanted, $ids); };
+	$aclHasNone = function(array $ids, array $unwanted) { return !array_intersect($unwanted, $ids); };
+	$aclFirst = $aclTree->children('limit=1, include=all')->first();
+	$aclRootPage = $pages->get((int) $config->adminRootPageID);
+	$aclTemplatesPage = $pages->get('parent=22, name=template, include=all');
+	$aclMenuRules = function($role) use($pages, $aclRule) {
+		$out = array();
+		foreach(array(3, 22, 21, 28) as $id) $out[] = $aclRule($role, $pages->get($id), 'deny');
+		return $out;
+	};
+	$aclAsWas = $wire->user;
+	$aclSavedStep2 = $modules->getConfig($aclName);
+	$aclVersionStep2 = (int) $acl->get('rulesVersion');
+	try {
+		// the values with no rule, as acl and as the superuser, hooks in place
+		$aclSet(array());
+		$aclBecome($aclSuper);
+		$aclSuperTree = $aclPredicateValues($aclTree);
+		$aclSuperNav = $aclNavIds();
+		$aclSuperKey = $bridge->navCacheKey();
+		$aclBecome($aclUser);
+		$aclNativeBefore = $aclPredicateValues($aclNative);
+		$aclTreeBefore = $aclPredicateValues($aclTree);
+		$aclModulesViewable = $pages->get(21)->viewable();
+		$aclRootViewable = $aclRootPage->viewable();
+		$aclNavBefore = $aclNavIds();
+		// Access is not there: acl-editor has none of the permissions of its children
+		check('ACL enforcement: no rules, acl: the nav has the custom item and the core menus it may see', $aclHas($aclNavBefore, array(3, 22, (int) $aclCustom->id)) && !in_array(21, $aclNavBefore, true), implode(',', $aclNavBefore));
+		check('ACL enforcement: no rules, acl: navCacheKey() is the plain key', $bridge->navCacheKey() === 'prnav', (string) $bridge->navCacheKey());
+
+		// all four core menus denied
+		$aclSet($aclMenuRules($aclEditor));
+		$aclNav = $aclNavIds();
+		check('ACL menus: all four denied: the nav has the custom item, none of the four', in_array((int) $aclCustom->id, $aclNav, true) && $aclHasNone($aclNav, array(3, 22, 21, 28)), implode(',', $aclNav));
+		check('ACL menus: the gate leaves the custom item alone, refuses a page under Setup', !$acl->menuGateDenies($aclCustom, $aclUser) && $aclTemplatesPage->id && $acl->menuGateDenies($aclTemplatesPage, $aclUser), (string) $aclTemplatesPage->id);
+		check('ACL menus: the gate leaves the admin root, Login and Profile alone', !$acl->menuGateDenies($aclRootPage, $aclUser) && !$acl->menuGateDenies($pages->get(23), $aclUser) && !$acl->menuGateDenies($pages->get(304), $aclUser));
+
+		// a subtree denied
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny')));
+		$aclDeniedOk = function(Page $p) use($aclPredicateValues) {
+			$v = $aclPredicateValues($p);
+			return !$v['listable'] && !$v['viewable'] && !$v['editable'] && !$v['addable'] && !$v['moveable'] && !$v['trashable'];
+		};
+		check('ACL pages: a denied subtree: the tree page and its first child are closed', $aclDeniedOk($aclTree) && $aclDeniedOk($aclFirst));
+		check('ACL pages: another page is as it was', $aclPredicateValues($aclNative) === $aclNativeBefore);
+		check('ACL pages: the deny is the only change, the baseline allowed these', $aclTreeBefore['listable'] && $aclTreeBefore['editable'] && $aclTreeBefore['addable']);
+		$aclBecome($aclUser2);
+		check('ACL pages, AdminThemeUikit user: the same verdicts as for acl', $aclUser2->admin_theme === 'AdminThemeUikit' && $acl->verdict($aclTree, $aclUser2) === $acl->verdict($aclTree, $aclUser) && $acl->verdict($aclFirst, $aclUser2) === $acl->verdict($aclFirst, $aclUser)
+			&& $acl->verdict($aclNative, $aclUser2) === $acl->verdict($aclNative, $aclUser) && $aclDeniedOk($aclTree));
+		$aclBecome($aclUser);
+
+		// an allow below the deny: pass-through
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclFirst, 'allow')));
+		$aclPass = $aclPredicateValues($aclTree);
+		check('ACL pages: pass-through: listable and viewable as without the rule, nothing else', $aclPass['listable'] && $aclPass['viewable'] === $aclTreeBefore['viewable'] && !$aclPass['editable'] && !$aclPass['addable'] && !$aclPass['moveable'] && !$aclPass['trashable']);
+		check('ACL pages: the allowed child can be edited', $aclFirst->listable() && $aclFirst->editable());
+
+		// Modules denied
+		$aclSet(array($aclRule($aclEditor, $aclModules, 'deny')));
+		check('ACL menus: Modules denied: menuDenied() and the gate', $acl->menuDenied($aclModules, $aclUser) && $acl->menuGateDenies($aclModules, $aclUser));
+		$aclNav = $aclNavIds();
+		check('ACL menus: Modules denied: no Modules in the nav, every other item as without the rule', !in_array(21, $aclNav, true) && $aclNav === $aclNavBefore && $aclHas($aclNav, array(3, 22)), implode(',', $aclNav));
+		check('ACL menus: viewable() of admin pages is untouched', $pages->get(21)->viewable() === $aclModulesViewable && $aclRootPage->viewable() === $aclRootViewable);
+		$aclStamp = (int) $acl->get('rulesVersion');
+		check('ACL menus: navCacheKey() as acl with rules has the stamp and the user', $bridge->navCacheKey() === "prnav-acl$aclStamp-{$aclUser->id}", (string) $bridge->navCacheKey());
+
+		// a menu acl does have, so the filter is seen to drop something
+		$aclSet(array($aclRule($aclEditor, $pages->get(22), 'deny')));
+		$aclNav = $aclNavIds();
+		check('ACL menus: Setup denied: dropped from the nav, every other item as it was', $aclNav === array_values(array_diff($aclNavBefore, array(22))), implode(',', $aclNav));
+
+		// the deny of one role, on a user with two
+		$aclSet(array($aclRule($aclRestricted, $aclModules, 'deny')));
+		$aclBecome($aclUser2);
+		$aclNav = $aclNavIds();
+		check('ACL menus, two roles: a deny held by one role counts', $acl->menuDenied($aclModules, $aclUser2) && !in_array(21, $aclNav, true) && $aclHas($aclNav, array(3, 22)), implode(',', $aclNav));
+		$aclBecome($aclUser);
+		check('ACL menus, two roles: acl, without that role, is not denied, and has no stamp', !$acl->menuDenied($aclModules, $aclUser) && $bridge->navCacheKey() === 'prnav', (string) $bridge->navCacheKey());
+
+		// the superuser, with every kind of rule on the role they would hold
+		$aclSet(array_merge($aclMenuRules($aclEditor), array($aclRule($aclEditor, $aclTree, 'deny'))));
+		$aclBecome($aclSuper);
+		check('ACL exempt: for the superuser every value is the no-rule value', $aclPredicateValues($aclTree) === $aclSuperTree && $aclNavIds() === $aclSuperNav && $bridge->navCacheKey() === $aclSuperKey && $aclSuperKey === 'prnav'
+			&& !$acl->menuGateDenies($aclTemplatesPage, $aclSuper));
+	} finally {
+		$wire->users->setCurrentUser($aclAsWas);
+		foreach(array($aclUser, $aclUser2, $aclSuper) as $aclU) {
+			if(isset($aclLanguageWas[$aclU->id])) $aclU->setLanguage($aclLanguageWas[$aclU->id]);
+		}
+		$modules->saveConfig($aclName, $aclSavedStep2);
+		$acl->set('rules', isset($aclSavedStep2['rules']) ? $aclSavedStep2['rules'] : array());
+		$acl->set('rulesVersion', $aclVersionStep2);
+	}
+	check('ACL enforcement: the config is left as found', $modules->getConfig($aclName) === $aclSavedStep2);
+}
+
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);
