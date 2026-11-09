@@ -2727,7 +2727,7 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 // BridgeAdminAccessControl: find-based screens and the guard on saves (sprint bridge-admin-access-control, step 3)
 check('ACL finds: after-hooks on ProcessPageSearch::findReady and ProcessPageLister::getSelector, InputfieldPage untouched', strpos($aclModuleSrc, "addHookAfter('ProcessPageSearch::findReady', \$this, 'hookFindSelector')") !== false
 	&& strpos($aclModuleSrc, "addHookAfter('ProcessPageLister::getSelector', \$this, 'hookFindSelector')") !== false && strpos($aclModuleSrc, 'getSelectablePages') === false);
-check('ACL guard: before-hooks on Pages::saveReady, trashReady and deleteReady', strpos($aclModuleSrc, 'addHookBefore("Pages::$method", $this, \'hookPageGuard\')') !== false && strpos($aclModuleSrc, "array('saveReady', 'trashReady', 'deleteReady')") !== false);
+check('ACL guard: before-hooks on Pages::saveReady, trashReady, restoreReady and deleteReady', strpos($aclModuleSrc, 'addHookBefore("Pages::$method", $this, \'hookPageGuard\')') !== false && strpos($aclModuleSrc, "array('saveReady', 'trashReady', 'restoreReady', 'deleteReady')") !== false);
 $aclDocs = (string) @file_get_contents(dirname(__DIR__) . '/docs/access-control.md');
 check('ACL docs: a move counts as adding under the new parent', strpos($aclDocs, 'A move counts as adding under the new parent') !== false);
 check('ACL docs: the find selectors, the guard, the bookmark limit and the pickers', strpos($aclDocs, 'rR=(id!=R, has_parent!=R), rR=(id=E), rR=(has_parent=E)') !== false && strpos($aclDocs, '`Pages::saveReady`') !== false && strpos($aclDocs, '`apiGuard`') !== false
@@ -2881,6 +2881,48 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 		$aclBecome($aclSuper);
 		check('ACL guard, move: the superuser is not stopped', !$aclThrows($aclReady($aclMoved($N, $aclTree))));
 		$aclBecome($aclUser);
+
+		// a refused way out of the trash leaves the page in it: the core writes the status before
+		// save() reaches saveReady (audit 2 A2.1); real pages, deleted in the finally
+		$aclProbes = array();
+		$aclTrashed = function($name) use($wire, $pages, $aclBecome, $aclSuper, $aclUser, $aclTree, &$aclProbes) {
+			$aclBecome($aclSuper);
+			$p = $wire->wire(new Page($wire->templates->get('bridge_pt_item')));
+			$p->parent = $aclTree;
+			$p->name = $name;
+			$p->title = $name;
+			$pages->save($p);
+			$aclProbes[] = (int) $p->id;
+			$p = $pages->getFresh($p->id); // a new page's sort is -1, and the trash name of that is not restorable
+			$p->of(false);
+			$pages->trash($p);
+			$aclBecome($aclUser);
+			$p = $pages->getFresh($p->id);
+			$p->of(false);
+			return $p;
+		};
+		$aclStillTrashed = function($id) use($pages, $config) { $p = $pages->getFresh($id); return $p->hasStatus(Page::statusTrash) && (int) $p->parent_id === (int) $config->trashPageID; };
+		try {
+			$aclSet(array($aclRule($aclEditor, $aclTree, 'deny')));
+			$aclP = $aclTrashed('acl-guard-restore-save');
+			$aclP->set('parent_id', $T);
+			check('ACL guard, restore: a save into a denied branch throws and the page stays in the trash, flag included', $aclThrows(function() use($pages, $aclP) { $pages->save($aclP); }) && $aclStillTrashed($aclP->id));
+			$aclP = $aclTrashed('acl-guard-restore-api');
+			check('ACL guard, restore: Pages::restore() to a denied original parent throws and the page stays in the trash, flag included', $aclThrows(function() use($pages, $aclP) { $pages->restore($aclP); }) && $aclStillTrashed($aclP->id));
+			$aclSet(array($aclRule($aclEditor, $aclNative, 'deny')));
+			$aclP = $aclTrashed('acl-guard-restore-ok');
+			$aclRestored = $pages->restore($aclP);
+			$aclBack = $pages->getFresh($aclP->id);
+			check('ACL guard, restore: to an allowed parent it goes through', $aclRestored === true && !$aclBack->hasStatus(Page::statusTrash) && (int) $aclBack->parent_id === $T);
+		} finally {
+			$aclBecome($aclSuper);
+			foreach($aclProbes as $aclProbeId) {
+				$aclProbe = $pages->getFresh($aclProbeId);
+				if($aclProbe->id) $pages->delete($aclProbe, true);
+			}
+			$aclBecome($aclUser);
+		}
+		check('ACL guard, restore: the probe pages are gone', !$pages->count('name%=acl-guard-restore, include=all'));
 		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow')));
 
 		$acl->set('apiGuard', 0);

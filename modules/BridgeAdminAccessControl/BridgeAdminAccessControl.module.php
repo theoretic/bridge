@@ -144,7 +144,7 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 		$this->addHookBefore('ProcessHome::execute', $this, 'hookHomeExecute');
 		$this->addHookAfter('ProcessPageSearch::findReady', $this, 'hookFindSelector');
 		$this->addHookAfter('ProcessPageLister::getSelector', $this, 'hookFindSelector');
-		foreach(array('saveReady', 'trashReady', 'deleteReady') as $method) {
+		foreach(array('saveReady', 'trashReady', 'restoreReady', 'deleteReady') as $method) {
 			$this->addHookBefore("Pages::$method", $this, 'hookPageGuard');
 		}
 		if($this->bridgeThemePresent()) {
@@ -274,9 +274,11 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	}
 
 	/**
-	 * Hook before Pages::saveReady, trashReady and deleteReady: in an admin request, whatever code
-	 * asks for it, a denied page is not changed. For a page being added, the rules' verdict on its
-	 * parent decides; a page being moved counts as added under its new parent.
+	 * Hook before Pages::saveReady, trashReady, restoreReady and deleteReady: in an admin request,
+	 * whatever code asks for it, a denied page is not changed. For a page being added, the rules'
+	 * verdict on its parent decides; a page being moved counts as added under its new parent.
+	 * restoreReady is needed beside saveReady: a restore, also the one inside a save, clears the
+	 * trash status in the database before saveReady is reached.
 	 *
 	 * @param HookEvent $event
 	 * @throws WirePermissionException

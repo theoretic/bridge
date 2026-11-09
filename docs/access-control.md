@@ -109,15 +109,16 @@ findable (2 is the admin root), so Access > Users keeps its list.
 
 ### Guard on saves
 
-Before-hooks on `Pages::saveReady`, `Pages::trashReady` and `Pages::deleteReady` throw
-`WirePermissionException` for a denied or pass-through page, during an admin request, for a user
-with rules. So a module or hook that saves a denied page on such a user's behalf is stopped too;
+Before-hooks on `Pages::saveReady`, `Pages::trashReady`, `Pages::restoreReady` and
+`Pages::deleteReady` throw `WirePermissionException` for a denied or pass-through page, during an
+admin request, for a user with rules. So a module or hook that saves a denied page on such a user's behalf is stopped too;
 a save of an allowed page that cascades into a denied one is stopped as well. A page being added is
 judged by the rules' verdict on its parent. A move counts as adding under the new parent: the page
 must be allowed where it was, and the new parent and the page in its new place must be allowed, so
 the page editor's Parent field, which the core saves without asking the new parent, cannot put a
 page into a denied branch. Going to the trash is judged by the old place only; a page coming back
-from it is judged by the new one. The setting `apiGuard` (Guard saves in admin requests, on by
+from it is judged by the new one, before the core clears its trash status, so a refused restore
+leaves it in the trash as it was. The setting `apiGuard` (Guard saves in admin requests, on by
 default) turns it off. `Pages::saveField()` does not pass through these hooks.
 
 ## Not covered
