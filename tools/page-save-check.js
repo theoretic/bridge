@@ -17,7 +17,8 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 
 (async () => {
 	const browser = await pw[browserName].launch({ headless: true });
-	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+	// 1440 px: the sandbox's six top-level items collapse the nav at 1280 px by design, and this check hovers the nav
+	const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 	// page 1224 shows images whose files the sandbox does not copy (tools/sandbox-site.sh leaves out
 	// assets/files): their 404s are the sandbox's, not the editor's
 	const consoleErrors = require('./console-errors')(ctx, /status of 404 .*\/assets\/files\//);
