@@ -48,11 +48,40 @@ request removes its rules.
 Every admin screen asks the page whether the user may list, view, edit, add, move, sort, clone,
 trash or delete it, so the page tree, the editor and the page actions follow the rules. Screens
 built on a find (search, autocomplete, the live search, the lister) get the same limits through
-their selectors. Requests to a screen under a denied menu are refused, and the item leaves the
+their selectors (below). Requests to a screen under a denied menu are refused, and the item leaves the
 menu. With Pages denied, Bridge shows no page tree drawer button; its other drawers stay.
 
 The hooks are the core's, so the rules hold for a user on another admin theme; the instant menu
 update is Bridge's.
+
+### Find selectors
+
+The search, the autocomplete and the live search pass their selector through the hookable
+`ProcessPageSearch::findReady`, and the lister builds its own in `ProcessPageLister::getSelector`.
+The module appends one part per denied page, `R` being the id of that page. A superuser's selector
+and that of a user without rules are left as they are.
+
+| Rule | Appended |
+|---|---|
+| deny with inherit | `, id!=R, has_parent!=R` |
+| deny without inherit | `, id!=R` |
+| deny with inherit, allow with inherit on E below | `, rR=(id!=R, has_parent!=R), rR=(id=E), rR=(has_parent=E)` |
+| deny with inherit, allow without inherit on E below | `, rR=(id!=R, has_parent!=R), rR=(id=E)` |
+| deny with inherit on the home page | `, r1=(id!=1, has_parent!=1), r1=(id=2), r1=(has_parent=2)`, then any allow rules |
+
+Groups of one name are alternatives; different names must all hold, so two denied pages do not
+open each other. An allow rule counts only when no role of the user denies its page. A pass-through
+page has no row in these results, only in the tree. A deny on the home page leaves the admin pages
+findable (2 is the admin root), so Access > Users keeps its list.
+
+### Guard on saves
+
+Before-hooks on `Pages::saveReady`, `Pages::trashReady` and `Pages::deleteReady` throw
+`WirePermissionException` for a denied or pass-through page, during an admin request, for a user
+with rules. So a module or hook that saves a denied page on such a user's behalf is stopped too;
+a save of an allowed page that cascades into a denied one is stopped as well. A page being added is
+judged by the rules' verdict on its parent. The setting `apiGuard` (Guard saves in admin requests,
+on by default) turns it off. `Pages::saveField()` does not pass through these hooks.
 
 ## Not covered
 
@@ -60,8 +89,11 @@ update is Bridge's.
 - Files under `site/assets/files/`: the web server serves them; only `$config->pagefileSecure`
   gates them, unchanged.
 - Fields: there is no field-level access.
-- Option lists of page reference fields (select, checkboxes, asmSelect): a reference is not access,
-  and dropping an option would lose a stored value on save.
+- Option lists of page reference fields (select, checkboxes, asmSelect,
+  `InputfieldPage::getSelectablePages`, deliberately not hooked): a reference is not access, and
+  dropping an option would lose a stored value on save, since a select posts only what it lists.
+  The autocomplete and page-list pickers follow the rules anyway, so a denied page cannot be newly
+  picked there.
 - Admin pages below the four menu items as targets of their own, and the trash page.
 - Rules per user: rules belong to roles.
 
@@ -71,3 +103,8 @@ update is Bridge's.
   its number of children even when some are denied and left out of the list.
 - A page in the trash is no longer under its old parent, so a deny inherited from that parent does
   not reach it. A rule on the page itself still does.
+- A lister bookmark saved by a user with rules stores the selector with the appended clause (the
+  core's bookmarks read `getSelector()`). The clause stays in the bookmark after the rules change,
+  and the current rules are appended on top of it. Groups of one name are alternatives, so an
+  exception the bookmark remembers still lists that page in that bookmark after its allow rule is
+  gone; the page itself stays closed.

@@ -2709,5 +2709,125 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 	check('ACL enforcement: the config is left as found', $modules->getConfig($aclName) === $aclSavedStep2);
 }
 
+// BridgeAdminAccessControl: find-based screens and the guard on saves (sprint bridge-admin-access-control, step 3)
+check('ACL finds: after-hooks on ProcessPageSearch::findReady and ProcessPageLister::getSelector, InputfieldPage untouched', strpos($aclModuleSrc, "addHookAfter('ProcessPageSearch::findReady', \$this, 'hookFindSelector')") !== false
+	&& strpos($aclModuleSrc, "addHookAfter('ProcessPageLister::getSelector', \$this, 'hookFindSelector')") !== false && strpos($aclModuleSrc, 'getSelectablePages') === false);
+check('ACL guard: before-hooks on Pages::saveReady, trashReady and deleteReady', strpos($aclModuleSrc, 'addHookBefore("Pages::$method", $this, \'hookPageGuard\')') !== false && strpos($aclModuleSrc, "array('saveReady', 'trashReady', 'deleteReady')") !== false);
+$aclDocs = (string) @file_get_contents(dirname(__DIR__) . '/docs/access-control.md');
+check('ACL docs: the find selectors, the guard, the bookmark limit and the pickers', strpos($aclDocs, 'rR=(id!=R, has_parent!=R), rR=(id=E), rR=(has_parent=E)') !== false && strpos($aclDocs, '`Pages::saveReady`') !== false && strpos($aclDocs, '`apiGuard`') !== false
+	&& strpos($aclDocs, 'lister bookmark') !== false && strpos($aclDocs, 'getSelectablePages') !== false);
+if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $aclSuper, $aclRule, $aclSet, $aclX, $aclSibling, $aclBecome)) {
+	$aclIds = function($selector) use($pages) { return array_map('intval', $pages->find($selector)->explode('id')); };
+	$aclThrows = function(callable $f) {
+		try {
+			$f();
+		} catch(WirePermissionException $e) {
+			return true;
+		}
+		return false;
+	};
+	$aclAsWas = $wire->user;
+	$aclSavedStep3 = $modules->getConfig($aclName);
+	$aclVersionStep3 = (int) $acl->get('rulesVersion');
+	$aclAdminWas = $config->admin;
+	$aclGuardWas = $acl->get('apiGuard');
+	$T = (int) $aclTree->id;
+	$E = (int) $aclX->id;
+	$S = (int) $aclSibling->id;
+	$N = (int) $aclNative->id;
+	try {
+		$aclBecome($aclUser);
+		$aclSet(array());
+		check('ACL finds: no rules: the clause is empty', $acl->selectorClause($aclUser) === '');
+		check('ACL guard: on by default', (int) $aclGuardWas === 1 && strpos($aclModuleSrc, "\$this->set('apiGuard', 1)") !== false);
+
+		// the shapes, as docs/access-control.md gives them
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny')));
+		check('ACL finds: a deny with inherit', $acl->selectorClause($aclUser) === ", id!=$T, has_parent!=$T", $acl->selectorClause($aclUser));
+		$aclHomeKids = "parent=1, include=all";
+		check('ACL finds: without the clause the tree page is found, with it not', in_array($T, $aclIds($aclHomeKids), true) && !in_array($T, $aclIds($aclHomeKids . $acl->selectorClause($aclUser)), true) && in_array($N, $aclIds($aclHomeKids . $acl->selectorClause($aclUser)), true));
+		check('ACL finds: nor its child', !in_array($E, $aclIds("id=$E, include=all" . $acl->selectorClause($aclUser)), true));
+		$aclSuperClause = $acl->selectorClause($aclSuper);
+		check('ACL finds: the superuser has no clause', $aclSuperClause === '', $aclSuperClause);
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny', false)));
+		check('ACL finds: a deny without inherit', $acl->selectorClause($aclUser) === ", id!=$T", $acl->selectorClause($aclUser));
+		check('ACL finds: without inherit the child is found', $aclIds("id=$E|$T, include=all" . $acl->selectorClause($aclUser)) === array($E));
+
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow')));
+		$aclClause = $acl->selectorClause($aclUser);
+		check('ACL finds: a deny with an exception', $aclClause === ", r$T=(id!=$T, has_parent!=$T), r$T=(id=$E), r$T=(has_parent=$E)", $aclClause);
+		$aclFound = $aclIds("id=$T|$E|$S|$N, include=all" . $aclClause);
+		sort($aclFound);
+		$aclWanted = array($E, $N);
+		sort($aclWanted);
+		check('ACL finds: the exception is found, its sibling and the denied page are not, other pages are', $aclFound === $aclWanted, implode(',', $aclFound));
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow', false)));
+		$aclClause = $acl->selectorClause($aclUser);
+		check('ACL finds: an allow without inherit: no has_parent', $aclClause === ", r$T=(id!=$T, has_parent!=$T), r$T=(id=$E)", $aclClause);
+
+		// two denied pages must not open each other (groups of different names AND)
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow'), $aclRule($aclEditor, $aclNative, 'deny')));
+		$aclClause = $acl->selectorClause($aclUser);
+		check('ACL finds: two denied pages: one part each', $aclClause === ", r$T=(id!=$T, has_parent!=$T), r$T=(id=$E), r$T=(has_parent=$E), id!=$N, has_parent!=$N", $aclClause);
+		check('ACL finds: two denied pages: only the exception is left', $aclIds("id=$T|$E|$S|$N, include=all" . $aclClause) === array($E));
+
+		// a deny on home
+		$aclSet(array($aclRule($aclEditor, $aclHome, 'deny'), $aclRule($aclEditor, $aclNative, 'allow'), $aclRule($aclEditor, $aclTree, 'deny')));
+		$aclClause = $acl->selectorClause($aclUser);
+		check('ACL finds: a deny on home: the admin root is an exception, then the allow rules', strpos($aclClause, ", r1=(id!=1, has_parent!=1), r1=(id=2), r1=(has_parent=2), r1=(id=$N), r1=(has_parent=$N)") === 0, $aclClause);
+		$aclFound = $aclIds("id=1|2|29|41|$T|$E|$N, include=all" . $aclClause);
+		sort($aclFound);
+		$aclWanted = array(2, 29, 41, $N);
+		sort($aclWanted);
+		check('ACL finds: a deny on home keeps the admin and the exception, drops the rest', $aclFound === $aclWanted, implode(',', $aclFound));
+
+		// two roles: any deny wins
+		$aclSet(array($aclRule($aclRestricted, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow')));
+		$aclBecome($aclUser2);
+		check('ACL finds, two roles: an allow held by another role is no exception', $acl->selectorClause($aclUser2) === ", id!=$T, has_parent!=$T", $acl->selectorClause($aclUser2));
+		$aclBecome($aclUser);
+		check('ACL finds, two roles: acl has no denied page there', $acl->selectorClause($aclUser) === '', $acl->selectorClause($aclUser));
+		// the same exception held by both roles, inherit by one only: what is below it stays denied
+		$aclSet(array($aclRule($aclRestricted, $aclTree, 'deny'), $aclRule($aclRestricted, $aclX, 'allow', false), $aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow')));
+		$aclBecome($aclUser2);
+		check('ACL finds, two roles: an allow with inherit does not reach below for the role without it', $acl->selectorClause($aclUser2) === ", r$T=(id!=$T, has_parent!=$T), r$T=(id=$E)", $acl->selectorClause($aclUser2));
+		$aclBecome($aclUser);
+
+		// the guard
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny')));
+		$aclQuiet = array('quiet' => true, 'noFields' => true);
+		$aclSave = function($p) use($pages, $aclQuiet) { $of = $p->of(); $p->of(false); try { $pages->save($p, $aclQuiet); } finally { $p->of($of); } };
+		$aclNewUnder = function($parent) use($wire) { $p = $wire->wire(new Page($parent->template)); $p->parent = $parent; $p->name = 'acl-guard-probe'; return $p; };
+		$config->admin = false;
+		check('ACL guard: outside an admin request nothing is stopped', !$aclThrows(function() use($pages, $aclTree) { $pages->saveReady($aclTree); }));
+		$config->admin = true;
+		check('ACL guard: saving a denied page throws', $aclThrows(function() use($aclSave, $aclTree) { $aclSave($aclTree); }));
+		check('ACL guard: saving another page does not', !$aclThrows(function() use($aclSave, $aclNative) { $aclSave($aclNative); }));
+		check('ACL guard: trashing or deleting a denied page throws, nothing is touched', $aclThrows(function() use($pages, $aclX) { $pages->trashReady($aclX); }) && $aclThrows(function() use($pages, $aclX) { $pages->deleteReady($aclX); }) && $pages->get($E)->id === $E && !$pages->get($E)->isTrash());
+		check('ACL guard: a page added under a denied parent throws, under another does not', $aclThrows(function() use($pages, $aclNewUnder, $aclTree) { $pages->saveReady($aclNewUnder($aclTree)); }) && !$aclThrows(function() use($pages, $aclNewUnder, $aclNative) { $pages->saveReady($aclNewUnder($aclNative)); }));
+		$aclHomeAddable = $aclHome->addable();
+		check('ACL guard: the rules decide for an added page, not addable(): a parent the core refuses, no rule on it', !$aclHomeAddable && !$aclThrows(function() use($pages, $aclNewUnder, $aclHome) { $pages->saveReady($aclNewUnder($aclHome)); }));
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow')));
+		check('ACL guard: a pass-through page is refused, the allowed child is not', $aclThrows(function() use($pages, $aclTree) { $pages->saveReady($aclTree); }) && !$aclThrows(function() use($pages, $aclX) { $pages->saveReady($aclX); }));
+		$acl->set('apiGuard', 0);
+		check('ACL guard: with the setting off nothing throws', !$aclThrows(function() use($aclSave, $aclTree) { $aclSave($aclTree); }) && !$aclThrows(function() use($pages, $aclTree) { $pages->trashReady($aclTree); }));
+		$acl->set('apiGuard', 1);
+		$aclBecome($aclSuper);
+		check('ACL guard: the superuser is not stopped', !$aclThrows(function() use($aclSave, $aclTree) { $aclSave($aclTree); }));
+		$aclBecome($aclUser);
+	} finally {
+		$config->admin = $aclAdminWas;
+		$acl->set('apiGuard', $aclGuardWas);
+		$wire->users->setCurrentUser($aclAsWas);
+		foreach(array($aclUser, $aclUser2, $aclSuper) as $aclU) {
+			if(isset($aclLanguageWas[$aclU->id])) $aclU->setLanguage($aclLanguageWas[$aclU->id]);
+		}
+		$modules->saveConfig($aclName, $aclSavedStep3);
+		$acl->set('rules', isset($aclSavedStep3['rules']) ? $aclSavedStep3['rules'] : array());
+		$acl->set('rulesVersion', $aclVersionStep3);
+	}
+	check('ACL finds: the config is left as found', $modules->getConfig($aclName) === $aclSavedStep3);
+}
+
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);

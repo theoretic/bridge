@@ -133,6 +133,11 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 		$this->addHookBefore('ProcessController::execute', $this, 'hookControllerExecute');
 		$this->addHookAfter('AdminThemeFramework::getPrimaryNavArray', $this, 'hookPrimaryNav');
 		$this->addHookBefore('ProcessHome::execute', $this, 'hookHomeExecute');
+		$this->addHookAfter('ProcessPageSearch::findReady', $this, 'hookFindSelector');
+		$this->addHookAfter('ProcessPageLister::getSelector', $this, 'hookFindSelector');
+		foreach(array('saveReady', 'trashReady', 'deleteReady') as $method) {
+			$this->addHookBefore("Pages::$method", $this, 'hookPageGuard');
+		}
 		if($this->bridgeThemePresent()) {
 			$this->addHookAfter('AdminThemeBridge::navCacheKey', $this, 'hookNavCacheKey');
 			$this->addHookAfter('AdminThemeBridge::drawerNames', $this, 'hookDrawerNames');
@@ -229,6 +234,35 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	public function hookDrawerNames(HookEvent $event) {
 		if(!is_array($event->return) || !$this->pagesMenuDenied()) return;
 		$event->return = array_values(array_diff($event->return, array('tree')));
+	}
+
+	/**
+	 * Hook after ProcessPageSearch::findReady (search, autocomplete, live search) and
+	 * ProcessPageLister::getSelector: these screens find pages and ask no page about access, so the
+	 * rules go into the selector
+	 *
+	 * @param HookEvent $event
+	 *
+	 */
+	public function hookFindSelector(HookEvent $event) {
+		$clause = $this->selectorClause($this->wire()->user);
+		if($clause !== '') $event->return = ltrim($event->return . $clause, ', ');
+	}
+
+	/**
+	 * Hook before Pages::saveReady, trashReady and deleteReady: in an admin request, whatever code
+	 * asks for it, a denied page is not changed. For a page being added, the rules' verdict on its
+	 * parent decides.
+	 *
+	 * @param HookEvent $event
+	 * @throws WirePermissionException
+	 *
+	 */
+	public function hookPageGuard(HookEvent $event) {
+		if(!$this->wire()->config->admin || !$this->get('apiGuard')) return;
+		$page = $event->arguments(0);
+		if($this->contentVerdict($page->isNew() ? $page->parent() : $page) === self::ALLOW) return;
+		throw new WirePermissionException($this->_('You do not have access to this page.'));
 	}
 
 	/**
@@ -375,8 +409,7 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	}
 
 	/**
-	 * The content pages the user's roles deny by a rule of their own. Unused yet: step 3 builds
-	 * the find selectors from it.
+	 * The content pages the user's roles deny by a rule of their own
 	 *
 	 * @param User $user
 	 * @return array Page id => does the deny cover the descendants (any role's inherit counts)
@@ -390,6 +423,43 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 			$roots[$rule['page']] = !empty($roots[$rule['page']]) || $rule['inherit'];
 		}
 		return $roots;
+	}
+
+	/**
+	 * What the user's denies add to a selector, for the screens that find pages:
+	 *
+	 * - a deny with inherit: `, id!=R, has_parent!=R`
+	 * - a deny without inherit: `, id!=R`
+	 * - a deny with inherit and allowed pages below it, one named group per denied page (names AND,
+	 *   the members of one name OR): `, rR=(id!=R, has_parent!=R), rR=(id=E), rR=(has_parent=E)`;
+	 *   `has_parent=E` only when the allow covers what is below E
+	 *
+	 * A deny on the home page has the admin root as an exception, since it says nothing about
+	 * admin pages: `, r1=(id!=1, has_parent!=1), r1=(id=2), r1=(has_parent=2)`.
+	 *
+	 * @param User $user
+	 * @return string Empty when the user has no denied page; else it starts with a comma
+	 *
+	 */
+	public function selectorClause(User $user) {
+		$clause = '';
+		foreach($this->deniedRoots($user) as $root => $inherit) {
+			if(!$inherit) {
+				$clause .= ", id!=$root";
+				continue;
+			}
+			$exceptions = $this->exceptionsBelow($root, $user);
+			if(!count($exceptions)) {
+				$clause .= ", id!=$root, has_parent!=$root";
+				continue;
+			}
+			$clause .= ", r$root=(id!=$root, has_parent!=$root)";
+			foreach($exceptions as $id => $withChildren) {
+				$clause .= ", r$root=(id=$id)";
+				if($withChildren) $clause .= ", r$root=(has_parent=$id)";
+			}
+		}
+		return $clause;
 	}
 
 	/**
@@ -595,6 +665,58 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	protected function userDenied(Page $page, User $user) {
 		foreach(array_unique(array_column($this->rulesFor($user), 'role')) as $roleId) {
 			if($this->roleDenies((int) $roleId, $page)) return true;
+		}
+		return false;
+	}
+
+	/**
+	 * The pages below a denied page that stay allowed to the user: those named by the user's allow
+	 * rules that no role of the user denies, and the admin root below the home page
+	 *
+	 * @param int $root
+	 * @param User $user
+	 * @return array Page id => is what lies below that page allowed too
+	 *
+	 */
+	protected function exceptionsBelow(int $root, User $user) {
+		$config = $this->wire()->config;
+		$pages = $this->wire()->pages;
+		$out = array();
+		if($root === (int) $config->rootPageID) $out[(int) $config->adminRootPageID] = true;
+		foreach($this->rulesFor($user) as $rule) {
+			if($rule['mode'] !== BridgeAccessRules::modeAllow || !$this->isBelow($rule['page'], $root)) continue;
+			$allowed = $pages->get($rule['page']);
+			if($allowed->id && !$this->userDenied($allowed, $user)) $out[(int) $allowed->id] = !$this->childrenDenied((int) $allowed->id, $user);
+		}
+		return $out;
+	}
+
+	/**
+	 * Does a page lie somewhere below another?
+	 *
+	 * @param int $pageId
+	 * @param int $ancestorId
+	 * @return bool
+	 *
+	 */
+	protected function isBelow(int $pageId, int $ancestorId) {
+		$id = $this->parentId($pageId);
+		while($id > 0 && $id !== $ancestorId) $id = $this->parentId($id);
+		return $id === $ancestorId;
+	}
+
+	/**
+	 * Would a role of the user deny a child of this page that has no rule of its own?
+	 *
+	 * @param int $pageId
+	 * @param User $user
+	 * @return bool
+	 *
+	 */
+	protected function childrenDenied(int $pageId, User $user) {
+		$index = $this->roleIndex();
+		foreach(array_unique(array_column($this->rulesFor($user), 'role')) as $roleId) {
+			if($this->inheritedDeny((int) $roleId, $pageId, $index[$roleId])) return true;
 		}
 		return false;
 	}
