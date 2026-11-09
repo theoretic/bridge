@@ -1893,6 +1893,19 @@ if(isset($bridge)) {
 	sort($listed);
 	check('extensionSurface() hooks are every ___ method the theme declares', $declared === $listed, 'missing: ' . implode(',', array_diff($declared, $listed)) . ' extra: ' . implode(',', array_diff($listed, $declared)));
 	check('extensionSurface() contract is extensionContract', $surface['contract'] === AdminThemeBridge::extensionContract);
+	// 0.29.0: contract 0.2 (sprint extension-styles-bridge-custom, step 1)
+	$contractsBad = array_filter($surface['contracts'], function($v) { return !preg_match('/^\d+\.\d+(\.\d+)?$/', $v); });
+	check('extensionSurface() contracts is extensionContracts, the current one last, each a version', $surface['contracts'] === AdminThemeBridge::extensionContracts
+		&& end($surface['contracts']) === AdminThemeBridge::extensionContract && !count($contractsBad), json_encode($surface['contracts']));
+	$tokenCss = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/styles/00-tokens.css');
+	$tokensBad = array();
+	foreach($surface['tokens'] as $token) {
+		if(!preg_match('/(?<![\w-])' . preg_quote($token, '/') . '\s*:/', $tokenCss)) $tokensBad[] = $token;
+	}
+	check('extensionSurface() tokens are declared in 00-tokens.css', count($surface['tokens']) > 0 && !count($tokensBad), implode(', ', $tokensBad));
+	check('extensionSurface() tokens has no duplicates', count($surface['tokens']) === count(array_unique($surface['tokens'])));
+	check('the four metric tokens are published', !count(array_diff(array('--pw-font-size', '--pw-line-height', '--pw-field-pad', '--pw-field-pad-bottom'), $surface['tokens'])));
+	check('internal tokens are not on the surface', !count(array_intersect(array('--pw-input-radius', '--pw-tiny', '--pw-masthead-h', '--ring-50'), $surface['tokens'])));
 	$readsBad = array();
 	foreach($surface['reads'] as $name) {
 		if(!method_exists($bridge, $name) || !(new \ReflectionMethod($bridge, $name))->isPublic() || method_exists($bridge, "___$name")) $readsBad[] = $name;
@@ -1946,12 +1959,16 @@ if(isset($bridge)) {
 	$initSrc = (string) file_get_contents($themeDir . 'init.php');
 	check('init.php hands the client the extensions and the contract', strpos($initSrc, "'extensions' => \$adminTheme->extensionsClientConfig(),") !== false && strpos($initSrc, "'extensionContract' => AdminThemeBridge::extensionContract,") !== false);
 	check('a guest gets no extension list', $wire->user->isGuest() && $bridge->extensionsClientConfig() === array());
+	check('a guest gets no extension stylesheets', $wire->user->isGuest() && $bridge->extensionStyles() === array());
 	$eu = $wire->users->get('name=bridge');
 	if($eu && $eu->id) {
 		$guest = $wire->user;
 		$wire->users->setCurrentUser($eu);
 		$extList = $bridge->extensionsClientConfig();
+		$extStyles = $bridge->extensionStyles();
 		$wire->users->setCurrentUser($guest);
+		// no bundled extension declares styles yet: BridgeSample's arrives in step 5
+		check('extensionStyles() lists the stylesheets of a signed-in user\'s extensions', $extStyles === array(), json_encode($extStyles));
 		// the four bundled extensions (step 6): BridgeCsp and BridgeAdminAccessControl by the 'bridge' info key, ProcessBridgeDemo and BridgeSample by the interface; ties by class name
 		$extByName = array_column($extList, null, 'name');
 		check('the sandbox lists the four bundled extensions, compatible, with their module URLs', array_column($extList, 'name') === array('BridgeAdminAccessControl', 'BridgeCsp', 'BridgeSample', 'ProcessBridgeDemo')
@@ -1969,6 +1986,15 @@ if(isset($bridge)) {
 	$probe = $bridge->extensionInfo('ProcessBridgeDemo', array('contract' => '^0.1', 'module' => 'x.mjs', 'priority' => '7', 'slots' => array('footer' => 'f', 3 => 'g'), 'hooks' => array('nonce', 'nonce', ''), 'oops' => 1));
 	check('extensionInfo() normalises a manifest', $probe['name'] === 'ProcessBridgeDemo' && $probe['compatible'] === true && $probe['priority'] === 7 && $probe['slots'] === array('footer' => 'f')
 		&& $probe['hooks'] === array('nonce') && $probe['unknown'] === array('oops') && $probe['permission'] === '' && $probe['module'] === $config->urls('ProcessBridgeDemo') . 'x.mjs?v=' . $modules->getModuleInfoProperty('ProcessBridgeDemo', 'version'), json_encode($probe));
+	// 0.29.0: contract 0.2 (sprint extension-styles-bridge-custom, step 1); 0.1 stays honoured through extensionContracts
+	$compatBad = array();
+	foreach(array('^0.1' => true, '^0.2' => true, '^0.3' => false, '~0.1' => true, '>=0.2' => true, '<0.2' => true) as $range => $want) {
+		if($bridge->extensionInfo('ProcessBridgeDemo', array('contract' => $range))['compatible'] !== $want) $compatBad[] = $range;
+	}
+	check('extensionInfo() compatible: a range takes any contract the theme honours', !count($compatBad), implode(', ', $compatBad));
+	$probe = $bridge->extensionInfo('ProcessBridgeDemo', array('contract' => '^0.2', 'styles' => array('a.css', '', 7, '/x/b.css', 'https://cdn/c.css'), 'tokens' => array('--foreground', '', '--foreground')));
+	check('extensionInfo() normalises styles and tokens, both known keys', $probe['styles'] === array($config->urls('ProcessBridgeDemo') . 'a.css?v=' . $modules->getModuleInfoProperty('ProcessBridgeDemo', 'version'), '/x/b.css', 'https://cdn/c.css')
+		&& $probe['tokens'] === array('--foreground') && $probe['unknown'] === array(), json_encode($probe));
 }
 // 0.27.0: shell slots (docs/extensions.md 4; sprint extension-kit, step 2)
 $tplSrc = array();
@@ -2524,11 +2550,11 @@ if(isset($bridge) && $bridge) {
 	check('navCacheKey is on the surface and declared by the class', in_array('navCacheKey', $aclSurface['hooks'], true) && method_exists($bridge, '___navCacheKey') && $bridge->navCacheKey() === 'prnav');
 	$aclJson = json_decode((string) @file_get_contents($themeDir . 'assets/dist/extension-surface.json'), true);
 	check('navCacheKey is in assets/dist/extension-surface.json', is_array($aclJson) && in_array('navCacheKey', $aclJson['hooks'], true));
-	check('the extension contract stays 0.1', $aclSurface['contract'] === '0.1');
+	check('the extension contract is extensionContract', $aclSurface['contract'] === AdminThemeBridge::extensionContract);
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 0.28.0', $themeVersion === '0.28.0', $themeVersion);
+	check('the theme version is 0.29.0', $themeVersion === '0.29.0', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;

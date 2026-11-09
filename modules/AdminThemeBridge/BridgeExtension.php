@@ -28,9 +28,11 @@ interface BridgeExtension {
 	 * Describe the extension (asked on an instance that may not have run init(): use no config)
 	 *
 	 * @return array Keys (docs/extensions.md 2):
-	 *  - `contract` (string): the extension contract range it was written for, e.g. '^0.1'
+	 *  - `contract` (string): the extension contract range it was written for, e.g. '^0.2'
 	 *  - `name` (string): optional, defaults to the module's class name
 	 *  - `module` (string): optional URL of an ES module the admin imports on every page
+	 *  - `styles` (array): optional, stylesheets relative to the module's directory, linked after the theme's
+	 *  - `tokens` (array): optional, the theme's CSS custom properties its stylesheets read or set
 	 *  - `slots` (array): optional, slot name => name of a public method returning markup
 	 *  - `hooks` (array): optional, the theme's hookable methods it attaches to (without `___`)
 	 *  - `reads` (array): optional, the theme's public non-hookable methods it calls

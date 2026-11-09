@@ -63,7 +63,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '0.28.0',
+			'version' => '0.29.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -79,7 +79,16 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * the module version and from the component contract (`Bridge.contract`). Pre-1.0: may change
 	 *
 	 */
-	const extensionContract = '0.1';
+	const extensionContract = '0.2';
+
+	/**
+	 * The extension contract versions this theme honours, the current one last. A manifest is
+	 * compatible when its range takes any of them (contractCompatible()), so an additive contract
+	 * keeps the manifests written for the older ones. A contract that removes or changes something
+	 * drops the older versions from this list.
+	 *
+	 */
+	const extensionContracts = array('0.1', '0.2');
 
 	const legacyAlways = 'always';
 	const legacyAuto = 'auto';

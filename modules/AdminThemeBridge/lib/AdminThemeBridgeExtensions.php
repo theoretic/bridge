@@ -82,18 +82,19 @@ trait AdminThemeBridgeExtensions {
 	 *
 	 * `module` is resolved as componentInfo() resolves a component's: absolute URLs and
 	 * root-relative paths are kept, anything else is relative to the module's own directory,
-	 * with `?v=<module version>` (in dev mode `?v=<file time>`: extensionDevVersion()). Keys the
-	 * contract does not know are kept apart in `unknown`
-	 * (the contract tests fail on them; the theme ignores them).
+	 * with `?v=<module version>` (in dev mode `?v=<file time>`: extensionDevVersion()). `styles`
+	 * is a list of stylesheets: a relative entry is resolved the same way, an absolute URL or a
+	 * root-relative path is kept as given. Keys the contract does not know are kept apart in
+	 * `unknown` (the contract tests fail on them; the theme ignores them).
 	 *
 	 * @param string $name Module class name
 	 * @param array $manifest As the module gave it
-	 * @return array Keys: name, class, contract, compatible, module, slots, hooks, reads, settings,
-	 *  permission, priority, unknown
+	 * @return array Keys: name, class, contract, compatible, module, styles, tokens, slots, hooks,
+	 *  reads, settings, permission, priority, unknown
 	 *
 	 */
 	public function extensionInfo($name, array $manifest) {
-		$known = array('name', 'contract', 'module', 'slots', 'hooks', 'reads', 'settings', 'permission', 'priority');
+		$known = array('name', 'contract', 'module', 'styles', 'tokens', 'slots', 'hooks', 'reads', 'settings', 'permission', 'priority');
 		$list = function($value) {
 			$out = array();
 			foreach((array) $value as $item) {
@@ -106,23 +107,20 @@ trait AdminThemeBridgeExtensions {
 			if(is_string($slot) && is_string($method) && $method !== '') $slots[$slot] = $method;
 		}
 		$contract = isset($manifest['contract']) && is_string($manifest['contract']) ? trim($manifest['contract']) : '';
-		$url = isset($manifest['module']) && is_string($manifest['module']) ? $manifest['module'] : '';
-		if($url !== '' && strpos($url, '/') !== 0 && strpos($url, '://') === false) {
-			$url = (string) $this->wire()->config->urls($name) . $url;
-		}
-		$dev = $url !== '' && strpos($url, '?') === false ? $this->extensionDevVersion($url) : '';
-		if($dev !== '') {
-			$url .= '?v=' . $dev;
-		} else if($url !== '' && strpos($url, '?') === false) {
-			$version = (string) $this->wire()->modules->getModuleInfoProperty($name, 'version');
-			if($version !== '') $url .= '?v=' . rawurlencode($version);
+		$url = $this->extensionAssetUrl($name, isset($manifest['module']) && is_string($manifest['module']) ? $manifest['module'] : '');
+		$styles = array();
+		foreach((array) ($manifest['styles'] ?? array()) as $file) {
+			if(!is_string($file) || $file === '') continue;
+			$styles[] = strpos($file, '/') === 0 || strpos($file, '://') !== false ? $file : $this->extensionAssetUrl($name, $file);
 		}
 		return array(
 			'name' => isset($manifest['name']) && is_string($manifest['name']) && $manifest['name'] !== '' ? $manifest['name'] : $name,
 			'class' => $name,
 			'contract' => $contract,
-			'compatible' => $contract !== '' && self::contractSatisfies($contract, self::extensionContract),
+			'compatible' => $contract !== '' && self::contractCompatible($contract),
 			'module' => $url,
+			'styles' => $styles,
+			'tokens' => $list($manifest['tokens'] ?? array()),
 			'slots' => $slots,
 			'hooks' => $list($manifest['hooks'] ?? array()),
 			'reads' => $list($manifest['reads'] ?? array()),
@@ -131,6 +129,28 @@ trait AdminThemeBridgeExtensions {
 			'priority' => isset($manifest['priority']) && is_numeric($manifest['priority']) ? (int) $manifest['priority'] : 100,
 			'unknown' => array_values(array_diff(array_keys($manifest), $known)),
 		);
+	}
+
+	/**
+	 * An extension's file as a URL: absolute URLs and root-relative paths as they are, anything
+	 * else relative to the module's directory, then `?v=<module version>` (in dev mode
+	 * `?v=<file time>`) unless the URL has a query already
+	 *
+	 * @param string $name Module class name
+	 * @param string $url As the manifest gave it
+	 * @return string '' for an empty one
+	 *
+	 */
+	protected function extensionAssetUrl($name, $url) {
+		if($url === '') return '';
+		if(strpos($url, '/') !== 0 && strpos($url, '://') === false) {
+			$url = (string) $this->wire()->config->urls($name) . $url;
+		}
+		if(strpos($url, '?') !== false) return $url;
+		$dev = $this->extensionDevVersion($url);
+		if($dev !== '') return $url . '?v=' . $dev;
+		$version = (string) $this->wire()->modules->getModuleInfoProperty($name, 'version');
+		return $version !== '' ? $url . '?v=' . rawurlencode($version) : $url;
 	}
 
 	/**
@@ -192,6 +212,27 @@ trait AdminThemeBridgeExtensions {
 				'compatible' => $info['compatible'],
 				'priority' => $info['priority'],
 			);
+		}
+		return $out;
+	}
+
+	/**
+	 * The stylesheets of this request's extensions (manifest key `styles`), by priority
+	 *
+	 * Signed-in users only (as the slots), the extensions they may have and whose contract range
+	 * this theme honours; in a modal window too.
+	 *
+	 * @return array List of ['extension' => name, 'url' => url]
+	 *
+	 */
+	public function extensionStyles() {
+		$out = array();
+		if(!$this->wire()->user->isLoggedin()) return $out;
+		foreach($this->extensions() as $info) {
+			if(!$info['compatible'] || !$this->extensionAllowed($info)) continue;
+			foreach($info['styles'] as $url) {
+				$out[] = array('extension' => $info['name'], 'url' => $url);
+			}
 		}
 		return $out;
 	}
@@ -346,16 +387,18 @@ trait AdminThemeBridgeExtensions {
 	 * The published surface of the extension contract (docs/extensions.md 3)
 	 *
 	 * What an extension may use and nothing else: the theme's hookable methods (without `___`),
-	 * its public non-hookable methods (`reads`), its settings, the shell slots, the client
-	 * events and the `window.Bridge` keys. The contract tests and the compatibility checker
+	 * its public non-hookable methods (`reads`), its settings, the shell slots, the CSS custom
+	 * properties (`tokens`), the client events and the `window.Bridge` keys. `contracts` lists
+	 * the contract versions the theme honours. The contract tests and the compatibility checker
 	 * compare manifests with it. Hookable: a later theme or an extension may add to it.
 	 *
-	 * @return array Keys: contract, hooks, reads, settings, slots, events, runtime
+	 * @return array Keys: contract, contracts, hooks, reads, settings, slots, tokens, events, runtime
 	 *
 	 */
 	public function ___extensionSurface() {
 		return array(
 			'contract' => self::extensionContract,
+			'contracts' => self::extensionContracts,
 			// every ___ method the class declares (smoke compares by reflection)
 			'hooks' => array(
 				'install', 'uninstall', 'nonce', 'moveFiles', 'moveFileAllowed', 'filesMoved', 'historyEntry',
@@ -363,8 +406,8 @@ trait AdminThemeBridgeExtensions {
 				'sortableDataTable', 'uikitReasons', 'extensionSurface', 'drawerNames', 'navCacheKey',
 			),
 			'reads' => array(
-				'useLegacyStack', 'componentInfo', 'extensions', 'extensionInfo', 'extensionAllowed', 'cspNonce', 'nonceAttr',
-				'nonceScriptTag', 'themeAssetUrl', 'getVariant', 'getColorScheme', 'shellLabel', 'getHistorySteps',
+				'useLegacyStack', 'componentInfo', 'extensions', 'extensionInfo', 'extensionAllowed', 'extensionStyles', 'cspNonce',
+				'nonceAttr', 'nonceScriptTag', 'themeAssetUrl', 'getVariant', 'getColorScheme', 'shellLabel', 'getHistorySteps',
 			),
 			// the keys __construct() sets (smoke compares with the source)
 			'settings' => array(
@@ -374,6 +417,23 @@ trait AdminThemeBridgeExtensions {
 			),
 			// the shell slots (slotTags())
 			'slots' => array_keys($this->slotTags()),
+			// the CSS custom properties extensions may read or set (runtime/src/styles/00-tokens.css);
+			// a --pw- name not listed here is internal
+			'tokens' => array(
+				'--background', '--foreground', '--card', '--card-foreground', '--popover', '--popover-foreground', '--primary',
+				'--primary-foreground', '--secondary', '--secondary-foreground', '--muted', '--muted-foreground', '--accent',
+				'--accent-foreground', '--destructive', '--border', '--input', '--ring', '--radius', '--radius-sm', '--radius-md',
+				'--radius-lg', '--radius-xl', '--shadow-xs', '--shadow-sm', '--shadow-md', '--shadow-lg', '--pw-primary',
+				'--pw-primary-hover', '--pw-primary-bg', '--pw-primary-20', '--pw-on-primary', '--pw-bg', '--pw-surface',
+				'--pw-surface-2', '--pw-line', '--pw-text', '--pw-text-muted', '--pw-h1', '--pw-input-bg', '--pw-input-border',
+				'--pw-radius', '--pw-radius-m', '--pw-shadow-card', '--pw-shadow-dropdown', '--pw-font', '--pw-font-size',
+				'--pw-line-height', '--pw-gutter', '--pw-field-pad', '--pw-field-pad-bottom', '--pw-z-notices', '--pw-z-popup',
+				'--pw-z-masthead', '--pw-z-drawer', '--pw-z-dropdown', '--pw-z-picker', '--pw-z-overlay', '--pw-status-success-bg',
+				'--pw-status-success-border', '--pw-status-success-fg', '--pw-status-success-icon', '--pw-status-warning-bg',
+				'--pw-status-warning-border', '--pw-status-warning-fg', '--pw-status-warning-icon', '--pw-status-error-bg',
+				'--pw-status-error-border', '--pw-status-error-fg', '--pw-status-error-icon', '--pw-success-bg', '--pw-warning-bg',
+				'--pw-danger-bg',
+			),
 			'events' => array(
 				'pw-runtime-ready', 'pw-legacy-loaded', 'pw-legacy-handover', 'pw-uikit-loaded', 'pw-component-loaded',
 				'pw-component-failed', 'pw-modal-opened', 'pw-modal-closed', 'pw-wiretabs-change', 'pw-tab-focus',
@@ -413,6 +473,20 @@ trait AdminThemeBridgeExtensions {
 				if(!$test) $ok = false;
 			}
 			if($ok) return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Does a range take any of the contract versions this theme honours (extensionContracts)?
+	 *
+	 * @param string $range
+	 * @return bool
+	 *
+	 */
+	public static function contractCompatible($range) {
+		foreach(self::extensionContracts as $version) {
+			if(self::contractSatisfies($range, $version)) return true;
 		}
 		return false;
 	}

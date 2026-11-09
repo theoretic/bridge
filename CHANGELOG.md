@@ -1,5 +1,9 @@
 # Changelog
 
+## AdminThemeBridge 0.29.0: extension contract 0.2, styling extensions (2026-11-09)
+
+- **Extension contract 0.2**: adds the manifest keys `styles` and `tokens`, the surface keys `contracts` and `tokens`, and the read `extensionStyles()`. It only adds, so the theme honours 0.1 and 0.2 (`AdminThemeBridge::extensionContracts`) and `^0.1` manifests keep working.
+
 ## AdminThemeBridge 0.28.0: admin access control, the fourth bundled extension (2026-11-09)
 
 Owner's brief: a Bridge extension for per-role access control to the page tree, any subtree in it and the top-level admin menus. Built through the extension kit; the model, the editor and the limits are in `docs/access-control.md`.
