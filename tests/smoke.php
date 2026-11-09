@@ -1612,6 +1612,10 @@ $themeVersion = preg_match("/'version' => '([0-9.]+)'/", $themeInfo, $vm) ? $vm[
 check('BG10 the README and the CHANGELOG name the module\'s version', $themeVersion !== ''
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "AdminThemeBridge $themeVersion;") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/CHANGELOG.md'), "## AdminThemeBridge $themeVersion:") !== false, $themeVersion);
+$aclExtDoc = (string) file_get_contents(dirname(__DIR__) . '/docs/extensions.md');
+check('ACL docs: BridgeAdminAccessControl in section 7 of docs/extensions.md and in the README', preg_match('/\n## 7\. Bundled extensions\n.*?\| `BridgeAdminAccessControl`.*?\n## 8\. /s', $aclExtDoc) === 1
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), 'BridgeAdminAccessControl') !== false);
+check('ACL docs: the conformance suite opens the module\'s config screen', strpos((string) file_get_contents(dirname(__DIR__) . '/conformance/screens.txt'), "{admin}module/edit?name=BridgeAdminAccessControl\n") !== false);
 check('BG10 the files from upstream code say so', strpos((string) file_get_contents(dirname(__DIR__) . '/bootstrap/Bootstrap.php'), 'Mozilla Public License 2.0') !== false
 	&& strpos($srcOf('fields/asmselect.ts'), 'Copyright (c) 2009-2019 by Ryan Cramer, licensed under the MIT license') !== false);
 

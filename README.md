@@ -170,9 +170,13 @@ shell, `window.Bridge` and the DOM events) and declares what it uses in a manife
 fills its slots from that manifest. The kit: a scaffold (`tools/scaffold-extension.php`), contract
 tests against a sandbox (`tools/extension-check.php`, `tools/extension-check.js`), a compatibility
 checker that needs only the files (`tools/extension-compat.php`) and a dev mode that re-imports
-an edited client module in place (`tools/extension-dev.js`). Bridge CSP, the demo module and
-`BridgeSample` are extensions themselves. See [docs/extensions.md](docs/extensions.md) (extension
-contract 0.1, ADR 0021).
+an edited client module in place (`tools/extension-dev.js`). Bridge CSP, the demo module,
+`BridgeSample` and `BridgeAdminAccessControl` are extensions themselves. See
+[docs/extensions.md](docs/extensions.md) (extension contract 0.1, ADR 0021).
+
+**Admin access control** (`BridgeAdminAccessControl`, optional) narrows, per role, the page tree
+and its branches and the four main admin menus, enforced on the server. It never grants anything,
+and without rules nothing changes. See [docs/access-control.md](docs/access-control.md).
 
 ## Development
 
@@ -182,6 +186,8 @@ modules/AdminThemeBridge/  the admin theme; assets/dist/ and scripts/ hold built
 modules/BridgeDemo/        native Process and Inputfield used as a test fixture
 modules/BridgeCsp/         optional: a nonce-based Content-Security-Policy for the admin (ADR 0020)
 modules/BridgeSample/      the scaffolded sample extension, fixture of the extension contract tests
+modules/BridgeAdminAccessControl/
+                           optional: per-role limits on the page tree and the main admin menus
 runtime/                   TypeScript runtime, stylesheets (Vite) and the theme's classic
                            scripts (src/classic/, minified with esbuild into scripts/,
                            type-checked with types/classic.d.ts)

@@ -61,6 +61,12 @@ old version after the refresh, PHP-FPM's opcache is serving the old file; reload
 
 Undo: Profile > Admin Theme back to Uikit, then uninstall the module from its settings page.
 
+Optional, admin access control ([access-control.md](access-control.md)): upload
+`modules/BridgeAdminAccessControl/` to `site/modules/BridgeAdminAccessControl/` as a plain copy, run
+Modules > Refresh and install it. This is safe at any time: with no rules, nothing changes, and it
+adds no table, page or permission. The rules are the module's configuration, so they travel with a
+site profile; they name roles and pages by id, so they fit a copy of the same site.
+
 The history drawer (0.25.0) keeps each user's visited screens in the `pages_meta` rows of the
 user pages (`AdminThemeBridge.history`), and the page tree drawer its open branches in a browser
 cookie (`bridge_tree_open`). No install step, no table, nothing to copy between sites.

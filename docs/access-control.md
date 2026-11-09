@@ -31,6 +31,31 @@ and permissions stay the only place where access is given.
   Custom top-level items are never hidden or refused. A custom item placed under one of the four
   follows that item's rule. A deny on the home page says nothing about admin pages.
 
+## The editor
+
+The rules are edited on the module's own configuration screen, Modules > Bridge admin access
+control (`{admin}module/edit?name=BridgeAdminAccessControl`). It is the core's module editor, so it
+is open to whoever has the core's `module-admin` permission. A default install has no page for that
+permission: only superusers reach the screen until a site creates it. There is no menu item, no
+Process page and no permission of the module's own.
+
+There is one fieldset per role, except `superuser` and `guest`; a role without rules starts
+collapsed.
+
+- **Admin menus**: Pages, Setup, Modules and Access, ticked when allowed. A menu that is not ticked
+  is denied to the role, with everything under it. Custom top-level items are not offered.
+- **Page rules**: a table of the role's rules (page, allow or deny, the page only or also what is
+  below it), each with a Remove box.
+- **Add rule**: a page picker, Deny or Allow (Deny by default) and "Below the page" (on by default).
+  The picker also lists Admin and Trash; those, like every other page that cannot be a target, are
+  refused with a message when saving, and that role's rules stay as they were.
+
+A user with `module-admin` who is not a superuser cannot deny Modules to one of their own roles:
+the save is refused with a message and that role's rules stay as they were, so nobody locks
+themselves out of this screen. Superusers have no rules, so this never applies to them.
+
+The rules take effect with the save, on every signed-in user's next request.
+
 ## Storage
 
 The rules are the module's configuration, one row read with the module and exported with a site
@@ -52,7 +77,12 @@ their selectors (below). Requests to a screen under a denied menu are refused, a
 menu. With Pages denied, Bridge shows no page tree drawer button; its other drawers stay.
 
 The hooks are the core's, so the rules hold for a user on another admin theme; the instant menu
-update is Bridge's.
+update is Bridge's: on another theme a signed-in user's menu changes at their next login, while
+the refusal of the screen applies at once.
+
+Under Bridge a change of the rules shows in a signed-in user's menu on their next page load, with
+no new login: the extension adds the rules' stamp to the theme's menu cache key
+(`AdminThemeBridge::navCacheKey()`).
 
 ### Find selectors
 
@@ -111,3 +141,52 @@ on by default) turns it off. `Pages::saveField()` does not pass through these ho
   and the current rules are appended on top of it under another group name, so both must hold. A
   stale bookmark can only show less than the current rules allow (a page allowed since it was saved
   stays out of it until it is saved again), never more.
+- The visit history of the Bridge drawer keeps entries recorded before a denial. A denied visit is
+  never recorded; an older row keeps its title and its link, and the link gives the denial. The
+  drawer's Clear button empties it.
+
+## Checking it
+
+On a sandbox, `tools/sandbox-site.sh` installs the module and makes the users and roles the checks
+use: `acl` with the role `acl-editor`, `acl2` with `acl-editor` and `acl-restricted`.
+
+`tools/sandbox-acl.php <sandbox> <preset>` writes a named set of rules and prints it.
+
+| Preset | Rules |
+|---|---|
+| `clear` | none |
+| `deny-tree-modules` | `acl-editor`: deny `/bridge-tree/` with inherit, deny Modules |
+| `deny-pages` | `acl-editor`: deny Pages |
+| `deny-all-menus` | `acl-editor`: deny Pages, Setup, Modules and Access |
+| `two-roles` | `acl-restricted`: deny `/bridge-native/` with inherit; `acl-editor`: allow `/bridge-native/` |
+
+`tools/acl-check.js` drives the whole flow in a browser: rules set on the configuration screen, an
+open session that gets them on its next load, refusals by direct URL and by XHR, the search, the
+lister and the autocomplete, an exception, a forged lister filter, a custom top-level item under
+four denied menus, two roles, another admin theme, and the cleanup. It logs in as four sandbox
+users and changes the rules, so run it alone, with the sandbox server up and no rules set.
+`tools/ci.sh` runs it too.
+
+Git Bash:
+
+```bash
+php tools/sandbox-acl.php sandbox/atispro deny-tree-modules
+php tools/sandbox-acl.php sandbox/atispro clear
+
+eval "$(php tools/lib/sandbox-ids.php sandbox/atispro | grep -E '^[A-Z_]+=[0-9]+$')"
+export TREE_ID NATIVE_ID FIXTURE_ID AUTO_ID CUSTOM_MENU_ID
+MSYS_NO_PATHCONV=1 SANDBOX=sandbox/atispro node tools/acl-check.js <playwright-core dir> chromium
+```
+
+PowerShell:
+
+```powershell
+php tools/sandbox-acl.php sandbox/atispro deny-tree-modules
+php tools/sandbox-acl.php sandbox/atispro clear
+
+php tools/lib/sandbox-ids.php sandbox/atispro | Select-String '^[A-Z_]+=\d+$' | ForEach-Object { $k, $v = $_.Line -split '='; Set-Item "env:$k" $v }
+$env:SANDBOX = 'sandbox/atispro'; node tools/acl-check.js <playwright-core dir> chromium
+```
+
+`PHP=<php>` (PowerShell: `$env:PHP = '<php>'`) names the PHP binary when `php` is not on the path.
+The module's contract tests are those of any extension ([extensions.md](extensions.md), section 6).
