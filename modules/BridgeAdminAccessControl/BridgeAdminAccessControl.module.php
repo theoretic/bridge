@@ -88,6 +88,11 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	 */
 	protected $enforcing = false;
 
+	/**
+	 * @var string This request's suffix for the selector group names (requestClause())
+	 */
+	protected $groupSuffix = '';
+
 	public function __construct() {
 		parent::__construct();
 		$this->set('rules', array());
@@ -245,8 +250,23 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	 *
 	 */
 	public function hookFindSelector(HookEvent $event) {
-		$clause = $this->selectorClause($this->wire()->user);
+		$clause = $this->requestClause($this->wire()->user);
 		if($clause !== '') $event->return = ltrim($event->return . $clause, ', ');
+	}
+
+	/**
+	 * The clause as the hook appends it: selectorClause() with this request's suffix on the group
+	 * names. Members of one group name are alternatives, so a filter a user posts (or a bookmark
+	 * saved earlier) that used the module's name would open what the group closes; a name that
+	 * cannot be known beforehand keeps such a group apart.
+	 *
+	 * @param User $user
+	 * @return string
+	 *
+	 */
+	public function requestClause(User $user) {
+		if($this->groupSuffix === '') $this->groupSuffix = '_' . bin2hex(random_bytes(8));
+		return $this->selectorClause($user, $this->groupSuffix);
 	}
 
 	/**
@@ -437,11 +457,14 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	 * A deny on the home page has the admin root as an exception, since it says nothing about
 	 * admin pages: `, r1=(id!=1, has_parent!=1), r1=(id=2), r1=(has_parent=2)`.
 	 *
+	 * The hooks use requestClause(), which adds a per-request suffix to `rR`.
+	 *
 	 * @param User $user
+	 * @param string $groupSuffix Appended to each group name
 	 * @return string Empty when the user has no denied page; else it starts with a comma
 	 *
 	 */
-	public function selectorClause(User $user) {
+	public function selectorClause(User $user, $groupSuffix = '') {
 		$clause = '';
 		foreach($this->deniedRoots($user) as $root => $inherit) {
 			if(!$inherit) {
@@ -453,10 +476,11 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 				$clause .= ", id!=$root, has_parent!=$root";
 				continue;
 			}
-			$clause .= ", r$root=(id!=$root, has_parent!=$root)";
+			$group = "r$root$groupSuffix";
+			$clause .= ", $group=(id!=$root, has_parent!=$root)";
 			foreach($exceptions as $id => $withChildren) {
-				$clause .= ", r$root=(id=$id)";
-				if($withChildren) $clause .= ", r$root=(has_parent=$id)";
+				$clause .= ", $group=(id=$id)";
+				if($withChildren) $clause .= ", $group=(has_parent=$id)";
 			}
 		}
 		return $clause;

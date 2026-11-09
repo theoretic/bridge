@@ -2765,6 +2765,28 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 		$aclClause = $acl->selectorClause($aclUser);
 		check('ACL finds: an allow without inherit: no has_parent', $aclClause === ", r$T=(id!=$T, has_parent!=$T), r$T=(id=$E)", $aclClause);
 
+		// the hook's group name: random per request, so a posted filter cannot join the group
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow')));
+		$aclPlain = $acl->selectorClause($aclUser);
+		$aclReq = $acl->requestClause($aclUser);
+		$aclSuffixOk = preg_match("/^, (r{$T}_[0-9a-f]{16})=\(/", $aclReq, $aclReqMatch) === 1;
+		$aclGroup = $aclSuffixOk ? $aclReqMatch[1] : '';
+		check('ACL finds: the hook names the group rR_<16 hex>', $aclSuffixOk, $aclReq);
+		check('ACL finds: apart from that name the clause is the documented one', $aclSuffixOk && str_replace($aclGroup, "r$T", $aclReq) === $aclPlain, $aclReq);
+		check('ACL finds: the same name within a request', $acl->requestClause($aclUser) === $aclReq);
+		$aclSuffixProp = new \ReflectionProperty($acl, 'groupSuffix');
+		$aclSuffixProp->setValue($acl, '');
+		check('ACL finds: another request gets another name', $acl->requestClause($aclUser) !== $aclReq);
+		check('ACL finds: the hook appends requestClause, not the bare clause', strpos($aclModuleSrc, '$clause = $this->requestClause($this->wire()->user);') !== false);
+		$aclForged = "id=$T|$E|$S|$N, include=all, r$T=(id>0)";
+		$aclFound = $aclIds($aclForged . $aclPlain);
+		check('ACL finds: a forged group joins the bare name (what the suffix is for)', in_array($S, $aclFound, true), implode(',', $aclFound));
+		$aclFound = $aclIds($aclForged . $acl->requestClause($aclUser));
+		sort($aclFound);
+		$aclWanted = array($E, $N);
+		sort($aclWanted);
+		check('ACL finds: a forged group cannot join the suffixed name', $aclFound === $aclWanted, implode(',', $aclFound));
+
 		// two denied pages must not open each other (groups of different names AND)
 		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow'), $aclRule($aclEditor, $aclNative, 'deny')));
 		$aclClause = $acl->selectorClause($aclUser);

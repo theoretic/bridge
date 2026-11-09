@@ -70,7 +70,10 @@ and that of a user without rules are left as they are.
 | deny with inherit on the home page | `, r1=(id!=1, has_parent!=1), r1=(id=2), r1=(has_parent=2)`, then any allow rules |
 
 Groups of one name are alternatives; different names must all hold, so two denied pages do not
-open each other. An allow rule counts only when no role of the user denies its page. A pass-through
+open each other. In a request the group name is not `rR` as written in the table but `rR_<16 random
+hex digits>`, new on every request, so a filter a user posts cannot join the group (a `rR=(id>0)`
+of their own is a separate group that must hold as well). An allow rule counts only when no role of
+the user denies its page. A pass-through
 page has no row in these results, only in the tree. A deny on the home page leaves the admin pages
 findable (2 is the admin root), so Access > Users keeps its list.
 
@@ -105,6 +108,6 @@ on by default) turns it off. `Pages::saveField()` does not pass through these ho
   not reach it. A rule on the page itself still does.
 - A lister bookmark saved by a user with rules stores the selector with the appended clause (the
   core's bookmarks read `getSelector()`). The clause stays in the bookmark after the rules change,
-  and the current rules are appended on top of it. Groups of one name are alternatives, so an
-  exception the bookmark remembers still lists that page in that bookmark after its allow rule is
-  gone; the page itself stays closed.
+  and the current rules are appended on top of it under another group name, so both must hold. A
+  stale bookmark can only show less than the current rules allow (a page allowed since it was saved
+  stays out of it until it is saved again), never more.
