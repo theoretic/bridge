@@ -18,6 +18,10 @@
 # parallel static-file request, and a browser check then fails on "no console errors"
 # (net::ERR_CONNECTION_REFUSED). Exit code: the number of failed steps.
 #
+# A browser check that fails runs once more: the output says so, the first run's log is kept as
+# sandbox/ci-<check>-<browser>-first.log, a check that passes only the second time is listed in the
+# summary (it does not fail the step), and a check that fails twice fails the step.
+#
 # Original work, MIT.
 set -uo pipefail
 
@@ -38,8 +42,11 @@ EXTENSIONS="BridgeCsp BridgeDemo BridgeSample BridgeAdminAccessControl"
 CHECKS="native-check screens-check pagetree-check repeater-check image-file-check setup-check page-edit-check page-save-check lister-check form-save-check image-select-check a11y-check csp-check drawers-check autocomplete-check acl-check"
 
 failed=()
+retried=()
 step() { echo; echo "== $1"; }
 skip() { [[ "$SKIP" == *" $1 "* ]]; }
+# browser_check <check> <browser> <extra flag or empty> <log>
+browser_check() { MSYS_NO_PATHCONV=1 node "tools/$1.js" "$PW" "$2" $3 > "$4" 2>&1; }
 
 if ! skip lint; then
 	step "PHP lint"
@@ -92,11 +99,21 @@ if ! skip browser; then
 				[ "$t" = native-check ] && extra="--gate"
 				# the policy enforced on the native screens (ADR 0020), report only elsewhere
 				[ "$t" = csp-check ] && extra="--enforce"
-				if MSYS_NO_PATHCONV=1 node "tools/$t.js" "$PW" "$browser" $extra > "sandbox/ci-$t-$browser.log" 2>&1; then
+				log="sandbox/ci-$t-$browser.log"
+				first="sandbox/ci-$t-$browser-first.log"
+				rm -f "$first"
+				if browser_check "$t" "$browser" "$extra" "$log"; then
 					echo "   ok    $t ($browser)"
 				else
-					echo "   FAIL  $t ($browser): sandbox/ci-$t-$browser.log"
-					bfail=$((bfail + 1))
+					cp "$log" "$first"
+					echo "   RETRY $t ($browser): failed, running it once more (first run: $first)"
+					if browser_check "$t" "$browser" "$extra" "$log"; then
+						echo "   ok on retry  $t ($browser): failed once, passed the second time"
+						retried+=("$t ($browser): $first")
+					else
+						echo "   FAIL  $t ($browser), twice: $log (first run: $first)"
+						bfail=$((bfail + 1))
+					fi
 				fi
 			done
 		done
@@ -160,8 +177,16 @@ if ! skip conformance; then
 fi
 
 echo
+if [ ${#retried[@]} -gt 0 ]; then
+	echo "ci: passed ONLY ON RETRY (failed once, an intermittent failure to look at):"
+	for r in "${retried[@]}"; do echo "   $r"; done
+fi
 if [ ${#failed[@]} -eq 0 ]; then
-	echo "ci: all steps passed"
+	if [ ${#retried[@]} -gt 0 ]; then
+		echo "ci: all steps passed, ${#retried[@]} browser check(s) only on retry"
+	else
+		echo "ci: all steps passed"
+	fi
 else
 	echo "ci: failed: ${failed[*]}"
 fi

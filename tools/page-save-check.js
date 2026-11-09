@@ -119,20 +119,31 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	await open(1224);
 	const repItems = '#wrap_Inputfield_metrics .InputfieldRepeaterItem:not(.InputfieldRepeaterNewItem):not(.InputfieldRepeaterItemDeleted)';
 	const n0 = await count(repItems);
+	const repAll = '#wrap_Inputfield_metrics .InputfieldRepeaterItem';
+	const all0 = await count(repAll);
 	await page.click('#wrap_Inputfield_metrics .InputfieldRepeaterAddLink');
 	await page.waitForTimeout(2500);
-	const newItem = await page.evaluate(() => { const items = document.querySelectorAll('#wrap_Inputfield_metrics .InputfieldRepeaterItem'); const it = items[items.length - 1]; const inp = it && it.querySelector('input[type=text], textarea'); if(inp) { inp.value = 'bridge test F'; inp.dispatchEvent(new Event('change', { bubbles: true })); } return it ? it.id : null; });
-	r = await save('#submit_save');
-	check('F save in place with a new repeater item', r.inPlace, newItem);
-	check('F item count after save', await count(repItems) === n0 + 1, (await count(repItems)) + ' vs ' + (n0 + 1));
-	await open(1224);
-	check('F item persisted', await count(repItems) === n0 + 1);
-	await page.evaluate(() => { const items = document.querySelectorAll('#wrap_Inputfield_metrics .InputfieldRepeaterItem:not(.InputfieldRepeaterNewItem)'); const it = items[items.length - 1]; const del = it.querySelector('.InputfieldRepeaterTrash'); jQuery(del).trigger('click'); });
-	r = await save('#submit_save');
-	check('F save in place after deleting the item', r.inPlace);
-	check('F item gone from swapped markup', await count(repItems) === n0, await count(repItems));
-	await open(1224);
-	check('F deletion persisted', await count(repItems) === n0);
+	// the writes below act on the last item: without a new one that is a real item of the fixture,
+	// so a failed add (or an item the save did not keep) writes and deletes nothing
+	const all1 = await count(repAll);
+	check('F the add created an item (if not, nothing is saved or deleted in F)', all1 > all0, all1 + ' vs ' + all0);
+	if(all1 > all0) {
+		const newItem = await page.evaluate(() => { const items = document.querySelectorAll('#wrap_Inputfield_metrics .InputfieldRepeaterItem'); const it = items[items.length - 1]; const inp = it && it.querySelector('input[type=text], textarea'); if(inp) { inp.value = 'bridge test F'; inp.dispatchEvent(new Event('change', { bubbles: true })); } return it ? it.id : null; });
+		r = await save('#submit_save');
+		check('F save in place with a new repeater item', r.inPlace, newItem);
+		check('F item count after save', await count(repItems) === n0 + 1, (await count(repItems)) + ' vs ' + (n0 + 1));
+		await open(1224);
+		const persisted = await count(repItems) === n0 + 1;
+		check('F item persisted', persisted);
+		if(persisted) {
+			await page.evaluate(() => { const items = document.querySelectorAll('#wrap_Inputfield_metrics .InputfieldRepeaterItem:not(.InputfieldRepeaterNewItem)'); const it = items[items.length - 1]; const del = it.querySelector('.InputfieldRepeaterTrash'); jQuery(del).trigger('click'); });
+			r = await save('#submit_save');
+			check('F save in place after deleting the item', r.inPlace);
+			check('F item gone from swapped markup', await count(repItems) === n0, await count(repItems));
+			await open(1224);
+			check('F deletion persisted', await count(repItems) === n0);
+		}
+	}
 
 	// H: unpublish via Settings, then Publish in place
 	await open(1224);

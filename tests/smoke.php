@@ -2089,7 +2089,10 @@ check('a rebuilt sandbox has BridgeAdminAccessControl: junctioned by sandbox-sit
 	&& strpos($aclAdmin, "'BridgeSample', 'BridgeAdminAccessControl')) as \$theme") !== false);
 $aclCi = (string) @file_get_contents(dirname(__DIR__) . '/tools/ci.sh');
 check('tools/ci.sh runs acl-check after autocomplete-check and exports CUSTOM_MENU_ID', strpos($aclCi, 'autocomplete-check acl-check') !== false && strpos($aclCi, 'CUSTOM_MENU_ID="${CUSTOM_MENU_ID:-}"') !== false);
-check('tools/sandbox-acl.php goes through the sandbox guard and has the five presets', strpos((string) @file_get_contents(dirname(__DIR__) . '/tools/sandbox-acl.php'), "require __DIR__ . '/lib/sandbox-guard.php';") !== false
+check('tools/ci.sh runs a failed browser check once more, says so, and lists a pass on retry in the summary', strpos($aclCi, 'RETRY $t ($browser)') !== false && strpos($aclCi, 'retried+=(') !== false && strpos($aclCi, 'passed ONLY ON RETRY') !== false && strpos($aclCi, 'exit ${#failed[@]}') !== false);
+$aclPageSave = (string) @file_get_contents(dirname(__DIR__) . '/tools/page-save-check.js');
+check('tools/page-save-check.js saves and deletes nothing in section F without a new item', strpos($aclPageSave, 'if(all1 > all0) {') !== false && strpos($aclPageSave, 'if(persisted) {') !== false);
+check('tools/sandbox-acl.php goes through the sandbox guard and has the five presets',strpos((string) @file_get_contents(dirname(__DIR__) . '/tools/sandbox-acl.php'), "require __DIR__ . '/lib/sandbox-guard.php';") !== false
 	&& strpos((string) @file_get_contents(dirname(__DIR__) . '/tools/sandbox-acl.php'), "array('clear', 'deny-tree-modules', 'deny-pages', 'deny-all-menus', 'two-roles')") !== false);
 $scaffold = dirname(__DIR__) . '/tools/scaffold-extension.php';
 $sampleDir = dirname(__DIR__) . '/modules/BridgeSample/';
