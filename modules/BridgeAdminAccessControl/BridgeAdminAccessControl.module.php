@@ -48,6 +48,9 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	/** The core's Pages menu, where the admin home sends everyone */
 	const pagesMenuId = 3;
 
+	/** The core's Modules menu, the way to the editor of the rules */
+	const modulesMenuId = 21;
+
 	/**
 	 * @var BridgeAccessRules|null The saved rules, loaded once (engine())
 	 */
@@ -102,6 +105,7 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 
 	public function init() {
 		$this->addHookAfter('Pages::deleted', $this, 'hookPageDeleted');
+		$this->addHookBefore('Modules::saveConfig', $this, 'hookSaveConfig');
 		if(count($this->rulesFor($this->wire()->user))) $this->addEnforcementHooks();
 	}
 
@@ -331,6 +335,115 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	}
 
 	/**
+	 * Hook before Modules::saveConfig: the rule editor's inputs are transient (their names start
+	 * with `_`, the core stores none of them), so a save of the config screen turns them into the
+	 * `rules` list here. Any other save of the config passes untouched.
+	 *
+	 * @param HookEvent $event
+	 *
+	 */
+	public function hookSaveConfig(HookEvent $event) {
+		$data = $event->arguments(1);
+		if(!is_array($data) || wireClassName($event->arguments(0), false) !== $this->className()) return;
+		if(!$this->wire()->input->post('submit_save_module')) return;
+		$rules = $this->postedRules($data)->toConfig()['rules'];
+		$before = isset($data['rules']) && is_array($data['rules']) ? $data['rules'] : array();
+		$version = isset($data['rulesVersion']) ? (int) $data['rulesVersion'] : 0;
+		if($rules !== $before) $version++;
+		$data['rules'] = $rules;
+		$data['rulesVersion'] = $version;
+		$event->arguments(1, $data);
+		$this->set('rules', $rules);
+		$this->set('rulesVersion', $version);
+	}
+
+	/**
+	 * The rules as the posted form leaves them. A role goes all or nothing: what is refused for it
+	 * is reported and leaves that role's rules as they were.
+	 *
+	 * @param array $data The module's config
+	 * @return BridgeAccessRules
+	 *
+	 */
+	protected function postedRules(array $data) {
+		$input = $this->wire()->input;
+		$rules = $this->wire(new BridgeAccessRules())->fromConfig($data);
+		$saved = $rules->rules(); // the Remove boxes hold indexes into this list
+		foreach($this->editableRoles() as $role) {
+			$roleId = (int) $role->id;
+			if(!$input->post->int("_acl_role_$roleId")) continue; // not on the form that was posted
+			$edited = clone $rules;
+			try {
+				$this->applyRoleInputs($edited, $roleId, $saved);
+			} catch(WireException $e) {
+				$this->error($role->name . ': ' . $e->getMessage());
+				continue;
+			}
+			if($this->locksOutEditor($edited, $role)) {
+				$this->error(sprintf(
+					$this->_('The rules of role %s were not changed: denying Modules would lock you out of this screen.'),
+					$role->name
+				));
+				continue;
+			}
+			$rules = $edited;
+		}
+		return $rules;
+	}
+
+	/**
+	 * Apply one role's inputs: Remove first (the indexes are the saved list's), then the menus, then
+	 * the new rule, so a rule added on a menu page is not undone by that menu's box
+	 *
+	 * @param BridgeAccessRules $rules
+	 * @param int $roleId
+	 * @param array $saved The rules as saved, by index
+	 * @throws WireException When a rule is refused
+	 *
+	 */
+	protected function applyRoleInputs(BridgeAccessRules $rules, int $roleId, array $saved) {
+		$post = $this->wire()->input->post;
+		foreach($post->intArray("_acl_remove_$roleId") as $index) {
+			if(isset($saved[$index]) && $saved[$index]['role'] === $roleId) $rules->removeRule($roleId, $saved[$index]['page']);
+		}
+		$allowed = array_flip($post->intArray("_acl_menus_$roleId"));
+		foreach(array_keys($this->coreMenus()) as $menuId) {
+			if(isset($allowed[$menuId])) {
+				$rules->removeRule($roleId, $menuId);
+			} else {
+				$rules->add(array('role' => $roleId, 'page' => $menuId, 'mode' => BridgeAccessRules::modeDeny, 'inherit' => true));
+			}
+		}
+		$pageId = (int) $post->int("_acl_page_$roleId");
+		if($pageId < 1) return;
+		$rules->add(array(
+			'role' => $roleId,
+			'page' => $pageId,
+			'mode' => (string) $post->name("_acl_mode_$roleId"),
+			'inherit' => (bool) $post->int("_acl_inherit_$roleId"),
+		));
+	}
+
+	/**
+	 * Would these rules take Modules away from the user saving them? The screen is open to anyone
+	 * with `module-admin`, who must not be able to lock themselves out of it. A superuser has no
+	 * rules, so it never applies to one.
+	 *
+	 * @param BridgeAccessRules $rules
+	 * @param Role $role The role being changed
+	 * @return bool
+	 *
+	 */
+	protected function locksOutEditor(BridgeAccessRules $rules, Role $role) {
+		$user = $this->wire()->user;
+		if($user->isSuperuser() || !$user->hasRole($role)) return false;
+		foreach($rules->rules() as $rule) {
+			if($rule['role'] === (int) $role->id && $rule['page'] === self::modulesMenuId && $rule['mode'] === BridgeAccessRules::modeDeny) return true;
+		}
+		return false;
+	}
+
+	/**
 	 * A copy of the saved rules, to change and give to saveRules()
 	 *
 	 * @return BridgeAccessRules
@@ -504,7 +617,9 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	}
 
 	/**
-	 * The editor comes later; for now the one stored setting and a note
+	 * The config screen: the one stored setting, the rule editor per role and a note on the model.
+	 * Every input of the editor has a name starting with `_`, so the core stores none of them:
+	 * hookSaveConfig() reads them.
 	 *
 	 * @param InputfieldWrapper $inputfields
 	 *
@@ -519,12 +634,176 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 		$f->label = $this->_('Guard saves in admin requests');
 		$f->description = $this->_('Refuse saving, trashing or deleting a denied page during an admin request, whatever code asks for it.');
 		$inputfields->add($f);
+		foreach($this->editableRoles() as $role) $inputfields->add($this->roleFieldset($role));
+		$sanitizer = $this->wire()->sanitizer;
 		/** @var InputfieldMarkup $note */
 		$note = $modules->get('InputfieldMarkup');
 		$note->attr('name', '_acl_note');
-		$note->label = $this->_('Rules');
-		$note->value = '<p>' . $this->wire()->sanitizer->entities($this->_('The rules are not editable here yet.')) . '</p>';
+		$note->label = $this->_('How the rules work');
+		$note->value = '<ul>'
+			. '<li>' . $sanitizer->entities($this->_('Per role the nearest rule on the page or above it decides; a role without rules is unchanged.')) . '</li>'
+			. '<li>' . $sanitizer->entities($this->_('Across the roles of a user any deny wins: an allow only makes an exception within the role that holds it.')) . '</li>'
+			. '<li>' . $sanitizer->entities($this->_('Rules only ever take access away. Superusers and guests have no rules.')) . '</li>'
+			. '<li>' . $sanitizer->entities($this->_('Users is covered by Access.')) . '</li>'
+			. '</ul>';
 		$inputfields->add($note);
+	}
+
+	/**
+	 * The roles that can carry rules
+	 *
+	 * @return Role[]
+	 *
+	 */
+	protected function editableRoles() {
+		$config = $this->wire()->config;
+		$exempt = array((int) $config->superUserRolePageID, (int) $config->guestUserRolePageID);
+		$out = array();
+		foreach($this->wire()->roles->find('include=all, sort=name') as $role) {
+			if(!in_array((int) $role->id, $exempt, true)) $out[] = $role;
+		}
+		return $out;
+	}
+
+	/**
+	 * One role's part of the editor: its menus, its page rules and a new rule. Collapsed when the
+	 * role has no rules.
+	 *
+	 * @param Role $role
+	 * @return InputfieldFieldset
+	 *
+	 */
+	protected function roleFieldset(Role $role) {
+		$modules = $this->wire()->modules;
+		$pages = $this->wire()->pages;
+		$roleId = (int) $role->id;
+		$menus = $this->coreMenus();
+		$denied = array();
+		$pageRules = array();
+		foreach($this->engine()->rules() as $index => $rule) {
+			if($rule['role'] !== $roleId) continue;
+			if(isset($menus[$rule['page']])) {
+				$denied[$rule['page']] = true;
+			} else if($pages->get($rule['page'])->id) {
+				$pageRules[$index] = $rule;
+			}
+		}
+
+		/** @var InputfieldFieldset $set */
+		$set = $modules->get('InputfieldFieldset');
+		$set->attr('name', "_acl_set_$roleId");
+		$set->label = sprintf($this->_('Role: %s'), $role->name);
+		$set->collapsed = count($denied) || count($pageRules) ? Inputfield::collapsedNo : Inputfield::collapsedYes;
+
+		/** @var InputfieldHidden $seen */
+		$seen = $modules->get('InputfieldHidden');
+		$seen->attr('name', "_acl_role_$roleId");
+		$seen->attr('value', $roleId);
+		$set->add($seen);
+
+		/** @var InputfieldCheckboxes $f */
+		$f = $modules->get('InputfieldCheckboxes');
+		$f->attr('name', "_acl_menus_$roleId");
+		$f->label = $this->_('Admin menus');
+		$f->description = $this->_('A menu that is not ticked is denied to this role, with everything under it.');
+		$value = array();
+		foreach($menus as $id => $menu) {
+			$f->addOption($id, (string) $menu->get('title|name'));
+			if(!isset($denied[$id])) $value[] = $id;
+		}
+		$f->attr('value', $value);
+		$set->add($f);
+
+		$set->add($this->pageRulesTable($roleId, $pageRules));
+		if(count($pageRules)) {
+			$f = $modules->get('InputfieldCheckboxes');
+			$f->attr('name', "_acl_remove_$roleId");
+			$f->label = $this->_('Remove');
+			foreach($pageRules as $index => $rule) {
+				$f->addOption($index, $pages->get($rule['page'])->path . ' (' . $this->modeLabel($rule) . ')');
+			}
+			$set->add($f);
+		}
+
+		/** @var InputfieldFieldset $add */
+		$add = $modules->get('InputfieldFieldset');
+		$add->attr('name', "_acl_add_$roleId");
+		$add->label = $this->_('Add rule');
+
+		/** @var InputfieldPageListSelect $f */
+		$f = $modules->get('InputfieldPageListSelect');
+		$f->attr('name', "_acl_page_$roleId");
+		$f->label = $this->_('Page');
+		$f->set('parent_id', 0); // the tree starts at the home page, which can be picked
+		$add->add($f);
+
+		/** @var InputfieldRadios $f */
+		$f = $modules->get('InputfieldRadios');
+		$f->attr('name', "_acl_mode_$roleId");
+		$f->label = $this->_('Access');
+		$f->addOption(BridgeAccessRules::modeDeny, $this->_('Deny'));
+		$f->addOption(BridgeAccessRules::modeAllow, $this->_('Allow'));
+		$f->attr('value', BridgeAccessRules::modeDeny);
+		$f->columnWidth = 50;
+		$add->add($f);
+
+		/** @var InputfieldCheckbox $f */
+		$f = $modules->get('InputfieldCheckbox');
+		$f->attr('name', "_acl_inherit_$roleId");
+		$f->attr('value', 1);
+		$f->label = $this->_('Below the page');
+		$f->label2 = $this->_('Also applies to what is below the page');
+		$f->checked(true);
+		$f->columnWidth = 50;
+		$add->add($f);
+
+		$set->add($add);
+		return $set;
+	}
+
+	/**
+	 * The table of a role's page rules
+	 *
+	 * @param int $roleId
+	 * @param array $pageRules
+	 * @return InputfieldMarkup
+	 *
+	 */
+	protected function pageRulesTable(int $roleId, array $pageRules) {
+		$modules = $this->wire()->modules;
+		/** @var InputfieldMarkup $f */
+		$f = $modules->get('InputfieldMarkup');
+		$f->attr('name', "_acl_rules_$roleId");
+		$f->label = $this->_('Page rules');
+		if(!count($pageRules)) {
+			$f->value = '<p>' . $this->wire()->sanitizer->entities($this->_('No page rules yet.')) . '</p>';
+			return $f;
+		}
+		$pages = $this->wire()->pages;
+		/** @var MarkupAdminDataTable $table */
+		$table = $modules->get('MarkupAdminDataTable');
+		$table->setSortable(false);
+		$table->headerRow(array($this->_('Page'), $this->_('Access'), $this->_('Applies to')));
+		foreach($pageRules as $rule) {
+			$table->row(array(
+				$pages->get($rule['page'])->path,
+				$this->modeLabel($rule),
+				$rule['inherit'] ? $this->_('The page and what is below it') : $this->_('The page only'),
+			));
+		}
+		$f->value = $table->render();
+		return $f;
+	}
+
+	/**
+	 * A rule's mode, for a person
+	 *
+	 * @param array $rule
+	 * @return string
+	 *
+	 */
+	protected function modeLabel(array $rule) {
+		return $rule['mode'] === BridgeAccessRules::modeAllow ? $this->_('Allow') : $this->_('Deny');
 	}
 
 	/**

@@ -2849,6 +2849,118 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 		$acl->set('rulesVersion', $aclVersionStep3);
 	}
 	check('ACL finds: the config is left as found', $modules->getConfig($aclName) === $aclSavedStep3);
+
+	// The rule editor on the module's config screen (step 4): the form as built, a save of it, the lockout guard
+	$aclSavedStep4 = $modules->getConfig($aclName);
+	$aclVersionStep4 = (int) $acl->get('rulesVersion');
+	$R = (int) $aclEditor->id;
+	$R2 = (int) $aclRestricted->id;
+	$T = (int) $aclTree->id;
+	$aclAllMenus = array(3, 22, 21, 28);
+	// a save of the config screen: what ProcessModule does, with the form's POST
+	$aclPost = function(array $post, $submit = true) use($wire, $modules, $aclName, $R, $aclAllMenus) {
+		$post += array("_acl_role_$R" => $R);
+		if(!array_key_exists("_acl_menus_$R", $post)) $post["_acl_menus_$R"] = $aclAllMenus;
+		if($submit) $post['submit_save_module'] = 1;
+		foreach($post as $k => $v) $wire->input->post->set($k, $v);
+		try {
+			$modules->saveConfig($aclName, $modules->getConfig($aclName));
+		} finally {
+			foreach(array_keys($post) as $k) $wire->input->post->remove($k);
+		}
+		return $modules->getConfig($aclName);
+	};
+	$aclPageRule = function($roleId, $pageId, $mode = 'deny', $inherit = true) { return array('role' => (int) $roleId, 'page' => (int) $pageId, 'mode' => $mode, 'inherit' => $inherit); };
+	$aclForm = function() use($wire, $acl) {
+		$form = $wire->wire(new InputfieldWrapper());
+		$acl->getModuleConfigInputfields($form);
+		return $form;
+	};
+	$aclHeldRole = $aclUser->roles->get("id=$R");
+	$aclEditorHadPermission = $aclHeldRole->hasPermission('module-admin');
+	$aclMadePermission = null;
+	try {
+		$aclBecome($aclSuper);
+		$aclSet(array());
+		$aclF = $aclForm();
+		$aclNames = array();
+		foreach($aclF->getAll() as $aclField) $aclNames[] = (string) $aclField->attr('name');
+		check('ACL editor: every input but apiGuard is transient (the core stores none of them)', in_array('apiGuard', $aclNames, true) && !count(array_filter($aclNames, function($n) { return $n !== 'apiGuard' && strpos($n, '_') !== 0; })), implode(' ', $aclNames));
+		check('ACL editor: a fieldset per role, none for superuser or guest', $aclF->getChildByName("_acl_set_$R") && $aclF->getChildByName("_acl_set_$R2") && !$aclF->getChildByName('_acl_set_' . (int) $config->superUserRolePageID) && !$aclF->getChildByName('_acl_set_' . (int) $config->guestUserRolePageID));
+		$aclBoxes = $aclF->getChildByName("_acl_menus_$R");
+		check('ACL editor: the menu boxes are the four core menus, the custom item not offered, all ticked', $aclBoxes && array_keys($aclBoxes->getOptions()) === $aclAllMenus && array_map('intval', $aclBoxes->attr('value')) === $aclAllMenus);
+		check('ACL editor: collapsed for a role without rules, no Remove boxes', (int) $aclF->getChildByName("_acl_set_$R")->collapsed === Inputfield::collapsedYes && !$aclF->getChildByName("_acl_remove_$R"));
+		$aclPicker = $aclF->getChildByName("_acl_page_$R");
+		check('ACL editor: the picker starts at the root, deny and inherit are the defaults', $aclPicker instanceof InputfieldPageListSelect && (int) $aclPicker->parent_id === 0 && $aclF->getChildByName("_acl_mode_$R")->attr('value') === 'deny' && $aclF->getChildByName("_acl_inherit_$R")->isChecked());
+		$aclSet(array($aclRule($aclEditor, $aclModules, 'deny'), $aclRule($aclEditor, $aclTree, 'deny', false)));
+		$aclF = $aclForm();
+		$aclBoxes = $aclF->getChildByName("_acl_menus_$R");
+		$aclRemove = $aclF->getChildByName("_acl_remove_$R");
+		check('ACL editor: a denied menu is unticked, open fieldset, Remove offers the page rule only (index 1)', !in_array(21, array_map('intval', $aclBoxes->attr('value')), true) && (int) $aclF->getChildByName("_acl_set_$R")->collapsed === Inputfield::collapsedNo && $aclRemove && array_keys($aclRemove->getOptions()) === array(1));
+		check('ACL editor: the table lists the page rule, not the menu rule', strpos((string) $aclF->getChildByName("_acl_rules_$R")->value, $aclTree->path) !== false && substr_count((string) $aclF->getChildByName("_acl_rules_$R")->value, '<tr') === 2);
+
+		$aclSet(array());
+		$aclV = (int) $modules->getConfig($aclName, 'rulesVersion');
+		$aclC = $aclPost(array("_acl_page_$R" => $T, "_acl_mode_$R" => 'deny', "_acl_inherit_$R" => 1), false);
+		check('ACL save: without the form\'s submit the hook leaves the config alone', $aclC['rules'] === array() && (int) $aclC['rulesVersion'] === $aclV);
+		$aclC = $aclPost(array());
+		check('ACL save: nothing changed: rules [] and no new stamp', $aclC['rules'] === array() && (int) $aclC['rulesVersion'] === $aclV, json_encode($aclC));
+		$aclC = $aclPost(array("_acl_page_$R" => $T, "_acl_mode_$R" => 'deny', "_acl_inherit_$R" => 1));
+		check('ACL save: a picked page becomes one rule, the stamp bumps', $aclC['rules'] === array($aclPageRule($R, $T)) && (int) $aclC['rulesVersion'] === $aclV + 1, json_encode($aclC));
+		check('ACL save: the transients are not in the config', !count(array_filter(array_keys($aclC), function($k) { return strpos($k, '_') === 0; })));
+		check('ACL save: the running module has the new rules', $acl->verdict($aclTree, $aclUser) === $DENY && (int) $acl->get('rulesVersion') === $aclV + 1);
+		$aclC = $aclPost(array("_acl_page_$R" => (int) $aclX->id, "_acl_mode_$R" => 'allow'));
+		check('ACL save: allow, inherit unticked', $aclC['rules'][1] === $aclPageRule($R, $aclX->id, 'allow', false), json_encode($aclC['rules']));
+		$aclC = $aclPost(array("_acl_menus_$R" => array(3, 22, 28)));
+		check('ACL save: an unticked menu is a deny with inherit', in_array($aclPageRule($R, 21), $aclC['rules'], true) && count($aclC['rules']) === 3, json_encode($aclC['rules']));
+		$aclC = $aclPost(array());
+		check('ACL save: ticked again, that rule goes, the page rules stay', !in_array($aclPageRule($R, 21), $aclC['rules'], true) && count($aclC['rules']) === 2, json_encode($aclC['rules']));
+		$aclC = $aclPost(array("_acl_remove_$R" => array(1, 0)));
+		check('ACL save: Remove takes several rows at once', $aclC['rules'] === array(), json_encode($aclC['rules']));
+
+		$aclSet(array($aclRule($aclRestricted, $aclTree, 'deny')));
+		$aclC = $aclPost(array("_acl_remove_$R" => array(0)));
+		check('ACL save: Remove cannot take another role\'s rule', $aclC['rules'] === array($aclPageRule($R2, $T)), json_encode($aclC['rules']));
+		$aclC = $aclPost(array("_acl_role_$R2" => 0, "_acl_menus_$R2" => array()));
+		check('ACL save: a role that was not on the form is left alone', $aclC['rules'] === array($aclPageRule($R2, $T)), json_encode($aclC['rules']));
+		$aclSet(array());
+		$aclC = $aclPost(array("_acl_menus_$R" => array(3, 22, 28), "_acl_page_$R" => (int) $aclCustom->id, "_acl_mode_$R" => 'deny', "_acl_inherit_$R" => 1));
+		check('ACL save: a refused target leaves the whole role as it was', $aclC['rules'] === array(), json_encode($aclC['rules']));
+		$aclC = $aclPost(array("_acl_page_$R" => $T, "_acl_mode_$R" => 'nonsense'));
+		check('ACL save: a mode that is neither is refused', $aclC['rules'] === array(), json_encode($aclC['rules']));
+
+		// the lockout guard: a user with module-admin and a role whose Modules would be denied. A default
+		// install has no such permission page: made here, put on the role in memory only, deleted below.
+		if(!$wire->permissions->get('module-admin')->id) $aclMadePermission = $wire->permissions->add('module-admin');
+		$aclHeldRole->addPermission('module-admin');
+		$aclBecome($aclUser);
+		check('ACL lockout: the test user has module-admin and is no superuser', $aclUser->hasPermission('module-admin') && !$aclUser->isSuperuser());
+		$aclVGuard = (int) $modules->getConfig($aclName, 'rulesVersion');
+		$aclC = $aclPost(array("_acl_menus_$R" => array(3, 22, 28)));
+		check('ACL lockout: denying Modules for the editor\'s own role is refused, rules unchanged', $aclC['rules'] === array() && (int) $aclC['rulesVersion'] === $aclVGuard, json_encode($aclC));
+		$aclC = $aclPost(array("_acl_page_$R" => 21, "_acl_mode_$R" => 'deny'));
+		check('ACL lockout: the picker cannot do it either', $aclC['rules'] === array(), json_encode($aclC));
+		$aclC = $aclPost(array("_acl_menus_$R" => array(3, 21, 28)));
+		check('ACL lockout: the same editor can deny another menu', in_array($aclPageRule($R, 22), $aclC['rules'], true), json_encode($aclC));
+		$aclSet(array());
+		$aclC = $aclPost(array("_acl_role_$R2" => $R2, "_acl_menus_$R2" => array(3, 22, 28)));
+		check('ACL lockout: a role the editor does not have can be denied Modules', in_array($aclPageRule($R2, 21), $aclC['rules'], true), json_encode($aclC));
+		$aclSet(array());
+		$aclBecome($aclSuper);
+		$aclC = $aclPost(array("_acl_menus_$R" => array(3, 22, 28)));
+		check('ACL lockout: the same save by a superuser goes through', in_array($aclPageRule($R, 21), $aclC['rules'], true), json_encode($aclC));
+	} finally {
+		if(!$aclEditorHadPermission) $aclHeldRole->removePermission('module-admin');
+		if($aclMadePermission) $wire->permissions->delete($aclMadePermission);
+		$wire->users->setCurrentUser($aclAsWas);
+		foreach(array($aclUser, $aclUser2, $aclSuper) as $aclU) {
+			if(isset($aclLanguageWas[$aclU->id])) $aclU->setLanguage($aclLanguageWas[$aclU->id]);
+		}
+		$modules->saveConfig($aclName, $aclSavedStep4);
+		$acl->set('rules', isset($aclSavedStep4['rules']) ? $aclSavedStep4['rules'] : array());
+		$acl->set('rulesVersion', $aclVersionStep4);
+	}
+	check('ACL editor: the config is left as found', $modules->getConfig($aclName) === $aclSavedStep4);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

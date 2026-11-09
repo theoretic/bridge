@@ -141,6 +141,21 @@ class BridgeAccessRules extends Wire {
 	}
 
 	/**
+	 * Remove one role's rule on a page
+	 *
+	 * @param int $roleId
+	 * @param int $pageId
+	 * @return bool Was there one?
+	 *
+	 */
+	public function removeRule(int $roleId, int $pageId) {
+		foreach($this->rules as $index => $rule) {
+			if($rule['role'] === $roleId && $rule['page'] === $pageId) return $this->remove($index);
+		}
+		return false;
+	}
+
+	/**
 	 * Remove every rule on a page
 	 *
 	 * @param int $pageId
