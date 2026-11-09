@@ -33,9 +33,9 @@ SANDBOX="$HERE/sandbox/$SITE"
 BROWSERS="${BROWSERS:-chromium}"
 SKIP=" ${SKIP:-} "
 # the bundled extensions, checked by tools/extension-check.php and .js
-EXTENSIONS="BridgeCsp BridgeDemo BridgeSample"
+EXTENSIONS="BridgeCsp BridgeDemo BridgeSample BridgeAdminAccessControl"
 # the browser checks, in the order they run: each needs only the sandbox and its fixture pages
-CHECKS="native-check screens-check pagetree-check repeater-check image-file-check setup-check page-edit-check page-save-check lister-check form-save-check image-select-check a11y-check csp-check drawers-check autocomplete-check"
+CHECKS="native-check screens-check pagetree-check repeater-check image-file-check setup-check page-edit-check page-save-check lister-check form-save-check image-select-check a11y-check csp-check drawers-check autocomplete-check acl-check"
 
 failed=()
 step() { echo; echo "== $1"; }
@@ -81,7 +81,7 @@ if ! skip browser; then
 	else
 		# the fixture pages' ids from the sandbox itself
 		eval "$("$PHP" tools/lib/sandbox-ids.php "$SANDBOX" | grep -E '^[A-Z_]+=[0-9]+$')"
-		export NATIVE_ID="${NATIVE_ID:-}" FIXTURE_ID="${FIXTURE_ID:-}" PARENT_ID="${PARENT_ID:-}" TREE_ID="${TREE_ID:-}" NESTING_ID="${NESTING_ID:-}" AUTO_ID="${AUTO_ID:-}"
+		export NATIVE_ID="${NATIVE_ID:-}" FIXTURE_ID="${FIXTURE_ID:-}" PARENT_ID="${PARENT_ID:-}" TREE_ID="${TREE_ID:-}" NESTING_ID="${NESTING_ID:-}" AUTO_ID="${AUTO_ID:-}" CUSTOM_MENU_ID="${CUSTOM_MENU_ID:-}"
 		# MSYS_NO_PATHCONV only for node: exported, it hands /dev/null to curl.exe literally
 		export SANDBOX PHP
 		export PW_STATE="${PW_STATE:-$HERE/sandbox/pw-state.json}"

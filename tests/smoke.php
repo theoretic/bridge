@@ -1217,7 +1217,7 @@ if(is_file($cspFile) && $modules->isInstalled('BridgeCsp')) {
 		&& strpos($cspSrc, "addHookAfter('ProcessController::execute', \$this, 'sendPolicy')") !== false);
 	check('SE6 BridgeCsp adds its policy next to a site\'s own, never in its place', strpos((string) file_get_contents($cspFile), 'header("$name: $policy", false);') !== false);
 	check('CSP the sandbox installs BridgeCsp and junctions it', strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-admin.php'), "'BridgeCsp'") !== false
-		&& strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-site.sh'), 'for m in AdminThemeBridge BridgeDemo BridgeCsp BridgeSample; do') !== false);
+		&& strpos((string) file_get_contents(__DIR__ . '/../tools/sandbox-site.sh'), 'for m in AdminThemeBridge BridgeDemo BridgeCsp BridgeSample BridgeAdminAccessControl; do') !== false);
 } else {
 	check('BridgeCsp is installed in this sandbox (tools/sandbox-csp.php installs it)', false);
 }
@@ -2078,7 +2078,15 @@ if(isset($bridge) && $bridge) {
 // 0.27.0: the scaffold and its sample (sprint extension-kit, step 4)
 // audit A1.1: a rebuilt sandbox installs the fixtures the smoke and ci.sh expect, not a hand install
 check('the sandbox installs BridgeSample with the other fixtures (tools/sandbox-admin.php)', strpos((string) file_get_contents(dirname(__DIR__) . '/tools/sandbox-admin.php'),
-	"array('ProcessBridgeDemo', 'BridgeCsp', 'BridgeSample')") !== false);
+	"array('ProcessBridgeDemo', 'BridgeCsp', 'BridgeSample', 'BridgeAdminAccessControl')") !== false);
+$aclAdmin = (string) file_get_contents(dirname(__DIR__) . '/tools/sandbox-admin.php');
+$aclSite = (string) file_get_contents(dirname(__DIR__) . '/tools/sandbox-site.sh');
+check('a rebuilt sandbox has BridgeAdminAccessControl: junctioned by sandbox-site.sh, installed by sandbox-admin.php', strpos($aclSite, 'BridgeSample BridgeAdminAccessControl; do') !== false
+	&& strpos($aclAdmin, "'BridgeSample', 'BridgeAdminAccessControl')) as \$theme") !== false);
+$aclCi = (string) @file_get_contents(dirname(__DIR__) . '/tools/ci.sh');
+check('tools/ci.sh runs acl-check after autocomplete-check and exports CUSTOM_MENU_ID', strpos($aclCi, 'autocomplete-check acl-check') !== false && strpos($aclCi, 'CUSTOM_MENU_ID="${CUSTOM_MENU_ID:-}"') !== false);
+check('tools/sandbox-acl.php goes through the sandbox guard and has the five presets', strpos((string) @file_get_contents(dirname(__DIR__) . '/tools/sandbox-acl.php'), "require __DIR__ . '/lib/sandbox-guard.php';") !== false
+	&& strpos((string) @file_get_contents(dirname(__DIR__) . '/tools/sandbox-acl.php'), "array('clear', 'deny-tree-modules', 'deny-pages', 'deny-all-menus', 'two-roles')") !== false);
 $scaffold = dirname(__DIR__) . '/tools/scaffold-extension.php';
 $sampleDir = dirname(__DIR__) . '/modules/BridgeSample/';
 $scaffoldSrc = (string) @file_get_contents($scaffold);
@@ -2338,7 +2346,7 @@ check('docs/extensions.md section 9 documents dev mode and says it is not HMR', 
 	&& strpos($devDoc, 'it is not hot module replacement') !== false);
 // 0.27.0: the kit in CI and in the docs (sprint extension-kit, step 9)
 $ciSrc = (string) @file_get_contents(dirname(__DIR__) . '/tools/ci.sh');
-check('tools/ci.sh runs the compatibility checker and both contract tests on the three bundled extensions', strpos($ciSrc, 'EXTENSIONS="BridgeCsp BridgeDemo BridgeSample"') !== false
+check('tools/ci.sh runs the compatibility checker and both contract tests on the four bundled extensions', strpos($ciSrc, 'EXTENSIONS="BridgeCsp BridgeDemo BridgeSample BridgeAdminAccessControl"') !== false
 	&& strpos($ciSrc, '"$PHP" tools/extension-compat.php') !== false && strpos($ciSrc, '"$PHP" tools/extension-check.php "$SANDBOX" "$m"') !== false
 	&& strpos($ciSrc, 'node tools/extension-check.js "$PW" "$browser" "$m"') !== false && strpos($ciSrc, 'failed+=("extensions")') !== false);
 check('docs/extensions.md documents the scaffold and what contract 0.1 leaves out', strpos($devDoc, "\n## 10. Scaffold\n") !== false && strpos($devDoc, "\n## 11. Not in contract 0.1\n") !== false

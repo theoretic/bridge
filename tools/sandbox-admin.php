@@ -1,9 +1,9 @@
 <?php namespace ProcessWire;
 
 /**
- * Prepares the sandbox for admin work: installs AdminThemeBridge, ProcessBridgeDemo, BridgeCsp and
- * BridgeSample (junctioned into app/modules by tools/sandbox-site.sh; tests/smoke.php and tools/ci.sh
- * expect them installed) and creates two superusers that differ only in admin theme:
+ * Prepares the sandbox for admin work: installs AdminThemeBridge, ProcessBridgeDemo, BridgeCsp,
+ * BridgeSample and BridgeAdminAccessControl (junctioned into app/modules by tools/sandbox-site.sh;
+ * tests/smoke.php and tools/ci.sh expect them installed) and creates two superusers that differ only in admin theme:
  *
  *   bridge  -> AdminThemeBridge
  *   uikit   -> AdminThemeUikit
@@ -65,8 +65,9 @@ echo "ok   $dropped cached entries dropped (URLs/paths cached on the original la
 
 $modules->refresh();
 // BridgeCsp installs with its mode off (tools/sandbox-csp.php switches it, ADR 0020); BridgeSample is
-// the extension fixture of the smoke and ci.sh (0.27.0)
-foreach(array_merge(array_unique($themes), array('ProcessBridgeDemo', 'BridgeCsp', 'BridgeSample')) as $theme) {
+// the extension fixture of the smoke and ci.sh (0.27.0); BridgeAdminAccessControl comes without rules
+// (tools/sandbox-acl.php sets them)
+foreach(array_merge(array_unique($themes), array('ProcessBridgeDemo', 'BridgeCsp', 'BridgeSample', 'BridgeAdminAccessControl')) as $theme) {
 	if($modules->isInstalled($theme)) {
 		echo "ok   $theme installed\n";
 	} else if($modules->isInstallable($theme)) {
