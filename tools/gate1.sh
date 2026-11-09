@@ -36,8 +36,9 @@ for entry in "${SITES[@]}"; do
 	if up "$port"; then
 		echo "== $site: server already on :$port"
 	else
-		# PHP_CLI_SERVER_WORKERS: php -S is single-threaded by default and refuses a parallel
-		# request for a static file (net::ERR_CONNECTION_REFUSED in the browser checks)
+		# PHP_CLI_SERVER_WORKERS does nothing on Windows (the server log starts with "forking is
+		# not supported on this platform"). net::ERR_CONNECTION_REFUSED in the browser checks comes
+		# from a rare Windows connect error, 10055, reported as refused; ci.sh retries such a check
 		PHP_CLI_SERVER_WORKERS=4 "$PHP" -S "localhost:$port" -t "$HERE/sandbox/$site" "$HERE/tools/router.php" > "$HERE/sandbox/server-$site.log" 2>&1 &
 		started+=($!)
 		for _ in $(seq 1 20); do up "$port" && break; sleep 0.5; done

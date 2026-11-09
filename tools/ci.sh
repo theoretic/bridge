@@ -14,9 +14,11 @@
 #   SKIP       steps to leave out, space separated: lint build smoke browser extensions conformance
 #   PHP        default D:/work/sites/modules/PHP-8.5/php
 # The sandbox server must be running for the browser checks (gate1.sh starts one for its own run
-# when none is). Start it with PHP_CLI_SERVER_WORKERS=4: a single-threaded php -S refuses a
-# parallel static-file request, and a browser check then fails on "no console errors"
-# (net::ERR_CONNECTION_REFUSED). Exit code: the number of failed steps.
+# when none is). Do not expect PHP_CLI_SERVER_WORKERS to help: on Windows it does nothing (the
+# server prints "forking is not supported on this platform"). A browser check may still fail now
+# and then on "no console errors" (net::ERR_CONNECTION_REFUSED): the cause is a rare Windows
+# connect error, 10055 (WSAENOBUFS), about one connection in thousands, which the browser reports
+# as refused. The retry below covers it. Exit code: the number of failed steps.
 #
 # A browser check that fails runs once more: the output says so, the first run's log is kept as
 # sandbox/ci-<check>-<browser>-first.log, a check that passes only the second time is listed in the
