@@ -276,7 +276,7 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	/**
 	 * Hook before Pages::saveReady, trashReady and deleteReady: in an admin request, whatever code
 	 * asks for it, a denied page is not changed. For a page being added, the rules' verdict on its
-	 * parent decides.
+	 * parent decides; a page being moved counts as added under its new parent.
 	 *
 	 * @param HookEvent $event
 	 * @throws WirePermissionException
@@ -285,8 +285,35 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	public function hookPageGuard(HookEvent $event) {
 		if(!$this->wire()->config->admin || !$this->get('apiGuard')) return;
 		$page = $event->arguments(0);
-		if($this->contentVerdict($page->isNew() ? $page->parent() : $page) === self::ALLOW) return;
-		throw new WirePermissionException($this->_('You do not have access to this page.'));
+		$from = $page->isNew() ? null : $page->parentPrevious;
+		if($from && (int) $from->id !== (int) $page->parent_id) {
+			$allowed = $this->moveAllowed($page, $from);
+		} else {
+			$allowed = $this->contentVerdict($page->isNew() ? $page->parent() : $page) === self::ALLOW;
+		}
+		if(!$allowed) throw new WirePermissionException($this->_('You do not have access to this page.'));
+	}
+
+	/**
+	 * May the current user's rules let this page leave one parent for another? It must be allowed
+	 * where it was, and its new parent and the page in its new place must be allowed. The trash is
+	 * no place the rules speak of (a deny on the home page reaches it): going there is judged by
+	 * the old place only, coming back by the new one.
+	 *
+	 * What was worked out before the move no longer holds (ProcessPageEdit asks editable() first
+	 * and sets a posted parent afterwards), so it is dropped.
+	 *
+	 * @param Page $page
+	 * @param Page $from The previous parent
+	 * @return bool
+	 *
+	 */
+	protected function moveAllowed(Page $page, Page $from) {
+		if(!$from->isTrash() && !$this->isAdminPage($from) && $this->userDenied($page, $this->wire()->user, $from)) return false;
+		$this->forget();
+		$to = $page->parent();
+		if($to->isTrash()) return true;
+		return $this->contentVerdict($to) === self::ALLOW && $this->contentVerdict($page) === self::ALLOW;
 	}
 
 	/**
@@ -914,15 +941,17 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	 *
 	 * @param int $roleId
 	 * @param Page $page
+	 * @param Page|null $parent Ask as if the page were under this parent (default: where it is)
 	 * @return bool
 	 *
 	 */
-	protected function roleDenies(int $roleId, Page $page) {
+	protected function roleDenies(int $roleId, Page $page, ?Page $parent = null) {
 		$pageId = (int) $page->id;
 		$rules = $this->roleIndex()[$roleId] ?? array();
 		if(!count($rules)) return false;
 		if(isset($rules[$pageId])) return $rules[$pageId]['mode'] === BridgeAccessRules::modeDeny;
 		if($pageId === (int) $this->wire()->config->adminRootPageID) return false;
+		if($parent) return $this->inheritedDeny($roleId, (int) $parent->id, $rules);
 		$this->parentIds[$pageId] = (int) $page->parent_id;
 		return $this->inheritedDeny($roleId, $this->parentIds[$pageId], $rules);
 	}
@@ -962,12 +991,13 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	 *
 	 * @param Page $page
 	 * @param User $user
+	 * @param Page|null $parent Ask as if the page were under this parent (default: where it is)
 	 * @return bool
 	 *
 	 */
-	protected function userDenied(Page $page, User $user) {
+	protected function userDenied(Page $page, User $user, ?Page $parent = null) {
 		foreach(array_unique(array_column($this->rulesFor($user), 'role')) as $roleId) {
-			if($this->roleDenies((int) $roleId, $page)) return true;
+			if($this->roleDenies((int) $roleId, $page, $parent)) return true;
 		}
 		return false;
 	}

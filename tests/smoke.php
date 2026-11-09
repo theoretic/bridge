@@ -2729,6 +2729,7 @@ check('ACL finds: after-hooks on ProcessPageSearch::findReady and ProcessPageLis
 	&& strpos($aclModuleSrc, "addHookAfter('ProcessPageLister::getSelector', \$this, 'hookFindSelector')") !== false && strpos($aclModuleSrc, 'getSelectablePages') === false);
 check('ACL guard: before-hooks on Pages::saveReady, trashReady and deleteReady', strpos($aclModuleSrc, 'addHookBefore("Pages::$method", $this, \'hookPageGuard\')') !== false && strpos($aclModuleSrc, "array('saveReady', 'trashReady', 'deleteReady')") !== false);
 $aclDocs = (string) @file_get_contents(dirname(__DIR__) . '/docs/access-control.md');
+check('ACL docs: a move counts as adding under the new parent', strpos($aclDocs, 'A move counts as adding under the new parent') !== false);
 check('ACL docs: the find selectors, the guard, the bookmark limit and the pickers', strpos($aclDocs, 'rR=(id!=R, has_parent!=R), rR=(id=E), rR=(has_parent=E)') !== false && strpos($aclDocs, '`Pages::saveReady`') !== false && strpos($aclDocs, '`apiGuard`') !== false
 	&& strpos($aclDocs, 'lister bookmark') !== false && strpos($aclDocs, 'getSelectablePages') !== false);
 if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $aclSuper, $aclRule, $aclSet, $aclX, $aclSibling, $aclBecome)) {
@@ -2846,7 +2847,44 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 		check('ACL guard: the rules decide for an added page, not addable(): a parent the core refuses, no rule on it', !$aclHomeAddable && !$aclThrows(function() use($pages, $aclNewUnder, $aclHome) { $pages->saveReady($aclNewUnder($aclHome)); }));
 		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow')));
 		check('ACL guard: a pass-through page is refused, the allowed child is not', $aclThrows(function() use($pages, $aclTree) { $pages->saveReady($aclTree); }) && !$aclThrows(function() use($pages, $aclX) { $pages->saveReady($aclX); }));
+
+		// a move counts as adding under the new parent (audit 1 A1.1); fresh copies, nothing is saved
+		$aclTrash = $pages->get($config->trashPageID);
+		$aclFixturePage = $pages->get('/bridge-fixture/');
+		$aclMoved = function($id, $to, $from = null) use($pages) {
+			$p = $pages->getFresh($id);
+			if($from) $p->parentPrevious = $from;
+			$p->parent = $to;
+			return $p;
+		};
+		$aclReady = function($p) use($pages) { return function() use($pages, $p) { $pages->saveReady($p); }; };
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny')));
+		$aclCopy = $pages->getFresh($N);
+		$aclAsked = array($aclCopy->editable(), $aclCopy->moveable($aclTree), $aclTree->addable());
+		check('ACL guard, move: the predicates asked first (the memo is filled)', $aclAsked === array(true, false, false), json_encode($aclAsked));
+		$aclCopy->parent = $aclTree;
+		check('ACL guard, move: into a denied branch throws, though editable() answered yes before the move', $acl->verdict($aclCopy) === BridgeAdminAccessControl::ALLOW && $aclThrows($aclReady($aclCopy)));
+		check('ACL guard, move: the verdict afterwards is the new place\'s', $acl->verdict($aclCopy) === BridgeAdminAccessControl::DENY);
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'))); // verdict() just memoised the copy in its new place
+		$aclCopy = $aclMoved($N, $aclTree);
+		$aclCopy->parent = $aclHome;
+		check('ACL guard, move: a parent set and set back is no move', !$aclThrows($aclReady($aclCopy)));
+		check('ACL guard, move: to another allowed parent passes', $aclFixturePage->id > 0 && !$aclThrows($aclReady($aclMoved($N, $aclFixturePage))));
+		check('ACL guard, move: a denied page does not get out, nor into the trash', $aclThrows($aclReady($aclMoved($E, $aclHome))) && $aclThrows($aclReady($aclMoved($E, $aclTrash))));
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow')));
+		check('ACL guard, move: under a pass-through parent throws, under the allowed child not', $aclThrows($aclReady($aclMoved($N, $aclTree))) && !$aclThrows($aclReady($aclMoved($N, $aclX))));
+		check('ACL guard, move: the allowed child does not go under its denied sibling', $aclThrows($aclReady($aclMoved($E, $aclSibling))));
+		$aclSet(array($aclRule($aclEditor, $aclHome, 'deny'), $aclRule($aclEditor, $aclTree, 'allow')));
+		check('ACL guard, move: a deny on home does not stop an allowed page going to the trash', !$aclThrows($aclReady($aclMoved($E, $aclTrash))));
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny')));
+		check('ACL guard, move: back from the trash is judged by the new place', $aclThrows($aclReady($aclMoved($N, $aclTree, $aclTrash))) && !$aclThrows($aclReady($aclMoved($N, $aclHome, $aclTrash))));
+		$aclBecome($aclSuper);
+		check('ACL guard, move: the superuser is not stopped', !$aclThrows($aclReady($aclMoved($N, $aclTree))));
+		$aclBecome($aclUser);
+		$aclSet(array($aclRule($aclEditor, $aclTree, 'deny'), $aclRule($aclEditor, $aclX, 'allow')));
+
 		$acl->set('apiGuard', 0);
+		check('ACL guard, move: with the setting off nothing throws', !$aclThrows($aclReady($aclMoved($N, $aclTree))));
 		check('ACL guard: with the setting off nothing throws', !$aclThrows(function() use($aclSave, $aclTree) { $aclSave($aclTree); }) && !$aclThrows(function() use($pages, $aclTree) { $pages->trashReady($aclTree); }));
 		$acl->set('apiGuard', 1);
 		$aclBecome($aclSuper);
