@@ -2269,11 +2269,12 @@ $ccTmp = sys_get_temp_dir() . '/bridge-compat-' . getmypid();
 if(is_array($surfaceJson)) {
 	$edited = $surfaceJson;
 	$edited['contract'] = '1.0';
+	$edited['contracts'] = array('1.0');
 	$edited['slots'] = array_values(array_diff($edited['slots'], array('footer')));
 	file_put_contents("$ccTmp/surface.json", json_encode($edited));
 	list($ccCode, $ccOut) = $runCompat(array("--surface=$ccTmp/surface.json"));
 	check('extension-compat.php against contract 1.0 without footer: all four incompatible, BridgeSample also on its slot, exit 4', $ccCode === 4
-		&& substr_count($ccOut, 'INCOMPATIBLE  contract ^0.1 does not take 1.0') === 4 && (bool) preg_match('/^BridgeSample .*slots footer not on the target surface$/m', $ccOut), "exit $ccCode: " . trim($ccOut));
+		&& substr_count($ccOut, 'INCOMPATIBLE  contract ^0.1 takes none of 1.0') === 4 && (bool) preg_match('/^BridgeSample .*slots footer not on the target surface$/m', $ccOut), "exit $ccCode: " . trim($ccOut));
 }
 file_put_contents("$ccTmp/old/AdminThemeBridge.module.php", "<?php namespace ProcessWire;\nclass AdminThemeBridge {}\n");
 list($ccCode, $ccOut) = $runCompat(array("--bridge=$ccTmp/old", dirname(__DIR__) . '/modules'));
@@ -2317,12 +2318,31 @@ check('extension-compat.php follows ProcessWire\'s discovery rule: a copy in a d
 	&& (bool) preg_match('#^Beta +2 +\S*/sib/Beta +\^0\.1 +ok$#m', $ccVOut) && strpos($ccVOut, 'legacy') === false && strpos($ccVOut, 'found twice') === false
 	&& (bool) preg_match('#^Alpha +\S*/sib/Alpha +no manifest$#m', $ccVOut)
 	&& strpos($ccVOut, "\n1 extension, 0 incompatible (1 module without a manifest skipped)\n") !== false, "exit $ccVCode: " . trim($ccVOut));
+// contract 0.2: `tokens` on the target surface, relative `styles` files exist (as `module`)
+@mkdir("$ccTmp/tok/CompatStyled", 0777, true);
+file_put_contents("$ccTmp/tok/CompatStyled/CompatStyled.module", "<?php namespace ProcessWire;\nclass CompatStyled extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('version' => 1, 'bridge' => array('contract' => '^0.2', 'tokens' => array('--foreground', '--nope'), 'styles' => array('gone.css', '/x/abs.css'))); }\n}\n");
+list($ccCode, $ccOut) = $runCompat(array("$ccTmp/tok"));
+check('extension-compat.php: an unknown token and a missing styles file make an extension INCOMPATIBLE with both problems, exit 1', $ccCode === 1
+	&& (bool) preg_match('/^CompatStyled .*INCOMPATIBLE  tokens --nope not on the target surface; styles file gone\.css missing$/m', $ccOut)
+	&& strpos($ccOut, 'abs.css') === false && strpos($ccOut, "\n1 extension, 1 incompatible") !== false, "exit $ccCode: " . trim($ccOut));
+// the contract versions a target honours: the surface's `contracts`, else its `contract` alone
+@mkdir("$ccTmp/c01/CompatOld", 0777, true);
+file_put_contents("$ccTmp/c01/CompatOld/CompatOld.module", "<?php namespace ProcessWire;\nclass CompatOld extends WireData implements Module {\n\tpublic static function getModuleInfo() { return array('version' => 1, 'bridge' => array('contract' => '^0.1')); }\n}\n");
+file_put_contents("$ccTmp/with.json", json_encode(array('contract' => '0.2', 'contracts' => array('0.1', '0.2'))));
+file_put_contents("$ccTmp/without.json", json_encode(array('contract' => '0.2')));
+list($ccCode, $ccOut) = $runCompat(array("--surface=$ccTmp/with.json", "$ccTmp/c01"));
+list($ccCode2, $ccOut2) = $runCompat(array("--surface=$ccTmp/without.json", "$ccTmp/c01"));
+check('extension-compat.php: a --surface with contract 0.2 and contracts [0.1, 0.2] takes a ^0.1 manifest; without contracts it does not', $ccCode === 0
+	&& $ccOk($ccOut, 'CompatOld') && $ccCode2 === 1 && (bool) preg_match('/^CompatOld .*INCOMPATIBLE  contract \^0\.1 takes none of 0\.2$/m', $ccOut2),
+	"exit $ccCode / $ccCode2: " . trim($ccOut) . ' | ' . trim($ccOut2));
 foreach(array("$ccTmp/ext/CompatDynamic/CompatDynamic.module.php", "$ccTmp/ext/CompatPlain/CompatPlain.module.php", "$ccTmp/old/AdminThemeBridge.module.php", "$ccTmp/surface.json",
 	"$ccTmp/prec/CompatCopy/CompatCopy.module.php", "$ccTmp/prec/CompatCopy/Aaa/Aaa.module", "$ccTmp/prec/CompatCopy/Aaa/CompatCopy.module",
-	"$ccTmp/sib/Alpha/Alpha.module", "$ccTmp/sib/Alpha/legacy/Beta.module", "$ccTmp/sib/Beta/Beta.module") as $f) @unlink($f);
+	"$ccTmp/sib/Alpha/Alpha.module", "$ccTmp/sib/Alpha/legacy/Beta.module", "$ccTmp/sib/Beta/Beta.module",
+	"$ccTmp/tok/CompatStyled/CompatStyled.module", "$ccTmp/c01/CompatOld/CompatOld.module", "$ccTmp/with.json", "$ccTmp/without.json") as $f) @unlink($f);
 foreach(array("$ccTmp/ext/CompatDynamic", "$ccTmp/ext/CompatPlain", "$ccTmp/ext", "$ccTmp/old",
 	"$ccTmp/prec/CompatCopy/Aaa", "$ccTmp/prec/CompatCopy", "$ccTmp/prec",
-	"$ccTmp/sib/Alpha/legacy", "$ccTmp/sib/Alpha", "$ccTmp/sib/Beta", "$ccTmp/sib", $ccTmp) as $d) @rmdir($d);
+	"$ccTmp/sib/Alpha/legacy", "$ccTmp/sib/Alpha", "$ccTmp/sib/Beta", "$ccTmp/sib",
+	"$ccTmp/tok/CompatStyled", "$ccTmp/tok", "$ccTmp/c01/CompatOld", "$ccTmp/c01", $ccTmp) as $d) @rmdir($d);
 check('extension-compat.php smoke fixtures removed', !is_dir($ccTmp), $ccTmp);
 $extDoc8 = (string) @file_get_contents(dirname(__DIR__) . '/docs/extensions.md');
 check('docs/extensions.md section 8 documents the compatibility checker', strpos($extDoc8, "\n## 8. Compatibility\n") !== false && strpos($extDoc8, 'php tools/extension-compat.php [--bridge=') !== false);
@@ -2402,6 +2422,13 @@ $devTool = (string) @file_get_contents(dirname(__DIR__) . '/tools/extension-dev.
 check('tools/extension-dev.js watches the module directory and calls Bridge.extensions.reload()', strpos($devTool, 'fs.watch(dir, { recursive: true }') !== false
 	&& strpos($devTool, 'await Bridge.extensions.reload(name);') !== false && strpos($devTool, "-> Bridge.extensions.reload('") !== false);
 check('extension-check.js reloads an edited copy of the module and looks for its version', strpos((string) @file_get_contents(dirname(__DIR__) . '/tools/extension-check.js'), 'reload() imports an edited copy, loaded() has its version') !== false);
+// contract 0.2 (sprint extension-styles-bridge-custom, step 4): source checks; both need a browser
+// (and extension-dev.js a file watcher), so smoke cannot run them end to end
+$extCheckJs = (string) @file_get_contents(dirname(__DIR__) . '/tools/extension-check.js');
+check('extension-check.js checks the styles links: after fields.css, kept after an injected sheet, loaded, in a modal window (source check)', strpos($extCheckJs, "querySelectorAll('link[data-bridge-styles]')") !== false
+	&& strpos($extCheckJs, "ADMIN + 'page/?modal=1'") !== false && strpos($extCheckJs, 'Node.DOCUMENT_POSITION_FOLLOWING') !== false && strpos($extCheckJs, 'link.sheet !== null') !== false);
+check('extension-dev.js swaps the href of link[data-bridge-styles] on a changed .css file, other files keep reload() (source check)', strpos($devTool, "querySelectorAll('link[data-bridge-styles]')") !== false
+	&& strpos($devTool, 'const css = files.filter(f => /\.css$/i.test(f));') !== false && strpos($devTool, "url.searchParams.set('v', String(Date.now()));") !== false);
 check('docs/extensions.md section 9 documents dev mode and says it is not HMR', strpos($devDoc, "\n## 9. Dev mode\n") !== false && strpos($devDoc, 'PW=<playwright-core dir> node tools/extension-dev.js modules/BridgeSample') !== false
 	&& strpos($devDoc, 'it is not hot module replacement') !== false);
 // 0.27.0: the kit in CI and in the docs (sprint extension-kit, step 9)

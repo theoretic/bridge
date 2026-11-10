@@ -2,8 +2,11 @@
 // browser, signed in as the sandbox user `bridge`, watches the module's directory and, on a change,
 // calls Bridge.extensions.reload(<name>) for each extension whose module lies in that directory.
 // The page stays; the module is imported again with a fresh ?v= and `pw-extension-loaded` fires
-// again. One line per reload; the page's console errors are printed too. A changed PHP file is only
-// reported (PHP takes a page load). Not hot module replacement: see the doc.
+// again. A changed .css file swaps the href of every link[data-bridge-styles] (the extension's
+// `styles`, contract 0.2) whose path ends with that file to a fresh ?v=, so the stylesheet loads
+// again without a module reload. One line per reload or swap; the page's console errors are printed
+// too. A changed PHP file is only reported (PHP takes a page load). Not hot module replacement: see
+// the doc.
 //
 // usage (Git Bash: prefix MSYS_NO_PATHCONV=1):
 //   PW=<playwright-core dir> [HEADLESS=1] [BROWSER=chromium|firefox] [PW_STATE=<login state file>]
@@ -70,8 +73,24 @@ const log = (line) => console.log(`[extension-dev] ${new Date().toTimeString().s
 		const files = Array.from(changed);
 		changed = new Set();
 		const php = files.filter(f => /\.php$/i.test(f));
-		const other = files.filter(f => !/\.php$/i.test(f));
+		const css = files.filter(f => /\.css$/i.test(f));
+		const other = files.filter(f => !/\.php$/i.test(f) && !/\.css$/i.test(f));
 		if(php.length) log(`${php.join(', ')} changed: PHP, not reloaded (load the page again)`);
+		for(const file of css) {
+			// the extension's stylesheets (data-bridge-styles) whose path ends with the file: a fresh ?v=
+			const swapped = await page.evaluate((file) => {
+				const out = [];
+				for(const link of Array.from(document.querySelectorAll('link[data-bridge-styles]'))) {
+					const url = new URL(link.getAttribute('href') || '', location.href);
+					if(!url.pathname.endsWith('/' + file)) continue;
+					url.searchParams.set('v', String(Date.now()));
+					link.setAttribute('href', url.origin === location.origin ? url.pathname + url.search : url.href);
+					out.push(link.getAttribute('data-bridge-styles') + ' ' + link.getAttribute('href'));
+				}
+				return out;
+			}, file).catch(e => ['error: ' + e.message]);
+			log(`${file} changed -> ${swapped.length ? 'link[data-bridge-styles] href swapped: ' + swapped.join(', ') : 'no link[data-bridge-styles] of it on this page'}`);
+		}
 		if(!other.length) return;
 		const list = await names();
 		if(!list.length) {

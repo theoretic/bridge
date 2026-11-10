@@ -1,7 +1,7 @@
 <?php namespace ProcessWire;
 
 /**
- * Compatibility checker of Bridge extensions (docs/extensions.md 8, extension contract 0.1): which
+ * Compatibility checker of Bridge extensions (docs/extensions.md 8, extension contract 0.2): which
  * extensions in the given directories break on a given Bridge.
  *
  * Usage:
@@ -12,7 +12,9 @@
  *  - the target: the `extensionContract` constant of AdminThemeBridge.module.php (by token) and
  *    the surface from its assets/dist/extension-surface.json (written by the runtime build,
  *    runtime/scripts/manifest.mjs). Default target: this checkout. --surface=<json> gives both
- *    instead (`contract` and the lists of AdminThemeBridge::extensionSurface()); a Bridge without
+ *    instead (`contract` and the lists of AdminThemeBridge::extensionSurface()); the contract
+ *    versions the target honours are the surface's `contracts` (contract 0.2), or `contract` alone
+ *    when the surface has no `contracts` (a 0.1 surface, a hand-written file); a Bridge without
  *    the constant has no extension contract, and every extension is incompatible with it;
  *  - the extensions: every module under the directories (default: this checkout's modules/ and,
  *    when present, sandbox/<site>/app/modules/), found as ProcessWire finds module files
@@ -26,10 +28,10 @@
  *    before its subdirectories, so a copy in a module-named subdirectory never wins over the
  *    module itself.
  *
- * Per extension, against the target: the `contract` range takes the target's contract
- * (AdminThemeBridge::contractSatisfies(), the same code as the theme's); `hooks`, `reads` and
- * `settings` are on the target's surface; `slots` are slots of the target; the `module` file
- * exists; the theme would discover it (an extension by the interface also needs `requires
+ * Per extension, against the target: the `contract` range takes one of the target's contract
+ * versions (AdminThemeBridge::contractSatisfies(), the same code as the theme's); `hooks`, `reads`,
+ * `settings` and `tokens` are on the target's surface; `slots` are slots of the target; the
+ * `module` file and every relative `styles` file exist; the theme would discover it (an extension by the interface also needs `requires
  * AdminThemeBridge` or a `bridge` info key). A manifest that is not a literal array (built at run
  * time) cannot be checked and is reported as incompatible.
  *
@@ -43,7 +45,7 @@
 
 // one implementation of the contract ranges: the theme's own (static methods of the trait)
 require_once dirname(__DIR__) . '/modules/AdminThemeBridge/lib/AdminThemeBridgeExtensions.php';
-class BridgeCompatRanges { use AdminThemeBridgeExtensions; const extensionContract = ''; }
+class BridgeCompatRanges { use AdminThemeBridgeExtensions; const extensionContract = ''; const extensionContracts = array(); }
 
 /** A value the static reader cannot know (an expression, a call, a variable) */
 final class BridgeCompatDynamic {}
@@ -248,7 +250,10 @@ if($surfaceArg !== '') {
 	}
 }
 $target = array('contract' => (string) $data['contract']);
-foreach(array('hooks', 'reads', 'settings', 'slots') as $key) {
+// the contract versions the target honours (contract 0.2); a surface without them honours its contract
+$target['contracts'] = isset($data['contracts']) && is_array($data['contracts']) ? array_values(array_filter($data['contracts'], 'is_string')) : array();
+if(!count($target['contracts']) && $target['contract'] !== '') $target['contracts'] = array($target['contract']);
+foreach(array('hooks', 'reads', 'settings', 'slots', 'tokens') as $key) {
 	$target[$key] = isset($data[$key]) && is_array($data[$key]) ? array_values(array_filter($data[$key], 'is_string')) : array();
 }
 
@@ -364,9 +369,15 @@ foreach($modules as $name => $files) {
 		else if(!is_string($contract) || trim($contract) === '') $problems[] = 'no contract range';
 		else if(!BridgeCompatRanges::contractRangeValid($contract)) $problems[] = "contract '$contract' is not a readable range";
 		else if($target['contract'] === '') $problems[] = 'the target has no extension contract';
-		else if(!BridgeCompatRanges::contractSatisfies(trim($contract), $target['contract'])) $problems[] = "contract $contract does not take {$target['contract']}";
+		else {
+			$takes = false;
+			foreach($target['contracts'] as $version) {
+				if(BridgeCompatRanges::contractSatisfies(trim($contract), $version)) $takes = true;
+			}
+			if(!$takes) $problems[] = "contract $contract takes none of " . implode(', ', $target['contracts']);
+		}
 		// against a Bridge without an extension contract the surface lists say nothing more
-		foreach($target['contract'] === '' ? array() : array('hooks', 'reads', 'settings', 'slots') as $key) {
+		foreach($target['contract'] === '' ? array() : array('hooks', 'reads', 'settings', 'slots', 'tokens') as $key) {
 			$list = $manifest[$key] ?? array();
 			if($list instanceof BridgeCompatDynamic) { $problems[] = "$key not readable statically"; continue; }
 			$missing = array();
@@ -382,6 +393,15 @@ foreach($modules as $name => $files) {
 		else if(is_string($module) && $module !== '' && $module[0] !== '/' && strpos($module, '://') === false) {
 			$file = preg_replace('/[?#].*$/', '', $module);
 			if(!is_file($files['dir'] . '/' . $file)) $problems[] = "module file $file missing";
+		}
+		// stylesheets (contract 0.2): relative entries are files of the module directory, as `module`
+		$styles = $manifest['styles'] ?? array();
+		if($styles instanceof BridgeCompatDynamic) $problems[] = 'styles not readable statically';
+		else foreach((array) $styles as $style) {
+			if($style instanceof BridgeCompatDynamic) { $problems[] = 'styles not readable statically'; continue; }
+			if(!is_string($style) || $style === '' || $style[0] === '/' || strpos($style, '://') !== false) continue;
+			$file = preg_replace('/[?#].*$/', '', $style);
+			if(!is_file($files['dir'] . '/' . $file)) $problems[] = "styles file $file missing";
 		}
 	}
 	$row['problems'] = array_values(array_unique($problems));

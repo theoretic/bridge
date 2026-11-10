@@ -7,7 +7,10 @@
 // and are not looked for), the custom elements in its parts are defined, Bridge.extensions.reload()
 // fires `pw-extension-loaded` again without an error, and reload() of an edited copy of the module
 // (a temp file served in its place, the exported version literal changed) shows the new version in
-// Bridge.extensions.loaded() (dev mode); and for the page: `pw-extensions-ready` fired
+// Bridge.extensions.loaded() (dev mode); each stylesheet of its `styles` (contract 0.2) is linked once
+// in <head> as link[data-bridge-styles], after link[data-pw-fields], loaded, still after it when a
+// <style> is injected into <head> (the field-script case; the injected one goes before
+// link[data-pw-theme]), and linked in a modal window (page/?modal=1); and for the page: `pw-extensions-ready` fired
 // once, no jQuery unless the theme recorded legacy reasons (the --gate idea of native-check.js), no
 // console errors.
 //
@@ -109,6 +112,50 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			}, { slot, name });
 			check(`${name}: slot ${slot} has its part in the DOM`, parts.count === 1 && parts.button, JSON.stringify(parts));
 			check(`${name}: slot ${slot}: the custom elements in it are defined`, parts.undef === 0, parts.undef);
+		}
+		// contract 0.2: the `styles` stylesheets, linked by the theme after theme.css and fields.css
+		// (data-bridge-styles), kept there when a field script adds a sheet, also in a modal window
+		const styles = Array.isArray(m.styles) ? m.styles : [];
+		if(styles.length) {
+			const linked = await page.evaluate(({ name, styles }) => {
+				const fields = document.head.querySelector('link[data-pw-fields]');
+				return styles.map((url) => {
+					const links = Array.from(document.head.querySelectorAll('link[data-bridge-styles]')).filter(l => l.getAttribute('data-bridge-styles') === name && l.getAttribute('href') === url);
+					const link = links[0];
+					return { url, count: links.length, after: !!(fields && link && (fields.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING)), sheet: !!(link && link.sheet !== null) };
+				});
+			}, { name, styles });
+			for(const l of linked) {
+				check(`${name}: stylesheet ${l.url} is linked once in <head>`, l.count === 1, l.count);
+				check(`${name}: stylesheet ${l.url} follows fields.css`, l.after);
+				check(`${name}: stylesheet ${l.url} loaded`, l.sheet);
+			}
+			// the field-script case: a sheet added to <head> goes before the theme sheets, ours stay after
+			const injected = await page.evaluate(async ({ name, styles }) => {
+				const style = Object.assign(document.createElement('style'), { textContent: 'b{}' });
+				style.setAttribute('data-extension-check', '');
+				document.head.appendChild(style);
+				await new Promise(r => setTimeout(r, 100));
+				await new Promise(r => requestAnimationFrame(() => r()));
+				const theme = document.head.querySelector('link[data-pw-theme]');
+				const fields = document.head.querySelector('link[data-pw-fields]');
+				const before = !!(theme && style.isConnected && (style.compareDocumentPosition(theme) & Node.DOCUMENT_POSITION_FOLLOWING));
+				const after = styles.map((url) => {
+					const link = Array.from(document.head.querySelectorAll('link[data-bridge-styles]')).filter(l => l.getAttribute('data-bridge-styles') === name && l.getAttribute('href') === url)[0];
+					return { url, after: !!(fields && link && (fields.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING)) };
+				});
+				style.remove();
+				return { before, after };
+			}, { name, styles });
+			check(`${name}: an injected <style> goes before theme.css`, injected.before);
+			for(const l of injected.after) check(`${name}: stylesheet ${l.url} still follows fields.css after a sheet was injected`, l.after);
+			const modal = await ctx.newPage();
+			modal.on('pageerror', e => errors.push('modal: ' + e.message));
+			await modal.goto(ADMIN + 'page/?modal=1', { waitUntil: 'networkidle' });
+			const inModal = await modal.evaluate(({ name, styles }) => styles.map((url) => ({ url,
+				count: Array.from(document.head.querySelectorAll('link[data-bridge-styles]')).filter(l => l.getAttribute('data-bridge-styles') === name && l.getAttribute('href') === url).length })), { name, styles });
+			await modal.close();
+			for(const l of inModal) check(`${name}: stylesheet ${l.url} is linked in a modal window (page/?modal=1)`, l.count === 1, l.count);
 		}
 		if(m.module) {
 			// the exported tag need not be a custom element (a Process component's is its own name)
