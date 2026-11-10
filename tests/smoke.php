@@ -1978,8 +1978,8 @@ if(isset($bridge)) {
 		$extList = $bridge->extensionsClientConfig();
 		$extStyles = $bridge->extensionStyles();
 		$wire->users->setCurrentUser($guest);
-		// no bundled extension declares styles yet: BridgeSample's arrives in step 5
-		check('extensionStyles() lists the stylesheets of a signed-in user\'s extensions', $extStyles === array(), json_encode($extStyles));
+		// BridgeSample is the bundled styles fixture (0.29.0): its one stylesheet, with its module version
+		check('extensionStyles() lists the stylesheets of a signed-in user\'s extensions', $extStyles === array(array('extension' => 'BridgeSample', 'url' => $config->urls->siteModules . 'BridgeSample/BridgeSample.css?v=0.1.0')), json_encode($extStyles));
 		// the four bundled extensions (step 6): BridgeCsp and BridgeAdminAccessControl by the 'bridge' info key, ProcessBridgeDemo and BridgeSample by the interface; ties by class name
 		$extByName = array_column($extList, null, 'name');
 		check('the sandbox lists the four bundled extensions, compatible, with their module URLs', array_column($extList, 'name') === array('BridgeAdminAccessControl', 'BridgeCsp', 'BridgeSample', 'ProcessBridgeDemo')
@@ -2157,7 +2157,7 @@ $sampleFiles = array_values(array_diff(scandir($sampleDir), array('.', '..')));
 $genFiles = is_dir("$scaffoldTmp/BridgeSample") ? array_values(array_diff(scandir("$scaffoldTmp/BridgeSample"), array('.', '..'))) : array();
 if($sampleFiles !== $genFiles) $drift[] = 'files: ' . implode(',', $genFiles);
 foreach($genFiles as $f) if(@file_get_contents("$scaffoldTmp/BridgeSample/$f") !== @file_get_contents($sampleDir . $f)) $drift[] = $f;
-check('the scaffold regenerates modules/BridgeSample byte for byte', $scCode === 0 && isset($genCmd[1]) && count($sampleFiles) === 4 && !count($drift), "exit $scCode " . implode(', ', $drift));
+check('the scaffold regenerates modules/BridgeSample byte for byte', $scCode === 0 && isset($genCmd[1]) && count($sampleFiles) === 5 && !count($drift), "exit $scCode " . implode(', ', $drift));
 list($scCode2, $scOut2) = $runScaffold(array('BridgeSample', '--dir=' . $scaffoldTmp));
 check('the scaffold refuses a directory that exists', $scCode2 === 1 && strpos($scOut2, 'exists') !== false, trim($scOut2));
 list($scCode3) = $runScaffold(array('BridgeOther', '--slots=sidebar', '--dir=' . $scaffoldTmp));
@@ -2166,8 +2166,8 @@ foreach(array_merge(glob("$scaffoldTmp/*/*") ?: array()) as $f) @unlink($f);
 foreach(glob("$scaffoldTmp/*") ?: array() as $d) @rmdir($d);
 @rmdir($scaffoldTmp);
 $sampleSrc = (string) @file_get_contents($sampleDir . 'BridgeSample.module.php');
-check('BridgeSample requires the theme, loads the interface defensively, contract ^0.1', strpos($sampleSrc, "'requires' => 'AdminThemeBridge',") !== false
-	&& strpos($sampleSrc, 'if(!interface_exists("ProcessWire\\\\BridgeExtension", false)) {') !== false && strpos($sampleSrc, "'contract' => '^0.1',") !== false);
+check('BridgeSample requires the theme, loads the interface defensively, contract ^0.2', strpos($sampleSrc, "'requires' => 'AdminThemeBridge',") !== false
+	&& strpos($sampleSrc, 'if(!interface_exists("ProcessWire\\\\BridgeExtension", false)) {') !== false && strpos($sampleSrc, "'contract' => '^0.2',") !== false);
 // the sample fills six slots on the sandbox, signed in (step 2's criterion; step 5's harness repeats it)
 if(isset($bridge) && $bridge && $wire->modules->isInstalled('BridgeSample')) {
 	$su = $wire->users->get('name=bridge');
@@ -2238,8 +2238,9 @@ if($wire->modules->isInstalled('BridgeSample')) {
 	check('extension-check.php BridgeSample --no-http: exit 0, no FAIL', $ecCode === 0 && strpos($ecOut, "\nFAIL ") === false && strpos($ecOut, 'all passed') !== false, "exit $ecCode");
 	list($ecCode, $ecOut) = $runExtCheck(array('BridgeSample', '--json'));
 	$ecJson = json_decode(substr($ecOut, (int) strpos($ecOut, '[')), true);
-	check('extension-check.php --json: BridgeSample, its module, six slots filled', $ecCode === 0 && is_array($ecJson) && count($ecJson) === 1 && $ecJson[0]['name'] === 'BridgeSample'
-		&& strpos((string) $ecJson[0]['module'], 'BridgeSample.mjs?v=') !== false && array_keys(array_filter($ecJson[0]['slots'])) === array('masthead-right', 'user-nav', 'content-head-buttons', 'footer', 'drawer', 'body'), trim($ecOut));
+	check('extension-check.php --json: BridgeSample, its module, its stylesheet, six slots filled', $ecCode === 0 && is_array($ecJson) && count($ecJson) === 1 && $ecJson[0]['name'] === 'BridgeSample'
+		&& strpos((string) $ecJson[0]['module'], 'BridgeSample.mjs?v=') !== false && array_keys(array_filter($ecJson[0]['slots'])) === array('masthead-right', 'user-nav', 'content-head-buttons', 'footer', 'drawer', 'body')
+		&& isset($ecJson[0]['styles']) && count($ecJson[0]['styles']) === 1 && substr((string) $ecJson[0]['styles'][0], -strlen('BridgeSample/BridgeSample.css?v=0.1.0')) === 'BridgeSample/BridgeSample.css?v=0.1.0', trim($ecOut));
 	list($ecCode, $ecOut) = $runExtCheck(array('NoSuchExtensionDir'));
 	check('extension-check.php refuses a name that is neither a module nor a directory', $ecCode === 1 && strpos($ecOut, 'FAIL NoSuchExtensionDir') !== false, trim($ecOut));
 }
@@ -2274,7 +2275,7 @@ if(is_array($surfaceJson)) {
 	file_put_contents("$ccTmp/surface.json", json_encode($edited));
 	list($ccCode, $ccOut) = $runCompat(array("--surface=$ccTmp/surface.json"));
 	check('extension-compat.php against contract 1.0 without footer: all four incompatible, BridgeSample also on its slot, exit 4', $ccCode === 4
-		&& substr_count($ccOut, 'INCOMPATIBLE  contract ^0.1 takes none of 1.0') === 4 && (bool) preg_match('/^BridgeSample .*slots footer not on the target surface$/m', $ccOut), "exit $ccCode: " . trim($ccOut));
+		&& substr_count($ccOut, 'INCOMPATIBLE  contract ^0.1 takes none of 1.0') === 3 && (bool) preg_match('/^BridgeSample .*INCOMPATIBLE  contract \^0\.2 takes none of 1\.0; .*slots footer not on the target surface$/m', $ccOut), "exit $ccCode: " . trim($ccOut));
 }
 file_put_contents("$ccTmp/old/AdminThemeBridge.module.php", "<?php namespace ProcessWire;\nclass AdminThemeBridge {}\n");
 list($ccCode, $ccOut) = $runCompat(array("--bridge=$ccTmp/old", dirname(__DIR__) . '/modules'));
@@ -2372,8 +2373,8 @@ if(isset($bridge) && $bridge && $modules->isInstalled('BridgeSample') && $module
 		}
 		$out['InputfieldBridgeText'] = $bridge->componentInfo($modules->getModule('InputfieldBridgeText', array('noPermissionCheck' => true)))['module'];
 		$out['core'] = $bridge->extensionInfo('ProcessBridgeDemo', array('contract' => '^0.1', 'module' => $wire->config->urls->modules . 'Process/ProcessPageList/x.mjs'))['module'];
-		// a `styles` entry resolves as `module` does, whatever the file type: any file of the site module will do
-		$out['styles'] = $bridge->extensionInfo('BridgeSample', array('contract' => '^0.2', 'styles' => array('BridgeSample.mjs')))['styles'][0];
+		// a `styles` entry resolves as `module` does: BridgeSample's own stylesheet
+		$out['styles'] = $bridge->extensionInfo('BridgeSample', array('contract' => '^0.2', 'styles' => array('BridgeSample.css')))['styles'][0];
 		return $out;
 	};
 	$devVersions = array();
@@ -2388,7 +2389,7 @@ if(isset($bridge) && $bridge && $modules->isInstalled('BridgeSample') && $module
 	check('dev mode off: module URLs carry the module version', $off['BridgeSample'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.mjs' . $devVersions['BridgeSample']
 		&& $devEnds($off['ProcessBridgeDemo'], $devVersions['ProcessBridgeDemo']) && $devEnds($off['InputfieldBridgeText'], $devVersions['InputfieldBridgeText'])
 		&& $devEnds($off['core'], $devVersions['ProcessBridgeDemo']), json_encode($off));
-	check('dev mode off: a site module\'s `styles` entry carries the module version', $off['styles'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.mjs' . $devVersions['BridgeSample'], $off['styles']);
+	check('dev mode off: a site module\'s `styles` entry carries the module version', $off['styles'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.css' . $devVersions['BridgeSample'], $off['styles']);
 	try {
 		// toggled on the sandbox (saved in its database, as the settings screen does) and on the running theme
 		$modules->saveConfig('AdminThemeBridge', 'extensionDev', 1);

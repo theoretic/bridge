@@ -14,3 +14,4 @@ check('BridgeSample: slot footer returns its element', strpos((string) $module->
 $out = $module->slotDrawer('drawer');
 check('BridgeSample: slot drawer returns content, label and icon', is_array($out) && strpos((string) ($out['content'] ?? ''), '<pw-bridgesample') !== false && ($out['label'] ?? '') !== '' && ($out['icon'] ?? '') !== '');
 check('BridgeSample: slot body returns its element', strpos((string) $module->slotBody('body'), "<pw-bridgesample data-slot='body'>") === 0);
+check('BridgeSample: its stylesheet BridgeSample.css is there', is_file(__DIR__ . '/BridgeSample.css'));

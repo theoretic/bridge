@@ -1,0 +1,8 @@
+/**
+ * BridgeSample: the extension's stylesheet (docs/extensions.md), named in the manifest's `styles`. The
+ * theme links it after its own sheets, so it wins cascade ties with them. Every theme token it
+ * reads is declared in the manifest's `tokens` (tools/extension-check.php checks both).
+ *
+ * MIT.
+ */
+pw-bridgesample[data-slot] { color: var(--muted-foreground); }
