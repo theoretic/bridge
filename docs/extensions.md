@@ -118,9 +118,12 @@ manifest range that takes any of them is compatible. `tokens` are the theme's CS
 properties an extension's stylesheets may read or set (`runtime/src/styles/00-tokens.css`,
 `docs/contract.md` 4.0). Their names are stable within the contract; their values are not (they
 follow the variant, the scheme, the interface scale and the theme's design). Any other custom
-property the theme declares, the `--pw-` names not listed here among them (`--pw-tiny`,
-`--pw-masthead-h`, `--pw-input-radius`, `--ring-50`, ...), is internal and may change or go in any
-release; the contract tests fail a stylesheet that uses one (section 6).
+property the theme declares, the `--pw-` names not listed here among them, is internal and may
+change or go in any release. The contract tests fail a stylesheet that uses a name the built
+`theme.css` declares off the surface (`--pw-tiny`, `--pw-masthead-h`, `--ring-50`, ...; section
+6). They do not read `fields.css`: a name only it declares passes the scan, upstream's
+AdminThemeUikit names it maps (`docs/contract.md` 4.0) and internal ones such as
+`--pw-input-radius` alike, so do not take a pass as proof that such a name is public.
 
 Hooks attach as anywhere in ProcessWire: `$this->addHookAfter('AdminThemeBridge::renderBreadcrumbs', ...)`.
 What each method, event and runtime key does is in `docs/contract.md`. Upstream's own regions
@@ -436,7 +439,8 @@ needs two things from the contract, both since 0.2:
   the contract tests know nothing of it.
 - **The tokens it reads and sets, declared.** List them in the manifest's `tokens`; each must be
   on the surface (section 3). The contract tests scan the stylesheets: a surface token used but
-  not declared fails, and so does an internal token of the theme. The compatibility checker
+  not declared fails, and so does an internal token the built `theme.css` declares (one only
+  `fields.css` declares passes the scan, section 3). The compatibility checker
   reports an extension whose declared token a newer Bridge no longer has. Since 0.2 the surface
   includes the theme's metric tokens `--pw-font-size`, `--pw-line-height`, `--pw-field-pad` and
   `--pw-field-pad-bottom` (with `--pw-gutter`, public before): typography and field spacing
