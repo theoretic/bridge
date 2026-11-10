@@ -250,9 +250,9 @@ trait AdminThemeBridgeExtensions {
 	}
 
 	/**
-	 * The shell slots of contract 0.1 (docs/extensions.md 4): name => the element that wraps each
-	 * extension's part ('' = none: `head` takes head markup as it is, `drawer` gets a dialog of
-	 * its own, renderDrawers())
+	 * The shell slots of the extension contract (docs/extensions.md 4): name => the element that
+	 * wraps each extension's part ('' = none: `head` takes head markup as it is, `drawer` gets a
+	 * dialog of its own, renderDrawers())
 	 *
 	 * @return array
 	 *

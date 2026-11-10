@@ -19,7 +19,7 @@ trait AdminThemeBridgeDrawers {
 	 * The drawers this request shows, in masthead order: 'tree', 'history', then the drawers
 	 * extensions fill (the `drawer` slot, extensionDrawers(): 'ext-<name>')
 	 *
-	 * Hookable (extension contract 0.1): an after hook may drop names; a name added here needs
+	 * Hookable (on the extension surface): an after hook may drop names; a name added here needs
 	 * a drawer behind it (renderDrawers() prints only the ones it knows).
 	 *
 	 * @return array

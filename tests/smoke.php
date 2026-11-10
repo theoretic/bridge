@@ -2437,8 +2437,27 @@ $ciSrc = (string) @file_get_contents(dirname(__DIR__) . '/tools/ci.sh');
 check('tools/ci.sh runs the compatibility checker and both contract tests on the four bundled extensions', strpos($ciSrc, 'EXTENSIONS="BridgeCsp BridgeDemo BridgeSample BridgeAdminAccessControl"') !== false
 	&& strpos($ciSrc, '"$PHP" tools/extension-compat.php') !== false && strpos($ciSrc, '"$PHP" tools/extension-check.php "$SANDBOX" "$m"') !== false
 	&& strpos($ciSrc, 'node tools/extension-check.js "$PW" "$browser" "$m"') !== false && strpos($ciSrc, 'failed+=("extensions")') !== false);
-check('docs/extensions.md documents the scaffold and what contract 0.1 leaves out', strpos($devDoc, "\n## 10. Scaffold\n") !== false && strpos($devDoc, "\n## 11. Not in contract 0.1\n") !== false
-	&& strpos($devDoc, 'php tools/scaffold-extension.php <Name> [--dir=modules] [--slots=footer,user-nav] [--module]') !== false);
+check('docs/extensions.md documents the scaffold and what contract 0.2 leaves out', strpos($devDoc, "\n## 10. Scaffold\n") !== false && strpos($devDoc, "\n## 11. Not in contract 0.2\n") !== false
+	&& strpos($devDoc, 'php tools/scaffold-extension.php <Name> [--dir=modules] [--slots=footer,user-nav] [--module] [--styles]') !== false
+	&& strpos($devDoc, '`BridgeSample --slots=masthead-right,user-nav,content-head-buttons,footer,drawer,body --module --styles`') !== false);
+// 0.29.0: contract 0.2 in the docs (sprint extension-styles-bridge-custom, step 6)
+check('docs/extensions.md: contract 0.2 in the title, styles and tokens keys, six self-test faults, the dev watcher\'s .css branch, section 12', strpos($devDoc, "# Bridge extensions, contract 0.2\n") === 0
+	&& strpos($devDoc, "\n## 12. Styling extensions\n") !== false && strpos($devDoc, '| `styles` | array |') !== false && strpos($devDoc, '| `tokens` | array |') !== false
+	&& strpos($devDoc, 'writes a module with six faults') !== false && strpos($devDoc, 'A changed `.css` file takes no') !== false
+	&& strpos($devDoc, "data-bridge-styles='<name>'") !== false);
+$contractDoc = (string) @file_get_contents(dirname(__DIR__) . '/docs/contract.md');
+$docTokens = array();
+if(preg_match('/\n(Components may use the tokens [^\n]*)\n/', $contractDoc, $tokPara)) {
+	preg_match_all('/`(--[\w-]+)`/', $tokPara[1], $tokMatch);
+	$docTokens = array_values(array_unique($tokMatch[1]));
+}
+$surfaceTokens = isset($bridge) && $bridge ? $bridge->extensionSurface()['tokens'] : array();
+check('docs/contract.md 4.0: every token its paragraph names is on the surface, --secondary-foreground and the four metric tokens among them', count($docTokens) > 40 && count($surfaceTokens) === 73
+	&& !array_diff($docTokens, $surfaceTokens) && !array_diff(array('--secondary-foreground', '--pw-font-size', '--pw-line-height', '--pw-field-pad', '--pw-field-pad-bottom'), $docTokens),
+	'off the surface: ' . implode(',', array_diff($docTokens, $surfaceTokens)));
+check('ADR 0022 exists and the README says extension contract 0.2', is_file(dirname(__DIR__) . '/docs/decisions/0022-styling-extensions-styles-and-tokens.md')
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '(extension contract 0.2, ADR 0021, 0022)') !== false
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), 'the extension contract is 0.2.') !== false);
 check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
 	&& is_file(dirname(__DIR__) . '/docs/decisions/0021-extensions-are-modules-on-a-published-surface.md'));

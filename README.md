@@ -5,7 +5,7 @@ every existing Inputfield and Process module.
 
 The name says what it is: a bridge between the jQuery-era admin and the modern web stack.
 "Bridge" is a working name. Status: beta, AdminThemeBridge 0.29.0; the component contract is
-version 1 and may still change before 1.0, the extension contract is 0.1.
+version 1 and may still change before 1.0, the extension contract is 0.2.
 
 ## What it is
 
@@ -172,7 +172,7 @@ tests against a sandbox (`tools/extension-check.php`, `tools/extension-check.js`
 checker that needs only the files (`tools/extension-compat.php`) and a dev mode that re-imports
 an edited client module in place (`tools/extension-dev.js`). Bridge CSP, the demo module,
 `BridgeSample` and `BridgeAdminAccessControl` are extensions themselves. See
-[docs/extensions.md](docs/extensions.md) (extension contract 0.1, ADR 0021).
+[docs/extensions.md](docs/extensions.md) (extension contract 0.2, ADR 0021, 0022).
 
 **Admin access control** (`BridgeAdminAccessControl`, optional) narrows, per role, the page tree
 and its branches and the four main admin menus, enforced on the server. It never grants anything,

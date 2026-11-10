@@ -1,7 +1,7 @@
 <?php namespace ProcessWire;
 
 /**
- * Contract tests of a Bridge extension (docs/extensions.md, extension contract 0.1): the checks any
+ * Contract tests of a Bridge extension (docs/extensions.md, extension contract 0.2): the checks any
  * extension runs against a sandbox to show that it is well-formed and uses only the published
  * surface (AdminThemeBridge::extensionSurface()).
  *

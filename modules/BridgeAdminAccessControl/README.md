@@ -1,7 +1,7 @@
 # BridgeAdminAccessControl
 
-A Bridge extension (extension contract 0.1): per-role access control to the page tree, its
-subtrees and the four core top-level admin menus. See `docs/access-control.md` in Bridge.
+A Bridge extension (written for extension contract ^0.1): per-role access control to the page
+tree, its subtrees and the four core top-level admin menus. See `docs/access-control.md` in Bridge.
 
 It works under any admin theme, with or without AdminThemeBridge installed: every rule is enforced
 on the core's own hooks, and the editor is this module's configuration screen, built from core

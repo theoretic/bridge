@@ -1,4 +1,4 @@
-# Bridge extensions, contract 0.1
+# Bridge extensions, contract 0.2
 
 An extension is an ordinary module that changes the Bridge admin only through a published
 surface: the theme's hookable methods, a few public methods, its settings, the shell slots, the
@@ -6,10 +6,18 @@ runtime's `window.Bridge` and the bubbling DOM events. It declares what it uses 
 The theme reads the manifest to load the extension's client module and fill its slots; the
 contract tests and the compatibility checker read the same manifest.
 
-The extension contract has its own version, `AdminThemeBridge::extensionContract` (`'0.1'`),
+The extension contract has its own version, `AdminThemeBridge::extensionContract` (`'0.2'`),
 apart from the module version and from the component contract (`Bridge.contract`, `'1'`,
 `docs/contract.md`). Before 1.0 it may change between minor versions. A component
 (`BridgeComponent`) is not an extension; a module may be both.
+
+The theme honours more than its current contract: `AdminThemeBridge::extensionContracts`
+(`'0.1'`, `'0.2'`, the surface's `contracts`) lists every contract version it serves, the
+current one last. 0.2 only adds to 0.1 (the manifest keys `styles` and `tokens`, the surface keys
+`contracts` and `tokens`, the read `extensionStyles`), so 0.1 is still honoured and a manifest
+written for `^0.1` keeps working. An extension is compatible when its `contract` range takes any
+of the listed versions (`AdminThemeBridge::contractCompatible()`). A contract that removes or
+changes something drops the older versions from the list (ADR 0022).
 
 ## 1. What goes where
 
@@ -54,7 +62,7 @@ class BridgeHello extends WireData implements Module, BridgeExtension {
 	}
 	public function getBridgeExtension() {
 		return array(
-			'contract' => '^0.1',
+			'contract' => '^0.2',
 			'module' => 'BridgeHello.mjs',
 			'hooks' => array('renderBreadcrumbs'),
 		);
@@ -67,9 +75,11 @@ loaded (the command line, a modules refresh from the front end) ends in a fatal 
 
 | Key | Type | Meaning |
 |---|---|---|
-| `contract` | string | The contract range it was written for: `^0.1`, `~0.1`, `>=0.1 <1`, `^0.1 \|\| ^1`, `*`. Required |
+| `contract` | string | The contract range it was written for: `^0.2`, `~0.1`, `>=0.1 <1`, `^0.1 \|\| ^1`, `*`. Required. The extension is compatible when the range takes any version of the surface's `contracts` (section 3) |
 | `name` | string | Defaults to the module's class name |
 | `module` | string | An ES module the admin imports on every page for users who may have the extension. Absolute URLs and root-relative paths are kept; anything else is relative to the module's directory, with `?v=<module version>` |
+| `styles` | array | Stylesheets (0.2). Each is resolved as `module` is: absolute URLs and root-relative paths are kept as given (no `?v=`); anything else is relative to the module's directory, with `?v=<module version>` (dev mode: the file time, section 9). The theme prints them in `<head>` after `theme.css` and `fields.css`, with the CSP nonce, one `<link rel='stylesheet' data-bridge-styles='<name>'>` each; the style-order code keeps them there. Also in modal windows; for signed-in users only, for the extensions they may have and whose `contract` the theme honours (section 12) |
+| `tokens` | array | The theme's CSS custom properties its stylesheets read or set (0.2), each a name of the surface's `tokens` (section 3); the contract tests compare them with the `styles` files |
 | `slots` | array | Slot name => name of a public method on the module that returns markup. The extension escapes its own output |
 | `hooks` | array | The theme's hookable methods it attaches to, without `___` (section 3) |
 | `reads` | array | The theme's public non-hookable methods it calls (section 3) |
@@ -85,20 +95,32 @@ instance that may not have run `init()`: return a fixed array, read no config.
 The theme gives the client `ProcessWire.config.AdminThemeBridge.extensions` (signed-in users,
 the extensions they may have: `name`, `module`, `contract`, `compatible`, `priority`) and
 `ProcessWire.config.AdminThemeBridge.extensionContract`. A manifest that throws is logged to
-`bridge-extensions` and left out; the admin goes on.
+`bridge-extensions` and left out; the admin goes on. `AdminThemeBridge::extensionStyles()`
+lists the stylesheets the request prints (`extension`, `url`, by priority).
 
 ## 3. The surface
 
 The list below is `AdminThemeBridge::extensionSurface()` (hookable), word for word; the smoke
 test compares the two, and the `hooks` line with the methods the class declares.
 
-- **contract**: `0.1`
+- **contract**: `0.2`
+- **contracts**: `0.1`, `0.2`
 - **hooks**: `install`, `uninstall`, `nonce`, `moveFiles`, `moveFileAllowed`, `filesMoved`, `historyEntry`, `nativeMap`, `isNativeProcess`, `isNativeInputfield`, `scriptNeeds`, `renderBreadcrumbs`, `sortableDataTable`, `uikitReasons`, `extensionSurface`, `drawerNames`, `navCacheKey`
-- **reads**: `useLegacyStack`, `componentInfo`, `extensions`, `extensionInfo`, `extensionAllowed`, `cspNonce`, `nonceAttr`, `nonceScriptTag`, `themeAssetUrl`, `getVariant`, `getColorScheme`, `shellLabel`, `getHistorySteps`
+- **reads**: `useLegacyStack`, `componentInfo`, `extensions`, `extensionInfo`, `extensionAllowed`, `extensionStyles`, `cspNonce`, `nonceAttr`, `nonceScriptTag`, `themeAssetUrl`, `getVariant`, `getColorScheme`, `shellLabel`, `getHistorySteps`
 - **settings**: `legacyStack`, `uikit`, `maxWidth`, `variant`, `primaryColor`, `colorScheme`, `logoURL`, `logoURLDark`, `extendedBreadcrumbs`, `pageTreeDrawer`, `history`, `historySteps`, `pageSaveInPlace`, `pageAddSkipTemplate`, `dangerWarn`, `userColors`, `dataTableSortRows`, `printScripts`, `nativeOverrides`, `extensionDev`
 - **slots**: `head`, `masthead`, `masthead-right`, `user-nav`, `content-head-buttons`, `footer`, `drawer`, `body`
+- **tokens**: `--background`, `--foreground`, `--card`, `--card-foreground`, `--popover`, `--popover-foreground`, `--primary`, `--primary-foreground`, `--secondary`, `--secondary-foreground`, `--muted`, `--muted-foreground`, `--accent`, `--accent-foreground`, `--destructive`, `--border`, `--input`, `--ring`, `--radius`, `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-xl`, `--shadow-xs`, `--shadow-sm`, `--shadow-md`, `--shadow-lg`, `--pw-primary`, `--pw-primary-hover`, `--pw-primary-bg`, `--pw-primary-20`, `--pw-on-primary`, `--pw-bg`, `--pw-surface`, `--pw-surface-2`, `--pw-line`, `--pw-text`, `--pw-text-muted`, `--pw-h1`, `--pw-input-bg`, `--pw-input-border`, `--pw-radius`, `--pw-radius-m`, `--pw-shadow-card`, `--pw-shadow-dropdown`, `--pw-font`, `--pw-font-size`, `--pw-line-height`, `--pw-gutter`, `--pw-field-pad`, `--pw-field-pad-bottom`, `--pw-z-notices`, `--pw-z-popup`, `--pw-z-masthead`, `--pw-z-drawer`, `--pw-z-dropdown`, `--pw-z-picker`, `--pw-z-overlay`, `--pw-status-success-bg`, `--pw-status-success-border`, `--pw-status-success-fg`, `--pw-status-success-icon`, `--pw-status-warning-bg`, `--pw-status-warning-border`, `--pw-status-warning-fg`, `--pw-status-warning-icon`, `--pw-status-error-bg`, `--pw-status-error-border`, `--pw-status-error-fg`, `--pw-status-error-icon`, `--pw-success-bg`, `--pw-warning-bg`, `--pw-danger-bg`
 - **events**: `pw-runtime-ready`, `pw-legacy-loaded`, `pw-legacy-handover`, `pw-uikit-loaded`, `pw-component-loaded`, `pw-component-failed`, `pw-modal-opened`, `pw-modal-closed`, `pw-wiretabs-change`, `pw-tab-focus`, `pw-drawer-open`, `pw-drawer-close`, `pw-page-save`, `pw-page-saved`, `pw-form-save`, `pw-form-saved`, `pw-files-moved`, `pw-extension-loaded`, `pw-extensions-ready`, `opened`, `closed`, `reloaded`, `showIf`, `changed`
 - **runtime**: `contract`, `version`, `Inputfields`, `components`, `dialog`, `legacy`, `tables`, `pageTree`, `sortable`, `confirm`, `guard`, `extensions`
+
+`contracts` are the contract versions the theme honours, the current one (`contract`) last: a
+manifest range that takes any of them is compatible. `tokens` are the theme's CSS custom
+properties an extension's stylesheets may read or set (`runtime/src/styles/00-tokens.css`,
+`docs/contract.md` 4.0). Their names are stable within the contract; their values are not (they
+follow the variant, the scheme, the interface scale and the theme's design). Any other custom
+property the theme declares, the `--pw-` names not listed here among them (`--pw-tiny`,
+`--pw-masthead-h`, `--pw-input-radius`, `--ring-50`, ...), is internal and may change or go in any
+release; the contract tests fail a stylesheet that uses one (section 6).
 
 Hooks attach as anywhere in ProcessWire: `$this->addHookAfter('AdminThemeBridge::renderBreadcrumbs', ...)`.
 What each method, event and runtime key does is in `docs/contract.md`. Upstream's own regions
@@ -107,7 +129,8 @@ What each method, event and runtime key does is in `docs/contract.md`. Upstream'
 The contract range: `^x.y` keeps the major version (for `0.y`, the minor one), `~x.y` the minor
 one; comparisons `>= > <= < =`, all of a space-separated list must hold, `||` separates
 alternatives. `AdminThemeBridge::contractSatisfies($range, $version)` and
-`contractRangeValid($range)` do the same in PHP.
+`contractRangeValid($range)` do the same in PHP; `contractCompatible($range)` is true when the
+range takes any version of `contracts`.
 
 ## 4. Slots
 
@@ -119,7 +142,7 @@ prints nothing. A slot that nothing fills prints nothing at all, not an empty el
 
 | Slot | Where it lands | Element per extension |
 |---|---|---|
-| `head` | In `<head>`, after upstream's `head` extra markup | none, printed as given |
+| `head` | In `<head>`, after upstream's `head` extra markup (and after the `styles` links) | none, printed as given |
 | `masthead` | After the masthead and the notices, after upstream's `masthead` extra markup | `<div>` |
 | `masthead-right` | In the masthead's right group, before the display controls | `<div>` |
 | `user-nav` | In the user menu, after its links, before the colour picker | `<li>` |
@@ -130,8 +153,15 @@ prints nothing. A slot that nothing fills prints nothing at all, not an empty el
 
 Each element carries `data-bridge-slot='<slot>'` and `data-bridge-extension='<name>'`. Several
 extensions in one slot come in `priority` order. Slots print for signed-in users only, for the
-extensions they may have (`permission`) and whose `contract` range takes the theme's; in a
-modal window only `head` and `body`. Slots get no CSS of their own: use the `pw-*` classes.
+extensions they may have (`permission`) and whose `contract` range takes one of the theme's
+`contracts`; in a modal window only `head` and `body`. Slots get no CSS of their own: use the
+`pw-*` classes.
+
+A stylesheet an extension prints in the `head` slot (a `<link rel=stylesheet>` or a `<style>`)
+is moved in front of `theme.css` by the theme's style-order code, as a stylesheet a field script
+adds at run time is (the theme's sheets must win over module styles, `docs/contract.md` 4.0): it
+loses every cascade tie with the theme. To come after the theme's sheets, declare the
+stylesheet in the manifest's `styles` (section 2, section 12).
 
 The `drawer` method returns the drawer's body, or an array: `content` (the body), `label`
 (the button's and dialog's name, default the extension's name), `icon` (a Font Awesome name
@@ -153,8 +183,8 @@ The runtime imports each listed extension's `module` (an ES module, as for a com
 `docs/contract.md` 2) through `Bridge.components.load()`: one registry, the same retry, and on a
 failure the same `pw-component-failed` event and notice. The extensions code is a chunk of its
 own, loaded only on a page whose list is not empty. An extension whose `compatible` is false
-(its `contract` range does not take the theme's) is not imported; its slots are not printed
-either.
+(its `contract` range takes none of the theme's `contracts`) is not imported; its slots and
+its `styles` are not printed either.
 
 - `Bridge.extensions.list()`: the manifests as the theme sent them (`name`, `module`,
   `contract`, `compatible`, `priority`).
@@ -196,11 +226,19 @@ php tools/extension-check.php sandbox/atispro --self-test
 
 `extension-check.php` installs the module if needed, then checks:
 
-- the manifest: known keys only (section 2), each of its type; `contract` a range that takes
-  `extensionContract`; `hooks`, `reads` and `settings` on the surface (section 3; a hook also
-  declared by the theme as `___<hook>`); each `slots` entry a slot of section 4 whose method
-  exists and returns a string (`drawer`: or an array with `content`); `module` a file that exists;
-  `permission` an existing permission; the theme discovers the extension and finds it compatible;
+- the manifest: known keys only (section 2), each of its type; `contract` a range that takes one
+  of the theme's `contracts` (`contractCompatible()`); `hooks`, `reads` and `settings` on the
+  surface (section 3; a hook also declared by the theme as `___<hook>`); each `slots` entry a slot
+  of section 4 whose method exists and returns a string (`drawer`: or an array with `content`);
+  `module` a file that exists; each relative `styles` entry a file that exists (absolute URLs are
+  noted, not checked); each `tokens` entry a `--` name of the surface's `tokens`; `permission` an
+  existing permission; the theme discovers the extension and finds it compatible;
+- the stylesheets, by a scan of each relative `styles` file for `var(--x` and `--x:` (comments
+  left out): a token of the surface that the manifest's `tokens` do not declare fails, and so does
+  a name the theme's built `theme.css` declares that is not on the surface (an internal token).
+  Names the theme does not declare pass: the extension's own, and upstream's AdminThemeUikit
+  names that `fields.css` maps (`--pw-inputs-background`, ...). Each failure names file and line.
+  Like the PHP scan below, this is a heuristic, not a CSS parser;
 - surface only, by a static scan of every PHP file in the module's directory: each method called
   on the theme (`->adminTheme->x()`, `wire('adminTheme')->x()`, a variable assigned the theme),
   each `AdminThemeBridge::x` and each hook string `'AdminThemeBridge::x'`. Upstream's AdminTheme
@@ -213,7 +251,8 @@ php tools/extension-check.php sandbox/atispro --self-test
 - over HTTP, signed in as the sandbox user `bridge`: the page tree and the module's own screens
   (admin pages running it, its settings) answer 200 without PHP error text; the page tree lists
   the extension in `ProcessWire.config.AdminThemeBridge.extensions` and carries a part of each
-  slot it fills;
+  slot it fills; each stylesheet of `styles` is linked once (`data-bridge-styles`) after
+  `fields.css` on the page tree, and linked in a modal window (`page/?modal=1`);
 - the module's own `<Name>.check.php`, if it has one (the scaffold writes it): included with
   `$wire`, `$module` and `check($label, $ok, $detail = '')` at hand.
 
@@ -222,12 +261,16 @@ php tools/extension-check.php sandbox/atispro --self-test
 fired with its name, each slot it fills has its part in the DOM with its custom elements
 defined, `reload()` fires `pw-extension-loaded` again, and `reload()` of an edited copy of the
 module (served in its place from a temp file, its exported version literal changed; the module
-file is not touched) shows the new version in `loaded()` (section 9); `pw-extensions-ready` fired once, no
+file is not touched) shows the new version in `loaded()` (section 9); each stylesheet of `styles`
+is linked once in `<head>`, after `link[data-pw-fields]`, and loaded, and stays after it when a
+`<style>` is injected into `<head>` (the field-script case: the injected one goes before
+`link[data-pw-theme]`), and is linked in a modal window; `pw-extensions-ready` fired once, no
 jQuery unless the theme recorded legacy reasons, no console errors.
 
-`--self-test` writes a module with four faults into the sandbox (an unknown manifest key, a hook
-the theme does not have, a call to a theme method off the surface, an include of a `lib/` file),
-expects exactly those four failures, and removes the module again.
+`--self-test` writes a module with six faults into the sandbox (an unknown manifest key, a hook
+the theme does not have, a call to a theme method off the surface, an include of a `lib/` file,
+a token that is not on the surface, a `styles` file that does not exist), expects exactly those
+six failures, and removes the module again.
 
 ## 7. Bundled extensions
 
@@ -238,10 +281,12 @@ passes on each (section 6).
 |---|---|---|
 | `BridgeCsp` (Bridge CSP) | the `bridge` module info key: no code, and no `requires` of the theme | hooks `nonce` (gives the theme the request's nonce), reads `useLegacyStack` (enforce or report only per screen); the client gets no module |
 | `ProcessBridgeDemo` (directory `BridgeDemo`) | `getBridgeExtension()`; also a `BridgeComponent` | reads `nonceAttr` (its csp/ screen); `module` `ProcessBridgeDemo.mjs`, imported on every admin page for users with `page-edit`; no slots |
-| `BridgeSample` | `getBridgeExtension()`, generated by the scaffold | six slots (`masthead-right`, `user-nav`, `content-head-buttons`, `footer`, `drawer`, `body`) and `BridgeSample.mjs`; the fixture of the contract tests |
+| `BridgeSample` | `getBridgeExtension()`, generated by the scaffold (contract `^0.2`) | six slots (`masthead-right`, `user-nav`, `content-head-buttons`, `footer`, `drawer`, `body`), `BridgeSample.mjs`, and `styles` `BridgeSample.css` (one rule on its own element) with `tokens` `--muted-foreground`; the fixture of the contract tests |
 | `BridgeAdminAccessControl` (Bridge admin access control) | the `bridge` module info key: no code, and no `requires` of the theme | hooks `navCacheKey` (a change of the rules shows in a signed-in user's menu on the next request), `drawerNames` (no page tree drawer with Pages denied); enforcement is on the core's seams ([access-control.md](access-control.md)); no slots, the client gets no module |
 
-`InputfieldBridgeText` (in `BridgeDemo`) is a component, not an extension.
+`InputfieldBridgeText` (in `BridgeDemo`) is a component, not an extension. The other three
+manifests stay at `^0.1` on purpose: they show that a manifest written for 0.1 keeps working on
+0.2.
 
 ## 8. Compatibility
 
@@ -261,8 +306,10 @@ php tools/extension-compat.php --verbose path/to/site/modules        # also list
   `AdminThemeBridge.module.php` and the surface (section 3) from
   `assets/dist/extension-surface.json`, which the runtime build writes from the theme's source
   (`runtime/scripts/manifest.mjs`; the smoke test compares it with `extensionSurface()`).
-  `--surface=<json>` gives both instead (`contract` and the lists). A Bridge without the constant
-  has no extension contract: every extension is incompatible with it.
+  `--surface=<json>` gives both instead (`contract` and the lists). The contract versions the
+  target honours are the surface's `contracts`; a surface without them (a 0.1 surface, a
+  hand-written file) honours its `contract` alone. A Bridge without the constant has no extension
+  contract: every extension is incompatible with it.
 - **The extensions** are the modules under the directories (default: `modules/` and each
   `sandbox/<site>/app/modules/`) whose manifest can be read from the source: the literal array
   `getBridgeExtension()` returns when the class implements `BridgeExtension`, otherwise the
@@ -280,9 +327,10 @@ php tools/extension-compat.php --verbose path/to/site/modules        # also list
   ProcessWire walks a directory in file-system order and loads modules with an autoload order
   first; the checker walks in sorted order and knows neither that order nor a copy an admin
   chose for a duplicate (`ModulesDuplicates`).
-- **Per extension**: the `contract` range takes the target's contract (the theme's own
-  `contractSatisfies()`); `hooks`, `reads`, `settings` and `slots` are on the target's surface;
-  the `module` file exists; the theme would discover the extension (by the interface it also needs
+- **Per extension**: the `contract` range takes one of the target's `contracts` (the theme's own
+  `contractSatisfies()`; otherwise the problem reads `contract <range> takes none of <list>`);
+  `hooks`, `reads`, `settings`, `slots` and `tokens` are on the target's surface; the `module`
+  file and each relative `styles` file exist; the theme would discover the extension (by the interface it also needs
   `requires AdminThemeBridge` or a `bridge` info key). A manifest built at run time (not a literal
   array) cannot be checked and counts as incompatible.
 
@@ -300,10 +348,10 @@ sandbox; this checker needs only the files.
 Two pieces, both for working on an extension's client module against a sandbox or a local site.
 
 - **The setting** *Extension development* (`extensionDev`, the theme's settings, Features; off by
-  default). While it is on, and only for a superuser, the `module` URL of an extension
-  (`extensionInfo()`) and of a component (`componentInfo()`) whose file lies under the site
-  modules ends in `?v=<file time>` (the file's modification time, 10 digits) instead of
-  `?v=<module version>`: an edited `.mjs` is fetched fresh on the next page load, without a
+  default). While it is on, and only for a superuser, the `module` URL and the relative `styles`
+  URLs of an extension (`extensionInfo()`) and the `module` URL of a component (`componentInfo()`)
+  whose file lies under the site modules end in `?v=<file time>` (the file's modification time, 10 digits) instead of
+  `?v=<module version>`: an edited `.mjs` or `.css` is fetched fresh on the next page load, without a
   cache clear or a version bump. Core modules and other URLs keep the module version; with the
   setting off nothing changes. Leave it off on a live site.
 - **The watcher** `tools/extension-dev.js` opens the admin's page tree in a browser (Playwright,
@@ -311,8 +359,11 @@ Two pieces, both for working on an extension's client module against a sandbox o
   changes, calls `Bridge.extensions.reload(<name>)` for each extension whose module lies in that
   directory. The page stays; the module is imported again with a fresh `?v=` and
   `pw-extension-loaded` fires again. Each reload prints one line with the extension's error or
-  exported version; the page's console errors are printed too. A changed PHP file is only
-  reported: PHP takes a page load. Ctrl+C (or closing the browser) stops it.
+  exported version; the page's console errors are printed too. A changed `.css` file takes no
+  module reload: the watcher sets a fresh `?v=` on the `href` of every `link[data-bridge-styles]`
+  whose path ends with that file (the extension's `styles`), so the browser loads the stylesheet
+  again in place, and prints one line. A changed PHP file is only reported: PHP takes a page load.
+  Ctrl+C (or closing the browser) stops it.
 
 ```bash
 PW=<playwright-core dir> node tools/extension-dev.js modules/BridgeSample [admin url]   # HEADLESS=1 for no window; SANDBOX=, PROBE_PASS= as for the harnesses
@@ -321,7 +372,8 @@ PW=<playwright-core dir> node tools/extension-dev.js modules/BridgeSample [admin
 What a reload does not do: it is not hot module replacement. A custom element, once defined, stays
 the class it was (`customElements.define()` cannot redefine a tag), so the module's other code runs
 again but an edited element class takes a page load; state the old module kept is not carried over;
-a stylesheet the module injects is the module's own business on `pw-extension-loaded`. Real HMR
+a stylesheet the module injects itself is the module's own business on `pw-extension-loaded`
+(declare it in `styles` instead). Real HMR
 would need a dev server and a bundler contract with extensions, which the extension model leaves out
 on purpose (no build step shared between Bridge and an extension).
 
@@ -330,34 +382,68 @@ on purpose (no build step shared between Bridge and an extension).
 `tools/scaffold-extension.php` writes the skeleton of a new extension:
 
 ```bash
-php tools/scaffold-extension.php <Name> [--dir=modules] [--slots=footer,user-nav] [--module]
+php tools/scaffold-extension.php <Name> [--dir=modules] [--slots=footer,user-nav] [--module] [--styles]
 ```
 
 Into `<dir>/<Name>/` (a directory that exists is refused): `<Name>.module.php` (module info with
-`requires AdminThemeBridge`, the interface check of section 2, a manifest with `contract ^0.1`,
+`requires AdminThemeBridge`, the interface check of section 2, a manifest with `contract ^0.2`,
 one method per slot returning escaped markup, an empty settings screen), with `--module`
 `<Name>.mjs` (defines `<pw-<name in lower case>>` guarded by `customElements.get()`, exports
-`{ tag, version }`), `<Name>.check.php` (one check per slot, run by `extension-check.php`) and a
-`README.md`. `--slots` takes the slot names of section 4. It boots nothing, and the output depends
-on the arguments only: `modules/BridgeSample` is its output for
-`BridgeSample --slots=masthead-right,user-nav,content-head-buttons,footer,drawer,body --module`,
+`{ tag, version }`), with `--styles` `<Name>.css` (a comment header and one rule,
+`pw-<name in lower case>[data-slot] { color: var(--muted-foreground); }`, and in the manifest
+`styles` `<Name>.css` and `tokens` `--muted-foreground`), `<Name>.check.php` (one check per slot,
+and one that the stylesheet is there; run by `extension-check.php`) and a `README.md`. `--slots`
+takes the slot names of section 4. It boots nothing, and the output depends on the arguments
+only: `modules/BridgeSample` is its output for
+`BridgeSample --slots=masthead-right,user-nav,content-head-buttons,footer,drawer,body --module --styles`,
 and the smoke test generates it again and compares the two byte for byte.
 
 Then: place the directory under a sandbox's site modules (a junction), install it
 (`php tools/sandbox-modules.php sandbox/<site> <Name>`, or Modules > Refresh and Install), run the
 contract tests (section 6) and the dev watcher (section 9) while working on it.
 
-## 11. Not in contract 0.1
+## 11. Not in contract 0.2
 
 - **Access control as part of the contract.** It exists as the fourth bundled extension,
   `BridgeAdminAccessControl` (section 7, [access-control.md](access-control.md)), built through
   this kit: rules that narrow the core's own per-template access by branch and by main menu. It is
-  an ordinary module, not a feature of contract 0.1, and there is still no declarative way to hide
+  an ordinary module, not a feature of the contract, and there is still no declarative way to hide
   a slot or a menu item. Hiding is not security: enforcement belongs on the server.
 - **Middleware, endpoint registration, response shaping.** Bridge is an admin theme on upstream's
   URLs and JSON contracts, not an API layer: upstream's Process modules and hooks are the request
   pipeline, and an extension uses them as any module does. There is no `$bridge` facade object;
   the facade is the surface of section 3, which the contract tests hold an extension to.
 - **More declarative weight.** The `bridge` info key declares what a module uses; hiding,
-  renaming or reordering menu items without code is not part of 0.1.
+  renaming or reordering menu items without code is not part of 0.2.
 - **Hot module replacement** (section 9), and a directory or registry of extensions.
+- **Restyling the login screen.** Extension stylesheets, like the slots, print for signed-in users
+  only (section 12).
+
+## 12. Styling extensions
+
+An extension whose job is the admin's look (spacing, typography, colours of field modules)
+needs two things from the contract, both since 0.2:
+
+- **Its stylesheets after the theme's.** Declare them in the manifest's `styles` (section 2). The
+  theme prints one `<link rel='stylesheet' data-bridge-styles='<name>'>` per entry in `<head>`,
+  right after `theme.css` and `fields.css` and before the `head` slot, with the request's CSP
+  nonce when there is one (`BridgeCsp`), in the normal and the modal layout alike, so the extension wins
+  cascade ties with the theme without raising its selectors' weight. The theme's style-order
+  code leaves these links where they are, also when a field script adds a stylesheet of its own
+  later (that one goes in front of `theme.css`). A stylesheet printed in the `head` slot, or
+  injected by the client module, has none of this (section 4). `data-pw-keep`, which the theme
+  puts on its own inline styles, is internal and not part of the contract: it may change, and
+  the contract tests know nothing of it.
+- **The tokens it reads and sets, declared.** List them in the manifest's `tokens`; each must be
+  on the surface (section 3). The contract tests scan the stylesheets: a surface token used but
+  not declared fails, and so does an internal token of the theme. The compatibility checker
+  reports an extension whose declared token a newer Bridge no longer has. Since 0.2 the surface
+  includes the theme's metric tokens `--pw-font-size`, `--pw-line-height`, `--pw-field-pad` and
+  `--pw-field-pad-bottom` (with `--pw-gutter`, public before): typography and field spacing
+  cannot be restyled without them. Their names are stable; their values are not, so set them
+  rather than compute from today's numbers.
+
+The stylesheets print for signed-in users only, as the slots do, for the extensions they may have
+(`permission`) and whose `contract` the theme honours: the login screen is not restyled by
+extensions. `modules/BridgeSample` (section 7, scaffolded with `--styles`) is the smallest working
+example.

@@ -1,5 +1,5 @@
 /**
- * Extension modules (extension contract 0.1, docs/extensions.md 5). A chunk of its own, imported
+ * Extension modules (extension contract 0.2, docs/extensions.md 5). A chunk of its own, imported
  * by the runtime only on a page whose list is not empty (index.ts: Bridge.extensions).
  *
  * The theme lists the extensions the signed-in user may have in

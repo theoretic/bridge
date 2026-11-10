@@ -5,9 +5,9 @@ require_once(__DIR__ . '/lib/AccessRules.php');
 /**
  * BridgeAdminAccessControl
  *
- * A Bridge extension (extension contract 0.1, docs/extensions.md): per-role access control to the
- * page tree, its subtrees and the four core top-level admin menus. Rules only ever narrow what
- * the core grants: docs/access-control.md.
+ * A Bridge extension (written for extension contract ^0.1, docs/extensions.md): per-role access
+ * control to the page tree, its subtrees and the four core top-level admin menus. Rules only ever
+ * narrow what the core grants: docs/access-control.md.
  *
  * A rule is one role's, on one page, with or without its descendants. Per role the nearest rule
  * decides, no rule allows; across the user's roles any deny wins. The hooks only ever turn the

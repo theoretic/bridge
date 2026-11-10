@@ -1,4 +1,4 @@
-// Contract tests of a Bridge extension in the browser (docs/extensions.md, extension contract 0.1),
+// Contract tests of a Bridge extension in the browser (docs/extensions.md, extension contract 0.2),
 // the client half of tools/extension-check.php. On the page tree, signed in as the sandbox user
 // `bridge`, per extension of <Module> (a module class, or a directory: every module in it with a
 // manifest): it is in Bridge.extensions.list() and compatible, Bridge.extensions.loaded() has it
