@@ -53,6 +53,8 @@ trait AdminThemeBridgeHead {
 		$plan->themeCss = $head['themeCss'];
 		$plan->fieldsCss = $head['fieldsCss'];
 		$plan->maxWidth = (int) $this->getMaxWidth();
+		// after the theme sheets, in every layout (modal windows too)
+		$plan->extensionStyles = $this->extensionStyles();
 
 		// the runtime module and the chunk it imports statically, fetched while the page parses instead
 		// of after main.js imports it at the end of the body (audit B21, C32); same URL as that import()

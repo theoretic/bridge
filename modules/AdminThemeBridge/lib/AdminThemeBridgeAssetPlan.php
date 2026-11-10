@@ -61,6 +61,15 @@ class AdminThemeBridgeAssetPlan {
 	public $maxWidth = 0;
 
 	/**
+	 * The stylesheets of this request's extensions (manifest key `styles`), after the theme's,
+	 * each `array('extension' => name, 'url' => url)`
+	 *
+	 * @var array[]
+	 *
+	 */
+	public $extensionStyles = array();
+
+	/**
 	 * The runtime module and the chunks it imports statically
 	 *
 	 * @var string[] URLs

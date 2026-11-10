@@ -68,6 +68,7 @@ if($plan->uikitCss) echo "\n\t<link type='text/css' href='" . $attr($plan->uikit
 echo "\n\t<link type='text/css' href='" . $attr($plan->themeCss) . "' rel='stylesheet' data-pw-theme />";
 echo "\n\t<link type='text/css' href='" . $attr($plan->fieldsCss) . "' rel='stylesheet' data-pw-fields />";
 if($plan->maxWidth) echo "\n\t<style data-pw-keep$nonce>.pw-container, #notices { max-width:" . (int) $plan->maxWidth . "px; }</style>";
+foreach($plan->extensionStyles as $style) echo "\n\t<link type='text/css' href='" . $attr($style['url']) . "' rel='stylesheet' data-bridge-styles='" . $attr($style['extension']) . "'$nonce />";
 foreach($plan->modulePreloads as $url) echo "\n\t<link rel='modulepreload' href='" . $attr($url) . "'$nonce />";
 foreach($plan->scripts as $script) {
 	echo "\n\t<script type='text/javascript' src='" . $attr($script['url']) . "'" . ($script['defer'] ? ' defer' : '') . "$nonce></script>";

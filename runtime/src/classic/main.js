@@ -446,7 +446,8 @@ var ProcessWireAdminTheme = {
 	 * the server prints module styles (docs/contract.md, ADR 0014). Arrival order is kept (each
 	 * goes right before the theme sheet): CKEditor hides its editors with a <style> and reveals
 	 * them with the skin stylesheet that follows it. The theme's own inline styles carry
-	 * data-pw-keep and stay after it.
+	 * data-pw-keep and stay after it, as do the stylesheets of extensions, which the server prints
+	 * with data-bridge-styles after fields.css (manifest key `styles`, docs/extensions.md).
 	 */
 	setupStyleOrder: function() {
 		var theme = document.querySelector('link[data-pw-theme]');
@@ -454,7 +455,7 @@ var ProcessWireAdminTheme = {
 		var place = function(node) {
 			if(node.parentNode !== document.head) return;
 			var sheet = node.tagName === 'STYLE' || (node.tagName === 'LINK' && /(^|\s)stylesheet(\s|$)/i.test(node.rel));
-			if(!sheet || node.hasAttribute('data-pw-theme') || node.hasAttribute('data-pw-fields') || node.hasAttribute('data-pw-keep')) return;
+			if(!sheet || node.hasAttribute('data-pw-theme') || node.hasAttribute('data-pw-fields') || node.hasAttribute('data-pw-keep') || node.hasAttribute('data-bridge-styles')) return;
 			if(theme.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING) document.head.insertBefore(node, theme);
 		};
 		// added while the page was parsing (field scripts in the body run before this)

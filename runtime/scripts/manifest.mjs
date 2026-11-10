@@ -12,7 +12,7 @@
  *
  * Also assets/dist/extension-surface.json: the static part of AdminThemeBridge::extensionSurface()
  * (lib/AdminThemeBridgeExtensions.php; `slots` from slotTags()) and the module's extensionContract,
- * read from the PHP source. tools/extension-compat.php reads a Bridge checkout's surface from it
+ * and extensionContracts, read from the PHP source. tools/extension-compat.php reads a Bridge checkout's surface from it
  * without booting; a smoke line compares it with the booted method's output.
  */
 
@@ -57,12 +57,16 @@ const body = (name) => {
 	if (start < 0) throw new Error(`extension-surface.json: no ${name}() in AdminThemeBridgeExtensions.php`);
 	return extSrc.slice(start, extSrc.indexOf('\n\t}\n', start)).replace(/\/\/[^\n]*/g, '');
 };
-const contractMatch = readFileSync(theme + 'AdminThemeBridge.module.php', 'utf8').match(/const extensionContract = '([^']+)';/);
+const moduleSrc = readFileSync(theme + 'AdminThemeBridge.module.php', 'utf8');
+const contractMatch = moduleSrc.match(/const extensionContract = '([^']+)';/);
 if (!contractMatch) throw new Error('extension-surface.json: no extensionContract in AdminThemeBridge.module.php');
-const surface = { contract: contractMatch[1] };
+const contractsMatch = moduleSrc.match(/const extensionContracts = array\(([^)]*)\);/);
+if (!contractsMatch) throw new Error('extension-surface.json: no extensionContracts in AdminThemeBridge.module.php');
+// in the order of ___extensionSurface(): a smoke line compares the two with ===
+const surface = { contract: contractMatch[1], contracts: [...contractsMatch[1].matchAll(/'([^']*)'/g)].map(s => s[1]) };
 const surfaceBody = body('___extensionSurface');
 if (!/'slots' => array_keys\(\$this->slotTags\(\)\)/.test(surfaceBody)) throw new Error("extension-surface.json: 'slots' is no longer the keys of slotTags()");
-for (const key of ['hooks', 'reads', 'settings', 'slots', 'events', 'runtime']) {
+for (const key of ['hooks', 'reads', 'settings', 'slots', 'tokens', 'events', 'runtime']) {
 	if (key === 'slots') {
 		surface.slots = [...body('slotTags').matchAll(/'([\w-]+)' =>/g)].map(m => m[1]);
 		continue;

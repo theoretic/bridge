@@ -146,12 +146,23 @@ if(is_file($fieldsCss)) {
 	$posTheme = strpos($head, 'data-pw-theme />');
 	$posFields = strpos($head, 'data-pw-fields />');
 	check('fields.css linked after theme.css', $posTheme !== false && $posFields !== false && $posFields > $posTheme);
+	// 0.29.0: an extension's stylesheets (manifest key `styles`) after fields.css, with the nonce
+	$extStylesLine = '';
+	foreach(explode("\n", $head) as $headLine) {
+		if(strpos($headLine, "data-bridge-styles='") !== false) $extStylesLine = $headLine;
+	}
+	$posExtStyles = strpos($head, "data-bridge-styles='");
+	check('_head.php prints the extension stylesheets after fields.css and before the modulepreloads, with the nonce', $posExtStyles !== false && $posFields !== false && $posExtStyles > $posFields
+		&& $posExtStyles < (int) strpos($head, "rel='modulepreload'") && strpos($extStylesLine, '$nonce') !== false && strpos($extStylesLine, '$plan->extensionStyles') !== false, $extStylesLine);
+	check('assetPlan() fills extensionStyles for every layout', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), "\t\t\$plan->extensionStyles = \$this->extensionStyles();\n") !== false);
 }
 // the classic scripts' sources (0.9.0: runtime/src/classic/, built minified into scripts/); the
 // source checks below read them, the presence checks the built files
 $classicDir = is_dir(dirname(__DIR__) . '/runtime/src/classic') ? dirname(__DIR__) . '/runtime/src/classic/' : $themeDir . 'scripts/';
 // notices from a page save time out (scripts/main.js); behaviour is checked in a browser
 $mainJs = (string) @file_get_contents($classicDir . 'main.js');
+$styleOrderSrc = (string) strstr((string) strstr($mainJs, 'setupStyleOrder: function'), 'var same = function', true);
+check('setupStyleOrder leaves an extension stylesheet (data-bridge-styles) in place', strpos($styleOrderSrc, "node.hasAttribute('data-bridge-styles')") !== false);
 check('theme script times out page-save notices', strpos($mainJs, 'this.setupNoticeTimeout();') !== false && strpos($mainJs, "addEventListener('pw-page-saved', arm)") !== false);
 // the checks below need the theme: a sandbox without it fails here instead of skipping them (BG9)
 check('AdminThemeBridge is installed in this sandbox (tools/sandbox-admin.php)', $modules->isInstalled('AdminThemeBridge'));
@@ -2329,6 +2340,8 @@ if(isset($bridge) && $bridge && $modules->isInstalled('BridgeSample') && $module
 		}
 		$out['InputfieldBridgeText'] = $bridge->componentInfo($modules->getModule('InputfieldBridgeText', array('noPermissionCheck' => true)))['module'];
 		$out['core'] = $bridge->extensionInfo('ProcessBridgeDemo', array('contract' => '^0.1', 'module' => $wire->config->urls->modules . 'Process/ProcessPageList/x.mjs'))['module'];
+		// a `styles` entry resolves as `module` does, whatever the file type: any file of the site module will do
+		$out['styles'] = $bridge->extensionInfo('BridgeSample', array('contract' => '^0.2', 'styles' => array('BridgeSample.mjs')))['styles'][0];
 		return $out;
 	};
 	$devVersions = array();
@@ -2343,6 +2356,7 @@ if(isset($bridge) && $bridge && $modules->isInstalled('BridgeSample') && $module
 	check('dev mode off: module URLs carry the module version', $off['BridgeSample'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.mjs' . $devVersions['BridgeSample']
 		&& $devEnds($off['ProcessBridgeDemo'], $devVersions['ProcessBridgeDemo']) && $devEnds($off['InputfieldBridgeText'], $devVersions['InputfieldBridgeText'])
 		&& $devEnds($off['core'], $devVersions['ProcessBridgeDemo']), json_encode($off));
+	check('dev mode off: a site module\'s `styles` entry carries the module version', $off['styles'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.mjs' . $devVersions['BridgeSample'], $off['styles']);
 	try {
 		// toggled on the sandbox (saved in its database, as the settings screen does) and on the running theme
 		$modules->saveConfig('AdminThemeBridge', 'extensionDev', 1);
@@ -2353,6 +2367,7 @@ if(isset($bridge) && $bridge && $modules->isInstalled('BridgeSample') && $module
 			&& (bool) preg_match('/\?v=\d{10}$/', $on['BridgeSample']), $on['BridgeSample']);
 		check('dev mode on: ProcessBridgeDemo\'s module and InputfieldBridgeText\'s component carry their file time too', (bool) preg_match('/\.mjs\?v=\d{10}$/', $on['ProcessBridgeDemo'])
 			&& (bool) preg_match('#/pw-text\.js\?v=\d{10}$#', $on['InputfieldBridgeText']), json_encode($on));
+		check('dev mode on, superuser: a site module\'s `styles` entry ends in ?v=<10-digit file time>', (bool) preg_match('/\?v=\d{10}$/', $on['styles']), $on['styles']);
 		check('dev mode on: a module URL outside the site modules (core) keeps the module version', $on['core'] === $off['core'], $on['core']);
 		$wire->users->setCurrentUser($devGuest);
 		$onGuest = $devUrls();
