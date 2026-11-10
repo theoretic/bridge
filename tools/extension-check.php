@@ -14,11 +14,19 @@
  * in it that declares a manifest (BridgeDemo: ProcessBridgeDemo; InputfieldBridgeText is skipped).
  * Modules not installed yet are installed (as tools/sandbox-modules.php does). Then, per extension:
  *
- *  - the manifest: known keys only, each of its type; `contract` a readable range that takes the
- *    theme's extensionContract; `hooks`, `reads`, `settings` on the surface (hooks also by
- *    reflection: the theme declares `___<hook>`); `slots` known slots whose methods exist and
- *    return a string (`drawer`: a string or an array with `content`); `module` a file that exists;
- *    `permission` an existing permission; the theme discovers the extension, compatible;
+ *  - the manifest: known keys only, each of its type; `contract` a readable range that takes one of
+ *    the theme's extensionContracts (AdminThemeBridge::contractCompatible()); `hooks`, `reads`,
+ *    `settings` on the surface (hooks also by reflection: the theme declares `___<hook>`); `slots`
+ *    known slots whose methods exist and return a string (`drawer`: a string or an array with
+ *    `content`); `module` a file that exists; `styles` a list of stylesheets, each relative or
+ *    root-relative one a file that exists (absolute URLs noted, not checked); `tokens` a list of
+ *    `--` names, each on the surface (`tokens`); `permission` an existing permission; the theme
+ *    discovers the extension, compatible;
+ *  - styles, a scan of each relative `styles` file for `var(--x` and `--x:` (comments left out):
+ *    a token of the surface that the manifest's `tokens` do not declare fails, and so does a name
+ *    the theme's built theme.css declares that is not on the surface (internal); names the theme
+ *    does not declare (the extension's own, upstream's AdminThemeUikit names fields.css maps) pass.
+ *    Each failure names file:line. A heuristic like the PHP scan below: no CSS parser;
  *  - surface only, a static scan (token_get_all) of every PHP file in the module's directory: calls
  *    on the theme (`->adminTheme->x()`, `wire('adminTheme')->x()`, a variable assigned the theme,
  *    `$adminTheme`), static uses `AdminThemeBridge::x`, hook strings `'AdminThemeBridge::x'`.
@@ -30,13 +38,16 @@
  *  - over HTTP, as the sandbox user `bridge` (.credentials): the page tree and the module's own
  *    admin screens (admin pages running its Process, its config screen) answer 200 without PHP
  *    error text or the login form; the page tree carries the extension in
- *    ProcessWire.config.AdminThemeBridge.extensions and a part of each slot it fills;
+ *    ProcessWire.config.AdminThemeBridge.extensions and a part of each slot it fills; each
+ *    stylesheet of `styles` is linked once, after fields.css (`data-bridge-styles`), on the page
+ *    tree and in a modal window (`page/?modal=1`);
  *  - the module's own `<Name>.check.php`, if any, with `$wire`, `$module` and `check()`.
  *
  * --no-http leaves out the HTTP part. --json prints the extensions as the browser harness needs
- * them (tools/extension-check.js) and checks nothing. --self-test writes a deliberately bad
- * extension (BridgeCheckBad) into the sandbox, installs it, runs the checks on it in a child
- * process, expects exactly the four failures it was built with, then uninstalls and removes it.
+ * them (tools/extension-check.js; `styles` the resolved URLs) and checks nothing. --self-test
+ * writes a deliberately bad extension (BridgeCheckBad) into the sandbox, installs it, runs the
+ * checks on it in a child process, expects exactly the six failures it was built with, then
+ * uninstalls and removes it.
  *
  * Exit code: 0 when every check passes, 1 when one fails, 2 when the root is not a sandbox on its
  * own database copy (tools/lib/sandbox-guard.php).
@@ -161,6 +172,21 @@ function rawManifest(Modules $modules, $name) {
 	return isset($info['bridge']) && is_array($info['bridge']) && count($info['bridge']) ? $info['bridge'] : null;
 }
 
+/**
+ * The file behind a stylesheet URL of an extension (resolved as `module` is; '' when not under the
+ * site root)
+ *
+ * @param string $url As extensionInfo() gives it
+ * @param Config $config
+ * @return string
+ *
+ */
+function extensionStyleFile($url, Config $config) {
+	$path = (string) parse_url($url, PHP_URL_PATH);
+	$rootUrl = $config->urls->root;
+	return $path !== '' && strpos($path, $rootUrl) === 0 ? $config->paths->root . substr($path, strlen($rootUrl)) : '';
+}
+
 $checked = array();
 foreach($names as $name) {
 	if(!$modules->isInstalled($name)) {
@@ -192,7 +218,7 @@ if($json) {
 			$content = is_array($part) ? ($part['content'] ?? '') : $part;
 			$filled[$slot] = is_string($content) && trim($content) !== '';
 		}
-		$out[] = array('name' => $info['name'], 'class' => $name, 'module' => $info['module'], 'compatible' => $info['compatible'], 'slots' => $filled);
+		$out[] = array('name' => $info['name'], 'class' => $name, 'module' => $info['module'], 'styles' => $info['styles'], 'compatible' => $info['compatible'], 'slots' => $filled);
 	}
 	echo json_encode($out, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n";
 	exit($fails ? 1 : 0);
@@ -216,7 +242,7 @@ $upstreamMethods = $publicMethods($parentClass);
 foreach($upstreamMethods as $m) if(strpos($m, '___') === 0) $upstreamMethods[] = substr($m, 3);
 $upstreamConstants = array_map('strtolower', array_keys($parentClass->getConstants()));
 
-$known = array('name', 'contract', 'module', 'slots', 'hooks', 'reads', 'settings', 'permission', 'priority');
+$known = array('name', 'contract', 'module', 'styles', 'tokens', 'slots', 'hooks', 'reads', 'settings', 'permission', 'priority');
 $declaredUses = array();
 foreach($checked as $name => $manifest) {
 	note("\n== $name");
@@ -230,8 +256,8 @@ foreach($checked as $name => $manifest) {
 	if(!is_string($contract) || !AdminThemeBridge::contractRangeValid($contract)) {
 		check("$ext: contract is a range the theme can read (e.g. '^0.1')", false, var_export($contract, true));
 	} else {
-		check("$ext: contract '$contract' takes the theme's extension contract " . AdminThemeBridge::extensionContract,
-			AdminThemeBridge::contractSatisfies($contract, AdminThemeBridge::extensionContract));
+		check("$ext: contract '$contract' takes one of the theme's extension contracts " . implode(', ', AdminThemeBridge::extensionContracts),
+			AdminThemeBridge::contractCompatible($contract));
 	}
 	foreach(array('hooks', 'reads', 'settings') as $key) {
 		if(!isset($manifest[$key])) continue;
@@ -271,6 +297,36 @@ foreach($checked as $name => $manifest) {
 			$rootUrl = $config->urls->root;
 			$file = strpos($path, $rootUrl) === 0 ? $config->paths->root . substr($path, strlen($rootUrl)) : '';
 			check("$ext: module $url is a file", $file !== '' && is_file($file), $file !== '' ? $file : 'not under the site root');
+		}
+	}
+
+	// styles: a list of stylesheets; each relative or root-relative one a file that exists
+	if(isset($manifest['styles'])) {
+		$list = $manifest['styles'];
+		$typed = is_array($list) && count(array_filter($list, function($v) { return !is_string($v) || $v === ''; })) === 0;
+		check("$ext: styles is a list of non-empty strings", $typed, json_encode($list));
+		if($typed) {
+			foreach(array_values($list) as $i => $entry) {
+				$url = $info['styles'][$i] ?? '';
+				if(strpos($url, '://') !== false) {
+					note("     $ext: styles $url is an absolute URL, not checked");
+					continue;
+				}
+				$file = extensionStyleFile($url, $config);
+				check("$ext: styles $entry is a file", $file !== '' && is_file($file), $file !== '' ? $file : "$url is not under the site root");
+			}
+		}
+	}
+
+	// tokens: names of custom properties, each on the theme's surface
+	if(isset($manifest['tokens'])) {
+		$list = $manifest['tokens'];
+		$typed = is_array($list) && count(array_filter($list, function($v) { return !is_string($v) || strpos($v, '--') !== 0 || strlen($v) < 3; })) === 0;
+		check("$ext: tokens is a list of names starting with --", $typed, json_encode($list));
+		if($typed) {
+			foreach(array_values(array_unique($list)) as $token) {
+				check("$ext: tokens '$token' is a token of the theme's surface", in_array($token, $surface['tokens'], true), 'not in extensionSurface()[tokens]');
+			}
 		}
 	}
 
@@ -485,6 +541,69 @@ if(count($checked)) {
 	if(!$found) check("surface only: " . count($files) . " PHP file(s), $count theme use(s), all on the surface and declared", true);
 }
 
+// ---------------------------------------------------------------------------------------------
+// styles: the custom properties the stylesheets use
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The custom properties a stylesheet uses: list of ['name', 'line'], from `var(--x` and `--x:`
+ * (comments left out, line numbers kept). A heuristic like the PHP scan: no CSS parser.
+ *
+ * @param string $css
+ * @return array
+ *
+ */
+function extensionCssTokens($css) {
+	$css = preg_replace_callback('~/\*.*?\*/~s', function($m) { return str_repeat("\n", substr_count($m[0], "\n")); }, $css);
+	$uses = array();
+	foreach(array('~var\(\s*(--[\w-]+)~', '~(?<![\w-])(--[\w-]+)\s*:~') as $re) {
+		if(!preg_match_all($re, $css, $m, PREG_OFFSET_CAPTURE)) continue;
+		foreach($m[1] as $hit) $uses[] = array('name' => $hit[0], 'offset' => $hit[1], 'line' => substr_count($css, "\n", 0, $hit[1]) + 1);
+	}
+	usort($uses, function($a, $b) { return $a['offset'] - $b['offset']; });
+	return $uses;
+}
+
+// rule (c) reads the built theme.css only: fields.css maps upstream's AdminThemeUikit names
+// (--pw-inputs-background, ...), which an extension may set without failing
+$themeCssFile = dirname(str_replace('\\', '/', (string) $modules->getModuleFile('AdminThemeBridge', array('fast' => false)))) . '/assets/dist/theme.css';
+$themeDeclared = array();
+if(preg_match_all('~(?<![\w-])(--[\w-]+)\s*:~', (string) @file_get_contents($themeCssFile), $m)) $themeDeclared = array_flip($m[1]);
+foreach($checked as $name => $manifest) {
+	$info = $theme->extensionInfo($name, $manifest);
+	if(!count($info['styles'])) continue;
+	$ext = $info['name'];
+	note("\n== $ext: styles (internal tokens: those " . str_replace($siteModules, '', $themeCssFile) . ' declares off the surface)');
+	$fileCount = 0;
+	$useCount = 0;
+	$found = 0;
+	$k = 0; // index into $info['styles'], which keeps the manifest's non-empty strings in order
+	foreach((array) $manifest['styles'] as $entry) {
+		if(!is_string($entry) || $entry === '') continue;
+		$url = $info['styles'][$k++] ?? '';
+		if(strpos($entry, '://') !== false || strpos($entry, '/') === 0) continue; // relative entries only
+		$file = extensionStyleFile($url, $config);
+		if($file === '' || !is_file($file)) continue; // the manifest check reports it
+		$fileCount++;
+		$rel = str_replace(rtrim($siteModules, '/') . '/', '', str_replace('\\', '/', $file));
+		foreach(extensionCssTokens((string) file_get_contents($file)) as $use) {
+			$useCount++;
+			$token = $use['name'];
+			$problem = '';
+			if(in_array($token, $surface['tokens'], true)) {
+				if(!in_array($token, $info['tokens'], true)) $problem = "uses the theme token $token, which the manifest's tokens do not declare";
+			} else if(isset($themeDeclared[$token])) {
+				$problem = "uses the internal token $token (not on the surface)";
+			}
+			if($problem !== '') {
+				$found++;
+				check("styles $rel:$use[line] $problem", false);
+			}
+		}
+	}
+	if(!$found) check("styles: $fileCount file(s), $useCount token use(s), all on the surface and declared", true);
+}
+
 /**
  * Does one of the manifests declare this hook in `hooks`?
  *
@@ -607,9 +726,46 @@ if($http && count($checked)) {
 					if(!is_string($content) || trim($content) === '') continue; // nothing to print
 					check("$ext: slot $slot has its part on the page tree", strpos($r['body'], "data-bridge-slot='$slot' data-bridge-extension='$entity'") !== false);
 				}
+				// styles: one link per stylesheet, after fields.css (_head.php prints them so)
+				$fieldsAt = strpos($r['body'], 'data-pw-fields />');
+				foreach($info['styles'] as $url) {
+					$link = extensionStyleLink($wire, $url, $ext);
+					$n = substr_count($r['body'], $link);
+					check("$ext: stylesheet $url is linked after fields.css on the page tree", $n === 1 && $fieldsAt !== false && strpos($r['body'], $link) > $fieldsAt,
+						$n !== 1 ? "$n link(s)" : 'not after data-pw-fields');
+				}
+			}
+		}
+		// styles in a modal window too (same client, same login)
+		$styled = array();
+		foreach($checked as $name => $manifest) {
+			$info = $theme->extensionInfo($name, $manifest);
+			if(count($info['styles'])) $styled[$info['name']] = $info['styles'];
+		}
+		if(count($styled)) {
+			$r = $client->request($adminUrl . 'page/?modal=1');
+			foreach($styled as $ext => $urls) {
+				foreach($urls as $url) {
+					check("$ext: stylesheet $url is linked in a modal window", $r['status'] === 200 && strpos($r['body'], extensionStyleLink($wire, $url, $ext)) !== false,
+						$r['status'] === 200 ? 'no link' : "HTTP $r[status]");
+				}
 			}
 		}
 	}
+}
+
+/**
+ * The part of an extension stylesheet's link that _head.php prints, as it prints it
+ *
+ * @param ProcessWire $wire
+ * @param string $url
+ * @param string $ext Extension name
+ * @return string
+ *
+ */
+function extensionStyleLink(ProcessWire $wire, $url, $ext) {
+	$sanitizer = $wire->sanitizer;
+	return "href='" . $sanitizer->entities($url) . "' rel='stylesheet' data-bridge-styles='" . $sanitizer->entities($ext) . "'";
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -647,7 +803,7 @@ exit($fails ? 1 : 0);
 // ---------------------------------------------------------------------------------------------
 
 /**
- * Write BridgeCheckBad into the sandbox, install it, check it in a child process, expect its four
+ * Write BridgeCheckBad into the sandbox, install it, check it in a child process, expect its six
  * failures, uninstall and remove it
  *
  * @param string $root
@@ -672,14 +828,16 @@ if(!interface_exists("ProcessWire\\BridgeExtension", false)) {
 	unset($file);
 }
 
-// written by tools/extension-check.php --self-test, removed after it: an extension with four faults
+// written by tools/extension-check.php --self-test, removed after it: an extension with six faults
 class BridgeCheckBad extends WireData implements Module, BridgeExtension {
 	public static function getModuleInfo() {
 		return array('title' => 'BridgeCheckBad', 'version' => '0.0.1', 'summary' => 'Self-test of tools/extension-check.php', 'requires' => 'AdminThemeBridge');
 	}
 	public function getBridgeExtension() {
-		// faults 1 and 2: a key the contract does not know, a hook the theme does not have
-		return array('contract' => '^0.1', 'hooks' => array('noSuchHook'), 'colour' => 'red');
+		// faults 1 and 2: a key the contract does not know, a hook the theme does not have;
+		// faults 5 and 6: a token the surface does not have, a stylesheet that does not exist
+		return array('contract' => '^0.1', 'hooks' => array('noSuchHook'), 'colour' => 'red',
+			'tokens' => array('--no-such-token'), 'styles' => array('missing.css'));
 	}
 	public function never() {
 		// fault 3: a theme method that is not on the surface
@@ -695,6 +853,8 @@ PHP;
 		"hooks 'noSuchHook' is a hookable of the theme's surface",
 		"the theme's slotParts() is not on the surface",
 		"references the theme's file AdminThemeBridge/lib/AdminThemeBridgeCsp.php",
+		"tokens '--no-such-token' is a token of the theme's surface",
+		"styles missing.css is a file",
 	);
 	$out = '';
 	$exit = -1;
@@ -726,7 +886,7 @@ PHP;
 		$hit = count(array_filter($failLines, function($l) use($text) { return strpos($l, $text) !== false; }));
 		check("self-test: one FAIL line: $text", $hit === 1, "$hit lines");
 	}
-	check('self-test: exactly four FAIL lines', count($failLines) === 4, count($failLines) . ' lines');
+	check('self-test: exactly six FAIL lines', count($failLines) === 6, count($failLines) . ' lines');
 	check('self-test: BridgeCheckBad removed and uninstalled', !is_dir($dir) && !$modules->isInstalled($name));
 	global $fails;
 	echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

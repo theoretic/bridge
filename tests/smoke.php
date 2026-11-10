@@ -2206,6 +2206,18 @@ $knownKeys = function($src) {
 };
 check('extension-check.php knows the manifest keys extensionInfo() knows', count($knownKeys($extCheckSrc)) > 5 && $knownKeys($extCheckSrc) === $knownKeys($extTraitSrc),
 	implode(',', $knownKeys($extCheckSrc)) . ' vs ' . implode(',', $knownKeys($extTraitSrc)));
+// 0.29.0: styles and tokens (sprint extension-styles-bridge-custom, step 3)
+check('extension-check.php checks styles and tokens, takes the contract through contractCompatible()',
+	strpos($extCheckSrc, '"$ext: styles $entry is a file"') !== false
+	&& strpos($extCheckSrc, '"$ext: tokens \'$token\' is a token of the theme\'s surface"') !== false
+	&& strpos($extCheckSrc, 'AdminThemeBridge::contractCompatible($contract)') !== false
+	&& strpos($extCheckSrc, "which the manifest's tokens do not declare") !== false
+	&& strpos($extCheckSrc, 'uses the internal token $token (not on the surface)') !== false
+	&& strpos($extCheckSrc, 'is linked in a modal window') !== false && strpos($extCheckSrc, "'page/?modal=1'") !== false);
+check('extension-check.php --self-test expects six faults, the two of 0.2 among them',
+	strpos($extCheckSrc, "'tokens' => array('--no-such-token'), 'styles' => array('missing.css')") !== false
+	&& strpos($extCheckSrc, "\"styles missing.css is a file\",") !== false
+	&& strpos($extCheckSrc, "count(\$failLines) === 6") !== false);
 check('extension-check.php looks for slot parts as renderSlot() and renderDrawers() print them',
 	strpos($extCheckSrc, "\"data-bridge-slot='\$slot' data-bridge-extension='\$entity'\"") !== false
 	&& strpos($extTraitSrc, "data-bridge-slot='\" . \$sanitizer->entities(\$name) . \"' data-bridge-extension='") !== false
