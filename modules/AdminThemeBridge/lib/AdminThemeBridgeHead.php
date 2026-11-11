@@ -117,8 +117,11 @@ trait AdminThemeBridgeHead {
 	 *
 	 * An entry is kept when its name is on the surface's tokens and its value is a string of at most
 	 * 300 safe characters (none that ends a declaration, a rule or the style element). The `all`
-	 * group goes on `:root:root`, `light` on `:root:not([data-pw-scheme=dark])`, `dark` on
-	 * `:root[data-pw-scheme=dark]`: (0,2,0) beats the theme's own declarations in any order, and a
+	 * group goes on `:root:root`, `light` on `:root:not([data-pw-scheme=dark]),body.light-theme`,
+	 * `dark` on `:root[data-pw-scheme=dark],body.dark-theme`: (0,2,0) beats the theme's own
+	 * declarations in any order, and (0,1,1) beats uikit.css's scheme-class aliases, which
+	 * scripts/uikit-layer.js puts on <body> with the scheme of <html> (they would otherwise declare
+	 * the theme's colours again below the root on a page with the UIkit layer); a
 	 * subtree with its own data-pw-scheme keeps the theme's values.
 	 *
 	 * @return string
@@ -130,8 +133,8 @@ trait AdminThemeBridgeHead {
 		$tokens = $this->extensionSurface()['tokens'];
 		$selectors = array(
 			'all' => ':root:root',
-			'light' => ':root:not([data-pw-scheme=dark])',
-			'dark' => ':root[data-pw-scheme=dark]',
+			'light' => ':root:not([data-pw-scheme=dark]),body.light-theme',
+			'dark' => ':root[data-pw-scheme=dark],body.dark-theme',
 		);
 		$css = '';
 		foreach($selectors as $group => $selector) {

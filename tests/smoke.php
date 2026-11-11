@@ -1970,7 +1970,14 @@ if(isset($bridge)) {
 	});
 	$tokOut = $bridge->tokenCss();
 	$bridge->removeHook($tokHook);
-	check('tokenCss() prints all, light, dark in order and drops an unknown name and an unsafe value', $tokOut === ':root:root{--radius:4px}:root:not([data-pw-scheme=dark]){--background:#fefefe}:root[data-pw-scheme=dark]{--background:#101010}', $tokOut);
+	check('tokenCss() prints all, light, dark in order and drops an unknown name and an unsafe value', $tokOut === ':root:root{--radius:4px}:root:not([data-pw-scheme=dark]),body.light-theme{--background:#fefefe}:root[data-pw-scheme=dark],body.dark-theme{--background:#101010}', $tokOut);
+	// uikit.css declares the scheme colours again on .light-theme/.dark-theme, which uikit-layer.js puts on
+	// <body> with <html>'s scheme: the light and dark rules name body.light-theme/body.dark-theme too (0,1,1)
+	$tokUikitJs = (string) @file_get_contents($themeDir . 'scripts/uikit-layer.js');
+	check('tokenCss(): light rule on body.light-theme, dark rule on body.dark-theme (uikit.css scheme aliases), paired as uikit-layer.js sets them', strpos($tokOut, ':root:not([data-pw-scheme=dark]),body.light-theme{') !== false
+		&& strpos($tokOut, ':root[data-pw-scheme=dark],body.dark-theme{') !== false
+		&& strpos($tokUikitJs, 'getAttribute("data-pw-scheme")==="dark";c.body.classList.toggle("dark-theme",t),c.body.classList.toggle("light-theme",!t)') !== false
+		&& strpos((string) @file_get_contents($themeDir . 'assets/dist/uikit.css'), '.light-theme') !== false);
 	$tokValues = array(
 		'url(/site/assets/x/login-bg.jpg?v=12) center / cover no-repeat #f5f5f5' => true,
 		'#f5f5f5<' => false, '#f5f5f5;' => false, 'red}' => false, 'a\\b' => false, '"x"' => false, "'x'" => false,
@@ -1985,7 +1992,7 @@ if(isset($bridge)) {
 		});
 		$tokGot = $bridge->tokenCss();
 		$bridge->removeHook($tokHook);
-		$tokWant = $tokKept ? ':root:not([data-pw-scheme=dark]){--pw-login-bg:' . $tokValue . '}' : '';
+		$tokWant = $tokKept ? ':root:not([data-pw-scheme=dark]),body.light-theme{--pw-login-bg:' . $tokValue . '}' : '';
 		if($tokGot !== $tokWant) $tokValuesBad[] = json_encode(substr((string) $tokValue, 0, 40)) . " => $tokGot";
 	}
 	check('tokenCss() keeps a login-bg image value and drops <, ;, }, backslash, quotes, a newline, empty and over 300 characters', !count($tokValuesBad), implode(' | ', $tokValuesBad));
