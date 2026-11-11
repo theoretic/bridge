@@ -61,6 +61,14 @@ class AdminThemeBridgeAssetPlan {
 	public $maxWidth = 0;
 
 	/**
+	 * The site-wide token values of tokenOverrides(), as checked CSS rules (tokenCss()); '' when none
+	 *
+	 * @var string
+	 *
+	 */
+	public $tokenCss = '';
+
+	/**
 	 * The stylesheets of this request's extensions (manifest key `styles`), after the theme's,
 	 * each `array('extension' => name, 'url' => url)`
 	 *

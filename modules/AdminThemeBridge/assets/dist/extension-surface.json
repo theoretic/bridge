@@ -21,7 +21,8 @@
 		"uikitReasons",
 		"extensionSurface",
 		"drawerNames",
-		"navCacheKey"
+		"navCacheKey",
+		"tokenOverrides"
 	],
 	"reads": [
 		"useLegacyStack",
@@ -37,7 +38,8 @@
 		"getVariant",
 		"getColorScheme",
 		"shellLabel",
-		"getHistorySteps"
+		"getHistorySteps",
+		"tokenCss"
 	],
 	"settings": [
 		"legacyStack",

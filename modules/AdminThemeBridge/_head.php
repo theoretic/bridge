@@ -32,11 +32,12 @@ $attr = function($url) use($sanitizer) { return $sanitizer->entities((string) $u
 	<meta name="color-scheme" content="light dark">
 	<?php
 	// the canvas colour before the stylesheets arrive: no white flash in the dark scheme, and
-	// "auto" without JavaScript follows the system (audit C36; same values as 00-tokens.css)
+	// "auto" without JavaScript follows the system (audit C36; same values as 00-tokens.css); a
+	// site-wide --background (tokenOverrides(), printed below) applies once it has been parsed
 	?>
 	<style data-pw-keep<?php echo $nonce; ?>>
-		html[data-pw-scheme=dark] { background: #0a0a0a; }
-		@media (prefers-color-scheme: dark) { html:not([data-pw-scheme=light]) { background: #0a0a0a; } }
+		html[data-pw-scheme=dark] { background: var(--background, #0a0a0a); }
+		@media (prefers-color-scheme: dark) { html:not([data-pw-scheme=light]) { background: var(--background, #0a0a0a); } }
 	</style>
 
 	<title><?php echo $adminTheme->getBrowserTitle(); ?></title>
@@ -68,6 +69,8 @@ if($plan->uikitCss) echo "\n\t<link type='text/css' href='" . $attr($plan->uikit
 echo "\n\t<link type='text/css' href='" . $attr($plan->themeCss) . "' rel='stylesheet' data-pw-theme />";
 echo "\n\t<link type='text/css' href='" . $attr($plan->fieldsCss) . "' rel='stylesheet' data-pw-fields />";
 if($plan->maxWidth) echo "\n\t<style data-pw-keep$nonce>.pw-container, #notices { max-width:" . (int) $plan->maxWidth . "px; }</style>";
+// the site-wide token values (tokenOverrides(), checked by tokenCss()): every layout, the login screen too
+if($plan->tokenCss !== '') echo "\n\t<style data-pw-keep data-pw-tokens$nonce>" . $plan->tokenCss . "</style>";
 foreach($plan->extensionStyles as $style) echo "\n\t<link type='text/css' href='" . $attr($style['url']) . "' rel='stylesheet' data-bridge-styles='" . $attr($style['extension']) . "'$nonce />";
 foreach($plan->modulePreloads as $url) echo "\n\t<link rel='modulepreload' href='" . $attr($url) . "'$nonce />";
 foreach($plan->scripts as $script) {

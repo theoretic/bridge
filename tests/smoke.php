@@ -1945,6 +1945,59 @@ if(isset($bridge)) {
 	$themeCss030 = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
 	check('theme.css uses the three tokens: control min-height, label font-size, login background', strpos($themeCss030, 'min-height:var(--pw-control-height)') !== false
 		&& strpos($themeCss030, 'font-size:var(--pw-label-size)') !== false && strpos($themeCss030, 'background:var(--pw-login-bg)') !== false);
+	// 0.30.0: tokenOverrides() and the printed token style (sprint bridge-customizer, step 2)
+	check('tokenOverrides is a hook and tokenCss a read on the surface', in_array('tokenOverrides', $surface['hooks'], true) && in_array('tokenCss', $surface['reads'], true));
+	check('tokenCss() is empty with no hook and default settings', $bridge->tokenCss() === '', $bridge->tokenCss());
+	$tokHook = $bridge->addHookAfter('tokenOverrides', function(HookEvent $e) {
+		$r = $e->return;
+		$r['all']['--radius'] = '4px';
+		$r['light']['--background'] = '#fefefe';
+		$r['light']['--not-a-token'] = 'red';
+		$r['light']['--foreground'] = 'red;}x';
+		$r['dark']['--background'] = '#101010';
+		$e->return = $r;
+	});
+	$tokOut = $bridge->tokenCss();
+	$bridge->removeHook($tokHook);
+	check('tokenCss() prints all, light, dark in order and drops an unknown name and an unsafe value', $tokOut === ':root:root{--radius:4px}:root:not([data-pw-scheme=dark]){--background:#fefefe}:root[data-pw-scheme=dark]{--background:#101010}', $tokOut);
+	$tokValues = array(
+		'url(/site/assets/x/login-bg.jpg?v=12) center / cover no-repeat #f5f5f5' => true,
+		'#f5f5f5<' => false, '#f5f5f5;' => false, 'red}' => false, 'a\\b' => false, '"x"' => false, "'x'" => false,
+		str_repeat('a', 300) => true, str_repeat('a', 301) => false, "red\n" => false, '' => false,
+	);
+	$tokValuesBad = array();
+	foreach($tokValues as $tokValue => $tokKept) {
+		$tokHook = $bridge->addHookAfter('tokenOverrides', function(HookEvent $e) use($tokValue) {
+			$r = $e->return;
+			$r['light']['--pw-login-bg'] = (string) $tokValue;
+			$e->return = $r;
+		});
+		$tokGot = $bridge->tokenCss();
+		$bridge->removeHook($tokHook);
+		$tokWant = $tokKept ? ':root:not([data-pw-scheme=dark]){--pw-login-bg:' . $tokValue . '}' : '';
+		if($tokGot !== $tokWant) $tokValuesBad[] = json_encode(substr((string) $tokValue, 0, 40)) . " => $tokGot";
+	}
+	check('tokenCss() keeps a login-bg image value and drops <, ;, }, backslash, quotes, a newline, empty and over 300 characters', !count($tokValuesBad), implode(' | ', $tokValuesBad));
+	$tokWarnings = array();
+	set_error_handler(function($no, $str) use(&$tokWarnings) { $tokWarnings[] = $str; return true; });
+	$tokHook = $bridge->addHookAfter('tokenOverrides', function(HookEvent $e) { $e->return = 'nonsense'; });
+	$tokOutString = $bridge->tokenCss();
+	$bridge->removeHook($tokHook);
+	$tokHook = $bridge->addHookAfter('tokenOverrides', function(HookEvent $e) { $e->return = array('all' => 'x', 'dark' => array('--radius' => 4, 5 => 'x')); });
+	$tokOutGroups = $bridge->tokenCss();
+	$bridge->removeHook($tokHook);
+	restore_error_handler();
+	check('tokenCss() is empty for a string return, a non-array group, a missing group, a non-string value or name, without a PHP warning', $tokOutString === '' && $tokOutGroups === '' && !count($tokWarnings), $tokOutString . $tokOutGroups . implode(' | ', $tokWarnings));
+	$tokHeadSrc = (string) file_get_contents($themeDir . '_head.php');
+	$tokPos = strpos($tokHeadSrc, 'data-pw-tokens');
+	$tokLine = '';
+	foreach(explode("\n", $tokHeadSrc) as $tokHeadLine) {
+		if(strpos($tokHeadLine, '<style data-pw-keep data-pw-tokens') !== false) $tokLine = $tokHeadLine;
+	}
+	check('_head.php prints style[data-pw-tokens] after fields.css and before the extension stylesheets, with the nonce, only when not empty', $tokPos !== false && $tokPos > (int) strpos($tokHeadSrc, 'data-pw-fields />')
+		&& $tokPos < (int) strpos($tokHeadSrc, "data-bridge-styles='") && strpos($tokLine, '$nonce') !== false && strpos($tokLine, "if(\$plan->tokenCss !== '')") === 0, $tokLine);
+	check('assetPlan() fills tokenCss for every layout', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), "\t\t\$plan->tokenCss = \$this->tokenCss();\n") !== false);
+	check('_head.php paints the canvas with var(--background, #0a0a0a) before the stylesheets', substr_count($tokHeadSrc, 'background: var(--background, #0a0a0a);') === 2 && strpos($tokHeadSrc, 'background: #0a0a0a;') === false);
 	$readsBad = array();
 	foreach($surface['reads'] as $name) {
 		if(!method_exists($bridge, $name) || !(new \ReflectionMethod($bridge, $name))->isPublic() || method_exists($bridge, "___$name")) $readsBad[] = $name;

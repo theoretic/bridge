@@ -403,11 +403,12 @@ trait AdminThemeBridgeExtensions {
 			'hooks' => array(
 				'install', 'uninstall', 'nonce', 'moveFiles', 'moveFileAllowed', 'filesMoved', 'historyEntry',
 				'nativeMap', 'isNativeProcess', 'isNativeInputfield', 'scriptNeeds', 'renderBreadcrumbs',
-				'sortableDataTable', 'uikitReasons', 'extensionSurface', 'drawerNames', 'navCacheKey',
+				'sortableDataTable', 'uikitReasons', 'extensionSurface', 'drawerNames', 'navCacheKey', 'tokenOverrides',
 			),
 			'reads' => array(
 				'useLegacyStack', 'componentInfo', 'extensions', 'extensionInfo', 'extensionAllowed', 'extensionStyles', 'cspNonce',
 				'nonceAttr', 'nonceScriptTag', 'themeAssetUrl', 'getVariant', 'getColorScheme', 'shellLabel', 'getHistorySteps',
+				'tokenCss',
 			),
 			// the keys __construct() sets (smoke compares with the source)
 			'settings' => array(

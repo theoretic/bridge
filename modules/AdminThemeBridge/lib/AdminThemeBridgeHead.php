@@ -53,6 +53,8 @@ trait AdminThemeBridgeHead {
 		$plan->themeCss = $head['themeCss'];
 		$plan->fieldsCss = $head['fieldsCss'];
 		$plan->maxWidth = (int) $this->getMaxWidth();
+		// the site-wide token values, in every layout (modal windows and the login screen too)
+		$plan->tokenCss = $this->tokenCss();
 		// after the theme sheets, in every layout (modal windows too)
 		$plan->extensionStyles = $this->extensionStyles();
 
@@ -78,6 +80,56 @@ trait AdminThemeBridgeHead {
 		}
 		$plan->client = $head['bridgeJs'];
 		return $plan;
+	}
+
+	/**
+	 * Site-wide values for the published tokens (0.30.0)
+	 *
+	 * Three groups of name => value: `all` for both colour schemes, `light` and `dark` for one. Names
+	 * are tokens of extensionSurface()['tokens'] (e.g. `'--background' => '#fefefe'`). A hook adds
+	 * to `$event->return` rather than replacing it. tokenCss() checks every entry and prints what
+	 * is left in `<style data-pw-tokens>` on every page, the login screen included.
+	 *
+	 * @return array Keys: all, light, dark; each an array of token name => CSS value
+	 *
+	 */
+	public function ___tokenOverrides() {
+		return array('all' => array(), 'light' => array(), 'dark' => array());
+	}
+
+	/**
+	 * The rules of tokenOverrides(), checked: '' when nothing is left (0.30.0)
+	 *
+	 * An entry is kept when its name is on the surface's tokens and its value is a string of at most
+	 * 300 safe characters (none that ends a declaration, a rule or the style element). The `all`
+	 * group goes on `:root:root`, `light` on `:root:not([data-pw-scheme=dark])`, `dark` on
+	 * `:root[data-pw-scheme=dark]`: (0,2,0) beats the theme's own declarations in any order, and a
+	 * subtree with its own data-pw-scheme keeps the theme's values.
+	 *
+	 * @return string
+	 *
+	 */
+	public function tokenCss() {
+		$groups = $this->tokenOverrides();
+		if(!is_array($groups)) return '';
+		$tokens = $this->extensionSurface()['tokens'];
+		$selectors = array(
+			'all' => ':root:root',
+			'light' => ':root:not([data-pw-scheme=dark])',
+			'dark' => ':root[data-pw-scheme=dark]',
+		);
+		$css = '';
+		foreach($selectors as $group => $selector) {
+			if(!isset($groups[$group]) || !is_array($groups[$group])) continue;
+			$decls = array();
+			foreach($groups[$group] as $name => $value) {
+				if(!is_string($name) || !in_array($name, $tokens, true)) continue;
+				if(!is_string($value) || !preg_match('/^[A-Za-z0-9#%(),.\/ _?=+-]{1,300}$/D', $value)) continue;
+				$decls[] = "$name:$value";
+			}
+			if(count($decls)) $css .= $selector . '{' . implode(';', $decls) . '}';
+		}
+		return $css;
 	}
 
 	/**
