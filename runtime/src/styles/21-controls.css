@@ -9,7 +9,7 @@
 .pw-input, .pw-select, .pw-textarea {
 	box-sizing: border-box;
 	max-width: 100%;
-	min-height: 36px;
+	min-height: var(--pw-control-height);
 	padding: 6px 12px;
 	font: inherit;
 	font-size: .875rem;
@@ -125,7 +125,7 @@ ul.InputfieldFileList > li { list-style: none; }
 /* "Choose file": a neutral button over the file input (div.InputMask.ui-button) */
 .Inputfield .InputfieldContent .InputMask.ui-button, .Inputfield .InputfieldContent .InputMask.ui-button.ui-state-default {
 	height: auto;
-	min-height: 36px;
+	min-height: var(--pw-control-height);
 	position: relative;
 	display: inline-flex;
 	align-items: center;
@@ -137,12 +137,12 @@ ul.InputfieldFileList > li { list-style: none; }
 	color: var(--foreground);
 	font-size: .875rem;
 	font-weight: 500;
-	line-height: 2.125rem;
+	line-height: calc(var(--pw-control-height) - 2px);
 	box-shadow: var(--shadow-xs);
 	overflow: hidden;
 }
 .InputfieldContent .InputMask.ui-button:hover { border-color: var(--input); color: var(--accent-foreground); background: var(--accent); box-shadow: var(--shadow-xs); }
-.Inputfield .InputfieldContent .InputMask .ui-button-text { display: inline-flex; align-items: center; gap: 6px; padding: 0; line-height: 2.125rem; }
+.Inputfield .InputfieldContent .InputMask .ui-button-text { display: inline-flex; align-items: center; gap: 6px; padding: 0; line-height: calc(var(--pw-control-height) - 2px); }
 .InputfieldContent .InputMask input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 100px; }
 /* the file input is transparent: its focus shows on the mask (audit C23) */
 .InputfieldContent .InputMask.ui-button:focus-within { box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }

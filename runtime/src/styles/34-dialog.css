@@ -57,7 +57,7 @@ dialog.pw-dialog-busy .pw-dialog-frame { opacity: .5; }
 .ui-dialog .ui-dialog-titlebar-close .ui-button-text { display: none; }
 .ui-dialog .ui-dialog-content { padding: 0; background: var(--pw-bg); }
 .ui-dialog .ui-dialog-buttonpane { margin: 0; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--background); }
-.ui-dialog .ui-dialog-buttonpane .ui-button { font-size: .875rem; line-height: 2.125rem; padding: 0 16px; }
+.ui-dialog .ui-dialog-buttonpane .ui-button { font-size: .875rem; line-height: calc(var(--pw-control-height) - 2px); padding: 0 16px; }
 
 /* panels (JqueryUI/panel.css, pw-panel links) */
 .pw-panel-container { box-shadow: var(--shadow-lg); border-left: 1px solid var(--border); }

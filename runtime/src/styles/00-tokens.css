@@ -57,6 +57,9 @@
 	--pw-tiny: .75rem;
 	--pw-icon: .875rem;
 	--radius: .625rem;
+	/* a field label's size and the height of an input or a button (0.30.0): rem, so the scale applies */
+	--pw-label-size: .875rem;
+	--pw-control-height: 2.25rem;
 	--pw-masthead-h: 56px;
 	--pw-field-pad: 20px;
 	--pw-field-pad-bottom: 23px;
@@ -168,6 +171,8 @@
 	--pw-success-bg: var(--pw-status-success-bg);
 	--pw-warning-bg: var(--pw-status-warning-bg);
 	--pw-danger-bg: var(--pw-status-error-bg);
+	/* the login page (40-login.css, 0.30.0) */
+	--pw-login-bg: var(--muted);
 	--pw-shadow-card: var(--shadow-sm);
 	--pw-shadow-dropdown: var(--shadow-md);
 }

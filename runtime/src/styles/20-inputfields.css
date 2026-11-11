@@ -34,8 +34,8 @@
 	margin: 0;
 	padding: var(--pw-field-pad) 12px 8px var(--pw-field-pad);
 	font-weight: 500;
-	font-size: .875rem;
-	line-height: 1.25rem;
+	font-size: var(--pw-label-size);
+	line-height: calc(var(--pw-label-size) + .375rem);
 	color: var(--foreground);
 	transition: color var(--pw-transition), background var(--pw-transition);
 }

@@ -1,7 +1,7 @@
 /* Login (body.ProcessLogin): centred card, labels hidden by the core (skipLabel, set by the theme's
  * ProcessLogin::buildLoginForm hook), placeholders instead, as Boss */
 
-body.ProcessLogin { display: flex; flex-direction: column; min-height: 100vh; background: var(--muted); }
+body.ProcessLogin { display: flex; flex-direction: column; min-height: 100vh; background: var(--pw-login-bg); }
 body.ProcessLogin #main { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 0; }
 body.ProcessLogin #content {
 	box-sizing: border-box;

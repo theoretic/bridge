@@ -126,9 +126,10 @@ $themeCss = $themeDir . 'assets/dist/theme.css';
 check('theme.css built', is_file($themeCss));
 if(is_file($themeCss)) {
 	$css = file_get_contents($themeCss);
-	// 90 kB raw and 16.75 kB gzip since the page tree and history drawers (0.25.0)
+	// 90 kB raw since the page tree and history drawers (0.25.0); 18 kB gzip, the budget in check-css.mjs,
+	// raised by the owner for the appearance seams (0.30.0)
 	check('theme.css under 90 kB raw (the gzip budget in check-css.mjs is the binding one)', strlen($css) < 90 * 1024, (string) strlen($css));
-	check('theme.css under 17 kB gzip', strlen(gzencode($css, 9)) <= 17 * 1024, (string) strlen(gzencode($css, 9)));
+	check('theme.css under 18 kB gzip', strlen(gzencode($css, 9)) <= 18 * 1024, (string) strlen(gzencode($css, 9)));
 	check('theme.css is flat (no nesting left)', !preg_match('/[{;]\s*&/', $css));
 	// every font the stylesheet references ships next to it (none until Geist is self-hosted)
 	preg_match_all('~url\(\.\./fonts/([^)]+)\)~', $css, $m);
@@ -1933,6 +1934,17 @@ if(isset($bridge)) {
 	check('extensionSurface() tokens has no duplicates', count($surface['tokens']) === count(array_unique($surface['tokens'])));
 	check('the four metric tokens are published', !count(array_diff(array('--pw-font-size', '--pw-line-height', '--pw-field-pad', '--pw-field-pad-bottom'), $surface['tokens'])));
 	check('internal tokens are not on the surface', !count(array_intersect(array('--pw-input-radius', '--pw-tiny', '--pw-masthead-h', '--ring-50'), $surface['tokens'])));
+	// 0.30.0: label size, control height and the login background are tokens
+	$newTokens030 = array('--pw-label-size', '--pw-control-height', '--pw-login-bg');
+	$newTokensBad030 = array();
+	foreach($newTokens030 as $token) {
+		if(!in_array($token, $surface['tokens'], true) || !preg_match('/(?<![\w-])' . preg_quote($token, '/') . '\s*:/', $tokenCss)) $newTokensBad030[] = $token;
+	}
+	check('--pw-label-size, --pw-control-height and --pw-login-bg are on the surface and declared in 00-tokens.css', !count($newTokensBad030), implode(', ', $newTokensBad030));
+	check('00-tokens.css declares --pw-control-height in rem (2.25rem) and --pw-label-size .875rem', preg_match('/--pw-control-height:\s*2\.25rem/', $tokenCss) && preg_match('/--pw-label-size:\s*\.875rem/', $tokenCss));
+	$themeCss030 = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
+	check('theme.css uses the three tokens: control min-height, label font-size, login background', strpos($themeCss030, 'min-height:var(--pw-control-height)') !== false
+		&& strpos($themeCss030, 'font-size:var(--pw-label-size)') !== false && strpos($themeCss030, 'background:var(--pw-login-bg)') !== false);
 	$readsBad = array();
 	foreach($surface['reads'] as $name) {
 		if(!method_exists($bridge, $name) || !(new \ReflectionMethod($bridge, $name))->isPublic() || method_exists($bridge, "___$name")) $readsBad[] = $name;
@@ -2483,7 +2495,7 @@ if(preg_match('/\n(Components may use the tokens [^\n]*)\n/', $contractDoc, $tok
 	$docTokens = array_values(array_unique($tokMatch[1]));
 }
 $surfaceTokens = isset($bridge) && $bridge ? $bridge->extensionSurface()['tokens'] : array();
-check('docs/contract.md 4.0: every token its paragraph names is on the surface, --secondary-foreground and the four metric tokens among them', count($docTokens) > 40 && count($surfaceTokens) === 73
+check('docs/contract.md 4.0: every token its paragraph names is on the surface, --secondary-foreground and the four metric tokens among them', count($docTokens) > 40 && count($surfaceTokens) === 76
 	&& !array_diff($docTokens, $surfaceTokens) && !array_diff(array('--secondary-foreground', '--pw-font-size', '--pw-line-height', '--pw-field-pad', '--pw-field-pad-bottom'), $docTokens),
 	'off the surface: ' . implode(',', array_diff($docTokens, $surfaceTokens)));
 check('ADR 0022 exists and the README says extension contract 0.2', is_file(dirname(__DIR__) . '/docs/decisions/0022-styling-extensions-styles-and-tokens.md')
@@ -2675,7 +2687,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 0.29.1', $themeVersion === '0.29.1', $themeVersion);
+	check('the theme version is 0.30.0', $themeVersion === '0.30.0', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;

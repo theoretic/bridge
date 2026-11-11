@@ -144,7 +144,10 @@
 		"--pw-status-error-icon",
 		"--pw-success-bg",
 		"--pw-warning-bg",
-		"--pw-danger-bg"
+		"--pw-danger-bg",
+		"--pw-label-size",
+		"--pw-control-height",
+		"--pw-login-bg"
 	],
 	"events": [
 		"pw-runtime-ready",
