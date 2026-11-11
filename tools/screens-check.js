@@ -9,13 +9,21 @@
 //     <playwright-core dir> <firefox|chromium|webkit>
 // Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url>.
 // Uses tools/sandbox-fixture.php's pages: NATIVE_ID (/bridge-native/, default 1517) and
-// PARENT_ID (/bridge-native-parent/, default 1518, which has children).
+// PARENT_ID (/bridge-native-parent/, default 1518, which has children), and ADD_TEMPLATE_ID (the
+// template of PARENT_ID's children, bridge_native; no default). tools/lib/sandbox-ids.php prints
+// all three, tools/ci.sh exports them. Add Page is always opened with that template_id: without
+// it, the theme's pageAddSkipTemplate (on in a sandbox built from a site that has it on) quick-adds
+// an untitled page under a parent with one allowed template at the GET itself. Without
+// ADD_TEMPLATE_ID section A is not opened and fails by name.
+//   Git Bash:   eval "$(php tools/lib/sandbox-ids.php <sandbox>)"; export PARENT_ID ADD_TEMPLATE_ID ...
+//   PowerShell: $env:ADD_TEMPLATE_ID = '<id>'; $env:PARENT_ID = '<id>'; node tools/screens-check.js ...
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
 const sandbox = require('./lib/sandbox.cjs');
 const ADMIN = sandbox.adminUrl();
 const NATIVE = process.env.NATIVE_ID || '1517';
 const PARENT = process.env.PARENT_ID || '1518';
+const ADD_TEMPLATE = process.env.ADD_TEMPLATE_ID || '';
 const results = [];
 const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info === undefined ? '' : String(info).slice(0, 400) }); };
 
@@ -54,42 +62,51 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const noJquery = async (label) => check(label + ': no jQuery', !(await page.evaluate(() => !!window.jQuery)),
 		JSON.stringify(await page.evaluate(() => (ProcessWire.config.AdminThemeBridge || {}).legacyReasons)));
 
-	// A: Add Page under the fixture parent
-	await open('page/add/?parent_id=' + PARENT);
-	await noJquery('A Add Page');
-	const sibling = await page.evaluate(async (parent) => {
-		const r = await fetch(ProcessWire.config.urls.admin + 'page/list/?id=' + parent + '&render=JSON', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(x => x.json());
-		const c = (r.children || [])[0];
-		return c ? c.path.replace(/\/$/, '').split('/').pop() : '';
-	}, PARENT);
-	const name = page.locator('#Inputfield__pw_page_name');
-	if(sibling && await name.count()) {
-		await name.fill('');
-		await name.pressSequentially(sibling);
-		check('A a name taken by a sibling is flagged', await waitFor(() => {
-			const s = document.getElementById('ProcessPageAddStatus');
-			return !!s && !!s.querySelector('.taken') && document.getElementById('Inputfield__pw_page_name').classList.contains('ui-state-error-text');
-		}, null, 8000), sibling);
-		await name.fill('');
-		await name.pressSequentially(sibling + '-free-xyz');
-		check('A a free name is not', await waitFor(() => !document.getElementById('Inputfield__pw_page_name').classList.contains('ui-state-error-text'), null, 8000));
-		// without X-Requested-With the core renders ./exists as a whole admin page, .taken included
-		check('A the status is the AJAX fragment, not an admin page', await page.evaluate(() => {
-			const s = document.getElementById('ProcessPageAddStatus');
-			return !!s && !s.querySelector('h1, header, nav, form, script');
-		}));
+	// A: Add Page under the fixture parent, its template given: a GET of Add Page with a parent and
+	// no template_id can create the page (pageAddSkipTemplate, or the core's own quick add)
+	if(!/^\d+$/.test(ADD_TEMPLATE)) {
+		check('A Add Page needs ADD_TEMPLATE_ID (tools/lib/sandbox-ids.php prints it)', false, 'ADD_TEMPLATE_ID is not set; section A not opened');
 	} else {
-		check('A the fixture parent has a child to collide with', false, `sibling ${sibling}, name input ${await name.count()}`);
+		await open('page/add/?parent_id=' + PARENT + '&template_id=' + ADD_TEMPLATE);
+		await noJquery('A Add Page');
+		const formOpened = /\/page\/add\//.test(page.url()) && await page.locator('#Inputfield__pw_page_name').isVisible();
+		check('A the add form opened (no page was created)', formOpened, page.url().replace(ADMIN, ''));
+		if(formOpened) {
+			const sibling = await page.evaluate(async (parent) => {
+				const r = await fetch(ProcessWire.config.urls.admin + 'page/list/?id=' + parent + '&render=JSON', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(x => x.json());
+				const c = (r.children || [])[0];
+				return c ? c.path.replace(/\/$/, '').split('/').pop() : '';
+			}, PARENT);
+			const name = page.locator('#Inputfield__pw_page_name');
+			if(sibling && await name.count()) {
+				await name.fill('');
+				await name.pressSequentially(sibling);
+				check('A a name taken by a sibling is flagged', await waitFor(() => {
+					const s = document.getElementById('ProcessPageAddStatus');
+					return !!s && !!s.querySelector('.taken') && document.getElementById('Inputfield__pw_page_name').classList.contains('ui-state-error-text');
+				}, null, 8000), sibling);
+				await name.fill('');
+				await name.pressSequentially(sibling + '-free-xyz');
+				check('A a free name is not', await waitFor(() => !document.getElementById('Inputfield__pw_page_name').classList.contains('ui-state-error-text'), null, 8000));
+				// without X-Requested-With the core renders ./exists as a whole admin page, .taken included
+				check('A the status is the AJAX fragment, not an admin page', await page.evaluate(() => {
+					const s = document.getElementById('ProcessPageAddStatus');
+					return !!s && !s.querySelector('h1, header, nav, form, script');
+				}));
+			} else {
+				check('A the fixture parent has a child to collide with', false, `sibling ${sibling}, name input ${await name.count()}`);
+			}
+			const publish = await page.evaluate(() => {
+				const t = document.getElementById('template');
+				const b = document.getElementById('submit_publish');
+				if(!t || !b) return { skip: true };
+				const li = b.closest('.Inputfield');
+				const option = t.tagName === 'SELECT' ? t.querySelector('option[value="' + t.value + '"]') : t;
+				return { want: !!option && option.getAttribute('data-publish') === '1', shown: li.style.display !== 'none' };
+			});
+			check('A Publish follows the template', publish.skip || publish.want === publish.shown, JSON.stringify(publish));
+		}
 	}
-	const publish = await page.evaluate(() => {
-		const t = document.getElementById('template');
-		const b = document.getElementById('submit_publish');
-		if(!t || !b) return { skip: true };
-		const li = b.closest('.Inputfield');
-		const option = t.tagName === 'SELECT' ? t.querySelector('option[value="' + t.value + '"]') : t;
-		return { want: !!option && option.getAttribute('data-publish') === '1', shown: li.style.display !== 'none' };
-	});
-	check('A Publish follows the template', publish.skip || publish.want === publish.shown, JSON.stringify(publish));
 
 	// B: Profile
 	await open('profile/');

@@ -2502,6 +2502,19 @@ $aclIdsOut = array();
 exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/tools/lib/sandbox-ids.php') . ' ' . escapeshellarg($root), $aclIdsOut);
 check('ACL fixtures: tools/lib/sandbox-ids.php prints CUSTOM_MENU_ID', $aclCustom->id && in_array("CUSTOM_MENU_ID={$aclCustom->id}", $aclIdsOut, true), implode(' ', $aclIdsOut));
 
+// screens-check opens Add Page with the template given, so no quick add creates a page (sprint fix-leftovers, step 2)
+$addParent = $pages->get('path=/bridge-native-parent/, include=all');
+$addChild = $addParent->id ? $addParent->child('include=all') : null;
+check('tools/lib/sandbox-ids.php prints ADD_TEMPLATE_ID, the template of the first child of /bridge-native-parent/',
+	$addChild && $addChild->id && in_array("ADD_TEMPLATE_ID={$addChild->template->id}", $aclIdsOut, true)
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/tools/lib/sandbox-ids.php'), 'ADD_TEMPLATE_ID') !== false, implode(' ', $aclIdsOut));
+$addScreens = (string) file_get_contents(dirname(__DIR__) . '/tools/screens-check.js');
+check('tools/screens-check.js opens Add Page with &template_id= only, and names a missing ADD_TEMPLATE_ID',
+	strpos($addScreens, "'&template_id=' + ADD_TEMPLATE") !== false && strpos($addScreens, 'A the add form opened (no page was created)') !== false
+	&& preg_match_all('/page\/add/', $addScreens) === preg_match_all('/page\/add[^\n]*template_id/', $addScreens)
+	&& strpos($addScreens, 'needs ADD_TEMPLATE_ID') !== false);
+check('tools/ci.sh exports ADD_TEMPLATE_ID with the other fixture ids', preg_match('/^\s*export NATIVE_ID=[^\n]*ADD_TEMPLATE_ID="\$\{ADD_TEMPLATE_ID:-\}"/m', (string) file_get_contents(dirname(__DIR__) . '/tools/ci.sh')) === 1);
+
 // BridgeAdminAccessControl: the rules engine and the theme's navCacheKey (sprint bridge-admin-access-control, step 1)
 $aclName = 'BridgeAdminAccessControl';
 check('ACL the module is installed in this sandbox', $modules->isInstalled($aclName));
