@@ -173,8 +173,8 @@ function rawManifest(Modules $modules, $name) {
 }
 
 /**
- * The file behind a stylesheet URL of an extension (resolved as `module` is; '' when not under the
- * site root)
+ * The file behind a stylesheet URL of an extension (a relative entry is under the module's
+ * directory, a root-relative one under the site root; '' when not under the site root)
  *
  * @param string $url As extensionInfo() gives it
  * @param Config $config

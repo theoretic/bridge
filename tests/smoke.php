@@ -2022,6 +2022,11 @@ if(isset($bridge)) {
 	$probe = $bridge->extensionInfo('ProcessBridgeDemo', array('contract' => '^0.2', 'styles' => array('a.css', '', 7, '/x/b.css', 'https://cdn/c.css'), 'tokens' => array('--foreground', '', '--foreground')));
 	check('extensionInfo() normalises styles and tokens, both known keys', $probe['styles'] === array($config->urls('ProcessBridgeDemo') . 'a.css?v=' . $modules->getModuleInfoProperty('ProcessBridgeDemo', 'version'), '/x/b.css', 'https://cdn/c.css')
 		&& $probe['tokens'] === array('--foreground') && $probe['unknown'] === array(), json_encode($probe));
+	// 0.29.1: an absolute or root-relative `module` keeps its place and gets ?v= unless it has a query (docs/extensions.md 2; sprint fix-leftovers, step 5)
+	$demoVersion = rawurlencode((string) $modules->getModuleInfoProperty('ProcessBridgeDemo', 'version'));
+	$moduleUrls = array();
+	foreach(array('https://cdn/m.mjs', '/x/m.mjs', 'https://cdn/m.mjs?a=1') as $u) $moduleUrls[] = $bridge->extensionInfo('ProcessBridgeDemo', array('contract' => '^0.2', 'module' => $u))['module'];
+	check('extensionInfo(): an absolute or root-relative module URL gets ?v=<version> unless it has a query', $moduleUrls === array("https://cdn/m.mjs?v=$demoVersion", "/x/m.mjs?v=$demoVersion", 'https://cdn/m.mjs?a=1'), json_encode($moduleUrls));
 }
 // 0.27.0: shell slots (docs/extensions.md 4; sprint extension-kit, step 2)
 $tplSrc = array();
@@ -2461,6 +2466,16 @@ check('docs/extensions.md: contract 0.2 in the title, styles and tokens keys, si
 	&& strpos($devDoc, "\n## 12. Styling extensions\n") !== false && strpos($devDoc, '| `styles` | array |') !== false && strpos($devDoc, '| `tokens` | array |') !== false
 	&& strpos($devDoc, 'writes a module with six faults') !== false && strpos($devDoc, 'A changed `.css` file takes no') !== false
 	&& strpos($devDoc, "data-bridge-styles='<name>'") !== false);
+// 0.29.1: the three doc nits of the styles work (sprint fix-leftovers, step 5)
+$sec12 = (string) strstr($devDoc, "\n## 12. Styling extensions\n");
+check('docs/extensions.md 12: a site copy of _head.php on headPlan() prints no extension stylesheets; the loop over extensionStyles() shown', strpos($sec12, "head from `headPlan()` prints no extension stylesheets") !== false
+	&& strpos($sec12, 'over `AdminThemeBridge::extensionStyles()`') !== false
+	&& strpos($sec12, "foreach(\$adminTheme->extensionStyles() as \$style) {\n\techo \"\\n\\t<link type='text/css' href='\" . \$sanitizer->entities(\$style['url']) . \"' rel='stylesheet' data-bridge-styles='\" .\n\t\t\$sanitizer->entities(\$style['extension']) . \"'\" . \$adminTheme->nonceAttr() . \" />\";\n}") !== false);
+$sec6 = preg_match('/\n## 6\. Contract tests\n(.*?)\n## 7\. /s', $devDoc, $m6) ? $m6[1] : '';
+check('docs/extensions.md 6: each relative or root-relative styles entry a file that exists', strpos($sec6, "each relative or root-relative `styles` entry a file that exists\n  (absolute URLs are noted, not checked)") !== false);
+check('docs/extensions.md 2: styles states its own rule (not "resolved as module is"), absolute and root-relative without ?v=, module with ?v= unless a query', strpos($devDoc, 'resolved as `module` is') === false
+	&& strpos($devDoc, 'absolute URLs and root-relative paths are printed as given, without `?v=` (unlike `module`)') !== false && strpos($devDoc, 'Every one gets `?v=<module version>` unless it has a query already') !== false
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/tools/extension-check.php'), 'resolved as `module` is') === false);
 $contractDoc = (string) @file_get_contents(dirname(__DIR__) . '/docs/contract.md');
 $docTokens = array();
 if(preg_match('/\n(Components may use the tokens [^\n]*)\n/', $contractDoc, $tokPara)) {

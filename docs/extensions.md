@@ -77,8 +77,8 @@ loaded (the command line, a modules refresh from the front end) ends in a fatal 
 |---|---|---|
 | `contract` | string | The contract range it was written for: `^0.2`, `~0.1`, `>=0.1 <1`, `^0.1 \|\| ^1`, `*`. Required. The extension is compatible when the range takes any version of the surface's `contracts` (section 3) |
 | `name` | string | Defaults to the module's class name |
-| `module` | string | An ES module the admin imports on every page for users who may have the extension. Absolute URLs and root-relative paths are kept; anything else is relative to the module's directory, with `?v=<module version>` |
-| `styles` | array | Stylesheets (0.2). Each is resolved as `module` is: absolute URLs and root-relative paths are kept as given (no `?v=`); anything else is relative to the module's directory, with `?v=<module version>` (dev mode: the file time, section 9). The theme prints them in `<head>` after `theme.css` and `fields.css`, with the CSP nonce, one `<link rel='stylesheet' data-bridge-styles='<name>'>` each; the style-order code keeps them there. Also in modal windows; for signed-in users only, for the extensions they may have and whose `contract` the theme honours (section 12) |
+| `module` | string | An ES module the admin imports on every page for users who may have the extension. Absolute URLs and root-relative paths keep their place; anything else is relative to the module's directory. Every one gets `?v=<module version>` unless it has a query already (dev mode, for a file under the site modules: its file time, section 9) |
+| `styles` | array | Stylesheets (0.2). A relative entry is relative to the module's directory, with `?v=<module version>` (dev mode: the file time, section 9); absolute URLs and root-relative paths are printed as given, without `?v=` (unlike `module`). The theme prints them in `<head>` after `theme.css` and `fields.css`, with the CSP nonce, one `<link rel='stylesheet' data-bridge-styles='<name>'>` each; the style-order code keeps them there. Also in modal windows; for signed-in users only, for the extensions they may have and whose `contract` the theme honours. A site's own copy of `_head.php` needs one loop for them (section 12) |
 | `tokens` | array | The theme's CSS custom properties its stylesheets read or set (0.2), each a name of the surface's `tokens` (section 3); the contract tests compare them with the `styles` files |
 | `slots` | array | Slot name => name of a public method on the module that returns markup. The extension escapes its own output |
 | `hooks` | array | The theme's hookable methods it attaches to, without `___` (section 3) |
@@ -233,9 +233,10 @@ php tools/extension-check.php sandbox/atispro --self-test
   of the theme's `contracts` (`contractCompatible()`); `hooks`, `reads` and `settings` on the
   surface (section 3; a hook also declared by the theme as `___<hook>`); each `slots` entry a slot
   of section 4 whose method exists and returns a string (`drawer`: or an array with `content`);
-  `module` a file that exists; each relative `styles` entry a file that exists (absolute URLs are
-  noted, not checked); each `tokens` entry a `--` name of the surface's `tokens`; `permission` an
-  existing permission; the theme discovers the extension and finds it compatible;
+  `module` a file that exists; each relative or root-relative `styles` entry a file that exists
+  (absolute URLs are noted, not checked); each `tokens` entry a `--` name of the surface's
+  `tokens`; `permission` an existing permission; the theme discovers the extension and finds it
+  compatible;
 - the stylesheets, by a scan of each relative `styles` file for `var(--x` and `--x:` (comments
   left out): a token of the surface that the manifest's `tokens` do not declare fails, and so does
   a name the theme's built `theme.css` declares that is not on the surface (an internal token).
@@ -451,3 +452,15 @@ The stylesheets print for signed-in users only, as the slots do, for the extensi
 (`permission`) and whose `contract` the theme honours: the login screen is not restyled by
 extensions. `modules/BridgeSample` (section 7, scaffolded with `--styles`) is the smallest working
 example.
+
+A site's own copy of `_head.php` (in `/site/templates/AdminThemeBridge/`) that still builds the
+head from `headPlan()` prints no extension stylesheets: `headPlan()`'s array is unchanged and has
+no entry for them (the theme's own `_head.php` reads `assetPlan()`). Such a copy adds one loop
+over `AdminThemeBridge::extensionStyles()` right after its `fields.css` link:
+
+```php
+foreach($adminTheme->extensionStyles() as $style) {
+	echo "\n\t<link type='text/css' href='" . $sanitizer->entities($style['url']) . "' rel='stylesheet' data-bridge-styles='" .
+		$sanitizer->entities($style['extension']) . "'" . $adminTheme->nonceAttr() . " />";
+}
+```
