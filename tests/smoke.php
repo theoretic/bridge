@@ -126,9 +126,10 @@ $themeCss = $themeDir . 'assets/dist/theme.css';
 check('theme.css built', is_file($themeCss));
 if(is_file($themeCss)) {
 	$css = file_get_contents($themeCss);
-	// 90 kB raw since the page tree and history drawers (0.25.0); 18 kB gzip, the budget in check-css.mjs,
-	// raised by the owner for the appearance seams (0.30.0)
-	check('theme.css under 90 kB raw (the gzip budget in check-css.mjs is the binding one)', strlen($css) < 90 * 1024, (string) strlen($css));
+	// 97 kB raw since the admin title rules (0.30.0, raised by the owner; 90 kB since the page tree and
+	// history drawers, 0.25.0); 18 kB gzip, the budget in check-css.mjs, raised by the owner for the
+	// appearance seams (0.30.0)
+	check('theme.css under 97 kB raw (the gzip budget in check-css.mjs is the binding one)', strlen($css) < 97 * 1024, (string) strlen($css));
 	check('theme.css under 18 kB gzip', strlen(gzencode($css, 9)) <= 18 * 1024, (string) strlen(gzencode($css, 9)));
 	check('theme.css is flat (no nesting left)', !preg_match('/[{;]\s*&/', $css));
 	// every font the stylesheet references ships next to it (none until Geist is self-hosted)
@@ -2135,6 +2136,57 @@ if(isset($bridge)) {
 		check('getBodyClass() twice: one pw-variant- and one pw-scheme- class, following appearance()', preg_match_all('/ pw-variant-/', $apBody) === 1 && preg_match_all('/ pw-scheme-/', $apBody) === 1
 			&& strpos($apBody, ' pw-variant-green ') !== false && preg_match_all('/ pw-variant-/', $apBody2) === 1 && strpos($apBody2, ' pw-variant-' . $bridge->getVariant() . ' ') !== false, $apBody . '|' . $apBody2);
 	}
+	// 0.30.0: adminTitle($place) and faviconUrl() (sprint bridge-customizer, step 5)
+	check('adminTitle and faviconUrl are hooks (21) and renderAdminTitle a read on the surface', in_array('adminTitle', $surface['hooks'], true) && in_array('faviconUrl', $surface['hooks'], true)
+		&& in_array('renderAdminTitle', $surface['reads'], true) && count($surface['hooks']) === 21, count($surface['hooks']));
+	check('no hook: renderAdminTitle() and faviconUrl() are empty', $bridge->renderAdminTitle('masthead') === '' && $bridge->renderAdminTitle('login') === '' && $bridge->faviconUrl() === '');
+	$atHook = $bridge->addHookAfter('adminTitle', function(HookEvent $e) { if($e->arguments(0) === 'masthead') $e->return = 'Acme <b>'; });
+	$atMast = $bridge->renderAdminTitle('masthead');
+	$atLogin = $bridge->renderAdminTitle('login');
+	$bridge->removeHook($atHook);
+	check('an adminTitle() hook for masthead only: escaped span there, nothing on the login card', $atMast === "<span class='pw-admin-title'>Acme &lt;b&gt;</span>" && $atLogin === '', $atMast . '|' . $atLogin);
+	$atWarnings = array();
+	set_error_handler(function($no, $str) use(&$atWarnings) { $atWarnings[] = $str; return true; });
+	$atHook = $bridge->addHookAfter('adminTitle', function(HookEvent $e) { $e->return = $e->arguments(0) === 'login' ? array('x') : '   '; });
+	$atOdd = $bridge->renderAdminTitle('login') . $bridge->renderAdminTitle('masthead');
+	$bridge->removeHook($atHook);
+	restore_error_handler();
+	check('adminTitle() returning blanks or an array prints nothing, without a PHP warning', $atOdd === '' && !count($atWarnings), $atOdd . implode('; ', $atWarnings));
+	if($wire->page && $wire->page->id) {
+		$atTitleBefore = $bridge->getBrowserTitle();
+		$atHook = $bridge->addHookAfter('adminTitle', function(HookEvent $e) { if($e->arguments(0) === 'browser') $e->return = 'Acme & Co'; });
+		$atTitle = $bridge->getBrowserTitle();
+		$bridge->removeHook($atHook);
+		$atTitleAfter = $bridge->getBrowserTitle();
+		check('an adminTitle() hook for browser takes the place of Bridge in the browser title (escaped); none → Bridge again',
+			(strpos($atTitle, '• Acme &amp; Co') !== false || strpos($atTitle, '&bull; Acme &amp; Co') !== false) && strpos($atTitle, 'Bridge') === false
+			&& strpos($atTitleBefore, 'Bridge') !== false && $atTitleAfter === $atTitleBefore, $atTitleBefore . ' | ' . $atTitle);
+	}
+	$atShellSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
+	check('getBrowserTitle() leaves a custom browserTitle alone (only the " • ProcessWire" form is rewritten)', strpos($atShellSrc, "str_replace(array(' • ProcessWire', ' &bull; ProcessWire'), \$replace, \$title)") !== false);
+	$atMastSrc = (string) file_get_contents($themeDir . '_masthead.php');
+	$atContentSrc = (string) file_get_contents($themeDir . '_content.php');
+	$atHeadSrc = (string) file_get_contents($themeDir . '_head.php');
+	check('_masthead.php prints the masthead title inside the logo link', strpos($atMastSrc, "<a class='pw-logo-link' href='<?php echo \$adminTheme->wire()->sanitizer->entities(\$homeUrl); ?>'><?php echo \$adminTheme->renderLogo() . \$adminTheme->renderAdminTitle('masthead'); ?></a>") !== false);
+	check('_content.php prints the login title after the logo link, before the screen-reader headline', strpos($atContentSrc, "\$adminTheme->renderLogo() . \"</a>\" . \$adminTheme->renderAdminTitle('login') . \"<span class='pw-sr-only'>\$headline</span></h1>\"") !== false);
+	$atTitlePos = strpos($atHeadSrc, '<title>');
+	$atIconPos = strpos($atHeadSrc, "if(\$plan->favicon !== '') echo \"\\t<link rel='icon' href='\" . \$attr(\$plan->favicon) . \"' />\\n\";");
+	check('_head.php prints <link rel=icon> right after <title>, escaped, only when the plan has a favicon', $atTitlePos !== false && $atIconPos !== false && $atIconPos > $atTitlePos
+		&& strpos(substr($atHeadSrc, $atTitlePos, $atIconPos - $atTitlePos), '<script') === false);
+	$atHeadLib = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php');
+	check('assetPlan() sets the favicon from faviconUrl(), a URL without // under the site root', strpos($atHeadLib, '$favicon = $this->faviconUrl();') !== false
+		&& strpos($atHeadLib, "if(\$favicon !== '' && strpos(\$favicon, '//') === false) \$favicon = \$this->wire()->config->urls->root . ltrim(\$favicon, '/');") !== false
+		&& strpos($atHeadLib, '$plan->favicon = $favicon;') !== false && property_exists('ProcessWire\\AdminThemeBridgeAssetPlan', 'favicon'));
+	$atFav = array();
+	foreach(array('', 'site/assets/x/fav.png?v=2', 'https://cdn.example/f.ico', array('x')) as $atValue) {
+		$atHook = $bridge->addHookAfter('faviconUrl', function(HookEvent $e) use($atValue) { $e->return = $atValue; });
+		try { $atFav[] = $bridge->assetPlan('default')->favicon; } catch(\Throwable $t) { $atFav[] = 'ERR ' . $t->getMessage(); }
+		$bridge->removeHook($atHook);
+	}
+	check('assetPlan() favicon: none → empty, site/assets/… → under the site root, https://… as it is, an array → empty', $atFav === array('', $config->urls->root . 'site/assets/x/fav.png?v=2', 'https://cdn.example/f.ico', ''), json_encode($atFav));
+	$atCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
+	check('theme.css styles .pw-admin-title in the masthead and on the login card, hidden in the masthead below 768px', strpos($atCss, '.pw-masthead .pw-admin-title{') !== false
+		&& strpos($atCss, '#pw-content-title .pw-admin-title{display:block') !== false && preg_match('/@media\s*\(max-width:\s*767px\)\{[^@]*\.pw-masthead \.pw-admin-title\{display:none\}/', $atCss) === 1);
 	$readsBad = array();
 	foreach($surface['reads'] as $name) {
 		if(!method_exists($bridge, $name) || !(new \ReflectionMethod($bridge, $name))->isPublic() || method_exists($bridge, "___$name")) $readsBad[] = $name;

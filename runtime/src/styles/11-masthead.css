@@ -14,6 +14,8 @@
 .pw-logo-link svg { height: 28px; width: 28px; display: block; }
 .pw-logo-link img { max-height: 40px; max-width: 40vw; width: auto; display: block; }
 .pw-logo-text { color: var(--pw-h1); font-weight: 600; font-size: .9375rem; letter-spacing: -.01em; }
+/* the admin's own name after the logo (adminTitle('masthead'), 0.30.0) */
+.pw-masthead .pw-admin-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 16em; color: var(--pw-h1); }
 .pw-nav { flex: 1; min-width: 0; }
 .pw-primary-nav, .pw-user-nav { list-style: none; margin: 0; padding: 0; }
 .pw-primary-nav { display: flex; gap: 2px; }

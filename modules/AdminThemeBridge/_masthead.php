@@ -19,7 +19,7 @@ $homeUrl = $adminTheme->isLoggedIn ? $config->urls->admin : $config->urls->root;
 <a class='pw-sr-only pw-skip-link' href='#main'><?php echo $adminTheme->wire()->sanitizer->entities1($adminTheme->shellLabel('skip')); ?></a>
 <header id='pw-masthead' class='pw-masthead'>
 	<div class='pw-container'>
-		<a class='pw-logo-link' href='<?php echo $adminTheme->wire()->sanitizer->entities($homeUrl); ?>'><?php echo $adminTheme->renderLogo(); ?></a>
+		<a class='pw-logo-link' href='<?php echo $adminTheme->wire()->sanitizer->entities($homeUrl); ?>'><?php echo $adminTheme->renderLogo() . $adminTheme->renderAdminTitle('masthead'); ?></a>
 		<?php if($adminTheme->isLoggedIn): ?>
 		<?php echo $adminTheme->renderDrawerButtons(); ?>
 		<button type='button' class='pw-nav-toggle' aria-controls='pw-nav' aria-expanded='false' aria-label='<?php echo $adminTheme->wire()->sanitizer->entities1($adminTheme->shellLabel('menu')); ?>'><i class='fa fa-bars'></i></button>

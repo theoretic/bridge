@@ -69,6 +69,14 @@ class AdminThemeBridgeAssetPlan {
 	public $tokenCss = '';
 
 	/**
+	 * The favicon URL of faviconUrl(), root-relative values made absolute; '' prints no icon link
+	 *
+	 * @var string
+	 *
+	 */
+	public $favicon = '';
+
+	/**
 	 * The stylesheets of this request's extensions (manifest key `styles`), after the theme's,
 	 * each `array('extension' => name, 'url' => url)`
 	 *

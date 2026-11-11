@@ -404,11 +404,12 @@ trait AdminThemeBridgeExtensions {
 				'install', 'uninstall', 'nonce', 'moveFiles', 'moveFileAllowed', 'filesMoved', 'historyEntry',
 				'nativeMap', 'isNativeProcess', 'isNativeInputfield', 'scriptNeeds', 'renderBreadcrumbs',
 				'sortableDataTable', 'uikitReasons', 'extensionSurface', 'drawerNames', 'navCacheKey', 'tokenOverrides', 'appearance',
+				'adminTitle', 'faviconUrl',
 			),
 			'reads' => array(
 				'useLegacyStack', 'componentInfo', 'extensions', 'extensionInfo', 'extensionAllowed', 'extensionStyles', 'cspNonce',
 				'nonceAttr', 'nonceScriptTag', 'themeAssetUrl', 'getVariant', 'getColorScheme', 'shellLabel', 'getHistorySteps',
-				'tokenCss', 'getLabelSize', 'getControlHeight', 'isLoginScreen',
+				'tokenCss', 'getLabelSize', 'getControlHeight', 'isLoginScreen', 'renderAdminTitle',
 			),
 			// the keys __construct() sets (smoke compares with the source)
 			'settings' => array(

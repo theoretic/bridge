@@ -41,6 +41,7 @@ $attr = function($url) use($sanitizer) { return $sanitizer->entities((string) $u
 	</style>
 
 	<title><?php echo $adminTheme->getBrowserTitle(); ?></title>
+<?php if($plan->favicon !== '') echo "\t<link rel='icon' href='" . $attr($plan->favicon) . "' />\n"; ?>
 
 	<script<?php echo $nonce; ?>>
 		<?php echo $adminTheme->getHeadJS(); ?>

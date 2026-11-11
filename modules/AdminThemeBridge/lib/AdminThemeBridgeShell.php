@@ -278,18 +278,84 @@ trait AdminThemeBridgeShell {
 	/**
 	 * Browser title: upstream's, escaped in modal windows too, with the product named Bridge
 	 *
+	 * A non-empty adminTitle('browser') takes the place of `Bridge` (0.30.0). Only the default form
+	 * "Page • ProcessWire • host" is rewritten: a custom `$adminTheme->browserTitle` or a Process's
+	 * own browser title without the ` • ProcessWire` part stays as it is.
+	 *
 	 * @return string
 	 *
 	 */
 	public function getBrowserTitle() {
+		$sanitizer = $this->wire()->sanitizer;
 		$title = (string) parent::getBrowserTitle();
 		$input = $this->wire()->input;
 		// in a modal window upstream returns the Process headline as it is (audit B10)
 		if($input->get('modal') && !strlen((string) $this->browserTitle) && !$this->wire('processBrowserTitle')) {
-			$title = $this->wire()->sanitizer->entities1(strip_tags($title));
+			$title = $sanitizer->entities1(strip_tags($title));
 		}
 		// the product is not ProcessWire (CLAUDE.md, ADR 0006): "Page • Bridge • host"
-		return str_replace(array(' • ProcessWire', ' &bull; ProcessWire'), array(' • Bridge', ' &bull; Bridge'), $title);
+		$replace = array(' • Bridge', ' &bull; Bridge');
+		$name = $this->adminTitleText('browser');
+		if($name !== '') {
+			$name = $sanitizer->entities($name);
+			$replace = array(" • $name", " &bull; $name");
+		}
+		return str_replace(array(' • ProcessWire', ' &bull; ProcessWire'), $replace, $title);
+	}
+
+	/**
+	 * The admin's own name for one place, by default none (0.30.0)
+	 *
+	 * Places: `browser` (takes the place of `Bridge` in the browser title, getBrowserTitle()),
+	 * `masthead` (a line after the logo, inside the masthead's home link) and `login` (a line after
+	 * the logo in the login card's title). Plain text: the theme escapes it. An empty return keeps
+	 * the place as it is without a hook.
+	 *
+	 * @param string $place One of browser, masthead, login
+	 * @return string
+	 *
+	 */
+	public function ___adminTitle($place) {
+		return '';
+	}
+
+	/**
+	 * adminTitle($place) as trimmed text ('' when a hook returns no scalar)
+	 *
+	 * @param string $place
+	 * @return string
+	 *
+	 */
+	protected function adminTitleText($place) {
+		$title = $this->adminTitle((string) $place);
+		return is_scalar($title) ? trim((string) $title) : '';
+	}
+
+	/**
+	 * The admin title of a place as markup: `<span class='pw-admin-title'>` with the escaped text,
+	 * '' when adminTitle($place) is empty (0.30.0)
+	 *
+	 * @param string $place masthead or login (browser goes into getBrowserTitle())
+	 * @return string
+	 *
+	 */
+	public function renderAdminTitle($place) {
+		$title = $this->adminTitleText($place);
+		if($title === '') return '';
+		return "<span class='pw-admin-title'>" . $this->wire()->sanitizer->entities($title) . "</span>";
+	}
+
+	/**
+	 * The admin's favicon URL, by default none: no `<link rel='icon'>` is printed (0.30.0)
+	 *
+	 * A URL without `//` is relative to the site root (as the logo URLs are); assetPlan() puts
+	 * `$config->urls->root` in front.
+	 *
+	 * @return string
+	 *
+	 */
+	public function ___faviconUrl() {
+		return '';
 	}
 
 	/**

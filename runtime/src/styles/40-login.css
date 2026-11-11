@@ -18,6 +18,8 @@ body.ProcessLogin #pw-content-title { margin: 0; line-height: 0; }
 body.ProcessLogin #pw-content-title .pw-logo-link { display: inline-flex; color: var(--foreground); }
 body.ProcessLogin #pw-content-title .pw-logo-link svg { width: 48px; height: 48px; }
 body.ProcessLogin #pw-content-title .pw-logo-link img { max-height: 56px; }
+/* the admin's own name under the mark (adminTitle('login'), 0.30.0); the title itself has line-height 0 */
+body.ProcessLogin #pw-content-title .pw-admin-title { display: block; margin-top: 12px; font-size: 1.125rem; line-height: 1.5rem; font-weight: 600; color: var(--pw-h1); }
 .pw-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 /* one column: name, password, button, all on the same edges */
 body.ProcessLogin { --pw-gutter: 0px; }

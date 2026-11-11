@@ -23,7 +23,9 @@
 		"drawerNames",
 		"navCacheKey",
 		"tokenOverrides",
-		"appearance"
+		"appearance",
+		"adminTitle",
+		"faviconUrl"
 	],
 	"reads": [
 		"useLegacyStack",
@@ -43,7 +45,8 @@
 		"tokenCss",
 		"getLabelSize",
 		"getControlHeight",
-		"isLoginScreen"
+		"isLoginScreen",
+		"renderAdminTitle"
 	],
 	"settings": [
 		"legacyStack",

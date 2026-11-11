@@ -55,6 +55,11 @@ trait AdminThemeBridgeHead {
 		$plan->maxWidth = (int) $this->getMaxWidth();
 		// the site-wide token values, in every layout (modal windows and the login screen too)
 		$plan->tokenCss = $this->tokenCss();
+		// the favicon (none by default); a URL without // is relative to the site root, as the logo's
+		$favicon = $this->faviconUrl();
+		$favicon = is_scalar($favicon) ? trim((string) $favicon) : '';
+		if($favicon !== '' && strpos($favicon, '//') === false) $favicon = $this->wire()->config->urls->root . ltrim($favicon, '/');
+		$plan->favicon = $favicon;
 		// after the theme sheets, in every layout (modal windows too)
 		$plan->extensionStyles = $this->extensionStyles();
 
