@@ -1,5 +1,6 @@
 {
-	"note": "chunks of the last build; the next build keeps them (scripts/prune-chunks.mjs)",
+	"note": "chunks of the last release and of the release before; a build keeps them, `npm run release-chunks` moves the list on (scripts/prune-chunks.mjs)",
+	"version": "0.29.0",
 	"chunks": [
 		"ask--61yTCtW.js",
 		"asmselect-BltXPdus.js",
@@ -36,5 +37,37 @@
 		"selector-DJge_Q_i.js",
 		"sortable-CHka1B0G.js",
 		"texttags-CtvrN4Mk.js"
+	],
+	"previous": [
+		"ask-Cr4fZWo6.js",
+		"asmselect-CpK0ApeY.js",
+		"colors-BNcBHbrB.js",
+		"danger-CsrUFba4.js",
+		"datatable-BkgH1ojd.js",
+		"datetime-DJgwiGAe.js",
+		"dom-IaciwtHw.js",
+		"file-DqpUFtm8.js",
+		"files-move-DeTtBy4f.js",
+		"guards-Dtm-JgaM.js",
+		"icon-DIyjPldz.js",
+		"image-focus-Cc_KH7p_.js",
+		"image-mjBvhMfE.js",
+		"image-upload-CmYrqrtg.js",
+		"index-3jwL3gZY.js",
+		"lightbox-BqLskAjB.js",
+		"notice-yuL4fkIc.js",
+		"page-BYrjx-6g.js",
+		"pageautocomplete-Cb2uI8tY.js",
+		"pagelist-DANuSfwS.js",
+		"pagelist-group-BoUWTZLY.js",
+		"pagelist-move-Df702r06.js",
+		"pagelistselect-evxg6mth.js",
+		"pagename-B3UeOQYi.js",
+		"pagetable-BeEqZtw9.js",
+		"password-DPtnkcvk.js",
+		"repeater-xjCd3mPM.js",
+		"selection-DeYtXlpA.js",
+		"selector-DhCr05Ws.js",
+		"texttags-2ZKqsIB3.js"
 	]
 }

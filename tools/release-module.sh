@@ -32,6 +32,9 @@ git remote get-url "$REMOTE" >/dev/null 2>&1 || git remote add "$REMOTE" "$REMOT
 version=$(sed -nE "s/^[[:space:]]*'version' => '([0-9.]+)',.*/\1/p" "$PREFIX/AdminThemeBridge.module.php" | head -1)
 [ -n "$version" ] || { echo "no version in getModuleInfo()"; exit 1; }
 
+# the chunk list must be the one of this release (npm run release-chunks after the release build)
+node runtime/scripts/prune-chunks.mjs --check || { echo "chunks.json is not this release's: cd runtime && npm run build && npm run release-chunks, then commit"; exit 1; }
+
 echo "splitting $PREFIX (AdminThemeBridge $version)"
 git subtree split --prefix="$PREFIX" -b "$BRANCH" >/dev/null
 for f in AdminThemeBridge.module.php README.md LICENSE; do

@@ -209,9 +209,23 @@ npm run build
 
 The build type-checks the TypeScript and the classic scripts, checks that every HTML and script
 sink goes through the Trusted Types policy, that the runtime, the stylesheets and each classic
-script stay within their gzip size budgets and that every design token used is declared, and
-keeps the previous build's chunks for one more release (a tab left open across a deploy still
-loads them).
+script stay within their gzip size budgets and that every design token used is declared. It
+keeps the lazy chunks of the last release and of the release before it, as listed in
+`modules/AdminThemeBridge/assets/dist/chunks.json` (a tab left open across a deploy still loads
+them), and removes only chunks that are neither built now nor listed; it never rewrites the list.
+
+For a release, after the build in the step that raises the theme version, move the list on: this
+build's chunks become the released ones, the last release's become the release before, and the
+older ones are removed:
+
+```bash
+cd runtime
+BRIDGE_WIRE=/path/to/wire npm run build   # PowerShell: $env:BRIDGE_WIRE = '/path/to/wire'; npm run build
+npm run release-chunks
+```
+
+`tools/release-module.sh` runs `node runtime/scripts/prune-chunks.mjs --check` before it splits
+the module off and stops when the list is not the current version's.
 
 Supported browsers: Chrome and Edge 111+, Safari 16.2+, Firefox 121+ (the CSS uses
 `color-mix()` and `:has()`).

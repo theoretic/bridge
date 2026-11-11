@@ -232,7 +232,19 @@ check('panel.js is asked for as AdminThemeUikit does, panel.css goes with the st
 $faCssFile = glob($themeDir . 'assets/fonts/fa-*/fa.css');
 $faCssText = $faCssFile ? (string) file_get_contents($faCssFile[0]) : '';
 check('Font Awesome subsets carry a content hash', $faCssText === '' || (bool) preg_match('/url\(fa-solid-900-subset\.[0-9a-f]{8}\.woff2\)/', $faCssText));
-check('the last build listed its chunks (kept one more release)', is_file($themeDir . 'assets/dist/chunks.json'));
+// 0.29.1: chunks.json is the list of the released chunks (version, chunks, previous); a build keeps them,
+// `npm run release-chunks` moves it on, `prune-chunks.mjs --check` (release-module.sh) checks the rest
+$chunkList = json_decode((string) @file_get_contents($themeDir . 'assets/dist/chunks.json'), true);
+$chunkListVersion = preg_match("/^[ 	]*'version' => '([0-9.]+)',/m", $themeSource, $clv) ? $clv[1] : '';
+check('chunks.json lists the released chunks and the release before (version, chunks, previous)', is_array($chunkList)
+	&& isset($chunkList['version']) && is_array($chunkList['chunks'] ?? null) && is_array($chunkList['previous'] ?? null) && count($chunkList['chunks']) > 0);
+$chunkListMissing = is_array($chunkList) ? array_filter(array_merge((array) ($chunkList['chunks'] ?? array()), (array) ($chunkList['previous'] ?? array())), function($f) use($themeDir) { return !is_file($themeDir . 'assets/dist/chunks/' . $f); }) : array('(no list)');
+check('every chunk chunks.json lists is a file in chunks/', !$chunkListMissing, implode(', ', $chunkListMissing));
+check('chunks.json is released for the theme version (npm run release-chunks at the version bump)', is_array($chunkList) && $chunkListVersion !== '' && ($chunkList['version'] ?? '') === $chunkListVersion, ($chunkList['version'] ?? '') . ' vs ' . $chunkListVersion);
+check('the build runs the prune self-test and has the release step; the release script checks the list before the split', strpos((string) @file_get_contents(dirname(__DIR__) . '/runtime/package.json'), '"release-chunks": "node scripts/prune-chunks.mjs --release"') !== false
+	&& strpos((string) @file_get_contents(dirname(__DIR__) . '/runtime/package.json'), 'node scripts/prune-chunks.mjs --self-test && vite build && node scripts/prune-chunks.mjs &&') !== false
+	&& ($relSh = (string) @file_get_contents(dirname(__DIR__) . '/tools/release-module.sh')) !== ''
+	&& strpos($relSh, 'prune-chunks.mjs --check') !== false && strpos($relSh, 'prune-chunks.mjs --check') < strpos($relSh, 'git subtree split --prefix'));
 // 0.11.7: cores before 3.0.265 have no $config->adminIcons and load Font Awesome 4.7 (family FontAwesome)
 $faFamilies = preg_match_all('/"Font Awesome 6 Free"(?!\s*,\s*FontAwesome)/', $themeCss, $m);
 check('theme glyphs fall back to Font Awesome 4 (FontAwesome)', $faFamilies === 0, (string) $faFamilies);

@@ -7,7 +7,8 @@
   "license": "MIT",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && tsc -p tsconfig.classic.json && node scripts/check-sinks.mjs && vite build && node scripts/prune-chunks.mjs && node scripts/build-classic.mjs && node scripts/fa-subset.mjs && node scripts/build-uikit.mjs && node scripts/manifest.mjs && node scripts/check-css.mjs",
+    "build": "tsc --noEmit && tsc -p tsconfig.classic.json && node scripts/check-sinks.mjs && node scripts/prune-chunks.mjs --self-test && vite build && node scripts/prune-chunks.mjs && node scripts/build-classic.mjs && node scripts/fa-subset.mjs && node scripts/build-uikit.mjs && node scripts/manifest.mjs && node scripts/check-css.mjs",
+    "release-chunks": "node scripts/prune-chunks.mjs --release",
     "watch": "vite build --watch",
     "watch:classic": "node scripts/build-classic.mjs --watch",
     "classic": "node scripts/build-classic.mjs",
