@@ -9,6 +9,39 @@
  */
 trait AdminThemeBridgeConfig {
 
+	/**
+	 * A note on each Appearance field whose value an extension's appearance() hook sets for the
+	 * admin (0.30.0): the field keeps the stored value, which applies when no extension sets one
+	 *
+	 * @param InputfieldWrapper $fs The Appearance fieldset
+	 *
+	 */
+	protected function appearanceNotes(InputfieldWrapper $fs) {
+		$sanitizer = $this->wire()->sanitizer;
+		$stored = $this->storedAppearance();
+		$values = $this->appearanceValues();
+		$trim = function($v) { return is_scalar($v) ? trim((string) $v) : ''; };
+		// each value as the admin uses it: validated as the readers do
+		$effective = array(
+			'variant' => array($this->validVariant($stored['variant'], $stored['primaryColor']), $this->validVariant($values['variant'], $values['primaryColor'])),
+			'primaryColor' => array(self::hexColor($trim($stored['primaryColor'])), self::hexColor($trim($values['primaryColor']))),
+			'colorScheme' => array(self::validColorScheme($stored['colorScheme']), self::validColorScheme($values['colorScheme'])),
+			'logoURL' => array($trim($stored['logoURL']), $trim($values['logoURL'])),
+			'logoURLDark' => array($trim($stored['logoURLDark']), $trim($values['logoURLDark'])),
+			'maxWidth' => array(self::validMaxWidth($stored['maxWidth']), self::validMaxWidth($values['maxWidth'])),
+			'labelSize' => array(self::validLabelSize($stored['labelSize']), self::validLabelSize($values['labelSize'])),
+			'controlHeight' => array(self::validControlHeight($stored['controlHeight']), self::validControlHeight($values['controlHeight'])),
+		);
+		foreach($effective as $name => $pair) {
+			if((string) $pair[0] === (string) $pair[1]) continue;
+			$f = $fs->getChildByName($name);
+			if(!$f) continue;
+			$shown = (string) $pair[1] === '' ? __('none', __FILE__) : (string) $pair[1];
+			$note = sprintf(__('An extension sets this for the admin: %s. The value saved here applies when no extension sets one.', __FILE__), $sanitizer->entities($shown));
+			$f->notes = trim((string) $f->notes) === '' ? $note : $f->notes . "\n" . $note;
+		}
+	}
+
 	public function getModuleConfigInputfields(InputfieldWrapper $inputfields) {
 		parent::getModuleConfigInputfields($inputfields);
 		$modules = $this->wire()->modules;
@@ -33,6 +66,9 @@ trait AdminThemeBridgeConfig {
 		$fs->label = __('Appearance', __FILE__);
 		$fs->icon = 'paint-brush';
 		$inputfields->add($fs);
+		// the fields show and save the stored settings; an extension's appearance() hook may set
+		// others for the admin, and the fields it overrides say so (0.30.0)
+		$stored = $this->storedAppearance();
 
 		/** @var InputfieldRadios $f */
 		$f = $modules->get('InputfieldRadios');
@@ -45,7 +81,7 @@ trait AdminThemeBridgeConfig {
 		$f->addOption('green', __('Green', __FILE__));
 		$f->addOption('custom', __('Custom colour', __FILE__));
 		$f->optionColumns = 1;
-		$f->attr('value', in_array($this->get('variant'), $this->variants, true) ? $this->get('variant') : 'blue');
+		$f->attr('value', in_array($stored['variant'], $this->variants, true) ? $stored['variant'] : 'blue');
 		$f->columnWidth = 50;
 		$fs->add($f);
 
@@ -55,10 +91,10 @@ trait AdminThemeBridgeConfig {
 		$f->label = __('Custom colour', __FILE__);
 		$f->description = __('Hex value such as #3584EA. Hover, tints and shadows are derived from it.', __FILE__);
 		$f->attr('placeholder', '#3584EA');
-		$f->attr('value', (string) $this->get('primaryColor'));
+		$f->attr('value', (string) $stored['primaryColor']);
 		// a value the theme cannot use falls back to blue: say so (audit SU9)
-		$color = trim((string) $this->get('primaryColor'));
-		if($color !== '' && $this->sitePrimaryColor() === '') {
+		$color = trim((string) $stored['primaryColor']);
+		if($color !== '' && self::hexColor($color) === '') {
 			$f->error(sprintf(__('Not a hex colour (#RRGGBB): %s. The blue preset is used instead.', __FILE__), $color));
 		}
 		$f->showIf = 'variant=custom';
@@ -84,7 +120,7 @@ trait AdminThemeBridgeConfig {
 		$f->addOption('auto', __('Follow the operating system (default)', __FILE__));
 		$f->addOption('light', __('Light', __FILE__));
 		$f->addOption('dark', __('Dark', __FILE__));
-		$f->attr('value', $this->getColorScheme());
+		$f->attr('value', self::validColorScheme($stored['colorScheme']));
 		$f->columnWidth = 50;
 		$fs->add($f);
 
@@ -93,7 +129,7 @@ trait AdminThemeBridgeConfig {
 		$f->attr('name', 'logoURL');
 		$f->label = __('Logo URL', __FILE__);
 		$f->description = __('Relative to the site root, e.g. site/templates/admin-logo.svg. Empty for the ProcessWire mark from the installed core.', __FILE__);
-		$f->attr('value', (string) $this->get('logoURL'));
+		$f->attr('value', (string) $stored['logoURL']);
 		$f->columnWidth = 50;
 		$fs->add($f);
 
@@ -102,7 +138,7 @@ trait AdminThemeBridgeConfig {
 		$f->attr('name', 'logoURLDark');
 		$f->label = __('Logo URL for the dark scheme', __FILE__);
 		$f->description = __('Optional. Shown instead of the logo above when the dark scheme is on.', __FILE__);
-		$f->attr('value', (string) $this->get('logoURLDark'));
+		$f->attr('value', (string) $stored['logoURLDark']);
 		$f->columnWidth = 50;
 		$fs->add($f);
 
@@ -110,7 +146,7 @@ trait AdminThemeBridgeConfig {
 		$f = $modules->get('InputfieldInteger');
 		$f->attr('name', 'maxWidth');
 		$f->label = __('Maximum content width (px), 0 for none', __FILE__);
-		$f->attr('value', $this->getMaxWidth());
+		$f->attr('value', self::validMaxWidth($stored['maxWidth']));
 		$f->attr('min', 0);
 		$f->attr('max', 4000);
 		$f->columnWidth = 50;
@@ -120,7 +156,7 @@ trait AdminThemeBridgeConfig {
 		$f = $modules->get('InputfieldInteger');
 		$f->attr('name', 'labelSize');
 		$f->label = __('Field label size (px)', __FILE__);
-		$f->attr('value', $this->getLabelSize());
+		$f->attr('value', self::validLabelSize($stored['labelSize']));
 		$f->attr('min', 12);
 		$f->attr('max', 20);
 		$f->columnWidth = 50;
@@ -131,11 +167,12 @@ trait AdminThemeBridgeConfig {
 		$f->attr('name', 'controlHeight');
 		$f->label = __('Control height (px)', __FILE__);
 		$f->description = __('Height of inputs, selects and buttons.', __FILE__);
-		$f->attr('value', $this->getControlHeight());
+		$f->attr('value', self::validControlHeight($stored['controlHeight']));
 		$f->attr('min', 28);
 		$f->attr('max', 56);
 		$f->columnWidth = 50;
 		$fs->add($f);
+		$this->appearanceNotes($fs);
 
 		/** @var InputfieldFieldset $fs */
 		$fs = $modules->get('InputfieldFieldset');

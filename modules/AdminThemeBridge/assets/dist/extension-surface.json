@@ -22,7 +22,8 @@
 		"extensionSurface",
 		"drawerNames",
 		"navCacheKey",
-		"tokenOverrides"
+		"tokenOverrides",
+		"appearance"
 	],
 	"reads": [
 		"useLegacyStack",
@@ -41,7 +42,8 @@
 		"getHistorySteps",
 		"tokenCss",
 		"getLabelSize",
-		"getControlHeight"
+		"getControlHeight",
+		"isLoginScreen"
 	],
 	"settings": [
 		"legacyStack",

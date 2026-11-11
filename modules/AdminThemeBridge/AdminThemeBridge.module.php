@@ -596,8 +596,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->addBodyClass('AdminThemeBridge');
 		if($this->legacyStack !== self::legacyAlways) $this->set('legacyStack', self::legacyAuto);
 		$this->addBodyClass('pw-legacy-' . $this->legacyStack);
-		$this->addBodyClass('pw-variant-' . $this->getVariant());
-		$this->addBodyClass('pw-scheme-' . $this->getColorScheme());
+		// pw-variant-* and pw-scheme-* are added when the page renders: getBodyClass() (0.30.0)
 		// upstream's slide-in panels (JqueryUI/panel.js, window.pwPanels), as AdminThemeUikit::init()
 		// asks for them: modules call pwPanels.addPanel() themselves. A core script under wire/, so it
 		// loads with the legacy stack (printed or deferred); panel.css goes with the stack's styles

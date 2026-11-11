@@ -52,26 +52,41 @@ trait AdminThemeBridgeUserColors {
 	}
 
 	/**
-	 * The site's colour variant (the setting), validated
+	 * The site's colour variant (the setting, or what an extension's appearance() hook sets), validated
 	 *
 	 * @return string
 	 *
 	 */
 	public function siteVariant() {
-		$variant = (string) $this->get('variant');
-		if(!in_array($variant, $this->variants, true)) $variant = 'blue';
-		if($variant === 'custom' && $this->sitePrimaryColor() === '') $variant = 'blue';
-		return $variant;
+		$values = $this->appearanceValues();
+		return $this->validVariant($values['variant'], $values['primaryColor']);
 	}
 
 	/**
-	 * The site's custom colour as #rrggbb, or '' when unset or invalid
+	 * The site's custom colour as #rrggbb, or '' when unset or invalid (the setting, or what an
+	 * extension's appearance() hook sets)
 	 *
 	 * @return string
 	 *
 	 */
 	public function sitePrimaryColor() {
-		return self::hexColor($this->get('primaryColor'));
+		$values = $this->appearanceValues();
+		return self::hexColor(is_scalar($values['primaryColor']) ? $values['primaryColor'] : '');
+	}
+
+	/**
+	 * A colour variant value: a known preset, or custom with a valid colour; else blue
+	 *
+	 * @param mixed $variant
+	 * @param mixed $color The custom colour that goes with it
+	 * @return string
+	 *
+	 */
+	protected function validVariant($variant, $color) {
+		$variant = is_scalar($variant) ? (string) $variant : '';
+		if(!in_array($variant, $this->variants, true)) $variant = 'blue';
+		if($variant === 'custom' && self::hexColor(is_scalar($color) ? $color : '') === '') $variant = 'blue';
+		return $variant;
 	}
 
 	/**

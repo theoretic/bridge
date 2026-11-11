@@ -2028,6 +2028,113 @@ if(isset($bridge)) {
 	$sizeConfigSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeConfig.php');
 	check('the config screen has the fields labelSize and controlHeight after maxWidth', strpos($sizeConfigSrc, "attr('name', 'labelSize')") > (int) strpos($sizeConfigSrc, "attr('name', 'maxWidth')")
 		&& strpos($sizeConfigSrc, "attr('name', 'controlHeight')") > (int) strpos($sizeConfigSrc, "attr('name', 'labelSize')"));
+	// 0.30.0: appearance(), extensions override the Appearance settings; body classes at render time (sprint bridge-customizer, step 4)
+	check('appearance is a hook and isLoginScreen a read on the surface', in_array('appearance', $surface['hooks'], true) && in_array('isLoginScreen', $surface['reads'], true));
+	$apStored = $bridge->appearance();
+	check('appearance() returns the eight stored Appearance settings, in order', is_array($apStored)
+		&& array_keys($apStored) === array('variant', 'primaryColor', 'colorScheme', 'logoURL', 'logoURLDark', 'maxWidth', 'labelSize', 'controlHeight')
+		&& $apStored['variant'] === $bridge->get('variant') && $apStored['maxWidth'] === $bridge->get('maxWidth'), json_encode($apStored));
+	$apBase = array('siteVariant' => $bridge->siteVariant(), 'sitePrimaryColor' => $bridge->sitePrimaryColor(), 'getColorScheme' => $bridge->getColorScheme(),
+		'getMaxWidth' => $bridge->getMaxWidth(), 'getLabelSize' => $bridge->getLabelSize(), 'getControlHeight' => $bridge->getControlHeight(),
+		'renderLogo' => $bridge->renderLogo(), 'renderHtmlAttributes' => $bridge->renderHtmlAttributes());
+	$apSet = function(array $values) use($bridge) {
+		return $bridge->addHookAfter('appearance', function(HookEvent $e) use($values) { $e->return = array_merge($e->return, $values); });
+	};
+	$apHook = $apSet(array('variant' => 'custom', 'primaryColor' => '#AA3300'));
+	$apAttrs = $bridge->renderHtmlAttributes();
+	check('an appearance() hook sets the site colour: custom #AA3300 → siteVariant custom, #aa3300 on <html>', $bridge->siteVariant() === 'custom' && $bridge->sitePrimaryColor() === '#aa3300'
+		&& strpos($apAttrs, "data-pw-variant='custom'") !== false && strpos($apAttrs, '--pw-primary:#aa3300') !== false, $apAttrs);
+	$bridge->removeHook($apHook);
+	$apHook = $apSet(array('variant' => 'custom', 'primaryColor' => 'red'));
+	check('an appearance() hook with custom and no valid colour gives blue', $bridge->siteVariant() === 'blue' && $bridge->sitePrimaryColor() === '');
+	$bridge->removeHook($apHook);
+	$apHook = $apSet(array('logoURL' => 'site/assets/x/logo.svg?v=3', 'logoURLDark' => ''));
+	$apLogo = $bridge->renderLogo();
+	check('an appearance() hook sets the logo: renderLogo() prints it under the site root', strpos($apLogo, "src='" . $config->urls->root . "site/assets/x/logo.svg?v=3'") !== false
+		&& strpos($apLogo, "class='pw-logo pw-logo-custom ") !== false, $apLogo);
+	$bridge->removeHook($apHook);
+	$apHook = $apSet(array('maxWidth' => 99999, 'labelSize' => 16, 'controlHeight' => 99, 'colorScheme' => 'dark'));
+	check('appearance() values are validated: maxWidth 99999 → 4000, labelSize 16, controlHeight 99 → 36, scheme dark', $bridge->getMaxWidth() === 4000
+		&& $bridge->getLabelSize() === 16 && $bridge->getControlHeight() === 36 && $bridge->getColorScheme() === 'dark');
+	$bridge->removeHook($apHook);
+	$apWarnings = array();
+	set_error_handler(function($no, $str) use(&$apWarnings) { $apWarnings[] = $str; return true; });
+	$apReadAll = function() use($bridge) {
+		return array('siteVariant' => $bridge->siteVariant(), 'sitePrimaryColor' => $bridge->sitePrimaryColor(), 'getColorScheme' => $bridge->getColorScheme(),
+			'getMaxWidth' => $bridge->getMaxWidth(), 'getLabelSize' => $bridge->getLabelSize(), 'getControlHeight' => $bridge->getControlHeight(),
+			'renderLogo' => $bridge->renderLogo(), 'renderHtmlAttributes' => $bridge->renderHtmlAttributes());
+	};
+	$apHook = $bridge->addHookAfter('appearance', function(HookEvent $e) { $e->return = null; });
+	$apNull = $apReadAll();
+	$bridge->removeHook($apHook);
+	$apHook = $bridge->addHookAfter('appearance', function(HookEvent $e) { $e->return = array('variant' => array('x'), 'logoURL' => new \stdClass()); });
+	$apOdd = $apReadAll();
+	$bridge->removeHook($apHook);
+	$apHook = $bridge->addHookAfter('appearance', function(HookEvent $e) { $e->return = array(); });
+	$apEmpty = $apReadAll();
+	$bridge->removeHook($apHook);
+	restore_error_handler();
+	check('an appearance() hook returning null or an array without the keys leaves every reader at the stored value, without a PHP warning', $apNull === $apBase && $apEmpty === $apBase && !count($apWarnings),
+		implode(' | ', $apWarnings));
+	check('appearance() values of the wrong type are validated without a PHP warning (an array variant is blue, an object logo is none)', $apOdd['siteVariant'] === 'blue'
+		&& ($apOdd['renderLogo'] === $bridge->renderNativeLogo() || trim((string) $apStored['logoURLDark']) !== ''), $apOdd['renderLogo']);
+	check('with no hook every reader is as before the hooks (nothing cached)', $apReadAll() === $apBase);
+	// a user's own colour stays above the site's, whoever sets the site's
+	$apUser = $wire->users->get('name=bridge');
+	if($apUser && $apUser->id) {
+		$apGuest = $wire->user;
+		$apWas = $apUser->meta(AdminThemeBridge::userColorsMeta);
+		$apUserColors = $bridge->get('userColors');
+		$apMemo = new \ReflectionProperty($bridge, 'userColorsValue');
+		$bridge->set('userColors', 1);
+		$wire->users->setCurrentUser($apUser);
+		$apUser->meta(AdminThemeBridge::userColorsMeta, array('variant' => 'pink', 'color' => ''));
+		$apMemo->setValue($bridge, null);
+		$apHook = $apSet(array('variant' => 'custom', 'primaryColor' => '#aa3300'));
+		check('a user\'s own colour wins over an appearance() hook: getVariant() pink, siteVariant() custom', $bridge->getVariant() === 'pink' && $bridge->siteVariant() === 'custom'
+			&& $bridge->sitePrimaryColor() === '#aa3300', $bridge->getVariant() . ' / ' . $bridge->siteVariant());
+		$bridge->removeHook($apHook);
+		if(is_array($apWas)) $apUser->meta(AdminThemeBridge::userColorsMeta, $apWas); else $apUser->meta()->remove(AdminThemeBridge::userColorsMeta);
+		$bridge->set('userColors', $apUserColors);
+		$wire->users->setCurrentUser($apGuest);
+		$apMemo->setValue($bridge, null);
+	}
+	// the config screen shows and saves the stored values and says which ones an extension sets
+	$apConfigSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeConfig.php');
+	check('the config screen reads the stored Appearance values, not the effective ones', strpos($apConfigSrc, '$stored = $this->storedAppearance();') !== false
+		&& strpos($apConfigSrc, "attr('value', \$this->getMaxWidth())") === false && strpos($apConfigSrc, "attr('value', \$this->getColorScheme())") === false
+		&& strpos($apConfigSrc, "attr('value', \$this->getLabelSize())") === false && strpos($apConfigSrc, "attr('value', \$this->getControlHeight())") === false
+		&& strpos($apConfigSrc, 'An extension sets this for the admin: %s. The value saved here applies when no extension sets one.') !== false);
+	$apWidth = (int) $apStored['maxWidth'] === 900 ? 901 : 900;
+	$apHook = $apSet(array('variant' => 'custom', 'primaryColor' => '#aa3300', 'maxWidth' => $apWidth));
+	$apFields = $modules->wire(new InputfieldWrapper());
+	$bridge->getModuleConfigInputfields($apFields);
+	$bridge->removeHook($apHook);
+	$apField = function($name) use($apFields) { $f = $apFields->getChildByName($name); return $f ? $f : null; };
+	$apNoteOk = $apField('variant') && $apField('maxWidth') && $apField('colorScheme') && $apField('labelSize')
+		&& (string) $apField('variant')->attr('value') === (in_array($apStored['variant'], array('blue', 'vibrant', 'black', 'pink', 'green', 'custom'), true) ? $apStored['variant'] : 'blue')
+		&& (int) $apField('maxWidth')->attr('value') === max(0, min(4000, (int) $apStored['maxWidth']))
+		&& strpos((string) $apField('variant')->notes, 'An extension sets this for the admin: custom.') !== false
+		&& strpos((string) $apField('primaryColor')->notes, 'An extension sets this for the admin: #aa3300.') !== false
+		&& strpos((string) $apField('maxWidth')->notes, "An extension sets this for the admin: $apWidth.") !== false
+		&& strpos((string) $apField('colorScheme')->notes, 'Each user can override this') === 0 && strpos((string) $apField('colorScheme')->notes, 'An extension sets') === false
+		&& strpos((string) $apField('labelSize')->notes, 'An extension sets') === false;
+	check('with an appearance() hook the config screen keeps the stored values and notes the overridden fields only', $apNoteOk);
+	// body classes: added at render time, once each
+	$apModuleSrc = (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php');
+	$apShellSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
+	check('init() no longer adds pw-variant-/pw-scheme- body classes; getBodyClass() in the Shell trait does', strpos($apModuleSrc, "addBodyClass('pw-variant-") === false
+		&& strpos($apModuleSrc, "addBodyClass('pw-scheme-") === false && strpos($apShellSrc, 'public function getBodyClass() {') !== false
+		&& strpos($apShellSrc, "'pw-variant-' . \$this->getVariant()") !== false && strpos($apShellSrc, "'pw-scheme-' . \$this->getColorScheme()") !== false);
+	if($wire->page && $wire->page->id) {
+		$apHook = $apSet(array('variant' => 'green'));
+		$bridge->getBodyClass();
+		$apBody = ' ' . $bridge->getBodyClass() . ' ';
+		$bridge->removeHook($apHook);
+		$apBody2 = ' ' . $bridge->getBodyClass() . ' ';
+		check('getBodyClass() twice: one pw-variant- and one pw-scheme- class, following appearance()', preg_match_all('/ pw-variant-/', $apBody) === 1 && preg_match_all('/ pw-scheme-/', $apBody) === 1
+			&& strpos($apBody, ' pw-variant-green ') !== false && preg_match_all('/ pw-variant-/', $apBody2) === 1 && strpos($apBody2, ' pw-variant-' . $bridge->getVariant() . ' ') !== false, $apBody . '|' . $apBody2);
+	}
 	$readsBad = array();
 	foreach($surface['reads'] as $name) {
 		if(!method_exists($bridge, $name) || !(new \ReflectionMethod($bridge, $name))->isPublic() || method_exists($bridge, "___$name")) $readsBad[] = $name;

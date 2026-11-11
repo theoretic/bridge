@@ -39,8 +39,123 @@ trait AdminThemeBridgeShell {
 	 *
 	 */
 	public function getColorScheme() {
-		$scheme = (string) $this->get('colorScheme');
+		$values = $this->appearanceValues();
+		return self::validColorScheme($values['colorScheme']);
+	}
+
+	/**
+	 * The Appearance settings in effect: by default the stored ones (0.30.0)
+	 *
+	 * An extension hooks after this to set the admin's look site-wide without touching the stored
+	 * settings: `$event->return['variant'] = 'custom'`. Keys: variant, primaryColor, colorScheme,
+	 * logoURL, logoURLDark, maxWidth, labelSize, controlHeight; raw values, which every reader
+	 * (siteVariant(), sitePrimaryColor(), getColorScheme(), renderLogo(), getMaxWidth(),
+	 * getLabelSize(), getControlHeight()) validates as it does a stored one. A key the hook removes,
+	 * or a return that is not an array, leaves the stored value. Asked on every read, never cached:
+	 * a hook may answer otherwise on the login screen (isLoginScreen()). A user's own colour
+	 * (userColors()) stays above the site's colour this sets.
+	 *
+	 * @return array
+	 *
+	 */
+	public function ___appearance() {
+		return $this->storedAppearance();
+	}
+
+	/**
+	 * The Appearance settings as stored (what the config screen shows and saves)
+	 *
+	 * @return array
+	 *
+	 */
+	protected function storedAppearance() {
+		$out = array();
+		foreach(array('variant', 'primaryColor', 'colorScheme', 'logoURL', 'logoURLDark', 'maxWidth', 'labelSize', 'controlHeight') as $key) {
+			$out[$key] = $this->get($key);
+		}
+		return $out;
+	}
+
+	/**
+	 * appearance(), each key it lacks (or all of them, when it is no array) taken from the stored settings
+	 *
+	 * @return array
+	 *
+	 */
+	protected function appearanceValues() {
+		$values = $this->storedAppearance();
+		$hooked = $this->appearance();
+		if(!is_array($hooked)) return $values;
+		foreach($values as $key => $value) {
+			if(array_key_exists($key, $hooked)) $values[$key] = $hooked[$key];
+		}
+		return $values;
+	}
+
+	/**
+	 * A colour scheme value: auto, light or dark, else auto
+	 *
+	 * @param mixed $scheme
+	 * @return string
+	 *
+	 */
+	protected static function validColorScheme($scheme) {
+		$scheme = is_scalar($scheme) ? (string) $scheme : '';
 		return in_array($scheme, array('auto', 'light', 'dark'), true) ? $scheme : 'auto';
+	}
+
+	/**
+	 * A maximum content width value: 0..4000 px
+	 *
+	 * @param mixed $px
+	 * @return int
+	 *
+	 */
+	protected static function validMaxWidth($px) {
+		return max(0, min(4000, is_scalar($px) ? (int) $px : 0));
+	}
+
+	/**
+	 * A label size value: 12..20 px, else 14
+	 *
+	 * @param mixed $px
+	 * @return int
+	 *
+	 */
+	protected static function validLabelSize($px) {
+		$px = is_scalar($px) ? (int) $px : 0;
+		return $px >= 12 && $px <= 20 ? $px : 14;
+	}
+
+	/**
+	 * A control height value: 28..56 px, else 36
+	 *
+	 * @param mixed $px
+	 * @return int
+	 *
+	 */
+	protected static function validControlHeight($px) {
+		$px = is_scalar($px) ? (int) $px : 0;
+		return $px >= 28 && $px <= 56 ? $px : 36;
+	}
+
+	/**
+	 * Body classes, with the two that follow the Appearance settings (pw-variant-*, pw-scheme-*)
+	 * added when the page renders, not at init(): an extension's appearance() hook may be attached
+	 * after the theme's init() (0.30.0). Called again, it replaces the two instead of adding more.
+	 *
+	 * @return string
+	 *
+	 */
+	public function getBodyClass() {
+		$classes = array();
+		foreach((array) $this->getClass('body', true) as $class) {
+			if($class !== '' && strpos($class, 'pw-variant-') !== 0 && strpos($class, 'pw-scheme-') !== 0) $classes[] = $class;
+		}
+		$classes[] = 'pw-variant-' . $this->getVariant();
+		$classes[] = 'pw-scheme-' . $this->getColorScheme();
+		$this->addClass('body', implode(' ', $classes), true);
+		return parent::getBodyClass();
 	}
 
 	/**
@@ -102,7 +217,8 @@ trait AdminThemeBridgeShell {
 	}
 
 	/**
-	 * Logo markup: the configured image (light and optional dark version) or the theme's own mark
+	 * Logo markup: the configured image (light and optional dark version) or the theme's own mark;
+	 * the URLs come through appearance() (0.30.0)
 	 *
 	 * @return string
 	 *
@@ -111,9 +227,12 @@ trait AdminThemeBridgeShell {
 		$config = $this->wire()->config;
 		$sanitizer = $this->wire()->sanitizer;
 		$out = '';
-		$hasDark = trim((string) $this->get('logoURLDark')) !== '' && trim((string) $this->get('logoURL')) !== '';
+		$values = $this->appearanceValues(); // the settings, or what an extension sets (0.30.0)
+		$urls = array();
+		foreach(array('logoURL', 'logoURLDark') as $key) $urls[$key] = is_scalar($values[$key]) ? trim((string) $values[$key]) : '';
+		$hasDark = $urls['logoURLDark'] !== '' && $urls['logoURL'] !== '';
 		foreach(array('logoURL' => 'pw-logo-light', 'logoURLDark' => 'pw-logo-dark') as $key => $class) {
-			$url = trim((string) $this->get($key));
+			$url = $urls[$key];
 			if($url === '') continue;
 			if(!$hasDark) $class = ''; // a single logo is shown in both schemes
 			if(strpos($url, '//') === false) $url = $config->urls->root . ltrim($url, '/');
@@ -689,7 +808,8 @@ trait AdminThemeBridgeShell {
 	 *
 	 */
 	public function getMaxWidth() {
-		return max(0, min(4000, (int) $this->get('maxWidth')));
+		$values = $this->appearanceValues();
+		return self::validMaxWidth($values['maxWidth']);
 	}
 
 	/**
@@ -699,8 +819,8 @@ trait AdminThemeBridgeShell {
 	 *
 	 */
 	public function getLabelSize() {
-		$px = (int) $this->get('labelSize');
-		return $px >= 12 && $px <= 20 ? $px : 14;
+		$values = $this->appearanceValues();
+		return self::validLabelSize($values['labelSize']);
 	}
 
 	/**
@@ -710,7 +830,7 @@ trait AdminThemeBridgeShell {
 	 *
 	 */
 	public function getControlHeight() {
-		$px = (int) $this->get('controlHeight');
-		return $px >= 28 && $px <= 56 ? $px : 36;
+		$values = $this->appearanceValues();
+		return self::validControlHeight($values['controlHeight']);
 	}
 }
