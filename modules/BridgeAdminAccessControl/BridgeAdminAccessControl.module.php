@@ -144,7 +144,7 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 		$this->addHookBefore('ProcessHome::execute', $this, 'hookHomeExecute');
 		$this->addHookAfter('ProcessPageSearch::findReady', $this, 'hookFindSelector');
 		$this->addHookAfter('ProcessPageLister::getSelector', $this, 'hookFindSelector');
-		foreach(array('saveReady', 'trashReady', 'restoreReady', 'deleteReady') as $method) {
+		foreach(array('saveReady', 'saveFieldReady', 'trashReady', 'restoreReady', 'deleteReady') as $method) {
 			$this->addHookBefore("Pages::$method", $this, 'hookPageGuard');
 		}
 		if($this->bridgeThemePresent()) {
@@ -274,11 +274,16 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	}
 
 	/**
-	 * Hook before Pages::saveReady, trashReady, restoreReady and deleteReady: in an admin request,
-	 * whatever code asks for it, a denied page is not changed. For a page being added, the rules'
-	 * verdict on its parent decides; a page being moved counts as added under its new parent.
-	 * restoreReady is needed beside saveReady: a restore, also the one inside a save, clears the
-	 * trash status in the database before saveReady is reached.
+	 * Hook before Pages::saveReady, saveFieldReady, trashReady, restoreReady and deleteReady: in an
+	 * admin request, whatever code asks for it, a denied page is not changed. For a page being added,
+	 * the rules' verdict on its parent decides; a page being moved counts as added under its new
+	 * parent. restoreReady is needed beside saveReady: a restore, also the one inside a save, clears
+	 * the trash status in the database before saveReady is reached. saveFieldReady is needed beside
+	 * saveReady: Pages::saveField() (and saveFields(), which calls it per field) fires only that one;
+	 * argument 0 is the page there too. A page whose parent was changed in memory and whose field is
+	 * then saved with saveField() is judged as a move (old and new place both allowed): stricter than
+	 * a field save needs, never looser. savePageOrFieldReady is not hooked (it would run the guard
+	 * twice per save). A save made with the core's noHooks option passes no hook at all.
 	 *
 	 * @param HookEvent $event
 	 * @throws WirePermissionException

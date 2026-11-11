@@ -2827,10 +2827,13 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 // BridgeAdminAccessControl: find-based screens and the guard on saves (sprint bridge-admin-access-control, step 3)
 check('ACL finds: after-hooks on ProcessPageSearch::findReady and ProcessPageLister::getSelector, InputfieldPage untouched', strpos($aclModuleSrc, "addHookAfter('ProcessPageSearch::findReady', \$this, 'hookFindSelector')") !== false
 	&& strpos($aclModuleSrc, "addHookAfter('ProcessPageLister::getSelector', \$this, 'hookFindSelector')") !== false && strpos($aclModuleSrc, 'getSelectablePages') === false);
-check('ACL guard: before-hooks on Pages::saveReady, trashReady, restoreReady and deleteReady', strpos($aclModuleSrc, 'addHookBefore("Pages::$method", $this, \'hookPageGuard\')') !== false && strpos($aclModuleSrc, "array('saveReady', 'trashReady', 'restoreReady', 'deleteReady')") !== false);
+check('ACL guard: before-hooks on Pages::saveReady, saveFieldReady, trashReady, restoreReady and deleteReady, from one loop', strpos($aclModuleSrc, 'addHookBefore("Pages::$method", $this, \'hookPageGuard\')') !== false && strpos($aclModuleSrc, "array('saveReady', 'saveFieldReady', 'trashReady', 'restoreReady', 'deleteReady')") !== false
+	&& substr_count($aclModuleSrc, "'hookPageGuard'") === 1);
 $aclDocs = (string) @file_get_contents(dirname(__DIR__) . '/docs/access-control.md');
 check('ACL docs: a move counts as adding under the new parent', strpos($aclDocs, 'A move counts as adding under the new parent') !== false);
-check('ACL docs: the find selectors, the guard, the bookmark limit and the pickers', strpos($aclDocs, 'rR=(id!=R, has_parent!=R), rR=(id=E), rR=(has_parent=E)') !== false && strpos($aclDocs, '`Pages::saveReady`') !== false && strpos($aclDocs, '`apiGuard`') !== false
+check('ACL docs: saveField() and saveFields() are stopped, a noHooks save is the remaining limit (0.1.1)', strpos($aclDocs, 'does not pass through these hooks') === false
+	&& strpos($aclDocs, '`Pages::saveField()` and `Pages::saveFields()` are stopped too') !== false && strpos($aclDocs, '`noHooks`') !== false);
+check('ACL docs: the find selectors, the guard, the bookmark limit and the pickers', strpos($aclDocs, 'rR=(id!=R, has_parent!=R), rR=(id=E), rR=(has_parent=E)') !== false && strpos($aclDocs, '`Pages::saveReady`') !== false && strpos($aclDocs, '`Pages::saveFieldReady`') !== false && strpos($aclDocs, '`apiGuard`') !== false
 	&& strpos($aclDocs, 'lister bookmark') !== false && strpos($aclDocs, 'getSelectablePages') !== false);
 if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $aclSuper, $aclRule, $aclSet, $aclX, $aclSibling, $aclBecome)) {
 	$aclIds = function($selector) use($pages) { return array_map('intval', $pages->find($selector)->explode('id')); };
@@ -2936,11 +2939,37 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 		$aclQuiet = array('quiet' => true, 'noFields' => true);
 		$aclSave = function($p) use($pages, $aclQuiet) { $of = $p->of(); $p->of(false); try { $pages->save($p, $aclQuiet); } finally { $p->of($of); } };
 		$aclNewUnder = function($parent) use($wire) { $p = $wire->wire(new Page($parent->template)); $p->parent = $parent; $p->name = 'acl-guard-probe'; return $p; };
+		$aclTitle = $wire->fields->get('title');
+		$aclFieldReady = function($p) use($pages, $aclTitle) { return function() use($pages, $aclTitle, $p) { $pages->saveFieldReady($p, $aclTitle); }; };
 		$config->admin = false;
 		check('ACL guard: outside an admin request nothing is stopped', !$aclThrows(function() use($pages, $aclTree) { $pages->saveReady($aclTree); }));
+		check('ACL guard, saveFieldReady: outside an admin request nothing is stopped (0.1.1)', !$aclThrows($aclFieldReady($aclTree)));
 		$config->admin = true;
 		check('ACL guard: saving a denied page throws', $aclThrows(function() use($aclSave, $aclTree) { $aclSave($aclTree); }));
 		check('ACL guard: saving another page does not', !$aclThrows(function() use($aclSave, $aclNative) { $aclSave($aclNative); }));
+		check('ACL guard, saveFieldReady: a denied page throws, an allowed one does not (0.1.1)', $aclThrows($aclFieldReady($aclTree)) && !$aclThrows($aclFieldReady($aclNative)));
+		// the public call, not the hook method: nothing reaches the database
+		$aclTitleRow = function() use($wire, $T) {
+			$q = $wire->database->prepare('SELECT * FROM field_title WHERE pages_id=:id');
+			$q->bindValue(':id', $T, \PDO::PARAM_INT);
+			$q->execute();
+			return json_encode($q->fetchAll(\PDO::FETCH_ASSOC));
+		};
+		$aclTitleWas = $aclTitleRow();
+		$aclFieldSaveError = '';
+		$aclFieldSaveThrew = $aclThrows(function() use($pages, $T, &$aclFieldSaveError) {
+			$p = $pages->getFresh($T);
+			$p->of(false);
+			$p->set('title', 'acl-guard-probe ' . time());
+			try {
+				$pages->saveField($p, 'title', array('quiet' => true));
+			} catch(WirePermissionException $e) {
+				throw $e;
+			} catch(\Throwable $e) {
+				$aclFieldSaveError = get_class($e) . ': ' . $e->getMessage();
+			}
+		});
+		check('ACL guard: Pages::saveField() on a denied page throws, the stored title is unchanged (0.1.1)', $aclFieldSaveThrew && $aclTitleRow() === $aclTitleWas && $aclTitleWas !== '[]', $aclFieldSaveError);
 		check('ACL guard: trashing or deleting a denied page throws, nothing is touched', $aclThrows(function() use($pages, $aclX) { $pages->trashReady($aclX); }) && $aclThrows(function() use($pages, $aclX) { $pages->deleteReady($aclX); }) && $pages->get($E)->id === $E && !$pages->get($E)->isTrash());
 		check('ACL guard: a page added under a denied parent throws, under another does not', $aclThrows(function() use($pages, $aclNewUnder, $aclTree) { $pages->saveReady($aclNewUnder($aclTree)); }) && !$aclThrows(function() use($pages, $aclNewUnder, $aclNative) { $pages->saveReady($aclNewUnder($aclNative)); }));
 		$aclHomeAddable = $aclHome->addable();
@@ -3027,7 +3056,8 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 
 		$acl->set('apiGuard', 0);
 		check('ACL guard, move: with the setting off nothing throws', !$aclThrows($aclReady($aclMoved($N, $aclTree))));
-		check('ACL guard: with the setting off nothing throws', !$aclThrows(function() use($aclSave, $aclTree) { $aclSave($aclTree); }) && !$aclThrows(function() use($pages, $aclTree) { $pages->trashReady($aclTree); }));
+		check('ACL guard: with the setting off nothing throws', !$aclThrows(function() use($aclSave, $aclTree) { $aclSave($aclTree); }) && !$aclThrows(function() use($pages, $aclTree) { $pages->trashReady($aclTree); })
+			&& !$aclThrows($aclFieldReady($aclTree)));
 		$acl->set('apiGuard', 1);
 		$aclBecome($aclSuper);
 		check('ACL guard: the superuser is not stopped', !$aclThrows(function() use($aclSave, $aclTree) { $aclSave($aclTree); }));
