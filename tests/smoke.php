@@ -2513,6 +2513,9 @@ check('tools/screens-check.js opens Add Page with &template_id= only, and names 
 	strpos($addScreens, "'&template_id=' + ADD_TEMPLATE") !== false && strpos($addScreens, 'A the add form opened (no page was created)') !== false
 	&& preg_match_all('/page\/add/', $addScreens) === preg_match_all('/page\/add[^\n]*template_id/', $addScreens)
 	&& strpos($addScreens, 'needs ADD_TEMPLATE_ID') !== false);
+// screens-check F measures the theme's own bar without the access-control fixture's top item (step 2b)
+check('tools/screens-check.js section F removes the bridge-custom-menu top item before measuring the bar',
+	preg_match('/const fits = await wide\.evaluate\(async \(\) => \{[^}]*data-bridge-extension.*?bridge-custom-menu.*?pw-nav-overflow/s', $addScreens) === 1);
 check('tools/ci.sh exports ADD_TEMPLATE_ID with the other fixture ids', preg_match('/^\s*export NATIVE_ID=[^\n]*ADD_TEMPLATE_ID="\$\{ADD_TEMPLATE_ID:-\}"/m', (string) file_get_contents(dirname(__DIR__) . '/tools/ci.sh')) === 1);
 
 // BridgeAdminAccessControl: the rules engine and the theme's navCacheKey (sprint bridge-admin-access-control, step 1)

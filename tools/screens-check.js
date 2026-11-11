@@ -223,9 +223,16 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const wide = await ctx.newPage();
 	await wide.setViewportSize({ width: 1100, height: 800 });
 	await wide.goto(ADMIN + 'page/edit/?id=' + NATIVE, { waitUntil: 'networkidle' });
-	// the theme's own bar: extension parts (BridgeSample's masthead-right on the sandbox, 0.27.0) taken out first
+	// the theme's own bar: extension parts (BridgeSample's masthead-right on the sandbox, 0.27.0) taken out
+	// first, and the access-control fixture's top-level item "Custom menu" (bridge-custom-menu,
+	// tools/sandbox-fixture.php, kept for acl-check.js): with it the sandbox's bar already overflows at
+	// 1100 px. Only this page's DOM changes; the page is closed after the check.
 	const fits = await wide.evaluate(async () => {
 		document.querySelectorAll('[data-bridge-extension]').forEach(el => el.remove());
+		document.querySelectorAll('.pw-primary-nav > li.pw-nav-item-top').forEach(li => {
+			const a = li.querySelector(':scope > a[href]');
+			if(a && /\/bridge-custom-menu\/?$/.test(new URL(a.href, location.href).pathname)) li.remove();
+		});
 		window.dispatchEvent(new Event('resize'));
 		await new Promise(r => setTimeout(r, 300));
 		return document.body.classList.contains('pw-nav-overflow');
