@@ -3003,6 +3003,7 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 			return json_encode($q->fetchAll(\PDO::FETCH_ASSOC));
 		};
 		$aclTitleWas = $aclTitleRow();
+		$aclTitleOld = $pages->getFresh($T)->getUnformatted('title');
 		$aclFieldSaveError = '';
 		$aclFieldSaveThrew = $aclThrows(function() use($pages, $T, &$aclFieldSaveError) {
 			$p = $pages->getFresh($T);
@@ -3016,7 +3017,15 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 				$aclFieldSaveError = get_class($e) . ': ' . $e->getMessage();
 			}
 		});
-		check('ACL guard: Pages::saveField() on a denied page throws, the stored title is unchanged (0.1.1)', $aclFieldSaveThrew && $aclTitleRow() === $aclTitleWas && $aclTitleWas !== '[]', $aclFieldSaveError);
+		$aclTitleKept = $aclTitleRow() === $aclTitleWas;
+		if(!$aclTitleKept) {
+			// a regressed guard let the probe through: put the title back before reporting it
+			$p = $pages->getFresh($T);
+			$p->of(false);
+			$p->set('title', $aclTitleOld);
+			$pages->saveField($p, 'title', array('quiet' => true, 'noHooks' => true));
+		}
+		check('ACL guard: Pages::saveField() on a denied page throws, the stored title is unchanged (0.1.1)', $aclFieldSaveThrew && $aclTitleKept && $aclTitleWas !== '[]', $aclFieldSaveError);
 		check('ACL guard: trashing or deleting a denied page throws, nothing is touched', $aclThrows(function() use($pages, $aclX) { $pages->trashReady($aclX); }) && $aclThrows(function() use($pages, $aclX) { $pages->deleteReady($aclX); }) && $pages->get($E)->id === $E && !$pages->get($E)->isTrash());
 		check('ACL guard: a page added under a denied parent throws, under another does not', $aclThrows(function() use($pages, $aclNewUnder, $aclTree) { $pages->saveReady($aclNewUnder($aclTree)); }) && !$aclThrows(function() use($pages, $aclNewUnder, $aclNative) { $pages->saveReady($aclNewUnder($aclNative)); }));
 		$aclHomeAddable = $aclHome->addable();

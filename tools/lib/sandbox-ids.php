@@ -7,7 +7,8 @@
  * AUTO_ID (/bridge-autocomplete/), CUSTOM_MENU_ID (bridge-custom-menu under the admin root),
  * ADD_TEMPLATE_ID (the template of the first child of /bridge-native-parent/, bridge_native: what
  * tools/screens-check.js passes to Add Page, so that no quick add creates a page).
- * A page that is missing prints nothing; the check that needs it then uses its own default.
+ * A page that is missing prints nothing; the check that needs it then uses its own default
+ * (ADD_TEMPLATE_ID has none: tools/screens-check.js then fails by name).
  * Reads only. Boots the sandbox behind tools/lib/sandbox-guard.php.
  *
  * Usage: php tools/lib/sandbox-ids.php /path/to/sandbox/root

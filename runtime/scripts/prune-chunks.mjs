@@ -3,8 +3,8 @@
  * (assets/dist/chunks.json: { note, version, chunks, previous }). A tab that stays open across a
  * deploy still imports the chunks of the runtime it loaded (lazy field widgets), so the chunks of
  * the release before stay one more release (audit B27). `version` is the theme version the list
- * was last released for, `chunks` the chunk files of that release, `previous` those of the release
- * before it that differed.
+ * was last released for, `chunks` the chunk files of that release, `previous` the whole `chunks`
+ * list of the last release with a different version (names it shares with `chunks` included).
  *
  * No rule can tell a development build from a release build, so moving the list on is an explicit
  * step:
@@ -219,6 +219,13 @@ function run(mode) {
 		if (entry.file && entry.file.startsWith('chunks/')) current.add(entry.file.slice('chunks/'.length));
 	}
 	const present = presentChunks();
+	const missing = sorted(current).filter(f => !present.has(f));
+	if (missing.length) {
+		// a stale .vite/manifest.json (gitignored, survives a pull or a branch switch): deciding on it
+		// would list chunks that are not there and delete the real ones
+		console.error(`prune-chunks: the manifest names chunks that are not in chunks/ (${missing.join(', ')}): it is not this tree's build, run the build first`);
+		process.exit(1);
+	}
 	const result = decide({ mode, current, present, listed: readList(), moduleVersion: moduleVersion() });
 	for (const f of result.delete) unlinkSync(dist + 'chunks/' + f);
 	if (result.list) writeList(result.list);
