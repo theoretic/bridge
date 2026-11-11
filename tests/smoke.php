@@ -1806,6 +1806,16 @@ $cleanSrc = $read('tools/sandbox-clean.php');
 check('tools/sandbox-clean.php loads the sandbox guard, calls both guard functions and deletes with $pages->delete() only under --delete', strpos($cleanSrc, "require __DIR__ . '/lib/sandbox-guard.php';") !== false
 	&& strpos($cleanSrc, 'bridgeSandboxRoot($rootArg)') !== false && strpos($cleanSrc, 'bridgeSandboxBooted($config, $root)') !== false
 	&& strpos($cleanSrc, 'if($delete) {') !== false && strpos($cleanSrc, '$pages->delete($page)') !== false && strpos($cleanSrc, 'trash(') === false);
+// 0.30.0: an outside extension in and out of a sandbox (tools/sandbox-extension.php)
+$extSrc = $read('tools/sandbox-extension.php');
+check('tools/sandbox-extension.php loads the sandbox guard, calls both guard functions and knows --remove', strpos($extSrc, "require __DIR__ . '/lib/sandbox-guard.php';") !== false
+	&& strpos($extSrc, 'bridgeSandboxRoot($args[0])') !== false && strpos($extSrc, 'bridgeSandboxBooted($config, $root)') !== false
+	&& strpos($extSrc, "'--remove'") !== false && strpos($extSrc, 'mklink /J') !== false);
+$recursive = array();
+foreach(array('RecursiveDirectoryIterator', 'rm -r', 'rmdir /s', 'wireRmdir(') as $needle) {
+	if(stripos($extSrc, $needle) !== false) $recursive[] = $needle;
+}
+check('tools/sandbox-extension.php deletes nothing recursively (the link only)', $extSrc !== '' && !count($recursive), implode(', ', $recursive));
 $site = $read('tools/sandbox-site.sh');
 check('SE5 sandbox-site.sh stops on a failed pipe and checks the database by its config', strpos($site, 'set -euo pipefail') !== false && strpos($site, 'lib/sandbox-dbname.php') !== false);
 $literal = array();

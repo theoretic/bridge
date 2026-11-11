@@ -217,6 +217,15 @@ directory placed under the sandbox's site modules, as a junction). `<Module>` is
 or a directory name: then every module in it with a manifest is checked, the others are skipped.
 Both print `ok` / `FAIL` lines and exit 1 on a failure.
 
+A third-party extension stays installed in a sandbox only while its checks run (the bundled set's
+smoke pins). `tools/sandbox-extension.php` links its directory in (a junction on Windows) and
+installs its modules with a manifest; `--remove` uninstalls them and removes the link only. The
+command takes no variable, so it reads the same in Git Bash and PowerShell:
+
+```bash
+php tools/sandbox-extension.php sandbox/atispro <extension dir> [--remove]
+```
+
 The commands in this document are written for Git Bash (`VAR=value command`). In PowerShell set
 the variable first, `$env:PW = '<playwright-core dir>'; node tools/...`; in cmd, `set PW=<dir>`
 on a line of its own, then the command.
