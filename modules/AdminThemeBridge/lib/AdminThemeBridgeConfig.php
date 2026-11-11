@@ -116,6 +116,27 @@ trait AdminThemeBridgeConfig {
 		$f->columnWidth = 50;
 		$fs->add($f);
 
+		/** @var InputfieldInteger $f */
+		$f = $modules->get('InputfieldInteger');
+		$f->attr('name', 'labelSize');
+		$f->label = __('Field label size (px)', __FILE__);
+		$f->attr('value', $this->getLabelSize());
+		$f->attr('min', 12);
+		$f->attr('max', 20);
+		$f->columnWidth = 50;
+		$fs->add($f);
+
+		/** @var InputfieldInteger $f */
+		$f = $modules->get('InputfieldInteger');
+		$f->attr('name', 'controlHeight');
+		$f->label = __('Control height (px)', __FILE__);
+		$f->description = __('Height of inputs, selects and buttons.', __FILE__);
+		$f->attr('value', $this->getControlHeight());
+		$f->attr('min', 28);
+		$f->attr('max', 56);
+		$f->columnWidth = 50;
+		$fs->add($f);
+
 		/** @var InputfieldFieldset $fs */
 		$fs = $modules->get('InputfieldFieldset');
 		$fs->attr('name', '_features');

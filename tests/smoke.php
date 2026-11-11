@@ -1998,6 +1998,36 @@ if(isset($bridge)) {
 		&& $tokPos < (int) strpos($tokHeadSrc, "data-bridge-styles='") && strpos($tokLine, '$nonce') !== false && strpos($tokLine, "if(\$plan->tokenCss !== '')") === 0, $tokLine);
 	check('assetPlan() fills tokenCss for every layout', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), "\t\t\$plan->tokenCss = \$this->tokenCss();\n") !== false);
 	check('_head.php paints the canvas with var(--background, #0a0a0a) before the stylesheets', substr_count($tokHeadSrc, 'background: var(--background, #0a0a0a);') === 2 && strpos($tokHeadSrc, 'background: #0a0a0a;') === false);
+	// 0.30.0: settings labelSize and controlHeight (sprint bridge-customizer, step 3)
+	$sizeKept = array($bridge->get('labelSize'), $bridge->get('controlHeight'));
+	$bridge->set('labelSize', 14);
+	$bridge->set('controlHeight', 36);
+	check('labelSize and controlHeight at their defaults (14, 36) print no token style', $bridge->getLabelSize() === 14 && $bridge->getControlHeight() === 36 && $bridge->tokenCss() === '', $bridge->tokenCss());
+	$bridge->set('labelSize', 16);
+	$bridge->set('controlHeight', 44);
+	$sizeOut = $bridge->tokenCss();
+	check('labelSize 16 and controlHeight 44 print --pw-label-size:1rem and --pw-control-height:2.75rem on :root:root', $sizeOut === ':root:root{--pw-label-size:1rem;--pw-control-height:2.75rem}', $sizeOut);
+	$bridge->set('labelSize', 15);
+	$bridge->set('controlHeight', 36);
+	$sizeOut15 = $bridge->tokenCss();
+	check('labelSize 15 prints 0.9375rem and controlHeight 36 nothing', $sizeOut15 === ':root:root{--pw-label-size:0.9375rem}', $sizeOut15);
+	$sizeRange = array();
+	foreach(array(array(99, 14, 'getLabelSize'), array(11, 14, 'getLabelSize'), array('x', 14, 'getLabelSize'), array(12, 12, 'getLabelSize'), array(20, 20, 'getLabelSize'),
+		array(27, 36, 'getControlHeight'), array(57, 36, 'getControlHeight'), array(28, 28, 'getControlHeight'), array(56, 56, 'getControlHeight')) as $sizeCase) {
+		list($sizeIn, $sizeWant, $sizeGetter) = $sizeCase;
+		$bridge->set($sizeGetter === 'getLabelSize' ? 'labelSize' : 'controlHeight', $sizeIn);
+		if($bridge->$sizeGetter() !== $sizeWant) $sizeRange[] = "$sizeGetter($sizeIn) = " . $bridge->$sizeGetter();
+		$bridge->set('labelSize', 14);
+		$bridge->set('controlHeight', 36);
+	}
+	check('getLabelSize() keeps 12..20 else 14, getControlHeight() 28..56 else 36', !count($sizeRange), implode(' | ', $sizeRange));
+	$bridge->set('labelSize', $sizeKept[0]);
+	$bridge->set('controlHeight', $sizeKept[1]);
+	check('getLabelSize/getControlHeight are reads and labelSize/controlHeight settings on the surface', in_array('getLabelSize', $surface['reads'], true) && in_array('getControlHeight', $surface['reads'], true)
+		&& in_array('labelSize', $surface['settings'], true) && in_array('controlHeight', $surface['settings'], true) && count($surface['settings']) === 22, count($surface['settings']));
+	$sizeConfigSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeConfig.php');
+	check('the config screen has the fields labelSize and controlHeight after maxWidth', strpos($sizeConfigSrc, "attr('name', 'labelSize')") > (int) strpos($sizeConfigSrc, "attr('name', 'maxWidth')")
+		&& strpos($sizeConfigSrc, "attr('name', 'controlHeight')") > (int) strpos($sizeConfigSrc, "attr('name', 'labelSize')"));
 	$readsBad = array();
 	foreach($surface['reads'] as $name) {
 		if(!method_exists($bridge, $name) || !(new \ReflectionMethod($bridge, $name))->isPublic() || method_exists($bridge, "___$name")) $readsBad[] = $name;

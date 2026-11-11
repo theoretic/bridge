@@ -408,13 +408,14 @@ trait AdminThemeBridgeExtensions {
 			'reads' => array(
 				'useLegacyStack', 'componentInfo', 'extensions', 'extensionInfo', 'extensionAllowed', 'extensionStyles', 'cspNonce',
 				'nonceAttr', 'nonceScriptTag', 'themeAssetUrl', 'getVariant', 'getColorScheme', 'shellLabel', 'getHistorySteps',
-				'tokenCss',
+				'tokenCss', 'getLabelSize', 'getControlHeight',
 			),
 			// the keys __construct() sets (smoke compares with the source)
 			'settings' => array(
 				'legacyStack', 'uikit', 'maxWidth', 'variant', 'primaryColor', 'colorScheme', 'logoURL', 'logoURLDark',
 				'extendedBreadcrumbs', 'pageTreeDrawer', 'history', 'historySteps', 'pageSaveInPlace', 'pageAddSkipTemplate',
 				'dangerWarn', 'userColors', 'dataTableSortRows', 'printScripts', 'nativeOverrides', 'extensionDev',
+				'labelSize', 'controlHeight',
 			),
 			// the shell slots (slotTags())
 			'slots' => array_keys($this->slotTags()),

@@ -691,4 +691,26 @@ trait AdminThemeBridgeShell {
 	public function getMaxWidth() {
 		return max(0, min(4000, (int) $this->get('maxWidth')));
 	}
+
+	/**
+	 * Field label size in px, within 12..20, else the default 14 (0.30.0)
+	 *
+	 * @return int
+	 *
+	 */
+	public function getLabelSize() {
+		$px = (int) $this->get('labelSize');
+		return $px >= 12 && $px <= 20 ? $px : 14;
+	}
+
+	/**
+	 * Height of inputs, selects and buttons in px, within 28..56, else the default 36 (0.30.0)
+	 *
+	 * @return int
+	 *
+	 */
+	public function getControlHeight() {
+		$px = (int) $this->get('controlHeight');
+		return $px >= 28 && $px <= 56 ? $px : 36;
+	}
 }

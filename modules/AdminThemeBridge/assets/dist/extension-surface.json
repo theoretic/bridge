@@ -39,7 +39,9 @@
 		"getColorScheme",
 		"shellLabel",
 		"getHistorySteps",
-		"tokenCss"
+		"tokenCss",
+		"getLabelSize",
+		"getControlHeight"
 	],
 	"settings": [
 		"legacyStack",
@@ -61,7 +63,9 @@
 		"dataTableSortRows",
 		"printScripts",
 		"nativeOverrides",
-		"extensionDev"
+		"extensionDev",
+		"labelSize",
+		"controlHeight"
 	],
 	"slots": [
 		"head",

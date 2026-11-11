@@ -88,13 +88,23 @@ trait AdminThemeBridgeHead {
 	 * Three groups of name => value: `all` for both colour schemes, `light` and `dark` for one. Names
 	 * are tokens of extensionSurface()['tokens'] (e.g. `'--background' => '#fefefe'`). A hook adds
 	 * to `$event->return` rather than replacing it. tokenCss() checks every entry and prints what
-	 * is left in `<style data-pw-tokens>` on every page, the login screen included.
+	 * is left in `<style data-pw-tokens>` on every page, the login screen included. By default
+	 * `all` carries `--pw-label-size` and `--pw-control-height` when the settings labelSize and
+	 * controlHeight are not at their defaults (14 and 36 px), in rem so the interface scale applies.
 	 *
 	 * @return array Keys: all, light, dark; each an array of token name => CSS value
 	 *
 	 */
 	public function ___tokenOverrides() {
-		return array('all' => array(), 'light' => array(), 'dark' => array());
+		$rem = function($px) {
+			return rtrim(rtrim(sprintf('%.4F', $px / 16), '0'), '.') . 'rem';
+		};
+		$all = array();
+		$labelSize = $this->getLabelSize();
+		if($labelSize !== 14) $all['--pw-label-size'] = $rem($labelSize);
+		$controlHeight = $this->getControlHeight();
+		if($controlHeight !== 36) $all['--pw-control-height'] = $rem($controlHeight);
+		return array('all' => $all, 'light' => array(), 'dark' => array());
 	}
 
 	/**
