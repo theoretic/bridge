@@ -1788,6 +1788,10 @@ foreach(array('tools/sandbox-admin.php', 'tools/sandbox-modules.php', 'tools/san
 	if(strpos($src, 'lib/sandbox-guard.php') === false || strpos($src, 'bridgeSandboxRoot(') === false || strpos($src, 'bridgeSandboxBooted($config, $root)') === false) $guarded[] = $rel;
 }
 check('SE5 every tool that writes to a sandbox loads the guard before and after the boot', !count($guarded), implode(', ', $guarded));
+$cleanSrc = $read('tools/sandbox-clean.php');
+check('tools/sandbox-clean.php loads the sandbox guard, calls both guard functions and deletes with $pages->delete() only under --delete', strpos($cleanSrc, "require __DIR__ . '/lib/sandbox-guard.php';") !== false
+	&& strpos($cleanSrc, 'bridgeSandboxRoot($rootArg)') !== false && strpos($cleanSrc, 'bridgeSandboxBooted($config, $root)') !== false
+	&& strpos($cleanSrc, 'if($delete) {') !== false && strpos($cleanSrc, '$pages->delete($page)') !== false && strpos($cleanSrc, 'trash(') === false);
 $site = $read('tools/sandbox-site.sh');
 check('SE5 sandbox-site.sh stops on a failed pipe and checks the database by its config', strpos($site, 'set -euo pipefail') !== false && strpos($site, 'lib/sandbox-dbname.php') !== false);
 $literal = array();
