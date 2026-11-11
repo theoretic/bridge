@@ -135,6 +135,16 @@ alternatives. `AdminThemeBridge::contractSatisfies($range, $version)` and
 `contractRangeValid($range)` do the same in PHP; `contractCompatible($range)` is true when the
 range takes any version of `contracts`.
 
+The surface grew within contract 0.2 in theme 0.30.0, as it did in 0.28.0 (`navCacheKey`): only
+entries were added to four lists, no manifest key and no surface key, so the contract stays 0.2
+(ADR 0023). The additions are the appearance seams of section 13: hooks `tokenOverrides`,
+`appearance`, `adminTitle`, `faviconUrl`; reads `tokenCss`, `getLabelSize`, `getControlHeight`,
+`isLoginScreen`, `renderAdminTitle`; settings `labelSize`, `controlHeight`; tokens
+`--pw-label-size`, `--pw-control-height`, `--pw-login-bg`. A contract range cannot tell a 0.30.0
+theme from an older one, so an extension that needs them also declares
+`'requires' => 'AdminThemeBridge>=0.30.0'`; the compatibility checker reports a hook, read,
+setting or token that an older surface lacks.
+
 ## 4. Slots
 
 A slot is a named place in the shell that extensions fill through their manifest's `slots`:
@@ -429,8 +439,10 @@ contract tests (section 6) and the dev watcher (section 9) while working on it.
 - **More declarative weight.** The `bridge` info key declares what a module uses; hiding,
   renaming or reordering menu items without code is not part of 0.2.
 - **Hot module replacement** (section 9), and a directory or registry of extensions.
-- **Restyling the login screen.** Extension stylesheets, like the slots, print for signed-in users
-  only (section 12).
+- **Stylesheets and slots on the login screen.** Extension stylesheets, like the slots, still
+  print for signed-in users only (section 12). Since theme 0.30.0 the login screen is reached
+  through the four appearance hookables instead: its logo, background, heading, favicon and
+  palette (section 13).
 
 ## 12. Styling extensions
 
@@ -458,8 +470,8 @@ needs two things from the contract, both since 0.2:
   rather than compute from today's numbers.
 
 The stylesheets print for signed-in users only, as the slots do, for the extensions they may have
-(`permission`) and whose `contract` the theme honours: the login screen is not restyled by
-extensions. `modules/BridgeSample` (section 7, scaffolded with `--styles`) is the smallest working
+(`permission`) and whose `contract` the theme honours: the login screen gets none of them (its
+logo, colours and heading come through the appearance seams, section 13). `modules/BridgeSample` (section 7, scaffolded with `--styles`) is the smallest working
 example.
 
 A site's own copy of `_head.php` (in `/site/templates/AdminThemeBridge/`) that still builds the
@@ -472,4 +484,146 @@ foreach($adminTheme->extensionStyles() as $style) {
 	echo "\n\t<link type='text/css' href='" . $sanitizer->entities($style['url']) . "' rel='stylesheet' data-bridge-styles='" .
 		$sanitizer->entities($style['extension']) . "'" . $adminTheme->nonceAttr() . " />";
 }
+```
+
+## 13. Appearance seams
+
+Since theme 0.30.0 an extension can set the admin's look for the whole site (colours, logo,
+title, favicon, label size, control height) through four hookable methods, on every page and in
+every layout: the normal one, modal windows and the login screen, which extension stylesheets
+and slots do not reach (section 11). The manifest lists the hooks in `hooks` and the reads in
+`reads`, and the module declares `'requires' => 'AdminThemeBridge>=0.30.0'` (section 3). The
+theme's own settings stay where they are: an extension overrides them in effect, never in
+storage (ADR 0023).
+
+### appearance()
+
+Returns the Appearance settings in effect, by default the stored ones: an array with the keys
+`variant`, `primaryColor`, `colorScheme`, `logoURL`, `logoURLDark`, `maxWidth`, `labelSize`,
+`controlHeight`, raw values. A hook after it changes the keys it wants. Every reader validates
+what it gets as it does a stored value: an unknown `variant`, or `custom` without a `#rrggbb`
+`primaryColor`, gives `blue`; `colorScheme` other than `auto`, `light`, `dark` gives `auto`;
+`maxWidth` is held to 0..4000; `labelSize` outside 12..20 gives 14, `controlHeight` outside 28..56
+gives 36. A key the hook removes, or a return that is not an array, leaves the stored value. A
+logo URL without `//` is relative to the site root. The method is asked on every read, never
+cached, so a hook may answer otherwise on the login screen (`isLoginScreen()`, a read).
+
+What it sets is the site's colour. A user's own colour (the theme's `userColors` setting, the
+picker in the user menu) stays above it, and "Site default" in the picker returns to the
+extension's. The theme's configuration screen keeps showing and saving the stored values, and
+puts a note on each field an extension overrides, with the value in effect.
+
+```php
+$this->addHookAfter('AdminThemeBridge::appearance', function(HookEvent $event) {
+	$values = $event->return;
+	$values['variant'] = 'custom';
+	$values['primaryColor'] = '#aa3300';
+	$values['logoURL'] = 'site/assets/MyExtension/logo.svg?v=3';
+	if($event->object->isLoginScreen()) $values['logoURL'] = 'site/assets/MyExtension/login-logo.svg?v=3';
+	$event->return = $values;
+});
+```
+
+### tokenOverrides()
+
+Returns site-wide values for the surface's tokens in three groups of name => value:
+`array('all' => array(), 'light' => array(), 'dark' => array())`. By default `all` carries
+`--pw-label-size` and `--pw-control-height` when the settings `labelSize` and `controlHeight` are
+not at 14 and 36 px (in rem, so the interface scale applies). A hook adds to `$event->return`
+rather than replacing it.
+
+`tokenCss()` (a read) checks every entry: it keeps one whose name is on the surface's `tokens`
+and whose value is a string of 1 to 300 characters out of letters, digits, space and
+`# % ( ) , . / _ ? = + -`, and drops the others without a message. So nothing can end the
+declaration, the rule or the style element: a value with `;`, `}`, `<`, a quote, a backslash, a
+colon or `!important` is dropped, and so is a URL with a scheme (`https:`, `data:`); give a
+root-relative path instead. The theme prints what is left as one
+`<style data-pw-keep data-pw-tokens>` with the request's CSP nonce, after `fields.css` and
+before the extension stylesheets, in every layout, and prints nothing when nothing is left. The
+groups go on these selectors, in this order:
+
+| Group | Selector |
+|---|---|
+| `all` | `:root:root` |
+| `light` | `:root:not([data-pw-scheme=dark]),body.light-theme` |
+| `dark` | `:root[data-pw-scheme=dark],body.dark-theme` |
+
+Their weight (0,2,0) beats the theme's own declarations (0,1,0) wherever they stand, and a light
+value never reaches the dark scheme. The `body` selectors are for pages with the UIkit layer (the
+login screen among them): its `uikit.css` declares the scheme colours again on AdminThemeUikit's
+classes `.light-theme` and `.dark-theme`, which the layer puts on `<body>` with the scheme of
+`<html>`, and (0,1,1) beats them there. Below the root and the body nothing is set: an element with its own
+`data-pw-scheme` (a preview pane, say) gets the theme's colour values for that scheme again,
+because `00-tokens.css` declares the scheme colours on `[data-pw-scheme]`; a token the theme
+declares on `:root` alone (`--radius`, `--pw-label-size`, ...) is inherited with the override.
+For the accent colour use `appearance()` (`variant` `custom`, `primaryColor`): the derived tokens
+(`--ring`, `--pw-primary-hover`, the `--pw-*` aliases) follow it, and the user's own colour
+stays above it.
+
+```php
+$this->addHookAfter('AdminThemeBridge::tokenOverrides', function(HookEvent $event) {
+	$groups = $event->return;
+	$groups['all']['--radius'] = '.25rem';
+	$groups['light']['--background'] = '#fafaf7';
+	$groups['dark']['--background'] = '#101014';
+	$groups['light']['--pw-login-bg'] = 'url(/site/assets/MyExtension/login-bg.jpg?v=3) center / cover no-repeat #f5f5f5';
+	$event->return = $groups;
+});
+```
+
+### adminTitle($place)
+
+The admin's own name for one place, by default `''` (the place stays as it is). Places:
+`browser` takes the place of `Bridge` in the browser title (only its default form,
+"Page • Bridge • host": a custom `$adminTheme->browserTitle` stays as it is); `masthead` prints
+`<span class='pw-admin-title'>` after the logo inside the masthead's home link (hidden below
+768 px); `login` prints the same span after the logo in the login card's title. The value is
+plain text: the theme trims and escapes it, and a return that is not a string or number counts
+as empty. `renderAdminTitle($place)` (a read) gives the span, or `''`.
+
+```php
+$this->addHookAfter('AdminThemeBridge::adminTitle', function(HookEvent $event) {
+	if(in_array($event->arguments(0), array('browser', 'login'), true)) $event->return = 'Acme admin';
+});
+```
+
+### faviconUrl()
+
+The admin's favicon, by default `''`: no icon link. When not empty the theme prints
+`<link rel='icon' href='…' />` right after `<title>`, in every layout. A URL without `//` is
+relative to the site root (the root URL goes in front, as for the logo URLs).
+
+```php
+$this->addHookAfter('AdminThemeBridge::faviconUrl', function(HookEvent $event) {
+	$event->return = 'site/assets/MyExtension/favicon.png?v=3';
+});
+```
+
+### Saving a theme setting
+
+An extension's own settings screen may store a theme setting that is on the surface's
+`settings` (`labelSize` and `controlHeight`, say) in the theme's configuration:
+
+```php
+$this->wire()->modules->saveConfig('AdminThemeBridge', 'labelSize', 15);
+```
+
+This changes the stored value, which the theme's screen shows; the core keeps the other keys.
+Keep a value within the setting's range: the theme falls back to the default otherwise.
+
+### A site's own `_head.php`
+
+A site's own copy of `_head.php` (section 12) prints neither the token style nor the favicon.
+Such a copy adds the favicon line right after its `<title>`:
+
+```php
+$favicon = trim((string) $adminTheme->faviconUrl());
+if($favicon !== '') echo "\t<link rel='icon' href='" . $sanitizer->entities(strpos($favicon, '//') === false ? $config->urls->root . ltrim($favicon, '/') : $favicon) . "' />\n";
+```
+
+and the token style right after its `fields.css` link (before the loop of section 12):
+
+```php
+$tokenCss = $adminTheme->tokenCss();
+if($tokenCss !== '') echo "\n\t<style data-pw-keep data-pw-tokens" . $adminTheme->nonceAttr() . ">$tokenCss</style>";
 ```

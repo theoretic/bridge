@@ -2760,6 +2760,27 @@ check('docs/contract.md 4.0: every token its paragraph names is on the surface, 
 check('ADR 0022 exists and the README says extension contract 0.2', is_file(dirname(__DIR__) . '/docs/decisions/0022-styling-extensions-styles-and-tokens.md')
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '(extension contract 0.2, ADR 0021, 0022)') !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), 'the extension contract is 0.2.') !== false);
+// 0.30.0: the appearance seams in the docs (sprint bridge-customizer, step 7)
+$sec11 = preg_match('/\n## 11\. Not in contract 0\.2\n(.*?)\n## 12\. /s', $devDoc, $m11) ? $m11[1] : '';
+$sec13 = (string) strstr($devDoc, "\n## 13. Appearance seams\n");
+check('docs/extensions.md: sections 10-12 keep their headings, section 13 "Appearance seams" follows them', strpos($devDoc, "\n## 10. Scaffold\n") !== false
+	&& strpos($devDoc, "\n## 11. Not in contract 0.2\n") !== false && strpos($devDoc, "\n## 12. Styling extensions\n") !== false
+	&& $sec13 !== '' && strpos($devDoc, "\n## 12. Styling extensions\n") < strpos($devDoc, "\n## 13. Appearance seams\n"));
+check('docs/extensions.md 11: the login screen points to the appearance seams (section 13), no bare "not restyled by extensions"', strpos($devDoc, 'the login screen is not restyled by') === false
+	&& strpos($sec11, 'the login screen is reached') !== false && strpos($sec11, '(section 13)') !== false);
+check('docs/extensions.md 3 names the 0.30.0 additions and requires AdminThemeBridge>=0.30.0', strpos($devDoc, 'The surface grew within contract 0.2 in theme 0.30.0') !== false
+	&& strpos($devDoc, "`'requires' => 'AdminThemeBridge>=0.30.0'`") !== false);
+check('docs/extensions.md 13: the four hookables, the token selectors as tokenCss() prints them, saveConfig and the two site _head.php lines', strpos($sec13, "\n### appearance()\n") !== false
+	&& strpos($sec13, "\n### tokenOverrides()\n") !== false && strpos($sec13, "\n### adminTitle(\$place)\n") !== false && strpos($sec13, "\n### faviconUrl()\n") !== false
+	&& strpos($sec13, "| `all` | `:root:root` |") !== false && strpos($sec13, "| `light` | `:root:not([data-pw-scheme=dark]),body.light-theme` |") !== false
+	&& strpos($sec13, "| `dark` | `:root[data-pw-scheme=dark],body.dark-theme` |") !== false
+	&& strpos($sec13, "saveConfig('AdminThemeBridge', 'labelSize', 15)") !== false
+	&& strpos($sec13, "data-pw-tokens\" . \$adminTheme->nonceAttr() . \">\$tokenCss</style>\";") !== false && strpos($sec13, "<link rel='icon' href='\" . \$sanitizer->entities(") !== false);
+check('docs/contract.md 4.0 names style[data-pw-tokens] and .pw-admin-title; ADR 0023 exists', strpos($contractDoc, '<style data-pw-keep data-pw-tokens>') !== false
+	&& strpos($contractDoc, "<span class='pw-admin-title'>") !== false && is_file(dirname(__DIR__) . '/docs/decisions/0023-appearance-seams-for-extensions.md'));
+$changelogSrc = (string) @file_get_contents(dirname(__DIR__) . '/CHANGELOG.md');
+check('CHANGELOG\'s first heading is 0.30.0, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '0.30.0'
+	&& $clm[1] === $modules->getModuleInfoProperty('AdminThemeBridge', 'versionStr'), isset($clm[1]) ? $clm[1] : '');
 check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
 	&& is_file(dirname(__DIR__) . '/docs/decisions/0021-extensions-are-modules-on-a-published-surface.md'));
