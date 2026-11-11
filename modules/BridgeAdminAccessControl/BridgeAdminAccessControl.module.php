@@ -20,7 +20,7 @@ class BridgeAdminAccessControl extends WireData implements Module, ConfigurableM
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge admin access control',
-			'version' => '0.1.0',
+			'version' => '0.1.1',
 			'summary' => 'Per-role access control to the page tree, its subtrees and the top-level admin menus.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
