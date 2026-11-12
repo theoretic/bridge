@@ -116,27 +116,53 @@ trait AdminThemeBridgeShell {
 	}
 
 	/**
-	 * A label size value: 12..20 px, else 14
+	 * A size value in rem: a number within $min..$max, rounded to 4 decimals, else $default
 	 *
-	 * @param mixed $px
-	 * @return int
+	 * @param mixed $rem
+	 * @param float $min
+	 * @param float $max
+	 * @param float $default
+	 * @return float
 	 *
 	 */
-	protected static function validLabelSize($px) {
-		$px = is_scalar($px) ? (int) $px : 0;
-		return $px >= 12 && $px <= 20 ? $px : 14;
+	protected static function validRem($rem, $min, $max, $default) {
+		if(is_string($rem)) $rem = trim($rem);
+		if(is_bool($rem) || !is_numeric($rem)) return $default;
+		$rem = round((float) $rem, 4);
+		return $rem >= $min && $rem <= $max ? $rem : $default;
 	}
 
 	/**
-	 * A control height value: 28..56 px, else 36
+	 * A label size value: 0.75..1.25 rem, else 0.875
 	 *
-	 * @param mixed $px
-	 * @return int
+	 * @param mixed $rem
+	 * @return float
 	 *
 	 */
-	protected static function validControlHeight($px) {
-		$px = is_scalar($px) ? (int) $px : 0;
-		return $px >= 28 && $px <= 56 ? $px : 36;
+	protected static function validLabelSize($rem) {
+		return self::validRem($rem, 0.75, 1.25, 0.875);
+	}
+
+	/**
+	 * A control height value: 1.75..3.5 rem, else 2.25
+	 *
+	 * @param mixed $rem
+	 * @return float
+	 *
+	 */
+	protected static function validControlHeight($rem) {
+		return self::validRem($rem, 1.75, 3.5, 2.25);
+	}
+
+	/**
+	 * A rem value as CSS: trailing zeros trimmed (1rem, 0.9375rem, 2.75rem)
+	 *
+	 * @param float $rem
+	 * @return string
+	 *
+	 */
+	protected static function remCss($rem) {
+		return rtrim(rtrim(sprintf('%.4F', $rem), '0'), '.') . 'rem';
 	}
 
 	/**
@@ -879,9 +905,9 @@ trait AdminThemeBridgeShell {
 	}
 
 	/**
-	 * Field label size in px, within 12..20, else the default 14 (0.30.0)
+	 * Field label size in rem, within 0.75..1.25, else the default 0.875 (0.30.0)
 	 *
-	 * @return int
+	 * @return float
 	 *
 	 */
 	public function getLabelSize() {
@@ -890,9 +916,9 @@ trait AdminThemeBridgeShell {
 	}
 
 	/**
-	 * Height of inputs, selects and buttons in px, within 28..56, else the default 36 (0.30.0)
+	 * Height of inputs, selects and buttons in rem, within 1.75..3.5, else the default 2.25 (0.30.0)
 	 *
-	 * @return int
+	 * @return float
 	 *
 	 */
 	public function getControlHeight() {

@@ -544,8 +544,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->set('printScripts', '');
 		$this->set('nativeOverrides', '');
 		$this->set('extensionDev', 0);
-		$this->set('labelSize', 14);
-		$this->set('controlHeight', 36);
+		$this->set('labelSize', 0.875);
+		$this->set('controlHeight', 2.25);
 		$this->setClasses(array(
 			'input' => 'pw-input',
 			'input-small' => 'pw-input pw-input-small',

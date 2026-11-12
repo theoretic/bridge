@@ -152,24 +152,32 @@ trait AdminThemeBridgeConfig {
 		$f->columnWidth = 50;
 		$fs->add($f);
 
-		/** @var InputfieldInteger $f */
-		$f = $modules->get('InputfieldInteger');
+		// sizes in rem (1rem = 16px at 100 %), so the interface scale applies to them
+		/** @var InputfieldFloat $f */
+		$f = $modules->get('InputfieldFloat');
 		$f->attr('name', 'labelSize');
-		$f->label = __('Field label size (px)', __FILE__);
+		$f->label = __('Field label size (rem)', __FILE__);
+		$f->description = __('0.75 to 1.25; the default 0.875 is 14px at 100 %.', __FILE__);
+		$f->precision = 4;
+		$f->inputType = 'number';
+		$f->attr('min', 0.75);
+		$f->attr('max', 1.25);
+		$f->attr('step', 0.0625);
 		$f->attr('value', self::validLabelSize($stored['labelSize']));
-		$f->attr('min', 12);
-		$f->attr('max', 20);
 		$f->columnWidth = 50;
 		$fs->add($f);
 
-		/** @var InputfieldInteger $f */
-		$f = $modules->get('InputfieldInteger');
+		/** @var InputfieldFloat $f */
+		$f = $modules->get('InputfieldFloat');
 		$f->attr('name', 'controlHeight');
-		$f->label = __('Control height (px)', __FILE__);
-		$f->description = __('Height of inputs, selects and buttons.', __FILE__);
+		$f->label = __('Control height (rem)', __FILE__);
+		$f->description = __('Height of inputs, selects and buttons: 1.75 to 3.5; the default 2.25 is 36px at 100 %.', __FILE__);
+		$f->precision = 4;
+		$f->inputType = 'number';
+		$f->attr('min', 1.75);
+		$f->attr('max', 3.5);
+		$f->attr('step', 0.0625);
 		$f->attr('value', self::validControlHeight($stored['controlHeight']));
-		$f->attr('min', 28);
-		$f->attr('max', 56);
 		$f->columnWidth = 50;
 		$fs->add($f);
 		$this->appearanceNotes($fs);

@@ -50,7 +50,8 @@ seam through which an extension could supply any of them:
    - `___faviconUrl()`: when not empty, `<link rel='icon'>` after `<title>`.
    - The body classes are added at render time (`getBodyClass()`), not in `init()`.
 2. **Label size and control height become theme settings and tokens.** Settings `labelSize`
-   (12..20 px, default 14) and `controlHeight` (28..56 px, default 36); tokens `--pw-label-size`
+   (0.75..1.25 rem, default 0.875) and `controlHeight` (1.75..3.5 rem, default 2.25), entered and
+   stored in rem as the theme's sizes are (the owner, 2026-11-12); tokens `--pw-label-size`
    (`.875rem`) and `--pw-control-height` (`2.25rem`), in rem so the interface scale keeps
    working; a non-default value goes through the default of `tokenOverrides()`. A third token,
    `--pw-login-bg` (`var(--muted)`), is the login page's background. At 100 % scale every computed

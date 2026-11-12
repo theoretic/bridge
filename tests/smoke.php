@@ -2016,29 +2016,31 @@ if(isset($bridge)) {
 		&& $tokPos < (int) strpos($tokHeadSrc, "data-bridge-styles='") && strpos($tokLine, '$nonce') !== false && strpos($tokLine, "if(\$plan->tokenCss !== '')") === 0, $tokLine);
 	check('assetPlan() fills tokenCss for every layout', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), "\t\t\$plan->tokenCss = \$this->tokenCss();\n") !== false);
 	check('_head.php paints the canvas with var(--background, #0a0a0a) before the stylesheets', substr_count($tokHeadSrc, 'background: var(--background, #0a0a0a);') === 2 && strpos($tokHeadSrc, 'background: #0a0a0a;') === false);
-	// 0.30.0: settings labelSize and controlHeight (sprint bridge-customizer, step 3)
+	// 0.30.0: settings labelSize and controlHeight, in rem (sprint bridge-customizer, step 3; rem by the owner 2026-11-12)
 	$sizeKept = array($bridge->get('labelSize'), $bridge->get('controlHeight'));
-	$bridge->set('labelSize', 14);
-	$bridge->set('controlHeight', 36);
-	check('labelSize and controlHeight at their defaults (14, 36) print no token style', $bridge->getLabelSize() === 14 && $bridge->getControlHeight() === 36 && $bridge->tokenCss() === '', $bridge->tokenCss());
-	$bridge->set('labelSize', 16);
-	$bridge->set('controlHeight', 44);
+	$bridge->set('labelSize', 0.875);
+	$bridge->set('controlHeight', 2.25);
+	check('labelSize and controlHeight at their defaults (0.875, 2.25 rem) print no token style', $bridge->getLabelSize() === 0.875 && $bridge->getControlHeight() === 2.25 && $bridge->tokenCss() === '', $bridge->tokenCss());
+	$bridge->set('labelSize', 1);
+	$bridge->set('controlHeight', 2.75);
 	$sizeOut = $bridge->tokenCss();
-	check('labelSize 16 and controlHeight 44 print --pw-label-size:1rem and --pw-control-height:2.75rem on :root:root', $sizeOut === ':root:root{--pw-label-size:1rem;--pw-control-height:2.75rem}', $sizeOut);
-	$bridge->set('labelSize', 15);
-	$bridge->set('controlHeight', 36);
+	check('labelSize 1 and controlHeight 2.75 print --pw-label-size:1rem and --pw-control-height:2.75rem on :root:root', $sizeOut === ':root:root{--pw-label-size:1rem;--pw-control-height:2.75rem}', $sizeOut);
+	$bridge->set('labelSize', '0.9375');
+	$bridge->set('controlHeight', 2.25);
 	$sizeOut15 = $bridge->tokenCss();
-	check('labelSize 15 prints 0.9375rem and controlHeight 36 nothing', $sizeOut15 === ':root:root{--pw-label-size:0.9375rem}', $sizeOut15);
+	check('labelSize 0.9375 prints 0.9375rem and controlHeight 2.25 nothing', $sizeOut15 === ':root:root{--pw-label-size:0.9375rem}', $sizeOut15);
 	$sizeRange = array();
-	foreach(array(array(99, 14, 'getLabelSize'), array(11, 14, 'getLabelSize'), array('x', 14, 'getLabelSize'), array(12, 12, 'getLabelSize'), array(20, 20, 'getLabelSize'),
-		array(27, 36, 'getControlHeight'), array(57, 36, 'getControlHeight'), array(28, 28, 'getControlHeight'), array(56, 56, 'getControlHeight')) as $sizeCase) {
+	foreach(array(array(14, 0.875, 'getLabelSize'), array(16, 0.875, 'getLabelSize'), array(0.74, 0.875, 'getLabelSize'), array(1.26, 0.875, 'getLabelSize'), array('x', 0.875, 'getLabelSize'),
+		array(true, 0.875, 'getLabelSize'), array('', 0.875, 'getLabelSize'), array(0.75, 0.75, 'getLabelSize'), array('1.25', 1.25, 'getLabelSize'), array(1, 1.0, 'getLabelSize'), array(' 1.0625 ', 1.0625, 'getLabelSize'),
+		array(36, 2.25, 'getControlHeight'), array(44, 2.25, 'getControlHeight'), array(1.74, 2.25, 'getControlHeight'), array(3.51, 2.25, 'getControlHeight'), array(1.75, 1.75, 'getControlHeight'),
+		array(3.5, 3.5, 'getControlHeight'), array(3, 3.0, 'getControlHeight'), array('2.8125', 2.8125, 'getControlHeight')) as $sizeCase) {
 		list($sizeIn, $sizeWant, $sizeGetter) = $sizeCase;
 		$bridge->set($sizeGetter === 'getLabelSize' ? 'labelSize' : 'controlHeight', $sizeIn);
-		if($bridge->$sizeGetter() !== $sizeWant) $sizeRange[] = "$sizeGetter($sizeIn) = " . $bridge->$sizeGetter();
-		$bridge->set('labelSize', 14);
-		$bridge->set('controlHeight', 36);
+		if($bridge->$sizeGetter() !== $sizeWant) $sizeRange[] = "$sizeGetter(" . var_export($sizeIn, true) . ") = " . var_export($bridge->$sizeGetter(), true);
+		$bridge->set('labelSize', 0.875);
+		$bridge->set('controlHeight', 2.25);
 	}
-	check('getLabelSize() keeps 12..20 else 14, getControlHeight() 28..56 else 36', !count($sizeRange), implode(' | ', $sizeRange));
+	check('getLabelSize() keeps 0.75..1.25 rem else 0.875, getControlHeight() 1.75..3.5 rem else 2.25 (floats; px ints such as 14/36 give the default)', !count($sizeRange), implode(' | ', $sizeRange));
 	$bridge->set('labelSize', $sizeKept[0]);
 	$bridge->set('controlHeight', $sizeKept[1]);
 	check('getLabelSize/getControlHeight are reads and labelSize/controlHeight settings on the surface', in_array('getLabelSize', $surface['reads'], true) && in_array('getControlHeight', $surface['reads'], true)
@@ -2046,6 +2048,18 @@ if(isset($bridge)) {
 	$sizeConfigSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeConfig.php');
 	check('the config screen has the fields labelSize and controlHeight after maxWidth', strpos($sizeConfigSrc, "attr('name', 'labelSize')") > (int) strpos($sizeConfigSrc, "attr('name', 'maxWidth')")
 		&& strpos($sizeConfigSrc, "attr('name', 'controlHeight')") > (int) strpos($sizeConfigSrc, "attr('name', 'labelSize')"));
+	$sizeFields = $modules->wire(new InputfieldWrapper());
+	$bridge->getModuleConfigInputfields($sizeFields);
+	$sizeF = array($sizeFields->getChildByName('labelSize'), $sizeFields->getChildByName('controlHeight'));
+	$sizeFieldOk = $sizeF[0] instanceof InputfieldFloat && $sizeF[1] instanceof InputfieldFloat
+		&& $sizeF[0]->label === 'Field label size (rem)' && $sizeF[1]->label === 'Control height (rem)'
+		&& (string) $sizeF[0]->attr('min') === '0.75' && (string) $sizeF[0]->attr('max') === '1.25'
+		&& (string) $sizeF[1]->attr('min') === '1.75' && (string) $sizeF[1]->attr('max') === '3.5'
+		&& (string) $sizeF[0]->attr('step') === '0.0625' && (string) $sizeF[1]->attr('step') === '0.0625'
+		&& $sizeF[0]->attr('type') === 'number' && (int) $sizeF[0]->precision === 4
+		&& (float) $sizeF[0]->attr('value') >= 0.75 && (float) $sizeF[0]->attr('value') <= 1.25
+		&& (float) $sizeF[1]->attr('value') >= 1.75 && (float) $sizeF[1]->attr('value') <= 3.5;
+	check('the config fields labelSize and controlHeight are InputfieldFloat in rem (0.75..1.25, 1.75..3.5, step 0.0625)', $sizeFieldOk);
 	// 0.30.0: appearance(), extensions override the Appearance settings; body classes at render time (sprint bridge-customizer, step 4)
 	check('appearance is a hook and isLoginScreen a read on the surface', in_array('appearance', $surface['hooks'], true) && in_array('isLoginScreen', $surface['reads'], true));
 	$apStored = $bridge->appearance();
@@ -2071,9 +2085,9 @@ if(isset($bridge)) {
 	check('an appearance() hook sets the logo: renderLogo() prints it under the site root', strpos($apLogo, "src='" . $config->urls->root . "site/assets/x/logo.svg?v=3'") !== false
 		&& strpos($apLogo, "class='pw-logo pw-logo-custom ") !== false, $apLogo);
 	$bridge->removeHook($apHook);
-	$apHook = $apSet(array('maxWidth' => 99999, 'labelSize' => 16, 'controlHeight' => 99, 'colorScheme' => 'dark'));
-	check('appearance() values are validated: maxWidth 99999 → 4000, labelSize 16, controlHeight 99 → 36, scheme dark', $bridge->getMaxWidth() === 4000
-		&& $bridge->getLabelSize() === 16 && $bridge->getControlHeight() === 36 && $bridge->getColorScheme() === 'dark');
+	$apHook = $apSet(array('maxWidth' => 99999, 'labelSize' => 1, 'controlHeight' => 36, 'colorScheme' => 'dark'));
+	check('appearance() values are validated: maxWidth 99999 → 4000, labelSize 1 → 1.0, controlHeight 36 (px) → 2.25, scheme dark', $bridge->getMaxWidth() === 4000
+		&& $bridge->getLabelSize() === 1.0 && $bridge->getControlHeight() === 2.25 && $bridge->getColorScheme() === 'dark');
 	$bridge->removeHook($apHook);
 	$apWarnings = array();
 	set_error_handler(function($no, $str) use(&$apWarnings) { $apWarnings[] = $str; return true; });
@@ -2774,7 +2788,7 @@ check('docs/extensions.md 13: the four hookables, the token selectors as tokenCs
 	&& strpos($sec13, "\n### tokenOverrides()\n") !== false && strpos($sec13, "\n### adminTitle(\$place)\n") !== false && strpos($sec13, "\n### faviconUrl()\n") !== false
 	&& strpos($sec13, "| `all` | `:root:root` |") !== false && strpos($sec13, "| `light` | `:root:not([data-pw-scheme=dark]),body.light-theme` |") !== false
 	&& strpos($sec13, "| `dark` | `:root[data-pw-scheme=dark],body.dark-theme` |") !== false
-	&& strpos($sec13, "saveConfig('AdminThemeBridge', 'labelSize', 15)") !== false
+	&& strpos($sec13, "saveConfig('AdminThemeBridge', 'labelSize', 0.9375)") !== false
 	&& strpos($sec13, "data-pw-tokens\" . \$adminTheme->nonceAttr() . \">\$tokenCss</style>\";") !== false && strpos($sec13, "<link rel='icon' href='\" . \$sanitizer->entities(") !== false);
 check('docs/contract.md 4.0 names style[data-pw-tokens] and .pw-admin-title; ADR 0023 exists', strpos($contractDoc, '<style data-pw-keep data-pw-tokens>') !== false
 	&& strpos($contractDoc, "<span class='pw-admin-title'>") !== false && is_file(dirname(__DIR__) . '/docs/decisions/0023-appearance-seams-for-extensions.md'));

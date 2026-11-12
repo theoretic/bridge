@@ -503,8 +503,9 @@ Returns the Appearance settings in effect, by default the stored ones: an array 
 `controlHeight`, raw values. A hook after it changes the keys it wants. Every reader validates
 what it gets as it does a stored value: an unknown `variant`, or `custom` without a `#rrggbb`
 `primaryColor`, gives `blue`; `colorScheme` other than `auto`, `light`, `dark` gives `auto`;
-`maxWidth` is held to 0..4000; `labelSize` outside 12..20 gives 14, `controlHeight` outside 28..56
-gives 36. A key the hook removes, or a return that is not an array, leaves the stored value. A
+`maxWidth` is held to 0..4000; `labelSize` (rem) outside 0.75..1.25 gives 0.875, `controlHeight`
+(rem) outside 1.75..3.5 gives 2.25 (both a number rounded to 4 decimals, anything else gives the
+default). A key the hook removes, or a return that is not an array, leaves the stored value. A
 logo URL without `//` is relative to the site root. The method is asked on every read, never
 cached, so a hook may answer otherwise on the login screen (`isLoginScreen()`, a read).
 
@@ -529,7 +530,8 @@ $this->addHookAfter('AdminThemeBridge::appearance', function(HookEvent $event) {
 Returns site-wide values for the surface's tokens in three groups of name => value:
 `array('all' => array(), 'light' => array(), 'dark' => array())`. By default `all` carries
 `--pw-label-size` and `--pw-control-height` when the settings `labelSize` and `controlHeight` are
-not at 14 and 36 px (in rem, so the interface scale applies). A hook adds to `$event->return`
+not at 0.875 and 2.25 (rem, so the interface scale applies; printed with trailing zeros trimmed,
+`1rem`, `2.75rem`). A hook adds to `$event->return`
 rather than replacing it.
 
 `tokenCss()` (a read) checks every entry: it keeps one whose name is on the surface's `tokens`
@@ -605,11 +607,12 @@ An extension's own settings screen may store a theme setting that is on the surf
 `settings` (`labelSize` and `controlHeight`, say) in the theme's configuration:
 
 ```php
-$this->wire()->modules->saveConfig('AdminThemeBridge', 'labelSize', 15);
+$this->wire()->modules->saveConfig('AdminThemeBridge', 'labelSize', 0.9375); // rem, 15px at 100 %
 ```
 
 This changes the stored value, which the theme's screen shows; the core keeps the other keys.
-Keep a value within the setting's range: the theme falls back to the default otherwise.
+Keep a value within the setting's range (`labelSize` 0.75..1.25, `controlHeight` 1.75..3.5, both
+in rem): the theme falls back to the default otherwise.
 
 ### A site's own `_head.php`
 
