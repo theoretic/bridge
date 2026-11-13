@@ -539,7 +539,9 @@ and whose value is a string of 1 to 300 characters out of letters, digits, space
 `# % ( ) , . / _ ? = + -`, and drops the others without a message. So nothing can end the
 declaration, the rule or the style element: a value with `;`, `}`, `<`, a quote, a backslash, a
 colon or `!important` is dropped, and so is a URL with a scheme (`https:`, `data:`); give a
-root-relative path instead. The theme prints what is left as one
+root-relative path instead. Since 0.30.1 a value with a `url(` whose path is not root-relative
+(`url(//host/x)`, `url(x.png)`) is dropped as well, so the admin never asks another host for a
+file. The theme prints what is left as one
 `<style data-pw-keep data-pw-tokens>` with the request's CSP nonce, after `fields.css` and
 before the extension stylesheets, in every layout, and prints nothing when nothing is left. The
 groups go on these selectors, in this order:

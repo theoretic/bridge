@@ -140,6 +140,9 @@ trait AdminThemeBridgeHead {
 			foreach($groups[$group] as $name => $value) {
 				if(!is_string($name) || !in_array($name, $tokens, true)) continue;
 				if(!is_string($value) || !preg_match('/^[A-Za-z0-9#%(),.\/ _?=+-]{1,300}$/D', $value)) continue;
+				// url() only to this host: a root-relative path, never //host or a scheme (0.30.1,
+				// audit S4: an admin page would otherwise ask a third party for the file)
+				if(preg_match_all('/url\(/i', $value) !== preg_match_all('/url\(\s*\/(?!\/)/i', $value)) continue;
 				$decls[] = "$name:$value";
 			}
 			if(count($decls)) $css .= $selector . '{' . implode(';', $decls) . '}';

@@ -1999,6 +1999,16 @@ if(isset($bridge)) {
 	});
 	$tokOut = $bridge->tokenCss();
 	$bridge->removeHook($tokHook);
+	// 0.30.1 (audit S4): url() only to a root-relative path, never another host
+	$tokUrlHook = $bridge->addHookAfter('tokenOverrides', function(HookEvent $e) {
+		$e->return = array('all' => array(
+			'--background' => 'url(//other.host/x.png)', '--foreground' => 'url(https://other.host/x.png)', '--border' => 'url( //other.host/x)',
+			'--muted' => 'URL(/site/assets/x.png) , url(//other.host/y)', '--accent' => 'url(/site/assets/x.png)', '--ring' => '#123456', '--radius' => '0.5rem',
+		));
+	});
+	$tokUrlOut = $bridge->tokenCss();
+	$bridge->removeHook($tokUrlHook);
+	check('tokenCss() drops a url() to another host (//host, a scheme, one of two), keeps a root-relative one and plain values', $tokUrlOut === ':root:root{--accent:url(/site/assets/x.png);--ring:#123456;--radius:0.5rem}', $tokUrlOut);
 	check('tokenCss() prints all, light, dark in order and drops an unknown name and an unsafe value', $tokOut === ':root:root{--radius:4px}:root:not([data-pw-scheme=dark]),body.light-theme{--background:#fefefe}:root[data-pw-scheme=dark],body.dark-theme{--background:#101010}', $tokOut);
 	// uikit.css declares the scheme colours again on .light-theme/.dark-theme, which uikit-layer.js puts on
 	// <body> with <html>'s scheme: the light and dark rules name body.light-theme/body.dark-theme too (0,1,1)
