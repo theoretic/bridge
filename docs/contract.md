@@ -483,8 +483,8 @@ Verified 2026-10-14 on the atispro sandbox under Bridge in `auto` mode.
 
 Covered since this section was first written: WireTabs on native pages (`scripts/wire-tabs.js`, 4.4); the `pw-modal` options `data-buttons`, `data-autoclose`, `data-close` (4.2, `<pw-dialog>`); `Inputfields.reload()` and the `#find-`, `#focus-`, `#highlight-` hash actions (4.2). Not part of version 1 (audit 2026-10-20, findings B10 and B12), each marked "may be added in 1.x" (then as an addition in a minor, ADR 0024 decision 6) or "will not be added":
 
-- Header actions: `Inputfields.addHeaderAction()` and its `InputfieldHeaderAction` markup are not in the facade. A click inside one does not collapse its field (collapse.ts), but nothing builds them on a native page. **Undecided.**
-- The rest of upstream's `Inputfields` API that the facade lacks: `init`, `show`, `hide`, `toggleAll`, `startSpinner`, `stopSpinner`, `columnWidth`, `insertBefore` and `insertAfter`, `header`, `content`, `icon`. `toggle(target, open)` ignores `open`. **Undecided.**
-- The `InputfieldFormNoWidths` mode (column widths off for a whole form). **Undecided.**
-- `ProcessLister.results` and `.filters` are DOM elements, where upstream has jQuery objects. **Undecided.**
+- Header actions: `Inputfields.addHeaderAction()` and its `InputfieldHeaderAction` markup are not in the facade. A click inside one does not collapse its field (collapse.ts), but nothing builds them on a native page. **May be added in 1.x.**
+- The rest of upstream's `Inputfields` API that the facade lacks: `init`, `show`, `hide`, `toggleAll`, `startSpinner`, `stopSpinner`, `columnWidth`, `insertBefore` and `insertAfter`, `header`, `content`, `icon`. `toggle(target, open)` ignores `open`. **May be added in 1.x.**
+- The `InputfieldFormNoWidths` mode (column widths off for a whole form). **May be added in 1.x.**
+- `ProcessLister.results` and `.filters` are DOM elements, where upstream has jQuery objects. **Will not be added.**
 - A `<pw-field>` element was dropped (PLAN.md, milestone 1.3 findings): `li.Inputfield` is the contract. **Will not be added.**

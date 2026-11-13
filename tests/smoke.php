@@ -3060,18 +3060,18 @@ check('1.0: the README is out of beta; its Compatibility section links ADR 0024 
 	&& strpos($readmeCompat, "Supported core:\n3.0.227 and later, on PHP 8.1 and later (the theme's `requires`)") !== false
 	&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "'requires' => 'ProcessWire>=3.0.227, PHP>=8.1'") !== false
 	&& strpos($adr24Intro, 'Version 1 is frozen for all of 1.x: its documented parts change only in 2.0') !== false);
-// Section 7: each item ends in exactly one mark. 'Undecided.' is allowed only until the maintainer rules on
-// the four items the repo shows no direction for (sprint 1-0-readiness step 4, DOUBT); then it leaves this list.
+// Section 7: each item ends in exactly one of the two marks (ruled by the maintainer, sprint 1-0-readiness open question 9)
 $contract7 = preg_match('/\n## 7\. Not part of version 1\n(.*)$/s', $contractDoc, $mC7) ? $mC7[1] : '';
 $contract7Items = preg_match_all('/^- .*$/m', $contract7, $mC7i) ? $mC7i[0] : array();
 $contract7Unmarked = array();
 foreach($contract7Items as $item) {
 	$marks = 0;
-	foreach(array('**May be added in 1.x.**', '**Will not be added.**', '**Undecided.**') as $mark) $marks += (int) (substr($item, -strlen($mark)) === $mark);
+	foreach(array('**May be added in 1.x.**', '**Will not be added.**') as $mark) $marks += (int) (substr($item, -strlen($mark)) === $mark);
 	if($marks !== 1) $contract7Unmarked[] = substr($item, 0, 40);
 }
-check('1.0: docs/contract.md 7 is "Not part of version 1", its five items each marked; <pw-field> will not be added', strpos($contractDoc, '## 7. Not covered yet') === false
-	&& count($contract7Items) === 5 && !count($contract7Unmarked) && strpos($contract7, '`li.Inputfield` is the contract. **Will not be added.**') !== false,
+check('1.0: docs/contract.md 7 is "Not part of version 1", its five items each marked: three may be added in 1.x, <pw-field> and jQuery-object Lister members will not be added', strpos($contractDoc, '## 7. Not covered yet') === false
+	&& count($contract7Items) === 5 && !count($contract7Unmarked) && strpos($contract7, '`li.Inputfield` is the contract. **Will not be added.**') !== false
+	&& strpos($contract7, 'upstream has jQuery objects. **Will not be added.**') !== false && substr_count($contract7, '**May be added in 1.x.**') === 3,
 	'unmarked: ' . implode(' | ', $contract7Unmarked));
 // 0.27.1: content of draggable rows centred vertically (template field list, repeater item header)
 if(isset($bridge) && $bridge) {
