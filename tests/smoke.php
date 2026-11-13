@@ -2596,6 +2596,13 @@ if(isset($bridge)) {
 		is_array($surfaceJson) ? json_encode(array_keys($surfaceJson)) : 'missing');
 }
 check('the runtime build writes extension-surface.json from the theme source', strpos((string) @file_get_contents(dirname(__DIR__) . '/runtime/scripts/manifest.mjs'), "writeFileSync(dist + 'extension-surface.json'") !== false);
+// 0.30.1 (audit S1, S2): what enforce and the access rules do not cover is said where it is chosen
+$cspSrc = (string) @file_get_contents(dirname(__DIR__) . '/modules/BridgeCsp/BridgeCsp.module.php');
+check('BridgeCsp\'s mode notes say enforce does not protect legacy screens (the same policy as report only)', strpos($cspSrc, "'Enforce does not protect every screen. It applies to screens without the legacy stack;") !== false
+	&& strpos($cspSrc, 'get the same policy as report only, so nothing is blocked there.') !== false);
+$aclDocHead = substr((string) @file_get_contents(dirname(__DIR__) . '/docs/access-control.md'), 0, 900);
+check('docs/access-control.md opens with: the rules guard the admin only, not a content-security boundary', strpos($aclDocHead, 'The rules guard the admin only: saves through the API, front-end editing') !== false
+	&& strpos($aclDocHead, 'It is not a content-security boundary.') !== false);
 $extCompat = dirname(__DIR__) . '/tools/extension-compat.php';
 $runCompat = function(array $args) use($extCompat) {
 	$proc = proc_open(array_merge(array(PHP_BINARY, $extCompat), $args), array(1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);

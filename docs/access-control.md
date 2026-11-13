@@ -4,6 +4,10 @@
 page tree and which of the admin's main menus they may reach. It grants nothing: templates, roles
 and permissions stay the only place where access is given.
 
+The rules guard the admin only: saves through the API, front-end editing and modules that write
+pages outside the admin are not checked, and the option lists of page reference fields still show
+denied pages' titles ("Not covered" below). It is not a content-security boundary.
+
 ## Model
 
 - **A rule** belongs to one role and one page: allow or deny, with or without the page's descendants

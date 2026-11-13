@@ -33,7 +33,7 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge CSP',
-			'version' => '0.1.3',
+			'version' => '0.1.4',
 			'summary' => 'Nonce-based Content-Security-Policy and Trusted Types for the Bridge admin (report-only or enforced).',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -175,7 +175,7 @@ class BridgeCsp extends WireData implements Module, ConfigurableModule {
 		$f->attr('name', 'mode');
 		$f->label = $this->_('Mode');
 		$f->description = $this->_('Report only first: the admin works as before and the browser console lists what the policy would block. Enforce once the screens you use report nothing. A policy the site sends itself stays: this one goes out next to it, and the browser applies both.');
-		$f->notes = $this->_('Enforce applies to screens without the legacy stack; screens that load it (the login screen, CKEditor, TinyMCE, most third-party fields) get the policy report only. A legacy field that loads the stack later on an enforced screen does not work: use report only while you rely on one.');
+		$f->notes = $this->_('Enforce does not protect every screen. It applies to screens without the legacy stack; screens that load it (the login screen, page editors with CKEditor, TinyMCE or most third-party fields) get the same policy as report only, so nothing is blocked there. A legacy field that loads the stack later on an enforced screen does not work: use report only while you rely on one.');
 		$f->addOption(self::modeOff, $this->_('Off'));
 		$f->addOption(self::modeReport, $this->_('Report only'));
 		$f->addOption(self::modeEnforce, $this->_('Enforce'));

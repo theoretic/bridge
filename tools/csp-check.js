@@ -128,6 +128,8 @@ async function visit(page, url) {
 			// a legacy screen: jQuery is there, or the server printed the stack (under an enforced
 			// policy jQuery itself may not start: its own innerHTML writes are Trusted Types sinks)
 			jquery: !!window.jQuery || c.legacy === true,
+			// the server's own verdict (useLegacyStack), which BridgeCsp's enforce follows
+			serverLegacy: c.legacy === true,
 			reasons: Object.keys(c.legacyReasons || {}),
 			login: !!document.getElementById('login_name'),
 			violations: window.__pwCsp || [],
@@ -144,6 +146,7 @@ async function visit(page, url) {
 		url, status: res ? res.status() : 0,
 		headerNonce: headers['x-bridge-nonce'] || '',
 		policy: headers['content-security-policy-report-only'] || headers['content-security-policy'] || '',
+		enforced: !!headers['content-security-policy'],
 		...info,
 	};
 }
@@ -234,6 +237,10 @@ async function visit(page, url) {
 
 		check(`${v.screen}: nonce header, policy header and meta agree`, v.headerNonce !== '' && v.policy.indexOf(`'nonce-${v.headerNonce}'`) > -1 && v.meta === v.headerNonce,
 			`header ${v.headerNonce || '-'}, meta ${v.meta === null ? '-' : v.meta || '(hidden)'}, policy ${v.policy ? 'yes' : 'no'}`);
+		// 0.30.1 (audit S1): enforce enforces only where the server did not choose the legacy stack;
+		// a legacy screen gets the same policy as report only (BridgeCsp's config screen says so)
+		if(MODE === 'enforce') check(`${v.screen}: ${v.serverLegacy ? 'legacy screen, policy report only' : 'native screen, policy enforced'}`, v.enforced === !v.serverLegacy,
+			`enforced ${v.enforced}, legacy ${v.serverLegacy}`);
 		if(!v.jquery) {
 			const scriptHits = v.violations.filter(x => group(x.directive) === 'script');
 			check(`${v.screen}: no blocked script element on a native screen`, scriptHits.length === 0,
