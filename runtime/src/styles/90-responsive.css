@@ -46,6 +46,8 @@
 	.pw-masthead-right { gap: 4px; min-width: 0; }
 	#ProcessPageSearchForm { min-width: 0; }
 	#ProcessPageSearchQuery, #ProcessPageSearchQuery:focus { width: 110px; }
+	/* an extension's masthead part gives way first: cut with an ellipsis (0.30.1, audit U1) */
+	.pw-masthead-right > [data-bridge-slot] { min-width: 0; max-width: 96px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 	.Inputfields > .InputfieldColumnWidth { width: 100% !important; }
 	#pw-content-head-buttons { float: none; margin: 0 0 10px; justify-content: flex-start; }
 	:root { --pw-field-pad: 16px; --pw-field-pad-bottom: 18px; }
@@ -62,6 +64,21 @@
 	.InputfieldRepeaterItem[data-depth="5"] { padding-left: 80px !important; }
 	/* checkbox tables (a role's template permissions) wrap their labels (upstream: nowrap) */
 	.InputfieldCheckboxes table label { white-space: normal; }
+}
+/* phones (0.30.1, audit U1): the search is its icon; with the focus in it (a tap on the icon, Tab)
+ * it opens over the masthead, full width, and closes when the focus leaves. CSS only: the input
+ * itself is the 32px button, so core's form and ids stay as they are */
+@media (max-width: 479px) {
+	#ProcessPageSearchForm { flex: none; }
+	#ProcessPageSearchQuery, #ProcessPageSearchQuery:focus { box-sizing: border-box; width: 32px; padding: 0 0 0 30px; cursor: pointer; }
+	#ProcessPageSearchQuery:not(:focus) { color: transparent; }
+	#ProcessPageSearchQuery:not(:focus)::placeholder { color: transparent; }
+	/* opaque: the input's own background is see-through, and the masthead's items sit under it */
+	#ProcessPageSearchForm:focus-within { position: absolute; left: 12px; right: 12px; z-index: 1; border-radius: var(--radius-md); background: var(--background); }
+	#ProcessPageSearchForm:focus-within #ProcessPageSearchQuery { width: 100%; padding-right: 12px; cursor: text; }
+	#ProcessPageSearchForm:focus-within .pw-search-results { left: 0; min-width: 0; max-width: none; }
+	/* a long word (a path, a class name) breaks rather than pushing a table past the screen */
+	table.AdminDataTable td { overflow-wrap: anywhere; }
 }
 
 /* the drawer also when the top bar does not fit its items (seven or eight sections, 200 % zoom):

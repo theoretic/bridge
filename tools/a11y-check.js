@@ -247,6 +247,59 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const back = await colours();
 	check('colour picker: "Site default" goes back to the site\'s colour', back.variant === site.variant && back.pressed.join() === '', JSON.stringify({ site, back }));
 
+	// 8. phone width (0.30.1, audit U1): no screen scrolls sideways at 375 and 320 px, also with a
+	// wide custom logo; the search is its icon and opens over the masthead with the focus in it
+	{
+		const FIXTURE = process.env.FIXTURE_ID || '1498';
+		const NESTING = process.env.NESTING_ID || '1582';
+		const screens = ['page/', `page/edit/?id=${NATIVE}`, `page/edit/?id=${FIXTURE}`, `page/edit/?id=${NESTING}`, 'setup/field/', 'setup/field/edit?id=1',
+			'setup/template/', 'module/', 'module/edit?name=AdminThemeBridge', 'module/edit?name=BridgeAdminAccessControl', 'access/users/', 'access/roles/', 'page/lister/', 'profile/'];
+		const wider = () => page.evaluate(() => ({ sw: document.documentElement.scrollWidth, w: innerWidth,
+			at: Array.from(document.querySelectorAll('body *')).filter(e => e.getBoundingClientRect().right > innerWidth + 1 && !e.closest('dialog:not([open]), [hidden]')).slice(-1).map(e => e.tagName + (e.id ? '#' + e.id : '') + '.' + String(e.className).slice(0, 40)).join('') }));
+		for(const width of [375, 320]) {
+			await page.setViewportSize({ width, height: 760 });
+			const over = [];
+			for(const s of screens) {
+				await open(s);
+				const r = await wider();
+				if(r.sw > r.w) over.push(s + ' ' + r.sw + ' ' + r.at);
+			}
+			check(`8 ${width}px: no screen is wider than the viewport (${screens.length} screens)`, over.length === 0, over.join('; '));
+		}
+		await page.setViewportSize({ width: 375, height: 760 });
+		await open('page/');
+		// a custom logo 120px wide (renderLogo() prints an img in the logo link)
+		const logo = await page.evaluate(() => {
+			const a = document.querySelector('.pw-logo-link');
+			if(!a) return null;
+			a.innerHTML = "<img class='pw-logo pw-logo-custom' alt='home' width='120' height='40' src=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'/%3E\">";
+			return new Promise(r => setTimeout(() => r({ sw: document.documentElement.scrollWidth, w: innerWidth }), 100));
+		});
+		check('8 375px with a 120px custom logo: not wider than the viewport', !!logo && logo.sw <= logo.w, JSON.stringify(logo));
+		await open('page/');
+		const closed = await page.evaluate(() => { const i = document.getElementById('ProcessPageSearchQuery'); return i ? Math.round(i.getBoundingClientRect().width) : 0; });
+		await page.focus('#ProcessPageSearchQuery');
+		await page.keyboard.type('ho');
+		await page.waitForTimeout(150);
+		const opened = await page.evaluate(() => {
+			const f = document.getElementById('ProcessPageSearchForm'), i = document.getElementById('ProcessPageSearchQuery');
+			return { form: Math.round(f.getBoundingClientRect().width), input: Math.round(i.getBoundingClientRect().width), value: i.value, color: getComputedStyle(i).color !== 'rgba(0, 0, 0, 0)', opaque: getComputedStyle(f).backgroundColor !== 'rgba(0, 0, 0, 0)', w: innerWidth };
+		});
+		check('8 375px: the search is a 32px icon, and with the focus in it an opaque full-width field that takes typing', closed === 32 && opened.form >= opened.w - 24 && opened.input === opened.form && opened.value === 'ho' && opened.color && opened.opaque, closed + ' ' + JSON.stringify(opened));
+		const submitted = await Promise.all([page.waitForNavigation({ timeout: 10000 }).then(() => true).catch(() => false), page.keyboard.press('Enter')]);
+		check('8 375px: Enter submits the search', submitted[0] && /[?&]q=ho/.test(page.url()), page.url());
+		await open('page/');
+		await page.focus('#ProcessPageSearchQuery');
+		await page.keyboard.press('Shift+Tab');
+		const back = await page.evaluate(() => Math.round(document.getElementById('ProcessPageSearchQuery').getBoundingClientRect().width));
+		check('8 375px: the field closes to its icon when the focus leaves', back === 32, back);
+		await page.setViewportSize({ width: 768, height: 900 });
+		await open('page/');
+		const tablet = await page.evaluate(() => Math.round(document.getElementById('ProcessPageSearchQuery').getBoundingClientRect().width));
+		check('8 768px: the search keeps its width (120px, padding and border)', tablet === 164, tablet);
+		await page.setViewportSize({ width: 1300, height: 950 });
+	}
+
 	check('no page errors', errors.length === 0, errors.join(' | '));
 	await consoleErrors.settle();
 	consoleErrors.check(check);
