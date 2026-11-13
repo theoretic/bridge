@@ -176,6 +176,7 @@ trait AdminThemeBridgeFiles {
 		$back = $this->moveRules($page, $from);
 		$index = (int) $options['index'];
 		$moved = array();
+		$undo = array(); // what to put back if the target cannot be saved: array(moved file, its index in the source, file swapped in)
 		$fail = function(Pagefile $f, $message) use(&$result) {
 			$result['errors'][] = array('hash' => $f->hash, 'basename' => $f->basename, 'message' => $message);
 		};
@@ -215,6 +216,7 @@ trait AdminThemeBridgeFiles {
 			$src->removeQuietly($f);
 			$new = $this->moveRetype($f, $dst);
 			$this->moveMeta($new, isset($options['meta'][$basename]) ? $options['meta'][$basename] : array(), $rules['tags']);
+			$back2 = null;
 			if($current) {
 				if($how === 'swap') {
 					$dst->removeQuietly($current);
@@ -230,18 +232,54 @@ trait AdminThemeBridgeFiles {
 			if($wasTemp) $dst->isTemp($new, true);
 			if($rules['image'] && $new instanceof Pageimage) $this->moveFit($new, $rules);
 			$moved[] = $new;
+			$undo[] = array($new, $srcIndex, $back2);
 			$result['moved'][] = array('hash' => $new->hash, 'basename' => $new->basename);
 		}
 		if(count($moved)) {
 			$page->trackChange($from->name);
 			$page->trackChange($to->name);
 			$page->save($from->name);
-			$page->save($to->name);
+			try {
+				$page->save($to->name);
+			} catch(\Throwable $e) {
+				// the source is saved without the files: put them back there, so no file is left
+				// on disk with no field pointing to it (0.30.1, audit B3); the target's stored
+				// value never changed. The error goes on as before.
+				$this->moveUndo($page, $from, $src, $dst, $undo);
+				throw $e;
+			}
 			$this->filesMoved($page, $from, $to, $moved);
 		}
 		$result['ok'] = count($moved) > 0;
 		if(!$result['ok'] && !$result['message']) $result['message'] = __('Nothing was moved', __FILE__);
 		return $result;
+	}
+
+	/**
+	 * Undo the source side of a move whose target could not be saved: each moved file goes back
+	 * to the source at its old place, a file swapped in leaves it, and the source is saved again
+	 * (0.30.1). A resize on the way in (moveFit()) stays: the file on disk was already rewritten.
+	 *
+	 * @param Page $page
+	 * @param Field $from
+	 * @param Pagefiles $src
+	 * @param Pagefiles $dst
+	 * @param array $undo Each: array(file in the target, its index in the source, file swapped in or null)
+	 *
+	 */
+	protected function moveUndo(Page $page, Field $from, Pagefiles $src, Pagefiles $dst, array $undo) {
+		foreach(array_reverse($undo) as $item) {
+			list($new, $srcIndex, $back2) = $item;
+			if($back2) $src->removeQuietly($back2);
+			$dst->removeQuietly($new);
+			$this->moveInsert($src, $this->moveRetype($new, $src), $srcIndex);
+		}
+		try {
+			$page->trackChange($from->name);
+			$page->save($from->name);
+		} catch(\Throwable $e) {
+			$this->wire()->log->error('AdminThemeBridge files move: putting the files back into ' . $from->name . ' of page ' . $page->id . ' failed: ' . get_class($e) . ': ' . $e->getMessage());
+		}
 	}
 
 	/**

@@ -947,6 +947,27 @@ if(isset($bridge) && $bridge) {
 			check('moveFiles moves it back to the start, with its description', $r['ok'] && $back && $back->basename === $name && (string) $back->description === $desc && is_file($back->filename), json_encode($r));
 			$r = $bridge->moveFiles($np, $fg->getFieldContext('bf_files'), $fg->getFieldContext('bf_images'), array($name));
 			check('moveFiles refuses what an upload would refuse (a .txt for an image field)', !$r['ok'] && count($r['errors']) === 1 && $np->bf_files->getFile($name), json_encode($r));
+			// 0.30.1 (audit B3): the target's save throws after the source's was saved: the file goes back to the source
+			$filesBefore = $np->bf_files->implode(',', 'basename');
+			$docsBefore = $np->bf_docs->implode(',', 'basename');
+			$saveThrow = $wire->addHookBefore('Pages::saveField', function(HookEvent $e) {
+				$f = $e->arguments(1);
+				if((is_object($f) ? $f->name : (string) $f) === 'bf_docs') throw new WireException('smoke: target save failed');
+			});
+			$threw = '';
+			try {
+				$bridge->moveFiles($np, $fg->getFieldContext('bf_files'), $fg->getFieldContext('bf_docs'), array($name));
+			} catch(\Throwable $e) {
+				$threw = $e->getMessage();
+			}
+			$wire->removeHook($saveThrow);
+			$pages->uncache($np);
+			$np = $pages->get($np->id);
+			$np->of(false);
+			$kept = $np->bf_files->getFile($name);
+			check('B3 a move whose target save throws puts the file back into the source, at its place, on disk; the target unchanged; the error goes on',
+				$threw === 'smoke: target save failed' && $kept && is_file($kept->filename) && $np->bf_files->implode(',', 'basename') === $filesBefore && $np->bf_docs->implode(',', 'basename') === $docsBefore,
+				json_encode(array($threw, $filesBefore, $np->bf_files->implode(',', 'basename'), $docsBefore, $np->bf_docs->implode(',', 'basename'))));
 		}
 		// audit SE3: a swap asks moveFileAllowed() for the file going back too
 		$img = $np->template->hasField('bf_image') && $np->template->hasField('bf_images') ? $np->bf_images->first() : null;
