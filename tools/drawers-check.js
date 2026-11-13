@@ -238,11 +238,11 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		const tr = document.querySelector(h + 'table.pw-history tbody tr');
 		if(!tr) return null;
 		const a = tr.querySelector('a');
-		return { href: a.getAttribute('href'), name: a.textContent, type: tr.children[1].textContent, visits: parseInt(tr.children[2].textContent, 10), current: a.getAttribute('aria-current'), title: a.getAttribute('title') };
+		return { href: a.getAttribute('href'), name: a.textContent, type: tr.children[1].firstChild.textContent.trim(), id: (tr.children[1].querySelector('.pw-history-id') || {}).textContent || '', visits: parseInt(tr.children[2].textContent, 10), current: a.getAttribute('aria-current'), title: a.getAttribute('title') };
 	}, H);
 	const rowFor = (href) => page.evaluate(([h, u]) => {
 		const rows = Array.from(document.querySelectorAll(h + 'table.pw-history tbody tr')).filter(tr => tr.querySelector('a').getAttribute('href') === u);
-		return { count: rows.length, visits: rows.length ? parseInt(rows[0].children[2].textContent, 10) : 0, type: rows.length ? rows[0].children[1].textContent : '' };
+		return { count: rows.length, visits: rows.length ? parseInt(rows[0].children[2].textContent, 10) : 0, type: rows.length ? rows[0].children[1].firstChild.textContent.trim() : '' };
 	}, [H, href]);
 	const openHistory = async () => {
 		await page.click('[data-pw-drawer="history"]');
@@ -264,6 +264,16 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await openHistory();
 		const again = await rowFor(editorHref);
 		check('D a second visit: still one row for it, one visit more', again.count === 1 && again.visits === visits + 1, JSON.stringify(again));
+		await page.keyboard.press('Escape');
+		// 0.30.1 (audit B1, U5): core's ?c= and ?collapse_info= after a save are the same row; the row shows the id
+		await page.goto(new URL(editorHref + '&c=3', page.url()).href, { waitUntil: 'networkidle' });
+		await page.goto(new URL(editorHref + '&collapse_info=1&c=0', page.url()).href, { waitUntil: 'networkidle' });
+		await openHistory();
+		const merged = await rowFor(editorHref);
+		const idRow = await firstRow();
+		const editorId = (editorHref.match(/[?&]id=(\d+)/) || [])[1];
+		check('D ?c= and ?collapse_info= visits of the same editor: one row, its id shown', merged.count === 1 && merged.visits >= visits + 2 && !!idRow && idRow.href === editorHref && idRow.id === '#' + editorId
+			&& (await page.evaluate((h) => document.querySelectorAll(h + 'table.pw-history tbody tr a[href*="c="]').length, H)) === 0, JSON.stringify([merged, idRow]));
 		await page.keyboard.press('Escape');
 		await open('setup/field/');
 		await openHistory();

@@ -1479,11 +1479,36 @@ if(isset($bridge) && $bridge) {
 		check('history: a POST, an AJAX request, a modal window and ?render= output record nothing', !$post && !$ajax && !$modal && !$json && count($bridge->historyEntries()) === $before);
 		check('history: the login, search and Add New screens are skipped', $bridge->historyEntry($proc('ProcessLogin'), $tplPage) === null
 			&& $bridge->historyEntry($proc('ProcessPageSearch'), $tplPage) === null && $bridge->historyEntry($proc('ProcessPageAdd'), $tplPage) === null);
-		$visit($tplPage, array('id' => $tpl->id, 'q' => str_repeat('x', 300)), 'Long', 'edit');
-		check('history: a URL over 250 characters is not a key', $bridge->historyEntry($proc('ProcessTemplate'), $tplPage) === null);
-		$visit($tplPage, array('z' => '1', 'id' => $tpl->id, $session->CSRF->getTokenName() => 'x'), 'Sorted', 'edit');
-		$sorted = $bridge->historyEntry($proc('ProcessTemplate'), $tplPage);
-		check('history: the query sorted, the CSRF token dropped', is_array($sorted) && substr($sorted['url'], -strlen("edit?id=$tpl->id&z=1")) === "edit?id=$tpl->id&z=1", json_encode($sorted));
+		// a screen keeps its query (0.30.1: an editor of one thing keeps only what names it, below)
+		$visit($fieldPage, array('q' => str_repeat('x', 300)), 'Long');
+		check('history: a URL over 250 characters is not a key', $bridge->historyEntry($proc('ProcessField'), $fieldPage) === null);
+		$visit($fieldPage, array('z' => '1', 'a' => '2', $session->CSRF->getTokenName() => 'x'), 'Sorted');
+		$sorted = $bridge->historyEntry($proc('ProcessField'), $fieldPage);
+		check('history: a screen\'s query sorted, the CSRF token dropped', is_array($sorted) && $sorted['type'] === 'screen' && substr($sorted['url'], -strlen('setup/field/?a=2&z=1')) === 'setup/field/?a=2&z=1', json_encode($sorted));
+		// 0.30.1 (audit B1, S3): an editor of one thing is keyed by its id; core's ?c=, ?changes=, ?collapse_info= never make a second row
+		$dropParams = new \ReflectionProperty($bridge, 'historyDropParams');
+		check('history: c, changes and collapse_info are request-only parameters', count(array_intersect(array('c', 'changes', 'collapse_info'), $dropParams->getValue($bridge))) === 3);
+		$visit($tplPage, array('id' => $tpl->id, 'c' => 3, 'q' => 'x', 'z' => '1'), "Edit Template: $tpl->name", 'edit');
+		$typedA = $bridge->historyEntry($proc('ProcessTemplate'), $tplPage);
+		$visit($tplPage, array('id' => $tpl->id), "Edit Template: $tpl->name", 'edit');
+		$typedB = $bridge->historyEntry($proc('ProcessTemplate'), $tplPage);
+		check('history: a template editor with ?c=3&q=x&z=1 has the key of ?id= alone', is_array($typedA) && is_array($typedB) && $typedA['url'] === $typedB['url']
+			&& substr($typedA['url'], -strlen("edit?id=$tpl->id")) === "edit?id=$tpl->id", json_encode(array($typedA, $typedB)));
+		$visit($fieldPage, array('id' => 1, 'fieldgroup_id' => 2, 'c' => 1), 'Edit Field: title', 'edit');
+		$ctxEntry = $bridge->historyEntry($proc('ProcessField'), $fieldPage);
+		check('history: a field edited in a template\'s context keeps fieldgroup_id (another screen than the field itself)', is_array($ctxEntry) && substr($ctxEntry['url'], -strlen('edit?fieldgroup_id=2&id=1')) === 'edit?fieldgroup_id=2&id=1', json_encode($ctxEntry));
+		$hu->meta(AdminThemeBridge::historyMeta, array(
+			'page/edit/?id=7' => array('name' => 'Seven', 'type' => 'page', 'url' => 'page/edit/?id=7', 'visits' => 1, 'last' => 1000),
+			'page/edit/?c=0&id=7' => array('name' => 'Seven (renamed)', 'type' => 'page', 'url' => 'page/edit/?c=0&id=7', 'visits' => 2, 'last' => 3000),
+			'module/edit?collapse_info=1&name=X' => array('name' => 'X', 'type' => 'module', 'url' => 'module/edit?collapse_info=1&name=X', 'visits' => 1, 'last' => 2000),
+			'page/edit/?c=3&id=7' => array('name' => 'Seven old', 'type' => 'page', 'url' => 'page/edit/?c=3&id=7', 'visits' => 4, 'last' => 500),
+			'page/lister/?q=a' => array('name' => 'Find', 'type' => 'lister', 'url' => 'page/lister/?q=a', 'visits' => 1, 'last' => 100),
+		));
+		$merged = $bridge->historyEntries();
+		check('history: entries stored under an older key merge when read: newest name and time, visits added up; a lister keeps its query', array_keys($merged) === array('page/edit/?id=7', 'module/edit?name=X', 'page/lister/?q=a')
+			&& $merged['page/edit/?id=7']['visits'] === 7 && $merged['page/edit/?id=7']['name'] === 'Seven (renamed)' && $merged['page/edit/?id=7']['last'] === 3000, json_encode($merged));
+		$histTable = $bridge->renderHistoryTable();
+		check('history: an editor\'s row shows its id, a screen\'s none', substr_count($histTable, "<span class='pw-history-id'>#7</span>") === 1 && substr_count($histTable, 'pw-history-id') === 1, $histTable);
 		// 0.26.0: request-only parameters leave the key; the drawer marks the key historyEntry() returns
 		$bridge->historyClear();
 		$visit($modPage, array('reset' => 2), 'Modules');
@@ -1534,12 +1559,12 @@ if(isset($bridge) && $bridge) {
 		check('history table: the current screen\'s entry is aria-current, the other is not', substr_count($table, "aria-current='page'") === 1
 			&& strpos($table, "href='{$adminUrl}setup/field/' title='setup/field/' aria-current='page'") !== false, $table);
 		$hu->meta(AdminThemeBridge::historyMeta, array(
-			"page/edit/?id=1&q=a'b<c" => array('name' => "Home <'x'>", 'type' => 'page', 'url' => "page/edit/?id=1&q=a'b<c", 'visits' => 1, 'last' => 1000),
+			"page/lister/?id=1&q=a'b<c" => array('name' => "Home <'x'>", 'type' => 'lister', 'url' => "page/lister/?id=1&q=a'b<c", 'visits' => 1, 'last' => 1000),
 			'page/edit/?id=2' => array('name' => "Home <'x'>", 'type' => 'page', 'url' => 'page/edit/?id=2', 'visits' => 1, 'last' => 2000),
 		));
 		$sameTable = $bridge->renderHistoryTable();
 		check('history table: each name link has its key as title, escaped, so same-named rows differ (0.26.0)',
-			strpos($sameTable, "title='page/edit/?id=1&amp;q=a&#039;b&lt;c'>Home &lt;&#039;x&#039;&gt;</a>") !== false
+			strpos($sameTable, "title='page/lister/?id=1&amp;q=a&#039;b&lt;c'>Home &lt;&#039;x&#039;&gt;</a>") !== false
 			&& strpos($sameTable, "title='page/edit/?id=2'>Home &lt;&#039;x&#039;&gt;</a>") !== false && strpos($sameTable, "a'b<c") === false, $sameTable);
 		check('history table: an unknown type prints as it is, escaped', $bridge->historyTypeLabel('x<y') === 'x<y' && $bridge->historyTypeLabel('pages') !== 'pages');
 		// 0.26.0: the drawer's Clear button POSTs bridgeHistory=clear with the CSRF token

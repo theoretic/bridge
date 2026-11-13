@@ -9,7 +9,10 @@
  * With the `history` setting on, every admin screen a logged-in user opens with a plain GET (no
  * AJAX, no modal window) is recorded after its Process ran (hookHistoryRecord()): one entry per
  * screen, keyed by its admin-relative URL with the query sorted and the request-only parameters
- * dropped. A screen visited again moves to the top and counts the visit. The entries live in the
+ * dropped. An editor of one thing (a page, template, field, user, role or permission, by `id`)
+ * keeps only the parameters that name it (historyKeepParams()), so `?c=3&id=5` after a save is the
+ * same entry as `?id=5`; entries stored under an older key merge when read (0.30.1). A screen
+ * visited again moves to the top and counts the visit. The entries live in the
  * user page's meta data (`$user->meta('AdminThemeBridge.history')`), so they follow the user to
  * every browser; at most `historySteps` of them, the oldest go first.
  *
@@ -119,13 +122,19 @@ trait AdminThemeBridgeHistory {
 		foreach($entries as $key => $entry) {
 			$url = isset($entry['url']) ? (string) $entry['url'] : (string) $key;
 			$name = isset($entry['name']) && $entry['name'] !== '' ? (string) $entry['name'] : $url;
-			$type = $this->historyTypeLabel(isset($entry['type']) ? (string) $entry['type'] : '');
+			$typeKey = isset($entry['type']) ? (string) $entry['type'] : '';
+			$type = $sanitizer->entities($this->historyTypeLabel($typeKey));
+			// an editor of one thing shows its id: same-named rows differ on touch, where the
+			// link's title cannot be seen (0.30.1, audit U5)
+			if($this->historyKeepParams($typeKey) !== null && preg_match('/[?&]id=(\d+)/', $url, $m)) {
+				$type .= " <span class='pw-history-id'>#$m[1]</span>";
+			}
 			$visits = isset($entry['visits']) ? (int) $entry['visits'] : 1;
 			$last = isset($entry['last']) ? sprintf($lastLabel, $datetime->date($format, (int) $entry['last'])) : '';
 			$attr = $current !== '' && $url === $current ? " aria-current='page'" : '';
 			// the key as the link's title tells same-named screens apart (two pages called "Home")
 			$rows .= "<tr><td><a href='" . $sanitizer->entities($admin . $url) . "' title='" . $sanitizer->entities($url) . "'$attr>" . $sanitizer->entities($name) . "</a></td>" .
-				"<td>" . $sanitizer->entities($type) . "</td>" .
+				"<td>$type</td>" .
 				"<td class='pw-history-visits' title='" . $sanitizer->entities($last) . "'>$visits</td></tr>";
 		}
 		return "<table class='pw-history'><caption class='pw-sr-only'>" . $sanitizer->entities1(__('Visited screens, newest first', __FILE__)) . "</caption>" .
@@ -177,7 +186,7 @@ trait AdminThemeBridgeHistory {
 		if(!is_array($entry) || empty($entry['url'])) return false;
 		try {
 			$entries = $user->meta(self::historyMeta);
-			if(!is_array($entries)) $entries = array();
+			$entries = is_array($entries) ? $this->historyMerge($entries) : array();
 			$key = $entry['url'];
 			$visits = isset($entries[$key]['visits']) ? (int) $entries[$key]['visits'] : 0;
 			unset($entries[$key]);
@@ -214,8 +223,6 @@ trait AdminThemeBridgeHistory {
 		foreach(array('ProcessLogin', 'ProcessLogout', 'ProcessPageSearch', 'ProcessHome', 'ProcessPageAdd') as $class) {
 			if(wireInstanceOf($process, $class, false)) return null;
 		}
-		$url = $this->historyUrl();
-		if($url === '' || strlen($url) > 250) return null;
 		$id = (int) $input->get('id');
 		$type = 'screen';
 		$types = array(
@@ -237,6 +244,8 @@ trait AdminThemeBridgeHistory {
 				$type = 'pages';
 			}
 		}
+		$url = $this->historyUrl($type);
+		if($url === '' || strlen($url) > 250) return null;
 		$name = self::historyName((string) $this->wire('processHeadline'));
 		if($name === '') $name = (string) $adminPage->get('title|name');
 		return array('name' => $name, 'type' => $type, 'url' => $url);
@@ -244,26 +253,111 @@ trait AdminThemeBridgeHistory {
 
 	/**
 	 * The current screen's URL relative to the admin, with the query sorted and without the
-	 * request-only parameters (historyDropParams, the CSRF token); '' outside the admin
+	 * request-only parameters (historyDropParams, the CSRF token); for an editor of one thing only
+	 * the parameters that name it (historyKeepParams()); '' outside the admin
 	 *
+	 * @param string $type The entry's type (historyEntry()); '' when not known
 	 * @return string
 	 *
 	 */
-	protected function historyUrl() {
+	protected function historyUrl($type = '') {
 		$input = $this->wire()->input;
 		$admin = (string) $this->wire()->config->urls->admin;
 		$path = (string) $input->url();
 		if($admin === '' || strpos($path, $admin) !== 0) return '';
+		return $this->historyKey(substr($path, strlen($admin)), $input->get->getArray(), $type);
+	}
+
+	/**
+	 * A history key: an admin-relative path and its query, sorted, without the request-only
+	 * parameters, and for an editor of one thing with only the parameters that name it (0.30.1)
+	 *
+	 * @param string $path Relative to the admin
+	 * @param array $query
+	 * @param string $type
+	 * @return string
+	 *
+	 */
+	protected function historyKey($path, array $query, $type = '') {
 		$drop = $this->historyDropParams;
 		$drop[] = $this->wire()->session->CSRF->getTokenName();
-		$query = array();
-		foreach($input->get->getArray() as $key => $value) {
+		$keep = $this->historyKeepParams($type);
+		$out = array();
+		foreach($query as $key => $value) {
+			$key = (string) $key;
 			if(in_array($key, $drop, true) || !is_scalar($value) || (string) $value === '') continue;
-			$query[$key] = (string) $value;
+			if($keep !== null && !in_array($key, $keep, true)) continue;
+			$out[$key] = (string) $value;
 		}
-		ksort($query);
-		$url = substr($path, strlen($admin));
-		return count($query) ? $url . '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986) : $url;
+		ksort($out);
+		return count($out) ? $path . '?' . http_build_query($out, '', '&', PHP_QUERY_RFC3986) : $path;
+	}
+
+	/**
+	 * The query parameters an entry of this type keeps, or null for all but the dropped ones: an
+	 * editor of one thing keeps its `id` (a field also its template context), so what core adds
+	 * after a save (`c`, `changes`, `collapse_info`), a Lister filter or a search term never makes a
+	 * second row of the same page (0.30.1, audit B1 and S3)
+	 *
+	 * @param string $type
+	 * @return array|null
+	 *
+	 */
+	protected function historyKeepParams($type) {
+		switch($type) {
+			case 'page':
+			case 'template':
+			case 'user':
+			case 'role':
+			case 'permission':
+				return array('id');
+			case 'field':
+				return array('id', 'fieldgroup_id', 'context_namespace');
+		}
+		return null;
+	}
+
+	/**
+	 * Stored entries, oldest first, with entries under an older key of the same screen merged:
+	 * the newest name and time, the visits added up (entries recorded before 0.30.1 kept `c` and
+	 * other core parameters in the key)
+	 *
+	 * @param array $entries As stored, oldest first
+	 * @return array
+	 *
+	 */
+	protected function historyMerge(array $entries) {
+		$out = array();
+		foreach($entries as $key => $entry) {
+			if(!is_array($entry)) continue;
+			$url = isset($entry['url']) ? (string) $entry['url'] : (string) $key;
+			$type = isset($entry['type']) ? (string) $entry['type'] : '';
+			$newKey = $url;
+			$pos = strpos($url, '?');
+			if($pos !== false) {
+				$query = array();
+				parse_str(substr($url, $pos + 1), $query);
+				$rebuilt = $this->historyKey(substr($url, 0, $pos), $query, $type);
+				// a key loses parameters only when it had some it should not keep; else it stays
+				// as stored, byte for byte
+				$kept = array();
+				$rpos = strpos($rebuilt, '?');
+				if($rpos !== false) parse_str(substr($rebuilt, $rpos + 1), $kept);
+				if(count($kept) < count($query)) $newKey = $rebuilt;
+			}
+			$entry['url'] = $newKey;
+			if(isset($out[$newKey])) {
+				$old = $out[$newKey];
+				$entry['visits'] = (isset($old['visits']) ? (int) $old['visits'] : 1) + (isset($entry['visits']) ? (int) $entry['visits'] : 1);
+				if((isset($old['last']) ? (int) $old['last'] : 0) > (isset($entry['last']) ? (int) $entry['last'] : 0)) {
+					$entry = array_merge($entry, array('name' => $old['name'], 'last' => $old['last']));
+				}
+				unset($out[$newKey]);
+			}
+			$out[$newKey] = $entry;
+		}
+		uasort($out, function($a, $b) { return (isset($a['last']) ? (int) $a['last'] : 0) <=> (isset($b['last']) ? (int) $b['last'] : 0); });
+		return $out;
 	}
 
 	/**
@@ -290,8 +384,9 @@ trait AdminThemeBridgeHistory {
 		if(!$user || !$user->id || !$user->isLoggedin()) return array();
 		$entries = $user->meta(self::historyMeta);
 		if(!is_array($entries)) return array();
-		// stored oldest first (historyRecord()), so visits within one second keep their order
-		return array_reverse($entries, true);
+		// stored oldest first (historyRecord()), so visits within one second keep their order;
+		// entries under an older key of one screen merge (0.30.1)
+		return array_reverse($this->historyMerge($entries), true);
 	}
 
 	/**
