@@ -212,9 +212,10 @@ $themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
 foreach(array('pw-notices-static', 'pw-nav-overflow', 'forced-colors', '@media print', 'scroll-padding-top', 'body.pw-init .WireTab', '--pw-flyout-max') as $needle) {
 	check("theme.css has $needle", strpos($themeCss, $needle) !== false);
 }
-// 0.30.1 (audit U1): at phone width the search is its icon and opens over the masthead with the focus in it, an
-// extension's masthead part gives way; CSS only (tools/a11y-check.js section 8 measures 14 screens at 375 and 320px)
-check('theme.css: below 480px the search opens on :focus-within, full width, and an extension\'s masthead part is cut', (bool) preg_match('/@media ?\(max-width:479px\)\{#ProcessPageSearchForm\{flex:none\}.*#ProcessPageSearchForm:focus-within\{position:absolute;left:\.75rem;right:\.75rem/s', $themeCss)
+// 0.30.1 (audits U1, B1.3): below 768px the search is its icon and opens over the masthead with the focus in it, an
+// extension's masthead part gives way (tools/a11y-check.js section 8 measures 14 screens from 767 to 320px)
+check('theme.css: below 768px the search opens on :focus-within, full width, and an extension\'s masthead part is cut', (bool) preg_match('/@media ?\(max-width:767px\)\{#ProcessPageSearchForm\{flex:none\}[^@]*#ProcessPageSearchForm:focus-within\{position:absolute;left:\.75rem;right:\.75rem/s', $themeCss)
+	&& strpos($themeCss, '#ProcessPageSearchQuery:focus{width:6.875rem}') === false
 	&& strpos($themeCss, '.pw-masthead-right>[data-bridge-slot]{min-width:0;max-width:6rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}') !== false);
 check('theme script measures notices and the top bar, and handles touch', strpos($mainJs, 'setupNotices: function()') !== false && strpos($mainJs, 'setupNavFit: function()') !== false && strpos($mainJs, "e.pointerType === 'touch'") !== false);
 $headPhp = (string) @file_get_contents($themeDir . '_head.php');

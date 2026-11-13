@@ -247,8 +247,8 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const back = await colours();
 	check('colour picker: "Site default" goes back to the site\'s colour', back.variant === site.variant && back.pressed.join() === '', JSON.stringify({ site, back }));
 
-	// 8. phone width (0.30.1, audit U1): no screen scrolls sideways at 375 and 320 px, also with a
-	// wide custom logo; the search is its icon and opens over the masthead with the focus in it
+	// 8. phone width (0.30.1, audits U1 and B1.3): no screen scrolls sideways from 767 to 320 px, also with a
+	// wide custom logo; below 768 px the search is its icon and opens over the masthead with the focus in it
 	{
 		const FIXTURE = process.env.FIXTURE_ID || '1498';
 		const NESTING = process.env.NESTING_ID || '1582';
@@ -256,7 +256,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			'setup/template/', 'module/', 'module/edit?name=AdminThemeBridge', 'module/edit?name=BridgeAdminAccessControl', 'access/users/', 'access/roles/', 'page/lister/', 'profile/'];
 		const wider = () => page.evaluate(() => ({ sw: document.documentElement.scrollWidth, w: innerWidth,
 			at: Array.from(document.querySelectorAll('body *')).filter(e => e.getBoundingClientRect().right > innerWidth + 1 && !e.closest('dialog:not([open]), [hidden]')).slice(-1).map(e => e.tagName + (e.id ? '#' + e.id : '') + '.' + String(e.className).slice(0, 40)).join('') }));
-		for(const width of [375, 320]) {
+		for(const width of [767, 700, 640, 600, 540, 480, 375, 320]) {
 			await page.setViewportSize({ width, height: 760 });
 			const over = [];
 			for(const s of screens) {
@@ -266,42 +266,50 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			}
 			check(`8 ${width}px: no screen is wider than the viewport (${screens.length} screens)`, over.length === 0, over.join('; '));
 		}
-		await page.setViewportSize({ width: 375, height: 760 });
-		await open('page/');
 		// a custom logo 120px wide (renderLogo() prints an img in the logo link)
-		const logo = await page.evaluate(() => {
-			const a = document.querySelector('.pw-logo-link');
-			if(!a) return null;
-			a.innerHTML = "<img class='pw-logo pw-logo-custom' alt='home' width='120' height='40' src=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'/%3E\">";
-			return new Promise(r => setTimeout(() => r({ sw: document.documentElement.scrollWidth, w: innerWidth }), 100));
-		});
-		check('8 375px with a 120px custom logo: not wider than the viewport', !!logo && logo.sw <= logo.w, JSON.stringify(logo));
-		await open('page/');
-		const closed = await page.evaluate(() => { const i = document.getElementById('ProcessPageSearchQuery'); return i ? Math.round(i.getBoundingClientRect().width) : 0; });
-		await page.focus('#ProcessPageSearchQuery');
-		await page.keyboard.type('ho');
-		await page.waitForTimeout(150);
-		const opened = await page.evaluate(() => {
-			const f = document.getElementById('ProcessPageSearchForm'), i = document.getElementById('ProcessPageSearchQuery');
-			return { form: Math.round(f.getBoundingClientRect().width), input: Math.round(i.getBoundingClientRect().width), value: i.value, color: getComputedStyle(i).color !== 'rgba(0, 0, 0, 0)', opaque: getComputedStyle(f).backgroundColor !== 'rgba(0, 0, 0, 0)', w: innerWidth };
-		});
-		check('8 375px: the search is a 32px icon, and with the focus in it an opaque full-width field that takes typing', closed === 32 && opened.form >= opened.w - 24 && opened.input === opened.form && opened.value === 'ho' && opened.color && opened.opaque, closed + ' ' + JSON.stringify(opened));
-		const submitted = await Promise.all([page.waitForNavigation({ timeout: 10000 }).then(() => true).catch(() => false), page.keyboard.press('Enter')]);
-		check('8 375px: Enter submits the search', submitted[0] && /[?&]q=ho/.test(page.url()), page.url());
-		await open('page/');
-		await page.focus('#ProcessPageSearchQuery');
-		await page.keyboard.press('Shift+Tab');
-		const back = await page.evaluate(() => Math.round(document.getElementById('ProcessPageSearchQuery').getBoundingClientRect().width));
-		check('8 375px: the field closes to its icon when the focus leaves', back === 32, back);
-		// Escape: the first closes the result list, the next (no list open) leaves the field (0.30.1)
-		await page.focus('#ProcessPageSearchQuery');
-		await page.keyboard.type('ho');
-		await page.waitForSelector('.pw-search-results', { state: 'visible', timeout: 5000 }).catch(() => {});
-		await page.keyboard.press('Escape');
-		const escOne = await page.evaluate(() => ({ list: getComputedStyle(document.querySelector('.pw-search-results') || document.body).display !== 'none' && !!document.querySelector('.pw-search-results'), focused: document.activeElement && document.activeElement.id === 'ProcessPageSearchQuery' }));
-		await page.keyboard.press('Escape');
-		const escTwo = await page.evaluate(() => ({ focused: document.activeElement && document.activeElement.id === 'ProcessPageSearchQuery', width: Math.round(document.getElementById('ProcessPageSearchQuery').getBoundingClientRect().width) }));
-		check('8 375px: Escape closes the result list, a second Escape closes the field to its icon', !escOne.list && escOne.focused && !escTwo.focused && escTwo.width === 32, JSON.stringify([escOne, escTwo]));
+		const logos = [];
+		for(const width of [767, 700, 640, 540, 375]) {
+			await page.setViewportSize({ width, height: 760 });
+			await open('page/');
+			const logo = await page.evaluate(() => {
+				const a = document.querySelector('.pw-logo-link');
+				if(!a) return null;
+				a.innerHTML = "<img class='pw-logo pw-logo-custom' alt='home' width='120' height='40' src=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'/%3E\">";
+				return new Promise(r => setTimeout(() => r({ sw: document.documentElement.scrollWidth, w: innerWidth }), 100));
+			});
+			if(!logo || logo.sw > logo.w) logos.push(width + ' ' + JSON.stringify(logo));
+		}
+		check('8 767 to 375px with a 120px custom logo: not wider than the viewport', logos.length === 0, logos.join('; '));
+		// the search is its icon below 768px: at a phone width and at a small tablet width (B1.3)
+		for(const width of [375, 540]) {
+			await page.setViewportSize({ width, height: 760 });
+			await open('page/');
+			const closed = await page.evaluate(() => { const i = document.getElementById('ProcessPageSearchQuery'); return i ? Math.round(i.getBoundingClientRect().width) : 0; });
+			await page.focus('#ProcessPageSearchQuery');
+			await page.keyboard.type('ho');
+			await page.waitForTimeout(150);
+			const opened = await page.evaluate(() => {
+				const f = document.getElementById('ProcessPageSearchForm'), i = document.getElementById('ProcessPageSearchQuery');
+				return { form: Math.round(f.getBoundingClientRect().width), input: Math.round(i.getBoundingClientRect().width), value: i.value, color: getComputedStyle(i).color !== 'rgba(0, 0, 0, 0)', opaque: getComputedStyle(f).backgroundColor !== 'rgba(0, 0, 0, 0)', w: innerWidth };
+			});
+			check(`8 ${width}px: the search is a 32px icon, and with the focus in it an opaque full-width field that takes typing`, closed === 32 && opened.form >= opened.w - 24 && opened.input === opened.form && opened.value === 'ho' && opened.color && opened.opaque, closed + ' ' + JSON.stringify(opened));
+			const submitted = await Promise.all([page.waitForNavigation({ timeout: 10000 }).then(() => true).catch(() => false), page.keyboard.press('Enter')]);
+			check(`8 ${width}px: Enter submits the search`, submitted[0] && /[?&]q=ho/.test(page.url()), page.url());
+			await open('page/');
+			await page.focus('#ProcessPageSearchQuery');
+			await page.keyboard.press('Shift+Tab');
+			const back = await page.evaluate(() => Math.round(document.getElementById('ProcessPageSearchQuery').getBoundingClientRect().width));
+			check(`8 ${width}px: the field closes to its icon when the focus leaves`, back === 32, back);
+			// Escape: the first closes the result list, the next (no list open) leaves the field (0.30.1)
+			await page.focus('#ProcessPageSearchQuery');
+			await page.keyboard.type('ho');
+			await page.waitForSelector('.pw-search-results', { state: 'visible', timeout: 5000 }).catch(() => {});
+			await page.keyboard.press('Escape');
+			const escOne = await page.evaluate(() => ({ list: getComputedStyle(document.querySelector('.pw-search-results') || document.body).display !== 'none' && !!document.querySelector('.pw-search-results'), focused: document.activeElement && document.activeElement.id === 'ProcessPageSearchQuery' }));
+			await page.keyboard.press('Escape');
+			const escTwo = await page.evaluate(() => ({ focused: document.activeElement && document.activeElement.id === 'ProcessPageSearchQuery', width: Math.round(document.getElementById('ProcessPageSearchQuery').getBoundingClientRect().width) }));
+			check(`8 ${width}px: Escape closes the result list, a second Escape closes the field to its icon`, !escOne.list && escOne.focused && !escTwo.focused && escTwo.width === 32, JSON.stringify([escOne, escTwo]));
+		}
 		await page.setViewportSize({ width: 768, height: 900 });
 		await open('page/');
 		const tablet = await page.evaluate(() => Math.round(document.getElementById('ProcessPageSearchQuery').getBoundingClientRect().width));
