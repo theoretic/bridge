@@ -2415,6 +2415,16 @@ if(isset($bridge)) {
 		}
 	}
 	check('docs/extensions.md section 3 is extensionSurface(), word for word', $docSurface === $surface, json_encode(array_keys($docSurface)));
+	// 1.0 readiness, step 1: the surface inventory has one row per hook, read, setting and slot, in its own section
+	$inventory = (string) @file_get_contents(dirname(__DIR__) . '/docs/surface-1.0.md');
+	$inventoryBad = array();
+	foreach(array('hooks' => 'Hooks', 'reads' => 'Reads', 'settings' => 'Settings', 'slots' => 'Slots') as $key => $title) {
+		$section = preg_match('/\n## ' . $title . '\n(.*?)(\n## |$)/s', $inventory, $sm) ? $sm[1] : '';
+		foreach($surface[$key] as $name) {
+			if(preg_match_all('/^\| `' . preg_quote($name, '/') . '` \|/m', $section) !== 1) $inventoryBad[] = "$key:$name";
+		}
+	}
+	check('docs/surface-1.0.md has one row per hook, read, setting and slot of extensionSurface()', $inventory !== '' && !count($inventoryBad), implode(', ', $inventoryBad));
 	// step 3: the client side (runtime/src/extensions.ts, a chunk of its own)
 	$rtIndex = (string) @file_get_contents($runtimeSrc . 'index.ts');
 	$rtExt = (string) @file_get_contents($runtimeSrc . 'extensions.ts');
