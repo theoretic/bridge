@@ -1,8 +1,9 @@
 {
-	"contract": "0.2",
+	"contract": "1.0",
 	"contracts": [
 		"0.1",
-		"0.2"
+		"0.2",
+		"1.0"
 	],
 	"hooks": [
 		"install",
@@ -37,7 +38,6 @@
 		"cspNonce",
 		"nonceAttr",
 		"nonceScriptTag",
-		"themeAssetUrl",
 		"getVariant",
 		"getColorScheme",
 		"shellLabel",
@@ -158,7 +158,9 @@
 		"--pw-danger-bg",
 		"--pw-label-size",
 		"--pw-control-height",
-		"--pw-login-bg"
+		"--pw-login-bg",
+		"--pw-range-fill",
+		"--pw-branch-max"
 	],
 	"events": [
 		"pw-runtime-ready",
@@ -184,7 +186,11 @@
 		"closed",
 		"reloaded",
 		"showIf",
-		"changed"
+		"changed",
+		"pw-scheme-change",
+		"pw-variant-change",
+		"pw-scale-change",
+		"pw-tabs-change"
 	],
 	"runtime": [
 		"contract",

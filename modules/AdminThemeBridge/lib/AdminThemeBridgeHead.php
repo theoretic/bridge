@@ -201,6 +201,9 @@ trait AdminThemeBridgeHead {
 	 * own directory, also when the templates are a copy in /site/templates/AdminThemeBridge/
 	 * (AdminThemeFramework::includeFile() looks there first; audit B3)
 	 *
+	 * Internal: not on the extension surface (taken off `reads` for 1.0, docs/surface-1.0.md), since
+	 * the theme's file names and places are not part of the contract; may change in any release.
+	 *
 	 * @param string $file Path relative to the theme's directory
 	 * @return string
 	 *

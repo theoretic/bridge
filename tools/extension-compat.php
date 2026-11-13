@@ -1,7 +1,7 @@
 <?php namespace ProcessWire;
 
 /**
- * Compatibility checker of Bridge extensions (docs/extensions.md 8, extension contract 0.2): which
+ * Compatibility checker of Bridge extensions (docs/extensions.md 8, extension contract 1.0): which
  * extensions in the given directories break on a given Bridge.
  *
  * Usage:
@@ -13,7 +13,7 @@
  *    the surface from its assets/dist/extension-surface.json (written by the runtime build,
  *    runtime/scripts/manifest.mjs). Default target: this checkout. --surface=<json> gives both
  *    instead (`contract` and the lists of AdminThemeBridge::extensionSurface()); the contract
- *    versions the target honours are the surface's `contracts` (contract 0.2), or `contract` alone
+ *    versions the target honours are the surface's `contracts` (since contract 0.2), or `contract` alone
  *    when the surface has no `contracts` (a 0.1 surface, a hand-written file); a Bridge without
  *    the constant has no extension contract, and every extension is incompatible with it;
  *  - the extensions: every module under the directories (default: this checkout's modules/ and,
@@ -250,7 +250,7 @@ if($surfaceArg !== '') {
 	}
 }
 $target = array('contract' => (string) $data['contract']);
-// the contract versions the target honours (contract 0.2); a surface without them honours its contract
+// the contract versions the target honours (since contract 0.2); a surface without them honours its contract
 $target['contracts'] = isset($data['contracts']) && is_array($data['contracts']) ? array_values(array_filter($data['contracts'], 'is_string')) : array();
 if(!count($target['contracts']) && $target['contract'] !== '') $target['contracts'] = array($target['contract']);
 foreach(array('hooks', 'reads', 'settings', 'slots', 'tokens') as $key) {
@@ -394,7 +394,7 @@ foreach($modules as $name => $files) {
 			$file = preg_replace('/[?#].*$/', '', $module);
 			if(!is_file($files['dir'] . '/' . $file)) $problems[] = "module file $file missing";
 		}
-		// stylesheets (contract 0.2): relative entries are files of the module directory, as `module`
+		// stylesheets (since contract 0.2): relative entries are files of the module directory, as `module`
 		$styles = $manifest['styles'] ?? array();
 		if($styles instanceof BridgeCompatDynamic) $problems[] = 'styles not readable statically';
 		else foreach((array) $styles as $style) {

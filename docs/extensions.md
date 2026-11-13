@@ -1,4 +1,4 @@
-# Bridge extensions, contract 0.2
+# Bridge extensions, contract 1.0
 
 An extension is an ordinary module that changes the Bridge admin only through a published
 surface: the theme's hookable methods, a few public methods, its settings, the shell slots, the
@@ -6,18 +6,20 @@ runtime's `window.Bridge` and the bubbling DOM events. It declares what it uses 
 The theme reads the manifest to load the extension's client module and fill its slots; the
 contract tests and the compatibility checker read the same manifest.
 
-The extension contract has its own version, `AdminThemeBridge::extensionContract` (`'0.2'`),
+The extension contract has its own version, `AdminThemeBridge::extensionContract` (`'1.0'`),
 apart from the module version and from the component contract (`Bridge.contract`, `'1'`,
-`docs/contract.md`). Before 1.0 it may change between minor versions. A component
-(`BridgeComponent`) is not an extension; a module may be both.
+`docs/contract.md`). Contract 1.0 is frozen for 1.x: entries may be added in a minor version of
+the theme, none is removed or changed before 2.0 ([ADR 0024](decisions/0024-the-1-0-compatibility-promise.md)).
+A component (`BridgeComponent`) is not an extension; a module may be both.
 
 The theme honours more than its current contract: `AdminThemeBridge::extensionContracts`
-(`'0.1'`, `'0.2'`, the surface's `contracts`) lists every contract version it serves, the
-current one last. 0.2 only adds to 0.1 (the manifest keys `styles` and `tokens`, the surface keys
-`contracts` and `tokens`, the read `extensionStyles`), so 0.1 is still honoured and a manifest
-written for `^0.1` keeps working. An extension is compatible when its `contract` range takes any
-of the listed versions (`AdminThemeBridge::contractCompatible()`). A contract that removes or
-changes something drops the older versions from the list (ADR 0022).
+(`'0.1'`, `'0.2'`, `'1.0'`, the surface's `contracts`) lists every contract version it serves,
+the current one last. 0.2 only added to 0.1 (the manifest keys `styles` and `tokens`, the surface
+keys `contracts` and `tokens`, the read `extensionStyles`), and 1.0 is 0.2's surface, frozen
+(one read taken off, six documented names listed; section 3), so 0.1 and 0.2 are still honoured
+and a manifest written for `^0.1` or `^0.2` keeps working. An extension is compatible when its
+`contract` range takes any of the listed versions (`AdminThemeBridge::contractCompatible()`). A
+contract that removes or changes something drops the older versions from the list (ADR 0022).
 
 ## 1. What goes where
 
@@ -62,7 +64,7 @@ class BridgeHello extends WireData implements Module, BridgeExtension {
 	}
 	public function getBridgeExtension() {
 		return array(
-			'contract' => '^0.2',
+			'contract' => '^0.2 || ^1.0',
 			'module' => 'BridgeHello.mjs',
 			'hooks' => array('renderBreadcrumbs'),
 		);
@@ -75,11 +77,11 @@ loaded (the command line, a modules refresh from the front end) ends in a fatal 
 
 | Key | Type | Meaning |
 |---|---|---|
-| `contract` | string | The contract range it was written for: `^0.2`, `~0.1`, `>=0.1 <1`, `^0.1 \|\| ^1`, `*`. Required. The extension is compatible when the range takes any version of the surface's `contracts` (section 3) |
+| `contract` | string | The contract range it was written for: `^0.2 \|\| ^1.0`, `^1.0`, `^0.2`, `~0.1`, `>=0.1 <1`, `^0.1 \|\| ^1`, `*`. Required. The extension is compatible when the range takes any version of the surface's `contracts` (section 3) |
 | `name` | string | Defaults to the module's class name |
 | `module` | string | An ES module the admin imports on every page for users who may have the extension. Absolute URLs and root-relative paths keep their place; anything else is relative to the module's directory. Every one gets `?v=<module version>` unless it has a query already (dev mode, for a file under the site modules: its file time, section 9) |
-| `styles` | array | Stylesheets (0.2). A relative entry is relative to the module's directory, with `?v=<module version>` (dev mode: the file time, section 9); absolute URLs and root-relative paths are printed as given, without `?v=` (unlike `module`). The theme prints them in `<head>` after `theme.css` and `fields.css`, with the CSP nonce, one `<link rel='stylesheet' data-bridge-styles='<name>'>` each; the style-order code keeps them there. Also in modal windows; for signed-in users only, for the extensions they may have and whose `contract` the theme honours. A site's own copy of `_head.php` needs one loop for them (section 12) |
-| `tokens` | array | The theme's CSS custom properties its stylesheets read or set (0.2), each a name of the surface's `tokens` (section 3); the contract tests compare them with the `styles` files |
+| `styles` | array | Stylesheets (since 0.2). A relative entry is relative to the module's directory, with `?v=<module version>` (dev mode: the file time, section 9); absolute URLs and root-relative paths are printed as given, without `?v=` (unlike `module`). The theme prints them in `<head>` after `theme.css` and `fields.css`, with the CSP nonce, one `<link rel='stylesheet' data-bridge-styles='<name>'>` each; the style-order code keeps them there. Also in modal windows; for signed-in users only, for the extensions they may have and whose `contract` the theme honours. A site's own copy of `_head.php` needs one loop for them (section 12) |
+| `tokens` | array | The theme's CSS custom properties its stylesheets read or set (since 0.2), each a name of the surface's `tokens` (section 3); the contract tests compare them with the `styles` files |
 | `slots` | array | Slot name => name of a public method on the module that returns markup. The extension escapes its own output |
 | `hooks` | array | The theme's hookable methods it attaches to, without `___` (section 3) |
 | `reads` | array | The theme's public non-hookable methods it calls (section 3) |
@@ -103,21 +105,24 @@ lists the stylesheets the request prints (`extension`, `url`, by priority).
 The list below is `AdminThemeBridge::extensionSurface()` (hookable), word for word; the smoke
 test compares the two, and the `hooks` line with the methods the class declares.
 
-- **contract**: `0.2`
-- **contracts**: `0.1`, `0.2`
+- **contract**: `1.0`
+- **contracts**: `0.1`, `0.2`, `1.0`
 - **hooks**: `install`, `uninstall`, `nonce`, `moveFiles`, `moveFileAllowed`, `filesMoved`, `historyEntry`, `nativeMap`, `isNativeProcess`, `isNativeInputfield`, `scriptNeeds`, `renderBreadcrumbs`, `sortableDataTable`, `uikitReasons`, `extensionSurface`, `drawerNames`, `navCacheKey`, `tokenOverrides`, `appearance`, `adminTitle`, `faviconUrl`
-- **reads**: `useLegacyStack`, `componentInfo`, `extensions`, `extensionInfo`, `extensionAllowed`, `extensionStyles`, `cspNonce`, `nonceAttr`, `nonceScriptTag`, `themeAssetUrl`, `getVariant`, `getColorScheme`, `shellLabel`, `getHistorySteps`, `tokenCss`, `getLabelSize`, `getControlHeight`, `isLoginScreen`, `renderAdminTitle`
+- **reads**: `useLegacyStack`, `componentInfo`, `extensions`, `extensionInfo`, `extensionAllowed`, `extensionStyles`, `cspNonce`, `nonceAttr`, `nonceScriptTag`, `getVariant`, `getColorScheme`, `shellLabel`, `getHistorySteps`, `tokenCss`, `getLabelSize`, `getControlHeight`, `isLoginScreen`, `renderAdminTitle`
 - **settings**: `legacyStack`, `uikit`, `maxWidth`, `variant`, `primaryColor`, `colorScheme`, `logoURL`, `logoURLDark`, `extendedBreadcrumbs`, `pageTreeDrawer`, `history`, `historySteps`, `pageSaveInPlace`, `pageAddSkipTemplate`, `dangerWarn`, `userColors`, `dataTableSortRows`, `printScripts`, `nativeOverrides`, `extensionDev`, `labelSize`, `controlHeight`
 - **slots**: `head`, `masthead`, `masthead-right`, `user-nav`, `content-head-buttons`, `footer`, `drawer`, `body`
-- **tokens**: `--background`, `--foreground`, `--card`, `--card-foreground`, `--popover`, `--popover-foreground`, `--primary`, `--primary-foreground`, `--secondary`, `--secondary-foreground`, `--muted`, `--muted-foreground`, `--accent`, `--accent-foreground`, `--destructive`, `--border`, `--input`, `--ring`, `--radius`, `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-xl`, `--shadow-xs`, `--shadow-sm`, `--shadow-md`, `--shadow-lg`, `--pw-primary`, `--pw-primary-hover`, `--pw-primary-bg`, `--pw-primary-20`, `--pw-on-primary`, `--pw-bg`, `--pw-surface`, `--pw-surface-2`, `--pw-line`, `--pw-text`, `--pw-text-muted`, `--pw-h1`, `--pw-input-bg`, `--pw-input-border`, `--pw-radius`, `--pw-radius-m`, `--pw-shadow-card`, `--pw-shadow-dropdown`, `--pw-font`, `--pw-font-size`, `--pw-line-height`, `--pw-gutter`, `--pw-field-pad`, `--pw-field-pad-bottom`, `--pw-z-notices`, `--pw-z-popup`, `--pw-z-masthead`, `--pw-z-drawer`, `--pw-z-dropdown`, `--pw-z-picker`, `--pw-z-overlay`, `--pw-status-success-bg`, `--pw-status-success-border`, `--pw-status-success-fg`, `--pw-status-success-icon`, `--pw-status-warning-bg`, `--pw-status-warning-border`, `--pw-status-warning-fg`, `--pw-status-warning-icon`, `--pw-status-error-bg`, `--pw-status-error-border`, `--pw-status-error-fg`, `--pw-status-error-icon`, `--pw-success-bg`, `--pw-warning-bg`, `--pw-danger-bg`, `--pw-label-size`, `--pw-control-height`, `--pw-login-bg`
-- **events**: `pw-runtime-ready`, `pw-legacy-loaded`, `pw-legacy-handover`, `pw-uikit-loaded`, `pw-component-loaded`, `pw-component-failed`, `pw-modal-opened`, `pw-modal-closed`, `pw-wiretabs-change`, `pw-tab-focus`, `pw-drawer-open`, `pw-drawer-close`, `pw-page-save`, `pw-page-saved`, `pw-form-save`, `pw-form-saved`, `pw-files-moved`, `pw-extension-loaded`, `pw-extensions-ready`, `opened`, `closed`, `reloaded`, `showIf`, `changed`
+- **tokens**: `--background`, `--foreground`, `--card`, `--card-foreground`, `--popover`, `--popover-foreground`, `--primary`, `--primary-foreground`, `--secondary`, `--secondary-foreground`, `--muted`, `--muted-foreground`, `--accent`, `--accent-foreground`, `--destructive`, `--border`, `--input`, `--ring`, `--radius`, `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-xl`, `--shadow-xs`, `--shadow-sm`, `--shadow-md`, `--shadow-lg`, `--pw-primary`, `--pw-primary-hover`, `--pw-primary-bg`, `--pw-primary-20`, `--pw-on-primary`, `--pw-bg`, `--pw-surface`, `--pw-surface-2`, `--pw-line`, `--pw-text`, `--pw-text-muted`, `--pw-h1`, `--pw-input-bg`, `--pw-input-border`, `--pw-radius`, `--pw-radius-m`, `--pw-shadow-card`, `--pw-shadow-dropdown`, `--pw-font`, `--pw-font-size`, `--pw-line-height`, `--pw-gutter`, `--pw-field-pad`, `--pw-field-pad-bottom`, `--pw-z-notices`, `--pw-z-popup`, `--pw-z-masthead`, `--pw-z-drawer`, `--pw-z-dropdown`, `--pw-z-picker`, `--pw-z-overlay`, `--pw-status-success-bg`, `--pw-status-success-border`, `--pw-status-success-fg`, `--pw-status-success-icon`, `--pw-status-warning-bg`, `--pw-status-warning-border`, `--pw-status-warning-fg`, `--pw-status-warning-icon`, `--pw-status-error-bg`, `--pw-status-error-border`, `--pw-status-error-fg`, `--pw-status-error-icon`, `--pw-success-bg`, `--pw-warning-bg`, `--pw-danger-bg`, `--pw-label-size`, `--pw-control-height`, `--pw-login-bg`, `--pw-range-fill`, `--pw-branch-max`
+- **events**: `pw-runtime-ready`, `pw-legacy-loaded`, `pw-legacy-handover`, `pw-uikit-loaded`, `pw-component-loaded`, `pw-component-failed`, `pw-modal-opened`, `pw-modal-closed`, `pw-wiretabs-change`, `pw-tab-focus`, `pw-drawer-open`, `pw-drawer-close`, `pw-page-save`, `pw-page-saved`, `pw-form-save`, `pw-form-saved`, `pw-files-moved`, `pw-extension-loaded`, `pw-extensions-ready`, `opened`, `closed`, `reloaded`, `showIf`, `changed`, `pw-scheme-change`, `pw-variant-change`, `pw-scale-change`, `pw-tabs-change`
 - **runtime**: `contract`, `version`, `Inputfields`, `components`, `dialog`, `legacy`, `tables`, `pageTree`, `sortable`, `confirm`, `guard`, `extensions`
 
 `contracts` are the contract versions the theme honours, the current one (`contract`) last: a
 manifest range that takes any of them is compatible. `tokens` are the theme's CSS custom
 properties an extension's stylesheets may read or set (`runtime/src/styles/00-tokens.css`,
 `docs/contract.md` 4.0). Their names are stable within the contract; their values are not (they
-follow the variant, the scheme, the interface scale and the theme's design). Any other custom
+follow the variant, the scheme, the interface scale and the theme's design). Two of them are set
+by the theme's script on the element they describe (`docs/contract.md` 4.1): `--pw-range-fill`
+on each `input[type=range]` (`setupRangeFill()`), `--pw-branch-max` on the deepest open page-tree
+branch (`setupTreeFit()`); `00-tokens.css` declares the values where no script set one. Any other custom
 property the theme declares, the `--pw-` names not listed here among them, is internal and may
 change or go in any release. The contract tests fail a stylesheet that uses a name the built
 `theme.css` declares off the surface (`--pw-tiny`, `--pw-masthead-h`, `--ring-50`, ...; section
@@ -129,6 +134,30 @@ Hooks attach as anywhere in ProcessWire: `$this->addHookAfter('AdminThemeBridge:
 What each method, event and runtime key does is in `docs/contract.md`. Upstream's own regions
 (`AdminTheme::addExtraMarkup()` for `head`, `masthead`, `body`) keep working.
 
+Entries that no other section describes:
+
+| Entry | What it is |
+|---|---|
+| hook `renderBreadcrumbs()` | The breadcrumb markup above the content: `<nav class='pw-breadcrumbs-nav'>` around `<ul class='pw-breadcrumbs'>`, one `<li>` per crumb. Empty in a modal, for a guest and on a screen without crumbs; with `extendedBreadcrumbs` also empty on the page tree and, outside the page editor, with fewer than two crumbs. A hook after may wrap or replace the markup |
+| read `extensionAllowed($info)` | Whether the current user may have the extension of an `extensionInfo()` array: true without a `permission`, else whether the user has it (a superuser has every permission) |
+| read `nonceScriptTag($openTag)` | The `<script>` open tag with this request's CSP nonce added, unless the tag has a `nonce` attribute already or there is no nonce (then as given); the `<script>` counterpart of `nonceAttr()` (`docs/contract.md` 2.1) |
+| read `getVariant()` | The colour preset in use: the user's own (user menu) over the site's, one of `blue`, `vibrant`, `black`, `pink`, `green`, `custom` (the `data-pw-variant` values, `docs/contract.md` 4.0) |
+| read `getColorScheme()` | The colour scheme setting in effect, after `appearance()` (section 13): `auto`, `light` or `dark`; not the user's choice in the browser |
+| read `shellLabel($key)` | A translated label of the shell templates (`_main.php`, `_masthead.php`, `_footer.php`, so a site's copy of them too); an unknown key comes back as given. Keys may be added, none renamed or removed in 1.x: `lang`, `menu`, `mainNav`, `breadcrumbs`, `skip`, `search`, `home`, `pagination`, `display`, `smaller`, `larger`, `resetScale`, `basedOn`, `coloursFrom` |
+| read `getHistorySteps()` | The most entries the visit history keeps: the `historySteps` setting when it is 1 to 10000, else 100 |
+| setting `extendedBreadcrumbs` | Features > Extended breadcrumbs (on by default): the page tree link and an edit link per editable crumb, the crumbs hidden on the page tree and, outside the page editor, with fewer than two (`renderBreadcrumbs()` above) |
+
+Contract 1.0 (theme 1.0.0) is 0.2's surface, frozen, with the rulings of
+[docs/surface-1.0.md](surface-1.0.md) applied: the read `themeAssetUrl` is off the surface (it
+stays a method of the theme, internal: the theme's file names are not part of the contract), and
+the lists now name what the docs already promised: the events `pw-scheme-change`,
+`pw-variant-change`, `pw-scale-change`, `pw-tabs-change` (`docs/contract.md` 4.0 to 4.2) and the
+tokens `--pw-range-fill`, `--pw-branch-max`. No manifest key and no surface key changed, so a
+manifest written for `^0.1` or `^0.2` is still compatible and gets the same surface; only one that
+declares the read `themeAssetUrl` is reported by the contract tests and the compatibility
+checker. A new extension declares `^0.2 || ^1.0` (the scaffold writes it): it then also loads on
+a 0.29 or 0.30 theme, which honours 0.2.
+
 The contract range: `^x.y` keeps the major version (for `0.y`, the minor one), `~x.y` the minor
 one; comparisons `>= > <= < =`, all of a space-separated list must hold, `||` separates
 alternatives. `AdminThemeBridge::contractSatisfies($range, $version)` and
@@ -136,7 +165,7 @@ alternatives. `AdminThemeBridge::contractSatisfies($range, $version)` and
 range takes any version of `contracts`.
 
 The surface grew within contract 0.2 in theme 0.30.0, as it did in 0.28.0 (`navCacheKey`): only
-entries were added to four lists, no manifest key and no surface key, so the contract stays 0.2
+entries were added to four lists, no manifest key and no surface key, so the contract stayed 0.2
 (ADR 0023). The additions are the appearance seams of section 13: hooks `tokenOverrides`,
 `appearance`, `adminTitle`, `faviconUrl`; reads `tokenCss`, `getLabelSize`, `getControlHeight`,
 `isLoginScreen`, `renderAdminTitle`; settings `labelSize`, `controlHeight`; tokens
@@ -312,12 +341,12 @@ passes on each (section 6).
 |---|---|---|
 | `BridgeCsp` (Bridge CSP) | the `bridge` module info key: no code, and no `requires` of the theme | hooks `nonce` (gives the theme the request's nonce), reads `useLegacyStack` (enforce or report only per screen); the client gets no module |
 | `ProcessBridgeDemo` (directory `BridgeDemo`) | `getBridgeExtension()`; also a `BridgeComponent` | reads `nonceAttr` (its csp/ screen); `module` `ProcessBridgeDemo.mjs`, imported on every admin page for users with `page-edit`; no slots |
-| `BridgeSample` | `getBridgeExtension()`, generated by the scaffold (contract `^0.2`) | six slots (`masthead-right`, `user-nav`, `content-head-buttons`, `footer`, `drawer`, `body`), `BridgeSample.mjs`, and `styles` `BridgeSample.css` (one rule on its own element) with `tokens` `--muted-foreground`; the fixture of the contract tests |
+| `BridgeSample` | `getBridgeExtension()`, generated by the scaffold (contract `^0.2 \|\| ^1.0`) | six slots (`masthead-right`, `user-nav`, `content-head-buttons`, `footer`, `drawer`, `body`), `BridgeSample.mjs`, and `styles` `BridgeSample.css` (one rule on its own element) with `tokens` `--muted-foreground`; the fixture of the contract tests |
 | `BridgeAdminAccessControl` (Bridge admin access control) | the `bridge` module info key: no code, and no `requires` of the theme | hooks `navCacheKey` (a change of the rules shows in a signed-in user's menu on the next request), `drawerNames` (no page tree drawer with Pages denied); enforcement is on the core's seams ([access-control.md](access-control.md)); no slots, the client gets no module |
 
 `InputfieldBridgeText` (in `BridgeDemo`) is a component, not an extension. The other three
 manifests stay at `^0.1` on purpose: they show that a manifest written for 0.1 keeps working on
-0.2.
+1.0.
 
 ## 8. Compatibility
 
@@ -417,7 +446,7 @@ php tools/scaffold-extension.php <Name> [--dir=modules] [--slots=footer,user-nav
 ```
 
 Into `<dir>/<Name>/` (a directory that exists is refused): `<Name>.module.php` (module info with
-`requires AdminThemeBridge`, the interface check of section 2, a manifest with `contract ^0.2`,
+`requires AdminThemeBridge`, the interface check of section 2, a manifest with `contract ^0.2 || ^1.0`,
 one method per slot returning escaped markup, an empty settings screen), with `--module`
 `<Name>.mjs` (defines `<pw-<name in lower case>>` guarded by `customElements.get()`, exports
 `{ tag, version }`), with `--styles` `<Name>.css` (a comment header and one rule,
@@ -433,7 +462,7 @@ Then: place the directory under a sandbox's site modules (a junction), install i
 (`php tools/sandbox-modules.php sandbox/<site> <Name>`, or Modules > Refresh and Install), run the
 contract tests (section 6) and the dev watcher (section 9) while working on it.
 
-## 11. Not in contract 0.2
+## 11. Not in contract 1.0
 
 - **Access control as part of the contract.** It exists as the fourth bundled extension,
   `BridgeAdminAccessControl` (section 7, [access-control.md](access-control.md)), built through
@@ -445,7 +474,7 @@ contract tests (section 6) and the dev watcher (section 9) while working on it.
   pipeline, and an extension uses them as any module does. There is no `$bridge` facade object;
   the facade is the surface of section 3, which the contract tests hold an extension to.
 - **More declarative weight.** The `bridge` info key declares what a module uses; hiding,
-  renaming or reordering menu items without code is not part of 0.2.
+  renaming or reordering menu items without code is not part of 1.0.
 - **Hot module replacement** (section 9), and a directory or registry of extensions.
 - **Stylesheets and slots on the login screen.** Extension stylesheets, like the slots, still
   print for signed-in users only (section 12). Since theme 0.30.0 the login screen is reached

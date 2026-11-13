@@ -391,6 +391,8 @@ trait AdminThemeBridgeExtensions {
 	 * properties (`tokens`), the client events and the `window.Bridge` keys. `contracts` lists
 	 * the contract versions the theme honours. The contract tests and the compatibility checker
 	 * compare manifests with it. Hookable: a later theme or an extension may add to it.
+	 * Contract 1.0 is frozen for 1.x (ADR 0024): entries may be added in a minor, none removed or
+	 * changed before 2.0.
 	 *
 	 * @return array Keys: contract, contracts, hooks, reads, settings, slots, tokens, events, runtime
 	 *
@@ -408,7 +410,7 @@ trait AdminThemeBridgeExtensions {
 			),
 			'reads' => array(
 				'useLegacyStack', 'componentInfo', 'extensions', 'extensionInfo', 'extensionAllowed', 'extensionStyles', 'cspNonce',
-				'nonceAttr', 'nonceScriptTag', 'themeAssetUrl', 'getVariant', 'getColorScheme', 'shellLabel', 'getHistorySteps',
+				'nonceAttr', 'nonceScriptTag', 'getVariant', 'getColorScheme', 'shellLabel', 'getHistorySteps',
 				'tokenCss', 'getLabelSize', 'getControlHeight', 'isLoginScreen', 'renderAdminTitle',
 			),
 			// the keys __construct() sets (smoke compares with the source)
@@ -435,14 +437,15 @@ trait AdminThemeBridgeExtensions {
 				'--pw-status-success-border', '--pw-status-success-fg', '--pw-status-success-icon', '--pw-status-warning-bg',
 				'--pw-status-warning-border', '--pw-status-warning-fg', '--pw-status-warning-icon', '--pw-status-error-bg',
 				'--pw-status-error-border', '--pw-status-error-fg', '--pw-status-error-icon', '--pw-success-bg', '--pw-warning-bg',
-				'--pw-danger-bg', '--pw-label-size', '--pw-control-height', '--pw-login-bg',
+				'--pw-danger-bg', '--pw-label-size', '--pw-control-height', '--pw-login-bg', '--pw-range-fill',
+				'--pw-branch-max',
 			),
 			'events' => array(
 				'pw-runtime-ready', 'pw-legacy-loaded', 'pw-legacy-handover', 'pw-uikit-loaded', 'pw-component-loaded',
 				'pw-component-failed', 'pw-modal-opened', 'pw-modal-closed', 'pw-wiretabs-change', 'pw-tab-focus',
 				'pw-drawer-open', 'pw-drawer-close', 'pw-page-save', 'pw-page-saved', 'pw-form-save', 'pw-form-saved',
 				'pw-files-moved', 'pw-extension-loaded', 'pw-extensions-ready', 'opened', 'closed', 'reloaded', 'showIf',
-				'changed',
+				'changed', 'pw-scheme-change', 'pw-variant-change', 'pw-scale-change', 'pw-tabs-change',
 			),
 			'runtime' => array(
 				'contract', 'version', 'Inputfields', 'components', 'dialog', 'legacy', 'tables', 'pageTree', 'sortable',

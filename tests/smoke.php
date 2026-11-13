@@ -2094,7 +2094,17 @@ if(isset($bridge)) {
 	$contractsBad = array_filter($surface['contracts'], function($v) { return !preg_match('/^\d+\.\d+(\.\d+)?$/', $v); });
 	check('extensionSurface() contracts is extensionContracts, the current one last, each a version', $surface['contracts'] === AdminThemeBridge::extensionContracts
 		&& end($surface['contracts']) === AdminThemeBridge::extensionContract && !count($contractsBad), json_encode($surface['contracts']));
-	$tokenCss = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/styles/00-tokens.css');
+	// 1.0 readiness, step 3: extension contract 1.0, with the rulings of docs/surface-1.0.md applied
+	check('extension contract 1.0, honouring 0.1, 0.2 and 1.0', AdminThemeBridge::extensionContract === '1.0' && AdminThemeBridge::extensionContracts === array('0.1', '0.2', '1.0'),
+		AdminThemeBridge::extensionContract . ' ' . json_encode(AdminThemeBridge::extensionContracts));
+	$taRef = method_exists($bridge, 'themeAssetUrl') ? new \ReflectionMethod($bridge, 'themeAssetUrl') : null;
+	check('themeAssetUrl is off reads, still a public method, its doc comment says internal', !in_array('themeAssetUrl', $surface['reads'], true) && $taRef && $taRef->isPublic()
+		&& strpos((string) $taRef->getDocComment(), 'Internal: not on the extension surface') !== false);
+	$added10 = array_merge(array_diff(array('pw-scheme-change', 'pw-variant-change', 'pw-scale-change', 'pw-tabs-change'), $surface['events']),
+		array_diff(array('--pw-range-fill', '--pw-branch-max'), $surface['tokens']));
+	check('the four documented events and --pw-range-fill, --pw-branch-max are on the surface; --ring-50 is not', !count($added10) && count($surface['events']) === 28
+		&& count($surface['tokens']) === 78 && count($surface['reads']) === 18 && !in_array('--ring-50', $surface['tokens'], true), implode(', ', $added10));
+	$tokenCss =(string) @file_get_contents(dirname(__DIR__) . '/runtime/src/styles/00-tokens.css');
 	$tokensBad = array();
 	foreach($surface['tokens'] as $token) {
 		if(!preg_match('/(?<![\w-])' . preg_quote($token, '/') . '\s*:/', $tokenCss)) $tokensBad[] = $token;
@@ -2425,6 +2435,23 @@ if(isset($bridge)) {
 		}
 	}
 	check('docs/surface-1.0.md has one row per hook, read, setting and slot of extensionSurface()', $inventory !== '' && !count($inventoryBad), implode(', ', $inventoryBad));
+	// 1.0 readiness, step 3: the rulings applied in the docs
+	$sec3 = preg_match('/\n## 3\. The surface\n(.*?)\n## 4\. /s', $extDoc, $m3) ? $m3[1] : '';
+	$nineBad = array();
+	foreach(array('hook `renderBreadcrumbs()`', 'read `extensionAllowed($info)`', 'read `nonceScriptTag($openTag)`', 'read `getVariant()`', 'read `getColorScheme()`',
+		'read `shellLabel($key)`', 'read `getHistorySteps()`', 'setting `extendedBreadcrumbs`') as $entry) {
+		if(substr_count($sec3, "\n| $entry | ") !== 1) $nineBad[] = $entry;
+	}
+	$contractDoc10 = (string) @file_get_contents(dirname(__DIR__) . '/docs/contract.md');
+	if(strpos($contractDoc10, "\n| `Bridge.version` | the runtime's version string") === false) $nineBad[] = 'contract.md 4.2 Bridge.version';
+	check('the nine public but undocumented entries have a line each: eight in docs/extensions.md 3, Bridge.version in docs/contract.md 4.2', !count($nineBad), implode(', ', $nineBad));
+	check('docs/extensions.md 3 says what contract 1.0 changed against 0.2 and what a new extension declares', strpos($sec3, 'Contract 1.0 (theme 1.0.0) is 0.2\'s surface, frozen') !== false
+		&& strpos($sec3, 'the read `themeAssetUrl` is off the surface') !== false && strpos($sec3, 'A new extension declares `^0.2 || ^1.0`') !== false);
+	check('docs/contract.md 4.0 no longer keeps --ring-50 for components: it is internal', strpos($contractDoc10, 'The name is kept for components') === false
+		&& strpos($contractDoc10, 'The theme also declares `--ring-50`, the same solid colour, for its own rules: it is internal') !== false);
+	check('docs/surface-1.0.md: the maintainer\'s list ruled, counts 18 reads, 78 tokens, 28 events, themeAssetUrl not a Reads row', strpos($inventory, '**Ruled 2026-11-13, as recommended**') !== false
+		&& strpos($inventory, '| reads | 18 | 18 |') !== false && strpos($inventory, '| tokens | 78 | 78 |') !== false && strpos($inventory, '| events | 28 | 28 |') !== false
+		&& !preg_match('/^\| `themeAssetUrl` \|/m', $inventory));
 	// step 3: the client side (runtime/src/extensions.ts, a chunk of its own)
 	$rtIndex = (string) @file_get_contents($runtimeSrc . 'index.ts');
 	$rtExt = (string) @file_get_contents($runtimeSrc . 'extensions.ts');
@@ -2486,8 +2513,10 @@ if(isset($bridge)) {
 	check('extensionInfo() normalises a manifest', $probe['name'] === 'ProcessBridgeDemo' && $probe['compatible'] === true && $probe['priority'] === 7 && $probe['slots'] === array('footer' => 'f')
 		&& $probe['hooks'] === array('nonce') && $probe['unknown'] === array('oops') && $probe['permission'] === '' && $probe['module'] === $config->urls('ProcessBridgeDemo') . 'x.mjs?v=' . $modules->getModuleInfoProperty('ProcessBridgeDemo', 'version'), json_encode($probe));
 	// 0.29.0: contract 0.2 (sprint extension-styles-bridge-custom, step 1); 0.1 stays honoured through extensionContracts
+	// 1.0 readiness, step 3: contract 1.0, with 0.1 and 0.2 still honoured; ^1.1 and ^2.0 are later contracts
 	$compatBad = array();
-	foreach(array('^0.1' => true, '^0.2' => true, '^0.3' => false, '~0.1' => true, '>=0.2' => true, '<0.2' => true) as $range => $want) {
+	foreach(array('^0.1' => true, '^0.2' => true, '^0.3' => false, '~0.1' => true, '>=0.2' => true, '<0.2' => true,
+		'^1.0' => true, '^0.2 || ^1.0' => true, '~1.0' => true, '^1.1' => false, '^2.0' => false, '>=1.1' => false) as $range => $want) {
 		if($bridge->extensionInfo('ProcessBridgeDemo', array('contract' => $range))['compatible'] !== $want) $compatBad[] = $range;
 	}
 	check('extensionInfo() compatible: a range takes any contract the theme honours', !count($compatBad), implode(', ', $compatBad));
@@ -2552,7 +2581,7 @@ if(isset($bridge) && $bridge) {
 		$probeInfo = $bridge->extensionInfo('ProcessBridgeDemo', array('name' => 'Probe', 'contract' => '^0.1', 'slots' => $probeSlots));
 		$failInfo = $bridge->extensionInfo('BridgeCsp', array('name' => 'Failing', 'contract' => '^0.1', 'priority' => 50,
 			'slots' => array('footer' => 'boom', 'masthead' => 'missing', 'body' => 'wrong', 'head' => 'nothing')));
-		$oldInfo = $bridge->extensionInfo('InputfieldBridgeText', array('name' => 'Old', 'contract' => '^1.0', 'slots' => array('footer' => 'part')));
+		$oldInfo = $bridge->extensionInfo('InputfieldBridgeText', array('name' => 'Old', 'contract' => '^2.0', 'slots' => array('footer' => 'part')));
 		$setProbe = function(array $infos) use($bridge, $extList, $extModules, $slotCache, $probeModule) {
 			$list = array();
 			$mods = array();
@@ -2659,8 +2688,9 @@ foreach(array_merge(glob("$scaffoldTmp/*/*") ?: array()) as $f) @unlink($f);
 foreach(glob("$scaffoldTmp/*") ?: array() as $d) @rmdir($d);
 @rmdir($scaffoldTmp);
 $sampleSrc = (string) @file_get_contents($sampleDir . 'BridgeSample.module.php');
-check('BridgeSample requires the theme, loads the interface defensively, contract ^0.2', strpos($sampleSrc, "'requires' => 'AdminThemeBridge',") !== false
-	&& strpos($sampleSrc, 'if(!interface_exists("ProcessWire\\\\BridgeExtension", false)) {') !== false && strpos($sampleSrc, "'contract' => '^0.2',") !== false);
+check('BridgeSample requires the theme, loads the interface defensively, contract ^0.2 || ^1.0', strpos($sampleSrc, "'requires' => 'AdminThemeBridge',") !== false
+	&& strpos($sampleSrc, 'if(!interface_exists("ProcessWire\\\\BridgeExtension", false)) {') !== false && strpos($sampleSrc, "'contract' => '^0.2 || ^1.0',") !== false
+	&& AdminThemeBridge::contractCompatible('^0.2 || ^1.0'));
 // the sample fills six slots on the sandbox, signed in (step 2's criterion; step 5's harness repeats it)
 if(isset($bridge) && $bridge && $wire->modules->isInstalled('BridgeSample')) {
 	$su = $wire->users->get('name=bridge');
@@ -2773,13 +2803,18 @@ $ccTmp = sys_get_temp_dir() . '/bridge-compat-' . getmypid();
 @mkdir("$ccTmp/ext/CompatPlain", 0777, true);
 if(is_array($surfaceJson)) {
 	$edited = $surfaceJson;
-	$edited['contract'] = '1.0';
-	$edited['contracts'] = array('1.0');
+	// a later contract that honours only itself (2.0 since the 1.0 readiness sprint, step 3: BridgeSample's ^0.2 || ^1.0 takes 1.0)
+	$edited['contract'] = '2.0';
+	$edited['contracts'] = array('2.0');
 	$edited['slots'] = array_values(array_diff($edited['slots'], array('footer')));
 	file_put_contents("$ccTmp/surface.json", json_encode($edited));
 	list($ccCode, $ccOut) = $runCompat(array("--surface=$ccTmp/surface.json", $ccRepoModules));
-	check('extension-compat.php against contract 1.0 without footer: all four incompatible, BridgeSample also on its slot, exit 4', $ccCode === 4
-		&& substr_count($ccOut, 'INCOMPATIBLE  contract ^0.1 takes none of 1.0') === 3 && (bool) preg_match('/^BridgeSample .*INCOMPATIBLE  contract \^0\.2 takes none of 1\.0; .*slots footer not on the target surface$/m', $ccOut), "exit $ccCode: " . trim($ccOut));
+	check('extension-compat.php against contract 2.0 without footer: all four incompatible, BridgeSample also on its slot, exit 4', $ccCode === 4
+		&& substr_count($ccOut, 'INCOMPATIBLE  contract ^0.1 takes none of 2.0') === 3 && (bool) preg_match('/^BridgeSample .*INCOMPATIBLE  contract \^0\.2 \|\| \^1\.0 takes none of 2\.0; .*slots footer not on the target surface$/m', $ccOut), "exit $ccCode: " . trim($ccOut));
+	// and the real surface takes every bundled manifest, BridgeSample's ^0.2 || ^1.0 among them
+	list($ccCode, $ccOut) = $runCompat(array('--surface=' . $themeDir . 'assets/dist/extension-surface.json', $ccRepoModules));
+	check('extension-compat.php against the built surface (contract 1.0): the four bundled extensions ok, BridgeSample by ^0.2 || ^1.0', $ccCode === 0
+		&& (bool) preg_match('/^BridgeSample .*\^0\.2 \|\| \^1\.0 +ok\s*$/m', $ccOut), "exit $ccCode: " . trim($ccOut));
 }
 file_put_contents("$ccTmp/old/AdminThemeBridge.module.php", "<?php namespace ProcessWire;\nclass AdminThemeBridge {}\n");
 list($ccCode, $ccOut) = $runCompat(array("--bridge=$ccTmp/old", dirname(__DIR__) . '/modules'));
@@ -2941,11 +2976,11 @@ $ciSrc = (string) @file_get_contents(dirname(__DIR__) . '/tools/ci.sh');
 check('tools/ci.sh runs the compatibility checker and both contract tests on the four bundled extensions', strpos($ciSrc, 'EXTENSIONS="BridgeCsp BridgeDemo BridgeSample BridgeAdminAccessControl"') !== false
 	&& strpos($ciSrc, '"$PHP" tools/extension-compat.php') !== false && strpos($ciSrc, '"$PHP" tools/extension-check.php "$SANDBOX" "$m"') !== false
 	&& strpos($ciSrc, 'node tools/extension-check.js "$PW" "$browser" "$m"') !== false && strpos($ciSrc, 'failed+=("extensions")') !== false);
-check('docs/extensions.md documents the scaffold and what contract 0.2 leaves out', strpos($devDoc, "\n## 10. Scaffold\n") !== false && strpos($devDoc, "\n## 11. Not in contract 0.2\n") !== false
+check('docs/extensions.md documents the scaffold and what contract 1.0 leaves out', strpos($devDoc, "\n## 10. Scaffold\n") !== false && strpos($devDoc, "\n## 11. Not in contract 1.0\n") !== false
 	&& strpos($devDoc, 'php tools/scaffold-extension.php <Name> [--dir=modules] [--slots=footer,user-nav] [--module] [--styles]') !== false
 	&& strpos($devDoc, '`BridgeSample --slots=masthead-right,user-nav,content-head-buttons,footer,drawer,body --module --styles`') !== false);
 // 0.29.0: contract 0.2 in the docs (sprint extension-styles-bridge-custom, step 6)
-check('docs/extensions.md: contract 0.2 in the title, styles and tokens keys, six self-test faults, the dev watcher\'s .css branch, section 12', strpos($devDoc, "# Bridge extensions, contract 0.2\n") === 0
+check('docs/extensions.md: contract 1.0 in the title, styles and tokens keys, six self-test faults, the dev watcher\'s .css branch, section 12', strpos($devDoc, "# Bridge extensions, contract 1.0\n") === 0
 	&& strpos($devDoc, "\n## 12. Styling extensions\n") !== false && strpos($devDoc, '| `styles` | array |') !== false && strpos($devDoc, '| `tokens` | array |') !== false
 	&& strpos($devDoc, 'writes a module with six faults') !== false && strpos($devDoc, 'A changed `.css` file takes no') !== false
 	&& strpos($devDoc, "data-bridge-styles='<name>'") !== false);
@@ -2966,17 +3001,17 @@ if(preg_match('/\n(Components may use the tokens [^\n]*)\n/', $contractDoc, $tok
 	$docTokens = array_values(array_unique($tokMatch[1]));
 }
 $surfaceTokens = isset($bridge) && $bridge ? $bridge->extensionSurface()['tokens'] : array();
-check('docs/contract.md 4.0: every token its paragraph names is on the surface, --secondary-foreground and the four metric tokens among them', count($docTokens) > 40 && count($surfaceTokens) === 76
+check('docs/contract.md 4.0: every token its paragraph names is on the surface, --secondary-foreground and the four metric tokens among them', count($docTokens) > 40 && count($surfaceTokens) === 78
 	&& !array_diff($docTokens, $surfaceTokens) && !array_diff(array('--secondary-foreground', '--pw-font-size', '--pw-line-height', '--pw-field-pad', '--pw-field-pad-bottom'), $docTokens),
 	'off the surface: ' . implode(',', array_diff($docTokens, $surfaceTokens)));
-check('ADR 0022 exists and the README says extension contract 0.2', is_file(dirname(__DIR__) . '/docs/decisions/0022-styling-extensions-styles-and-tokens.md')
-	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '(extension contract 0.2, ADR 0021, 0022)') !== false
-	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), 'the extension contract is 0.2.') !== false);
+check('ADR 0022 exists and the README says extension contract 1.0', is_file(dirname(__DIR__) . '/docs/decisions/0022-styling-extensions-styles-and-tokens.md')
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '(extension contract 1.0, ADR 0021, 0022, 0024)') !== false
+	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), 'the extension contract is 1.0.') !== false);
 // 0.30.0: the appearance seams in the docs (sprint bridge-customizer, step 7)
-$sec11 = preg_match('/\n## 11\. Not in contract 0\.2\n(.*?)\n## 12\. /s', $devDoc, $m11) ? $m11[1] : '';
+$sec11 = preg_match('/\n## 11\. Not in contract 1\.0\n(.*?)\n## 12\. /s', $devDoc, $m11) ? $m11[1] : '';
 $sec13 = (string) strstr($devDoc, "\n## 13. Appearance seams\n");
 check('docs/extensions.md: sections 10-12 keep their headings, section 13 "Appearance seams" follows them', strpos($devDoc, "\n## 10. Scaffold\n") !== false
-	&& strpos($devDoc, "\n## 11. Not in contract 0.2\n") !== false && strpos($devDoc, "\n## 12. Styling extensions\n") !== false
+	&& strpos($devDoc, "\n## 11. Not in contract 1.0\n") !== false && strpos($devDoc, "\n## 12. Styling extensions\n") !== false
 	&& $sec13 !== '' && strpos($devDoc, "\n## 12. Styling extensions\n") < strpos($devDoc, "\n## 13. Appearance seams\n"));
 check('docs/extensions.md 11: the login screen points to the appearance seams (section 13), no bare "not restyled by extensions"', strpos($devDoc, 'the login screen is not restyled by') === false
 	&& strpos($sec11, 'the login screen is reached') !== false && strpos($sec11, '(section 13)') !== false);

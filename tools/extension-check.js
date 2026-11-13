@@ -1,4 +1,4 @@
-// Contract tests of a Bridge extension in the browser (docs/extensions.md, extension contract 0.2),
+// Contract tests of a Bridge extension in the browser (docs/extensions.md, extension contract 1.0),
 // the client half of tools/extension-check.php. On the page tree, signed in as the sandbox user
 // `bridge`, per extension of <Module> (a module class, or a directory: every module in it with a
 // manifest): it is in Bridge.extensions.list() and compatible, Bridge.extensions.loaded() has it
@@ -7,7 +7,7 @@
 // and are not looked for), the custom elements in its parts are defined, Bridge.extensions.reload()
 // fires `pw-extension-loaded` again without an error, and reload() of an edited copy of the module
 // (a temp file served in its place, the exported version literal changed) shows the new version in
-// Bridge.extensions.loaded() (dev mode); each stylesheet of its `styles` (contract 0.2) is linked once
+// Bridge.extensions.loaded() (dev mode); each stylesheet of its `styles` (since contract 0.2) is linked once
 // in <head> as link[data-bridge-styles], after link[data-pw-fields], loaded, still after it when a
 // <style> is injected into <head> (the field-script case; the injected one goes before
 // link[data-pw-theme]), and linked in a modal window (page/?modal=1); and for the page: `pw-extensions-ready` fired
@@ -113,7 +113,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			check(`${name}: slot ${slot} has its part in the DOM`, parts.count === 1 && parts.button, JSON.stringify(parts));
 			check(`${name}: slot ${slot}: the custom elements in it are defined`, parts.undef === 0, parts.undef);
 		}
-		// contract 0.2: the `styles` stylesheets, linked by the theme after theme.css and fields.css
+		// since contract 0.2: the `styles` stylesheets, linked by the theme after theme.css and fields.css
 		// (data-bridge-styles), kept there when a field script adds a sheet, also in a modal window
 		const styles = Array.isArray(m.styles) ? m.styles : [];
 		if(styles.length) {

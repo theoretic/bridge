@@ -219,7 +219,7 @@ Components may use the tokens instead of fixed colours so they follow variant an
 From 0.9.2:
 - Derived tokens (`--primary`, `--ring`, the `--pw-*` aliases, colour mixes) are declared on `:root`, `[data-pw-scheme]` and `[data-pw-variant]`, so an element that sets its own scheme or variant gets values computed for it.
 - `--primary-foreground` follows the variant: near-black on the cyan (`vibrant`) and `green` presets, white on the others and on a custom colour.
-- `--ring` is the primary darkened toward the text colour, and `--ring-50` is that same solid colour. The name is kept for components; both are at least 3 to 1 against the page.
+- `--ring` is the primary darkened toward the text colour, at least 3 to 1 against the page. The theme also declares `--ring-50`, the same solid colour, for its own rules: it is internal (not on the extension surface, `docs/extensions.md` 3), so a component uses `--ring`.
 - Font sizes and line heights are in rem.
 - The status palette is `--pw-status-{success,warning,error}-{bg,border,fg,icon}`, used by notices, `--pw-success-bg`, `--pw-warning-bg` and `--pw-danger-bg`.
 
@@ -238,6 +238,7 @@ Built from `runtime/`, imported by the theme script on every admin page. Dispatc
 | Member | Meaning |
 |---|---|
 | `Bridge.contract` | `'1'` |
+| `Bridge.version` | the runtime's version string, also `detail.version` of `pw-runtime-ready`: a string, its value not tied to the theme's module version |
 | `Bridge.Inputfields.init(root)` | collapse toggles, dependencies, column widths and Text counters on upstream `li.Inputfield` markup; idempotent |
 | `Bridge.Inputfields.open/close/toggle(li)` | collapse state; an AJAX-collapsed field (`.renderInputfieldAjax`) is fetched with `X-Requested-With` and dispatches `reloaded` |
 | `Bridge.Inputfields.evaluate(root)` | re-run `data-show-if` / `data-required-if` (upstream grammar: `,` and, `|` or, operators `= != < > <= >= %= *=`, `.count`) |

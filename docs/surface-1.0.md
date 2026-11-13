@@ -1,19 +1,20 @@
 # Bridge public surface at 1.0
 
 An inventory of everything the extension contract publishes, taken before AdminThemeBridge 1.0.0
-froze it. For each entry: where it is defined, where it is documented, who uses it, and a
-proposed status for 1.x. The lists are `AdminThemeBridge::extensionSurface()` (the same as the
-built `modules/AdminThemeBridge/assets/dist/extension-surface.json`, contract 0.2,
-contracts 0.1, 0.2), followed by the client API that `docs/contract.md`
-section 4 documents beyond the `runtime` list.
+froze it. For each entry: where it is defined, where it is documented, who uses it, and its
+status for 1.x. The lists are `AdminThemeBridge::extensionSurface()` (the same as the built
+`modules/AdminThemeBridge/assets/dist/extension-surface.json`, contract 1.0, contracts 0.1, 0.2,
+1.0), followed by the client API that `docs/contract.md` section 4 documents beyond the `runtime`
+list. The inventory was taken on contract 0.2; the rulings of "For the maintainer" (below) are
+applied to the tables.
 
 How to read the columns:
 
 - **Defined**: `file:line`; paths without a directory prefix are under `modules/AdminThemeBridge/`.
 - **Documented**: `docs/contract.md` (contract.md), `docs/extensions.md` (extensions.md),
   `docs/access-control.md`, `README.md`, with section numbers. Section 3 of extensions.md lists
-  every entry and is not counted. ADRs are decision records: an entry named only there is marked
-  "ADR … only".
+  every entry and is not counted (its table of entries no other section describes is). ADRs are
+  decision records: an entry named only there is marked "ADR … only".
 - **Used by**: found by searching the repository and two third-party extensions,
   BridgeCustomizer and BridgeQuiet. Bundled modules (BridgeCsp, BridgeDemo, BridgeSample,
   BridgeAdminAccessControl) and the third-party ones are named; `tools` are the browser and
@@ -21,22 +22,22 @@ How to read the columns:
   example" is a code sample in the docs. The theme's own use is not listed. "none found" means
   what it says: a site or an unpublished module may still use it.
 - **Status**: `stable` (kept for all of 1.x), or `candidate: internal` / `candidate: rename`
-  with the reason in the last column. Candidates are proposals, decided before the contract is
-  set to 1.0.
+  with the reason in the last column. Candidates were proposals, decided before the contract was
+  set to 1.0 (all ruled, see "For the maintainer"); none is left in the tables.
 
 ## Counts
 
 | List | In `extensionSurface()` | Rows below |
 |---|---|---|
 | hooks | 21 | 21 |
-| reads | 19 | 19 |
+| reads | 18 | 18 |
 | settings | 22 | 22 |
 | slots | 8 | 8 |
-| tokens | 76 | 76 |
-| events | 24 | 24 |
+| tokens | 78 | 78 |
+| events | 28 | 28 |
 | runtime | 12 | 12 |
 
-Total: 182 entries.
+Total: 187 entries (182 on contract 0.2: one read taken off, four events and two tokens added).
 
 ## Hooks
 
@@ -44,8 +45,8 @@ Hookable methods of `AdminThemeBridge`, attached as `AdminThemeBridge::<name>`. 
 
 | Name | Defined | Documented | Used by | Status | Note |
 |---|---|---|---|---|---|
-| `install` | `AdminThemeBridge.module.php:564` | core's `Module` interface | none found | stable | Module lifecycle; on the list because the surface lists every `___` method of the class |
-| `uninstall` | `AdminThemeBridge.module.php:576` | core's `Module` interface | none found | stable | as `install` |
+| `install` | `AdminThemeBridge.module.php:565` | core's `Module` interface | none found | stable | Module lifecycle; on the list because the surface lists every `___` method of the class |
+| `uninstall` | `AdminThemeBridge.module.php:577` | core's `Module` interface | none found | stable | as `install` |
 | `nonce` | `lib/AdminThemeBridgeCsp.php:38` | README.md Content-Security-Policy; contract.md 2.1, 4.1; extensions.md 7 | BridgeCsp; BridgeCustomizer; tools (csp-check.js); smoke; docs example (contract.md 2.1) | stable |  |
 | `moveFiles` | `lib/AdminThemeBridgeFiles.php:140` | contract.md 4.4 | smoke | stable |  |
 | `moveFileAllowed` | `lib/AdminThemeBridgeFiles.php:308` | contract.md 4.4 | smoke | stable |  |
@@ -55,10 +56,10 @@ Hookable methods of `AdminThemeBridge`, attached as `AdminThemeBridge::<name>`. 
 | `isNativeProcess` | `lib/AdminThemeBridgeLegacy.php:400` | contract.md 3 | smoke | stable |  |
 | `isNativeInputfield` | `lib/AdminThemeBridgeLegacy.php:466` | contract.md 2, 3 | smoke | stable |  |
 | `scriptNeeds` | `lib/AdminThemeBridgeLegacy.php:557` | contract.md 3 | smoke; docs example (contract.md 3) | stable |  |
-| `renderBreadcrumbs` | `lib/AdminThemeBridgeShell.php:811` | extensions.md 2, 3 (named as the example hook only) | docs example (extensions.md 2) | stable | what it returns and when it runs are not written down |
+| `renderBreadcrumbs` | `lib/AdminThemeBridgeShell.php:811` | extensions.md 2, extensions.md 3 (entries no other section describes) | docs example (extensions.md 2) | stable | its outer `nav.pw-breadcrumbs-nav` > `ul.pw-breadcrumbs` and when it is empty are documented |
 | `sortableDataTable` | `lib/AdminThemeBridgeTables.php:95` | contract.md 4.4 | smoke | stable |  |
 | `uikitReasons` | `lib/AdminThemeBridgeUikit.php:261` | contract.md 3.1 | none found | stable |  |
-| `extensionSurface` | `lib/AdminThemeBridgeExtensions.php:398` | extensions.md 3, 8 | tools (extension-check.php, extension-compat.php); smoke | stable | a hook may add to the lists; the contract tests read the hooked result |
+| `extensionSurface` | `lib/AdminThemeBridgeExtensions.php:400` | extensions.md 3, 8 | tools (extension-check.php, extension-compat.php); smoke | stable | a hook may add to the lists; the contract tests read the hooked result |
 | `drawerNames` | `lib/AdminThemeBridgeDrawers.php:28` | extensions.md 4, 7 | BridgeAdminAccessControl; smoke | stable |  |
 | `navCacheKey` | `lib/AdminThemeBridgeShell.php:617` | access-control.md Covered; contract.md 1; extensions.md 3, 7 | BridgeAdminAccessControl; smoke | stable |  |
 | `tokenOverrides` | `lib/AdminThemeBridgeHead.php:103` | extensions.md 3, 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
@@ -76,16 +77,15 @@ Public methods an extension may call (`reads` in its manifest). "Defined" is the
 | `componentInfo` | `lib/AdminThemeBridgeComponents.php:40` | extensions.md 9 | smoke | stable |  |
 | `extensions` | `lib/AdminThemeBridgeExtensions.php:27` | extensions.md 2, 6 | BridgeCustomizer; tools (ci.sh, extension-check.php, sandbox-fixture.php); smoke | stable |  |
 | `extensionInfo` | `lib/AdminThemeBridgeExtensions.php:96` | extensions.md 9 | tools (extension-check.php); smoke | stable |  |
-| `extensionAllowed` | `lib/AdminThemeBridgeExtensions.php:190` | undocumented | none found | stable | undocumented |
+| `extensionAllowed` | `lib/AdminThemeBridgeExtensions.php:190` | extensions.md 3 (entries no other section describes) | none found | stable |  |
 | `extensionStyles` | `lib/AdminThemeBridgeExtensions.php:228` | extensions.md 2, 12 | smoke | stable |  |
 | `cspNonce` | `lib/AdminThemeBridgeCsp.php:54` | contract.md 2.1 | smoke | stable |  |
 | `nonceAttr` | `lib/AdminThemeBridgeCsp.php:68` | README.md For module authors; contract.md 2.1; extensions.md 7 | BridgeDemo; smoke; docs example (contract.md 2.1) | stable |  |
-| `nonceScriptTag` | `lib/AdminThemeBridgeCsp.php:92` | undocumented | smoke | stable | undocumented; the `<script>` counterpart of `nonceAttr()` |
-| `themeAssetUrl` | `lib/AdminThemeBridgeHead.php:208` | undocumented | smoke | candidate: internal | its argument is a path inside the theme (`assets/dist/…`, `scripts/…`), which 1.0 does not cover; no caller outside the theme but the smoke test |
-| `getVariant` | `lib/AdminThemeBridgeShell.php:18` | undocumented | smoke | stable | undocumented |
-| `getColorScheme` | `lib/AdminThemeBridgeShell.php:41` | ADR 0023 only | smoke | stable | named in ADR 0023 only |
-| `shellLabel` | `lib/AdminThemeBridgeShell.php:559` | undocumented | the shell templates (`_main.php`, `_masthead.php`, `_footer.php`), so a site's copy of them; smoke | stable | undocumented; its keys (`lang`, `skip`, `menu`, `search`, …) would be frozen with it |
-| `getHistorySteps` | `AdminThemeBridge.module.php:688` | undocumented | smoke | stable | undocumented; the `historySteps` setting clamped |
+| `nonceScriptTag` | `lib/AdminThemeBridgeCsp.php:92` | extensions.md 3 (entries no other section describes) | smoke | stable | the `<script>` counterpart of `nonceAttr()` |
+| `getVariant` | `lib/AdminThemeBridgeShell.php:18` | extensions.md 3 (entries no other section describes) | smoke | stable |  |
+| `getColorScheme` | `lib/AdminThemeBridgeShell.php:41` | extensions.md 3 (entries no other section describes); ADR 0023 | smoke | stable |  |
+| `shellLabel` | `lib/AdminThemeBridgeShell.php:559` | extensions.md 3 (entries no other section describes) | the shell templates (`_main.php`, `_masthead.php`, `_footer.php`), so a site's copy of them; smoke | stable | its keys are frozen: added, never renamed or removed in 1.x |
+| `getHistorySteps` | `AdminThemeBridge.module.php:689` | extensions.md 3 (entries no other section describes) | smoke | stable | the `historySteps` setting clamped |
 | `tokenCss` | `lib/AdminThemeBridgeHead.php:127` | contract.md 4.0; extensions.md 3, 13 | smoke | stable |  |
 | `getLabelSize` | `lib/AdminThemeBridgeShell.php:919` | extensions.md 3 | BridgeCustomizer; smoke | stable |  |
 | `getControlHeight` | `lib/AdminThemeBridgeShell.php:930` | extensions.md 3 | BridgeCustomizer; smoke | stable |  |
@@ -98,28 +98,28 @@ Theme settings an extension may read (`settings` in its manifest). "Defined" is 
 
 | Setting | Defined | Config field | Documented | Used by | Status | Note |
 |---|---|---|---|---|---|---|
-| `legacyStack` | `AdminThemeBridge.module.php:527` | Legacy > Legacy script stack (jQuery, jQuery UI, inputfields.js, main.js) | contract.md 3; README (by its label) | none found | stable |  |
-| `uikit` | `AdminThemeBridge.module.php:528` | Legacy > UIkit for modules written for AdminThemeUikit | contract.md 3.1 | smoke | stable |  |
-| `maxWidth` | `AdminThemeBridge.module.php:529` | Appearance > Maximum content width (px), 0 for none | extensions.md 13 | smoke | stable |  |
-| `variant` | `AdminThemeBridge.module.php:530` | Appearance > Colour | contract.md 4.0; extensions.md 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
-| `primaryColor` | `AdminThemeBridge.module.php:531` | Appearance > Custom colour | extensions.md 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
-| `colorScheme` | `AdminThemeBridge.module.php:532` | Appearance > Colour scheme | contract.md 4.1; extensions.md 13 | smoke | stable |  |
-| `logoURL` | `AdminThemeBridge.module.php:533` | Appearance > Logo URL | extensions.md 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
-| `logoURLDark` | `AdminThemeBridge.module.php:534` | Appearance > Logo URL for the dark scheme | extensions.md 13 | BridgeCustomizer; smoke | stable |  |
-| `extendedBreadcrumbs` | `AdminThemeBridge.module.php:535` | Features > Extended breadcrumbs | undocumented | smoke | stable | its config field only |
-| `pageTreeDrawer` | `AdminThemeBridge.module.php:536` | Features > Page tree on each page | README (by its label) | smoke | stable |  |
-| `history` | `AdminThemeBridge.module.php:537` | Features > Show history | contract.md 4.1; install-live.md Checklist; README (by its label) | smoke | stable |  |
-| `historySteps` | `AdminThemeBridge.module.php:538` | Features > History steps | README (by its label) | smoke | stable |  |
-| `pageSaveInPlace` | `AdminThemeBridge.module.php:539` | Features > Save without reload | contract.md 4.3 | none found | stable |  |
-| `pageAddSkipTemplate` | `AdminThemeBridge.module.php:540` | Features > Step 2 if template auto-selected | contract.md 4.4 | smoke | stable |  |
-| `dangerWarn` | `AdminThemeBridge.module.php:541` | Features > Warn before risky actions | contract.md 4.2; README (by its label) | smoke | stable |  |
-| `userColors` | `AdminThemeBridge.module.php:542` | Appearance > Users choose their own colour | extensions.md 13 | BridgeCustomizer; smoke | stable |  |
-| `dataTableSortRows` | `AdminThemeBridge.module.php:543` | Features > Datatable sortable rows threshold | contract.md 4.4 | smoke | stable |  |
-| `printScripts` | `AdminThemeBridge.module.php:544` | Legacy > Site scripts that never wait for the legacy stack | contract.md 3; README (by its label) | smoke | stable |  |
-| `nativeOverrides` | `AdminThemeBridge.module.php:545` | Legacy > Native or legacy, per class | contract.md 3; README (by its label) | smoke | stable |  |
-| `extensionDev` | `AdminThemeBridge.module.php:546` | Features > Extension development | extensions.md 9 | smoke | stable |  |
-| `labelSize` | `AdminThemeBridge.module.php:547` | Appearance > Field label size (rem) | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
-| `controlHeight` | `AdminThemeBridge.module.php:548` | Appearance > Control height (rem) | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke | stable |  |
+| `legacyStack` | `AdminThemeBridge.module.php:528` | Legacy > Legacy script stack (jQuery, jQuery UI, inputfields.js, main.js) | contract.md 3; README (by its label) | none found | stable |  |
+| `uikit` | `AdminThemeBridge.module.php:529` | Legacy > UIkit for modules written for AdminThemeUikit | contract.md 3.1 | smoke | stable |  |
+| `maxWidth` | `AdminThemeBridge.module.php:530` | Appearance > Maximum content width (px), 0 for none | extensions.md 13 | smoke | stable |  |
+| `variant` | `AdminThemeBridge.module.php:531` | Appearance > Colour | contract.md 4.0; extensions.md 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
+| `primaryColor` | `AdminThemeBridge.module.php:532` | Appearance > Custom colour | extensions.md 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
+| `colorScheme` | `AdminThemeBridge.module.php:533` | Appearance > Colour scheme | contract.md 4.1; extensions.md 13 | smoke | stable |  |
+| `logoURL` | `AdminThemeBridge.module.php:534` | Appearance > Logo URL | extensions.md 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
+| `logoURLDark` | `AdminThemeBridge.module.php:535` | Appearance > Logo URL for the dark scheme | extensions.md 13 | BridgeCustomizer; smoke | stable |  |
+| `extendedBreadcrumbs` | `AdminThemeBridge.module.php:536` | Features > Extended breadcrumbs | extensions.md 3 (entries no other section describes) | smoke | stable |  |
+| `pageTreeDrawer` | `AdminThemeBridge.module.php:537` | Features > Page tree on each page | README (by its label) | smoke | stable |  |
+| `history` | `AdminThemeBridge.module.php:538` | Features > Show history | contract.md 4.1; install-live.md Checklist; README (by its label) | smoke | stable |  |
+| `historySteps` | `AdminThemeBridge.module.php:539` | Features > History steps | README (by its label) | smoke | stable |  |
+| `pageSaveInPlace` | `AdminThemeBridge.module.php:540` | Features > Save without reload | contract.md 4.3 | none found | stable |  |
+| `pageAddSkipTemplate` | `AdminThemeBridge.module.php:541` | Features > Step 2 if template auto-selected | contract.md 4.4 | smoke | stable |  |
+| `dangerWarn` | `AdminThemeBridge.module.php:542` | Features > Warn before risky actions | contract.md 4.2; README (by its label) | smoke | stable |  |
+| `userColors` | `AdminThemeBridge.module.php:543` | Appearance > Users choose their own colour | extensions.md 13 | BridgeCustomizer; smoke | stable |  |
+| `dataTableSortRows` | `AdminThemeBridge.module.php:544` | Features > Datatable sortable rows threshold | contract.md 4.4 | smoke | stable |  |
+| `printScripts` | `AdminThemeBridge.module.php:545` | Legacy > Site scripts that never wait for the legacy stack | contract.md 3; README (by its label) | smoke | stable |  |
+| `nativeOverrides` | `AdminThemeBridge.module.php:546` | Legacy > Native or legacy, per class | contract.md 3; README (by its label) | smoke | stable |  |
+| `extensionDev` | `AdminThemeBridge.module.php:547` | Features > Extension development | extensions.md 9 | smoke | stable |  |
+| `labelSize` | `AdminThemeBridge.module.php:548` | Appearance > Field label size (rem) | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
+| `controlHeight` | `AdminThemeBridge.module.php:549` | Appearance > Control height (rem) | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke | stable |  |
 
 ## Slots
 
@@ -148,7 +148,7 @@ CSS custom properties an extension's stylesheets may read or set (`tokens` in it
 | `--card-foreground` | `runtime/src/styles/00-tokens.css:21` | contract.md 4.0 | BridgeCustomizer | stable |  |
 | `--popover` | `runtime/src/styles/00-tokens.css:22` | contract.md 4.0 | BridgeCustomizer | stable |  |
 | `--popover-foreground` | `runtime/src/styles/00-tokens.css:23` | contract.md 4.0 | BridgeCustomizer | stable |  |
-| `--primary` | `runtime/src/styles/00-tokens.css:117` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
+| `--primary` | `runtime/src/styles/00-tokens.css:121` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
 | `--primary-foreground` | `runtime/src/styles/00-tokens.css:47` | contract.md 4.0 | none found | stable |  |
 | `--secondary` | `runtime/src/styles/00-tokens.css:24` | contract.md 4.0 | BridgeCustomizer | stable |  |
 | `--secondary-foreground` | `runtime/src/styles/00-tokens.css:25` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
@@ -159,47 +159,47 @@ CSS custom properties an extension's stylesheets may read or set (`tokens` in it
 | `--destructive` | `runtime/src/styles/00-tokens.css:30` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet; smoke | stable |  |
 | `--border` | `runtime/src/styles/00-tokens.css:31` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
 | `--input` | `runtime/src/styles/00-tokens.css:32` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet; tools (a11y-check.js); smoke | stable |  |
-| `--ring` | `runtime/src/styles/00-tokens.css:121` | contract.md 4.0; extensions.md 13 | BridgeQuiet; tools (screens-check.js); smoke | stable | contract.md 4.0 also promises `--ring-50` "for components", which is off the list (see For the maintainer) |
+| `--ring` | `runtime/src/styles/00-tokens.css:125` | contract.md 4.0; extensions.md 13 | BridgeQuiet; tools (screens-check.js); smoke | stable | contract.md 4.0 says `--ring-50` is internal (ruled 2026-11-13) |
 | `--radius` | `runtime/src/styles/00-tokens.css:59` | contract.md 4.0; extensions.md 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
-| `--radius-sm` | `runtime/src/styles/00-tokens.css:126` | contract.md 4.0 | smoke | stable |  |
-| `--radius-md` | `runtime/src/styles/00-tokens.css:127` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
-| `--radius-lg` | `runtime/src/styles/00-tokens.css:128` | contract.md 4.0 | none found | stable |  |
-| `--radius-xl` | `runtime/src/styles/00-tokens.css:129` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
+| `--radius-sm` | `runtime/src/styles/00-tokens.css:130` | contract.md 4.0 | smoke | stable |  |
+| `--radius-md` | `runtime/src/styles/00-tokens.css:131` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
+| `--radius-lg` | `runtime/src/styles/00-tokens.css:132` | contract.md 4.0 | none found | stable |  |
+| `--radius-xl` | `runtime/src/styles/00-tokens.css:133` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
 | `--shadow-xs` | `runtime/src/styles/00-tokens.css:33` | contract.md 4.0 | none found | stable |  |
 | `--shadow-sm` | `runtime/src/styles/00-tokens.css:34` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
 | `--shadow-md` | `runtime/src/styles/00-tokens.css:35` | contract.md 4.0 | none found | stable |  |
 | `--shadow-lg` | `runtime/src/styles/00-tokens.css:36` | contract.md 4.0 | none found | stable |  |
 | `--pw-primary` | `runtime/src/styles/00-tokens.css:50` | contract.md 4.0 | BridgeCustomizer; tools (a11y-check.js); smoke | stable |  |
-| `--pw-primary-hover` | `runtime/src/styles/00-tokens.css:164` | contract.md 4.0; extensions.md 13 | none found | stable |  |
-| `--pw-primary-bg` | `runtime/src/styles/00-tokens.css:167` | contract.md 4.0 | none found | stable |  |
-| `--pw-primary-20` | `runtime/src/styles/00-tokens.css:166` | contract.md 4.0 | none found | stable |  |
-| `--pw-on-primary` | `runtime/src/styles/00-tokens.css:162` | contract.md 4.0 | none found | stable |  |
-| `--pw-bg` | `runtime/src/styles/00-tokens.css:136` | contract.md 4.0 | none found | stable |  |
-| `--pw-surface` | `runtime/src/styles/00-tokens.css:137` | contract.md 4.0 | none found | stable |  |
-| `--pw-surface-2` | `runtime/src/styles/00-tokens.css:138` | contract.md 4.0 | none found | stable |  |
-| `--pw-line` | `runtime/src/styles/00-tokens.css:139` | contract.md 4.0 | smoke | stable |  |
-| `--pw-text` | `runtime/src/styles/00-tokens.css:151` | contract.md 4.0 | none found | stable |  |
-| `--pw-text-muted` | `runtime/src/styles/00-tokens.css:152` | contract.md 4.0 | none found | stable |  |
-| `--pw-h1` | `runtime/src/styles/00-tokens.css:160` | contract.md 4.0 | BridgeCustomizer | stable |  |
+| `--pw-primary-hover` | `runtime/src/styles/00-tokens.css:168` | contract.md 4.0; extensions.md 13 | none found | stable |  |
+| `--pw-primary-bg` | `runtime/src/styles/00-tokens.css:171` | contract.md 4.0 | none found | stable |  |
+| `--pw-primary-20` | `runtime/src/styles/00-tokens.css:170` | contract.md 4.0 | none found | stable |  |
+| `--pw-on-primary` | `runtime/src/styles/00-tokens.css:166` | contract.md 4.0 | none found | stable |  |
+| `--pw-bg` | `runtime/src/styles/00-tokens.css:140` | contract.md 4.0 | none found | stable |  |
+| `--pw-surface` | `runtime/src/styles/00-tokens.css:141` | contract.md 4.0 | none found | stable |  |
+| `--pw-surface-2` | `runtime/src/styles/00-tokens.css:142` | contract.md 4.0 | none found | stable |  |
+| `--pw-line` | `runtime/src/styles/00-tokens.css:143` | contract.md 4.0 | smoke | stable |  |
+| `--pw-text` | `runtime/src/styles/00-tokens.css:155` | contract.md 4.0 | none found | stable |  |
+| `--pw-text-muted` | `runtime/src/styles/00-tokens.css:156` | contract.md 4.0 | none found | stable |  |
+| `--pw-h1` | `runtime/src/styles/00-tokens.css:164` | contract.md 4.0 | BridgeCustomizer | stable |  |
 | `--pw-input-bg` | `runtime/src/styles/00-tokens.css:45` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet | stable |  |
-| `--pw-input-border` | `runtime/src/styles/00-tokens.css:142` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
-| `--pw-radius` | `runtime/src/styles/00-tokens.css:134` | contract.md 4.0 | none found | stable |  |
-| `--pw-radius-m` | `runtime/src/styles/00-tokens.css:135` | contract.md 4.0 | none found | stable |  |
-| `--pw-shadow-card` | `runtime/src/styles/00-tokens.css:176` | contract.md 4.0 | none found | stable |  |
-| `--pw-shadow-dropdown` | `runtime/src/styles/00-tokens.css:177` | contract.md 4.0 | none found | stable |  |
+| `--pw-input-border` | `runtime/src/styles/00-tokens.css:146` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
+| `--pw-radius` | `runtime/src/styles/00-tokens.css:138` | contract.md 4.0 | none found | stable |  |
+| `--pw-radius-m` | `runtime/src/styles/00-tokens.css:139` | contract.md 4.0 | none found | stable |  |
+| `--pw-shadow-card` | `runtime/src/styles/00-tokens.css:180` | contract.md 4.0 | none found | stable |  |
+| `--pw-shadow-dropdown` | `runtime/src/styles/00-tokens.css:181` | contract.md 4.0 | none found | stable |  |
 | `--pw-font` | `runtime/src/styles/00-tokens.css:54` | contract.md 4.0 | BridgeQuiet | stable |  |
 | `--pw-font-size` | `runtime/src/styles/00-tokens.css:55` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
 | `--pw-line-height` | `runtime/src/styles/00-tokens.css:56` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
 | `--pw-gutter` | `runtime/src/styles/00-tokens.css:66` | contract.md 4.0; extensions.md 12 | BridgeCustomizer; BridgeQuiet | stable |  |
 | `--pw-field-pad` | `runtime/src/styles/00-tokens.css:64` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
 | `--pw-field-pad-bottom` | `runtime/src/styles/00-tokens.css:65` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
-| `--pw-z-notices` | `runtime/src/styles/00-tokens.css:144` | contract.md 4.0 | BridgeCustomizer | stable |  |
-| `--pw-z-popup` | `runtime/src/styles/00-tokens.css:145` | contract.md 4.0 | smoke | stable |  |
-| `--pw-z-masthead` | `runtime/src/styles/00-tokens.css:146` | contract.md 4.0 | none found | stable |  |
-| `--pw-z-drawer` | `runtime/src/styles/00-tokens.css:147` | contract.md 4.0 | none found | stable |  |
-| `--pw-z-dropdown` | `runtime/src/styles/00-tokens.css:148` | contract.md 4.0 | none found | stable |  |
-| `--pw-z-picker` | `runtime/src/styles/00-tokens.css:149` | contract.md 4.0 | none found | stable |  |
-| `--pw-z-overlay` | `runtime/src/styles/00-tokens.css:150` | contract.md 4.0 | none found | stable |  |
+| `--pw-z-notices` | `runtime/src/styles/00-tokens.css:148` | contract.md 4.0 | BridgeCustomizer | stable |  |
+| `--pw-z-popup` | `runtime/src/styles/00-tokens.css:149` | contract.md 4.0 | smoke | stable |  |
+| `--pw-z-masthead` | `runtime/src/styles/00-tokens.css:150` | contract.md 4.0 | none found | stable |  |
+| `--pw-z-drawer` | `runtime/src/styles/00-tokens.css:151` | contract.md 4.0 | none found | stable |  |
+| `--pw-z-dropdown` | `runtime/src/styles/00-tokens.css:152` | contract.md 4.0 | none found | stable |  |
+| `--pw-z-picker` | `runtime/src/styles/00-tokens.css:153` | contract.md 4.0 | none found | stable |  |
+| `--pw-z-overlay` | `runtime/src/styles/00-tokens.css:154` | contract.md 4.0 | none found | stable |  |
 | `--pw-status-success-bg` | `runtime/src/styles/00-tokens.css:40` | contract.md 4.0 | none found | stable |  |
 | `--pw-status-success-border` | `runtime/src/styles/00-tokens.css:40` | contract.md 4.0 | none found | stable |  |
 | `--pw-status-success-fg` | `runtime/src/styles/00-tokens.css:40` | contract.md 4.0 | none found | stable |  |
@@ -212,12 +212,14 @@ CSS custom properties an extension's stylesheets may read or set (`tokens` in it
 | `--pw-status-error-border` | `runtime/src/styles/00-tokens.css:42` | contract.md 4.0 | none found | stable |  |
 | `--pw-status-error-fg` | `runtime/src/styles/00-tokens.css:42` | contract.md 4.0 | none found | stable |  |
 | `--pw-status-error-icon` | `runtime/src/styles/00-tokens.css:42` | contract.md 4.0 | none found | stable |  |
-| `--pw-success-bg` | `runtime/src/styles/00-tokens.css:171` | contract.md 4.0 | none found | stable |  |
-| `--pw-warning-bg` | `runtime/src/styles/00-tokens.css:172` | contract.md 4.0 | none found | stable |  |
-| `--pw-danger-bg` | `runtime/src/styles/00-tokens.css:173` | contract.md 4.0 | BridgeQuiet | stable |  |
+| `--pw-success-bg` | `runtime/src/styles/00-tokens.css:175` | contract.md 4.0 | none found | stable |  |
+| `--pw-warning-bg` | `runtime/src/styles/00-tokens.css:176` | contract.md 4.0 | none found | stable |  |
+| `--pw-danger-bg` | `runtime/src/styles/00-tokens.css:177` | contract.md 4.0 | BridgeQuiet | stable |  |
 | `--pw-label-size` | `runtime/src/styles/00-tokens.css:61` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke | stable |  |
 | `--pw-control-height` | `runtime/src/styles/00-tokens.css:62` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke | stable |  |
-| `--pw-login-bg` | `runtime/src/styles/00-tokens.css:175` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
+| `--pw-login-bg` | `runtime/src/styles/00-tokens.css:179` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
+| `--pw-range-fill` | `runtime/src/styles/00-tokens.css:73` | contract.md 4.1 (`setupRangeFill()`); extensions.md 3 | none found | stable | added for 1.0 (ruled 2026-11-13); set by script on each `input[type=range]`, the declaration is the value where none was set |
+| `--pw-branch-max` | `runtime/src/styles/00-tokens.css:74` | contract.md 4.1 (`setupTreeFit()`); extensions.md 3 | none found | stable | added for 1.0 (ruled 2026-11-13); set by script on the deepest open page-tree branch, the declaration is the value where none was set |
 
 ## Events
 
@@ -249,6 +251,10 @@ Bubbling DOM events (`CustomEvent`) an extension may listen for; it never dispat
 | `reloaded` | `runtime/src/classic/main.js:1826` | contract.md 4.1, 4.2, 4.3, 4.4, 5 | tools (repeater-check.js) | stable | as `opened`; `detail.source` names the loader |
 | `showIf` | `runtime/src/inputfields/dependencies.ts:187` | contract.md 4.2, 6 | BridgeDemo | stable | as `opened` |
 | `changed` | `runtime/src/inputfields/forms.ts:44` | contract.md 4.2 | tools (native-check.js, setup-check.js); smoke | stable | as `opened` |
+| `pw-scheme-change` | `runtime/src/classic/main.js:403` | contract.md 4.0, 4.1 | none found | stable | added for 1.0 (ruled 2026-11-13); `detail.scheme`, `detail.source` |
+| `pw-variant-change` | `runtime/src/util/colors.ts:28` | contract.md 4.0 | smoke | stable | added for 1.0 (ruled 2026-11-13); `detail.variant`, `detail.color` |
+| `pw-scale-change` | `runtime/src/classic/main.js:335` | contract.md 4.0 | none found | stable | added for 1.0 (ruled 2026-11-13); `detail.scale` |
+| `pw-tabs-change` | `runtime/src/elements/pw-tabs.ts:87` | contract.md 4.2 | none found | stable | added for 1.0 (ruled 2026-11-13); `detail.id`, from `<pw-tabs>` |
 
 ## Runtime
 
@@ -257,7 +263,7 @@ Keys of `window.Bridge` (`runtime/src/index.ts`, built to `assets/dist/runtime.j
 | Name | Defined | Documented | Used by | Status | Note |
 |---|---|---|---|---|---|
 | `contract` | `runtime/src/index.ts:31` | contract.md 4.2 | none found | stable |  |
-| `version` | `runtime/src/index.ts:30` | undocumented | none found | stable | undocumented; also `detail.version` of `pw-runtime-ready` |
+| `version` | `runtime/src/index.ts:30` | contract.md 4.2 | none found | stable | also `detail.version` of `pw-runtime-ready` |
 | `Inputfields` | `runtime/src/index.ts:32` | contract.md 4.1, 4.2 | tools (native-check.js) | stable |  |
 | `components` | `runtime/src/index.ts:33` | contract.md 4.2; extensions.md 5 | none found | stable |  |
 | `dialog` | `runtime/src/index.ts:40` | contract.md 4.1, 4.2, 4.4 | tools (a11y-check.js, image-file-check.js, image-select-check.js, +1) | stable |  |
@@ -344,25 +350,34 @@ internal: they may change or go in any release.
   `setup…()` functions not listed above, the navigation, dropdown and search helpers, and the
   objects other classic scripts add (`imageSelect`, `link`).
 - Public methods of `AdminThemeBridge` missing from `reads` and `hooks`: the contract tests fail
-  an extension that calls them (`docs/extensions.md` 1 and 6).
+  an extension that calls them (`docs/extensions.md` 1 and 6). Among them `themeAssetUrl($file)`
+  (`lib/AdminThemeBridgeHead.php:211`), on `reads` until contract 0.2 and taken off for 1.0
+  (ruled 2026-11-13): its argument is a path inside the theme, and the theme's file names are not
+  part of the contract.
 - CSS custom properties the theme declares that are not on `tokens` (`docs/extensions.md` 3),
-  with the exceptions under "Documented, off the lists" below.
+  among them `--ring-50` (ruled internal 2026-11-13; `docs/contract.md` 4.0 says so).
 
 ## For the maintainer
 
-The entries that need a ruling before the contract is set to 1.0. Every other entry above is
-proposed `stable`.
+The entries that needed a ruling before the contract was set to 1.0. Every other entry above is
+`stable`.
+
+**Ruled 2026-11-13, as recommended**, and applied in extension contract 1.0: `themeAssetUrl`
+internal (off `reads`, the method stays); the nine public but undocumented entries `stable`, each
+with a line in `docs/extensions.md` 3 (`version`: `docs/contract.md` 4.2); the four events and
+`--pw-range-fill`, `--pw-branch-max` added to the lists; `--ring-50` internal, the sentence in
+`docs/contract.md` 4.0 corrected. The tables below are the proposals as they were put.
 
 ### Candidates
 
 | Entry | Proposal | Reason | Cost of keeping it for all of 1.x |
 |---|---|---|---|
-| read `themeAssetUrl($file)` | candidate: internal | Its argument is a path inside the theme (`assets/dist/theme.css`, `scripts/main.js`, …), and the theme's file names are not otherwise part of 1.0; no caller outside the theme but the smoke test | Every path a caller may have passed must keep resolving, which ties the built files' names and places to the contract |
+| read `themeAssetUrl($file)` | candidate: internal (ruled: internal) | Its argument is a path inside the theme (`assets/dist/theme.css`, `scripts/main.js`, …), and the theme's file names are not otherwise part of 1.0; no caller outside the theme but the smoke test | Every path a caller may have passed must keep resolving, which ties the built files' names and places to the contract |
 
 ### Public but undocumented
 
 Proposed `stable`; each needs a line in `docs/contract.md` or `docs/extensions.md` before 1.0 if
-kept.
+kept. Ruled: stable, documented.
 
 | Entry | What it is | Cost of keeping it for all of 1.x |
 |---|---|---|
@@ -379,7 +394,8 @@ kept.
 ### Documented, off the lists
 
 Not entries of the seven lists, but documented as usable; 1.0 should either list them or say they
-are not covered.
+are not covered. Ruled: the events and `--pw-range-fill`, `--pw-branch-max` listed; `--ring-50`
+not covered.
 
 | Name | Where documented | What conflicts | Options |
 |---|---|---|---|

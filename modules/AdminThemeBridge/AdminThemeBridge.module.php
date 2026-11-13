@@ -76,10 +76,11 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 
 	/**
 	 * Version of the extension contract (BridgeExtension, docs/extensions.md), semver'd apart from
-	 * the module version and from the component contract (`Bridge.contract`). Pre-1.0: may change
+	 * the module version and from the component contract (`Bridge.contract`). Frozen for 1.x: entries
+	 * may be added in a minor, none removed or changed before 2.0 (ADR 0024)
 	 *
 	 */
-	const extensionContract = '0.2';
+	const extensionContract = '1.0';
 
 	/**
 	 * The extension contract versions this theme honours, the current one last. A manifest is
@@ -88,7 +89,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * drops the older versions from this list.
 	 *
 	 */
-	const extensionContracts = array('0.1', '0.2');
+	const extensionContracts = array('0.1', '0.2', '1.0');
 
 	const legacyAlways = 'always';
 	const legacyAuto = 'auto';

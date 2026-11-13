@@ -68,6 +68,10 @@
 	/* the notices band (10-layout.css, 14-notices.css): one row of a notice and its gaps */
 	--pw-notice-gap: 8px;
 	--pw-notice-row: calc(1.25rem + 22px);
+	/* set by script on the element (setupRangeFill(), setupTreeFit() in scripts/main.js; tokens since
+	 * extension contract 1.0): these are the values where no script set one, the rules' fallbacks */
+	--pw-range-fill: 0%;
+	--pw-branch-max: calc(100vh - var(--pw-masthead-h) - 40px);
 }
 
 /* 2. colour presets: AdminThemeBoss's primaries -------------------------------------------------- */

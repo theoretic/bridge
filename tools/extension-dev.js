@@ -3,7 +3,7 @@
 // calls Bridge.extensions.reload(<name>) for each extension whose module lies in that directory.
 // The page stays; the module is imported again with a fresh ?v= and `pw-extension-loaded` fires
 // again. A changed .css file swaps the href of every link[data-bridge-styles] (the extension's
-// `styles`, contract 0.2) whose path ends with that file to a fresh ?v=, so the stylesheet loads
+// `styles`, since contract 0.2) whose path ends with that file to a fresh ?v=, so the stylesheet loads
 // again without a module reload. One line per reload or swap; the page's console errors are printed
 // too. A changed PHP file is only reported (PHP takes a page load). Not hot module replacement: see
 // the doc.
