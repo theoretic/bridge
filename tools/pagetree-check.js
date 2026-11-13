@@ -132,12 +132,41 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.locator(third2 + ' > .PageListActions a.PageListActionExtra').nth(i).click();
 		return links;
 	};
-	const ex1 = await extrasAction(/^Hide$/);
-	check('F Extras shows the extra actions', ex1.length > 2, JSON.stringify(ex1));
-	check('F Hide over AJAX marks the page hidden', await waitFor((s) => { const li = document.querySelector(s); return !!li && li.classList.contains('PageListStatusHidden'); }, third2, 15000));
+	// 0.30.1: the action's XHR and any request that failed on the way, in the check's info: a CI run
+	// once saw Hide do nothing and then a 30 s click timeout, with nothing to tell why. One retry
+	// when the request never reached the server (the Windows connect error, 10055), never on an
+	// answer; and no Unhide when Hide did not take, so one failure does not cascade.
+	const isHidden = (s) => { const li = document.querySelector(s); return !!li && li.classList.contains('PageListStatusHidden'); };
+	const traced = async (re) => {
+		const seen = [];
+		const onFail = r => seen.push('failed ' + r.method() + ' ' + r.url().replace(ADMIN, '') + ' ' + ((r.failure() || {}).errorText || ''));
+		const onResp = r => { const t = r.request().resourceType(); if(t === 'xhr' || t === 'fetch') seen.push(r.status() + ' ' + r.request().method() + ' ' + r.url().replace(ADMIN, '')); };
+		page.on('requestfailed', onFail);
+		page.on('response', onResp);
+		const links = await extrasAction(re);
+		await page.waitForTimeout(1000);
+		page.off('requestfailed', onFail);
+		page.off('response', onResp);
+		return { links, seen };
+	};
+	let hide = await traced(/^Hide$/);
+	check('F Extras shows the extra actions', hide.links.length > 2, JSON.stringify(hide.links));
+	let hidden = await waitFor(isHidden, third2, 15000);
+	let hideRetried = false;
+	if(!hidden && hide.seen.some(x => x.indexOf('failed ') === 0)) {
+		hideRetried = true;
+		await page.keyboard.press('Escape');
+		hide = await traced(/^Hide$/);
+		hidden = await waitFor(isHidden, third2, 15000);
+	}
+	check('F Hide over AJAX marks the page hidden', hidden, (hideRetried ? 'retried after a failed request; ' : '') + hide.seen.join(' | '));
 	await page.waitForTimeout(1500);
-	await extrasAction(/^Unhide$/);
-	check('F Unhide restores it', await waitFor((s) => { const li = document.querySelector(s); return !!li && !li.classList.contains('PageListStatusHidden'); }, third2, 15000));
+	if(hidden) {
+		const unhide = await traced(/^Unhide$/);
+		check('F Unhide restores it', await waitFor((s) => { const li = document.querySelector(s); return !!li && !li.classList.contains('PageListStatusHidden'); }, third2, 15000), unhide.seen.join(' | '));
+	} else {
+		check('F Unhide restores it (not run: Hide did not take)', false);
+	}
 	await page.waitForTimeout(1500);
 
 	// G: move a page by dragging its title (0.16.0: no Move action)
