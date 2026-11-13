@@ -293,6 +293,15 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.keyboard.press('Shift+Tab');
 		const back = await page.evaluate(() => Math.round(document.getElementById('ProcessPageSearchQuery').getBoundingClientRect().width));
 		check('8 375px: the field closes to its icon when the focus leaves', back === 32, back);
+		// Escape: the first closes the result list, the next (no list open) leaves the field (0.30.1)
+		await page.focus('#ProcessPageSearchQuery');
+		await page.keyboard.type('ho');
+		await page.waitForSelector('.pw-search-results', { state: 'visible', timeout: 5000 }).catch(() => {});
+		await page.keyboard.press('Escape');
+		const escOne = await page.evaluate(() => ({ list: getComputedStyle(document.querySelector('.pw-search-results') || document.body).display !== 'none' && !!document.querySelector('.pw-search-results'), focused: document.activeElement && document.activeElement.id === 'ProcessPageSearchQuery' }));
+		await page.keyboard.press('Escape');
+		const escTwo = await page.evaluate(() => ({ focused: document.activeElement && document.activeElement.id === 'ProcessPageSearchQuery', width: Math.round(document.getElementById('ProcessPageSearchQuery').getBoundingClientRect().width) }));
+		check('8 375px: Escape closes the result list, a second Escape closes the field to its icon', !escOne.list && escOne.focused && !escTwo.focused && escTwo.width === 32, JSON.stringify([escOne, escTwo]));
 		await page.setViewportSize({ width: 768, height: 900 });
 		await open('page/');
 		const tablet = await page.evaluate(() => Math.round(document.getElementById('ProcessPageSearchQuery').getBoundingClientRect().width));

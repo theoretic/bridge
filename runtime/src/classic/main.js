@@ -1418,7 +1418,8 @@ var ProcessWireAdminTheme = {
 			var open = menu.style.display !== 'none';
 			if(e.key === 'ArrowDown' && open) { e.preventDefault(); mark(active + 1); }
 			else if(e.key === 'ArrowUp' && open) { e.preventDefault(); mark(active - 1); }
-			else if(e.key === 'Escape') { close(); }
+			// a second Escape (no list open) leaves the field: below 480px it closes to its icon (0.30.1)
+			else if(e.key === 'Escape') { if(!open) input.blur(); close(); }
 			else if(e.key === 'Enter' && open && active > -1) {
 				var a = links()[active];
 				e.preventDefault();
