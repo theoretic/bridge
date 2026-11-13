@@ -1866,6 +1866,10 @@ foreach(array('RecursiveDirectoryIterator', 'rm -r', 'rmdir /s', 'wireRmdir(') a
 	if(stripos($extSrc, $needle) !== false) $recursive[] = $needle;
 }
 check('tools/sandbox-extension.php deletes nothing recursively (the link only)', $extSrc !== '' && !count($recursive), implode(', ', $recursive));
+// 0.30.1: a dependency that is not an extension goes in with --dependency; a refused add takes back the link it made
+check('tools/sandbox-extension.php installs a dependency with --dependency and removes a link it made when the add fails with nothing installed', strpos($extSrc, "\$dependency = in_array('--dependency', \$args, true);") !== false
+	&& strpos($extSrc, 'if(!$dependency && !sandboxExtensionHasManifest($modules, $name))') !== false && strpos($extSrc, 'if($failed && $created) {') !== false
+	&& strpos($read('docs/extensions.md'), 'php tools/sandbox-extension.php sandbox/atispro <dependency dir> --dependency') !== false);
 $site = $read('tools/sandbox-site.sh');
 check('SE5 sandbox-site.sh stops on a failed pipe and checks the database by its config', strpos($site, 'set -euo pipefail') !== false && strpos($site, 'lib/sandbox-dbname.php') !== false);
 $literal = array();

@@ -4,13 +4,18 @@
  * Puts an outside extension into a sandbox and takes it out again (0.30.0), so that a
  * third-party extension is installed only while its checks run (the bundled set's smoke pins).
  *
- * Usage: php tools/sandbox-extension.php /path/to/sandbox/root /path/to/ModuleDir [--remove]
+ * Usage: php tools/sandbox-extension.php /path/to/sandbox/root /path/to/ModuleDir [--dependency] [--remove]
  *
  * Add: links <sandbox>/app/modules/<basename of the directory> to the directory (Windows: a
  * junction, `mklink /J`; elsewhere a symlink), refuses when that path exists and is not a link
  * to the same directory, refreshes the modules and installs every module of the directory that
  * declares a manifest (getBridgeExtension() or a `bridge` module info key), as
- * tools/sandbox-modules.php does. Idempotent.
+ * tools/sandbox-modules.php does. Idempotent. When the add fails and nothing of the directory is
+ * installed, a link this run made is removed again (0.30.1): a refused directory leaves nothing.
+ *
+ * --dependency (0.30.1): the directory is something an extension requires that is not an
+ * extension itself (an Inputfield, a Fieldtype): every module of it is installed, manifest or
+ * not. Put it in before the extension; take it out (--remove) after the extension.
  *
  * --remove: uninstalls those modules when installed, then removes the link only (never what it
  * points to; nothing is deleted recursively) and refreshes. Idempotent. The link stays while one
@@ -25,9 +30,10 @@
 
 $args = array_slice($argv, 1);
 $remove = in_array('--remove', $args, true);
-$args = array_values(array_filter($args, function($a) { return $a !== '--remove'; }));
+$dependency = in_array('--dependency', $args, true);
+$args = array_values(array_filter($args, function($a) { return $a !== '--remove' && $a !== '--dependency'; }));
 if(count($args) !== 2) {
-	exit("Usage: php tools/sandbox-extension.php /path/to/sandbox/root /path/to/ModuleDir [--remove]\n");
+	exit("Usage: php tools/sandbox-extension.php /path/to/sandbox/root /path/to/ModuleDir [--dependency] [--remove]\n");
 }
 // a sandbox on its own database copy only (audit SE5)
 require __DIR__ . '/lib/sandbox-guard.php';
@@ -211,6 +217,7 @@ if($remove) {
 }
 
 // add
+$created = false;
 if(file_exists($link) || sandboxExtensionIsLink($link)) {
 	if(!sandboxExtensionLinksTo($link, $home)) {
 		sandboxExtensionFail("app/modules/$base exists and is not a link to $home; refused, nothing written");
@@ -227,6 +234,7 @@ if(file_exists($link) || sandboxExtensionIsLink($link)) {
 	}
 	clearstatcache();
 	if(!$ok || !sandboxExtensionLinksTo($link, $home)) sandboxExtensionFail("could not link app/modules/$base to $home");
+	$created = true;
 	echo "ok   app/modules/$base -> $home\n";
 }
 
@@ -238,14 +246,14 @@ foreach($names as $name) {
 		$failed++;
 		continue;
 	}
-	if(!sandboxExtensionHasManifest($modules, $name)) {
+	if(!$dependency && !sandboxExtensionHasManifest($modules, $name)) {
 		echo "skip $name: no manifest (not an extension)\n";
 		continue;
 	}
 	$wanted[] = $name;
 }
 if(!count($wanted) && !$failed) {
-	echo "FAIL no module of $base declares a manifest\n";
+	echo "FAIL no module of $base declares a manifest (a dependency that is not an extension: --dependency)\n";
 	$failed++;
 }
 // twice, so a module required by another of the list goes first
@@ -270,5 +278,21 @@ for($round = 0; $round < 2; $round++) {
 }
 foreach($wanted as $name) {
 	if(!$modules->isInstalled($name)) $failed++;
+}
+// a failed add that installed nothing from the directory takes back the link it made (0.30.1)
+if($failed && $created) {
+	$installed = array_filter($names, function($name) use($modules, $home) {
+		return $modules->isInstalled($name) && sandboxExtensionOwns($modules, $name, $home);
+	});
+	if(!count($installed)) {
+		$ok = $windows ? @rmdir($link) : @unlink($link);
+		clearstatcache();
+		if($ok && !file_exists($link) && !sandboxExtensionIsLink($link)) {
+			echo "ok   app/modules/$base removed again (nothing of it installed)\n";
+			$modules->refresh();
+		} else {
+			echo "FAIL app/modules/$base could not be removed again\n";
+		}
+	}
 }
 exit($failed ? 1 : 0);

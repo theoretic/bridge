@@ -229,10 +229,14 @@ Both print `ok` / `FAIL` lines and exit 1 on a failure.
 
 A third-party extension stays installed in a sandbox only while its checks run (the bundled set's
 smoke pins). `tools/sandbox-extension.php` links its directory in (a junction on Windows) and
-installs its modules with a manifest; `--remove` uninstalls them and removes the link only. The
-command takes no variable, so it reads the same in Git Bash and PowerShell:
+installs its modules with a manifest; `--remove` uninstalls them and removes the link only. A
+module the extension requires that is not an extension itself (an Inputfield, a Fieldtype) goes in
+first with `--dependency`, which installs every module of its directory, and comes out last; a
+directory refused for having no manifest leaves no link behind (0.30.1). The command takes no
+variable, so it reads the same in Git Bash and PowerShell:
 
 ```bash
+php tools/sandbox-extension.php sandbox/atispro <dependency dir> --dependency
 php tools/sandbox-extension.php sandbox/atispro <extension dir> [--remove]
 ```
 
