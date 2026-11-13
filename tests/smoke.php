@@ -1622,6 +1622,21 @@ if(isset($bridge) && $bridge) {
 			&& $merged['page/edit/?id=7']['visits'] === 7 && $merged['page/edit/?id=7']['name'] === 'Seven (renamed)' && $merged['page/edit/?id=7']['last'] === 3000, json_encode($merged));
 		$histTable = $bridge->renderHistoryTable();
 		check('history: an editor\'s row shows its id, a screen\'s none', substr_count($histTable, "<span class='pw-history-id'>#7</span>") === 1 && substr_count($histTable, 'pw-history-id') === 1, $histTable);
+		// audit A1.2: a typed key a historyEntry() hook chose survives the merge on read; the theme's own key of the same screen is another row
+		$bridge->historyClear();
+		$versionHook = $wire->addHookAfter('AdminThemeBridge::historyEntry', function(HookEvent $e) {
+			if(is_array($e->return) && $e->return['type'] === 'template') $e->return = array_merge($e->return, array('url' => $e->return['url'] . '&version=2'));
+		});
+		$visit($tplPage, array('id' => $tpl->id, 'c' => 1), "Edit Template: $tpl->name", 'edit');
+		$bridge->historyRecord($proc('ProcessTemplate'));
+		$hookedKey = (new \ReflectionMethod($bridge, 'historyCurrentKey'))->invoke($bridge, $proc('ProcessTemplate'));
+		$wire->removeHook($versionHook);
+		$bridge->historyRecord($proc('ProcessTemplate'));
+		$hookedEntries = $bridge->historyEntries();
+		$hookedTable = $bridge->renderHistoryTable($hookedKey);
+		check('history: a typed key a historyEntry hook chose (template ?id=N&version=2) survives the merge on read, apart from the plain ?id=N row, and the drawer marks it', substr($hookedKey, -strlen("edit?id=$tpl->id&version=2")) === "edit?id=$tpl->id&version=2"
+			&& count($hookedEntries) === 2 && isset($hookedEntries[$hookedKey]) && $hookedEntries[$hookedKey]['visits'] === 1 && $hookedEntries[$hookedKey]['url'] === $hookedKey
+			&& substr_count($hookedTable, "aria-current='page'") === 1 && strpos($hookedTable, "version=2' aria-current='page'") !== false, json_encode(array($hookedKey, $hookedEntries)));
 		// 0.26.0: request-only parameters leave the key; the drawer marks the key historyEntry() returns
 		$bridge->historyClear();
 		$visit($modPage, array('reset' => 2), 'Modules');

@@ -13,15 +13,17 @@
  * at a path ending in `edit`) keeps only the parameters that name it (historyKeepParams()), so
  * `?c=3&id=5` after a save is the same entry as `?id=5`; another action of those Processes
  * (`setup/field/changeType?id=5&type=X`) keeps its query; entries stored under an older key
- * merge when read (0.30.1). A screen
+ * merge when read (0.30.1), except a key a historyEntry() hook chose (stored with `hookKey`,
+ * audit A1.2), which is kept as it is. A screen
  * visited again moves to the top and counts the visit. The entries live in the
  * user page's meta data (`$user->meta('AdminThemeBridge.history')`), so they follow the user to
  * every browser; at most `historySteps` of them, the oldest go first.
  *
  * Each entry: `name` (the screen's headline), `type` (an English key the drawer translates: page,
  * template, field, module, user, role, permission, lister, pages, screen), `url` (relative to the
- * admin), `visits`, `last` (unix time). historyEntry() decides what a visit records and is
- * hookable.
+ * admin), `visits`, `last` (unix time), and `hookKey` (true) when the `url` historyEntry()
+ * returned is not the theme's own key for the screen (a hook chose it). historyEntry() decides
+ * what a visit records and is hookable.
  *
  * The history drawer (scripts/drawers.js) fetches its table with a GET of the screen's own URL
  * plus `bridgeHistory=1`, as XMLHttpRequest: hookHistoryFragment() answers it before the Process
@@ -189,7 +191,7 @@ trait AdminThemeBridgeHistory {
 		try {
 			$entries = $user->meta(self::historyMeta);
 			$entries = is_array($entries) ? $this->historyMerge($entries) : array();
-			$key = $entry['url'];
+			$key = (string) $entry['url'];
 			$visits = isset($entries[$key]['visits']) ? (int) $entries[$key]['visits'] : 0;
 			unset($entries[$key]);
 			$entries[$key] = array(
@@ -199,6 +201,9 @@ trait AdminThemeBridgeHistory {
 				'visits' => $visits + 1,
 				'last' => time(),
 			);
+			// a key other than the theme's own for this screen is a hook's: historyMerge() keeps it
+			// as it is (audit A1.2)
+			if($key !== $this->historyUrl((string) $entry['type'])) $entries[$key]['hookKey'] = true;
 			// oldest first, then the cap from the start
 			uasort($entries, function($a, $b) { return ((int) $a['last']) <=> ((int) $b['last']); });
 			$steps = $this->getHistorySteps();
@@ -330,7 +335,8 @@ trait AdminThemeBridgeHistory {
 	/**
 	 * Stored entries, oldest first, with entries under an older key of the same screen merged:
 	 * the newest name and time, the visits added up (entries recorded before 0.30.1 kept `c` and
-	 * other core parameters in the key)
+	 * other core parameters in the key). An entry stored with `hookKey` keeps its key: a
+	 * historyEntry() hook chose it, and the theme's key rule is not the hook's (audit A1.2)
 	 *
 	 * @param array $entries As stored, oldest first
 	 * @return array
@@ -343,7 +349,7 @@ trait AdminThemeBridgeHistory {
 			$url = isset($entry['url']) ? (string) $entry['url'] : (string) $key;
 			$type = isset($entry['type']) ? (string) $entry['type'] : '';
 			$newKey = $url;
-			$pos = strpos($url, '?');
+			$pos = empty($entry['hookKey']) ? strpos($url, '?') : false;
 			if($pos !== false) {
 				$query = array();
 				parse_str(substr($url, $pos + 1), $query);
