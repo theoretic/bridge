@@ -177,6 +177,7 @@ trait AdminThemeBridgeFiles {
 		$index = (int) $options['index'];
 		$moved = array();
 		$undo = array(); // what to put back if the target cannot be saved: array(moved file, its index in the source, file swapped in)
+		$replaced = array(); // files a replace takes out of the target: unlinked once the target is saved
 		$fail = function(Pagefile $f, $message) use(&$result) {
 			$result['errors'][] = array('hash' => $f->hash, 'basename' => $f->basename, 'message' => $message);
 		};
@@ -225,7 +226,10 @@ trait AdminThemeBridgeFiles {
 					if($back['image'] && $back2 instanceof Pageimage) $this->moveFit($back2, $back);
 					$result['swapped'][] = array('hash' => $back2->hash, 'basename' => $back2->basename);
 				} else {
-					$dst->delete($current);
+					// not delete(): its unlink is queued for the page's next files save, which the source's
+					// save runs first, so a failing target save would leave its stored file gone (audit B1.1)
+					$dst->removeQuietly($current);
+					$replaced[] = $current;
 				}
 			}
 			$this->moveInsert($dst, $new, $index < 0 ? -1 : $index + count($moved));
@@ -244,10 +248,12 @@ trait AdminThemeBridgeFiles {
 			} catch(\Throwable $e) {
 				// the source is saved without the files: put them back there, so no file is left
 				// on disk with no field pointing to it (0.30.1, audit B3); the target's stored
-				// value never changed. The error goes on as before.
+				// value never changed, and a replaced file is still on disk. The error goes on as before.
 				$this->moveUndo($page, $from, $src, $dst, $undo);
 				throw $e;
 			}
+			// the target is saved without them: the replaced files (and an image's variations) go now
+			foreach($replaced as $gone) $gone->unlink();
 			$this->filesMoved($page, $from, $to, $moved);
 		}
 		$result['ok'] = count($moved) > 0;

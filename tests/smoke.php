@@ -995,6 +995,34 @@ if(isset($bridge) && $bridge) {
 			$bridge->removeHook($throw);
 			check('SE3 moveFiles() restores output formatting when a hook throws', $threw && $np->of() === true);
 			$np->of(false);
+			// audit B1.1: a replace whose target save throws (in saveFieldReady, after the files manager's
+			// save) leaves the replaced file on disk; it is unlinked only after the target was saved
+			$pages->uncache($np);
+			$np = $pages->get($np->id);
+			$np->of(false);
+			$img = $np->bf_images->first();
+			$old = $np->bf_image->first();
+			$imagesBefore = $np->bf_images->implode(',', 'basename');
+			$imageBefore = $np->bf_image->implode(',', 'basename');
+			$saveThrow = $wire->addHookBefore('Pages::saveFieldReady', function(HookEvent $e) {
+				if($e->arguments(1)->name === 'bf_image') throw new WireException('smoke: target save failed');
+			});
+			$threw = '';
+			try {
+				$bridge->moveFiles($np, $fg->getFieldContext('bf_images'), $fg->getFieldContext('bf_image'), array($img->basename), array('resolve' => array($img->basename => 'replace')));
+			} catch(\Throwable $e) {
+				$threw = $e->getMessage();
+			}
+			$wire->removeHook($saveThrow);
+			$pages->uncache($np);
+			$np = $pages->get($np->id);
+			$np->of(false);
+			$still = $np->bf_image->first();
+			check('B1.1 a replace whose target save throws keeps the replaced file on disk and both fields as they were',
+				$threw === 'smoke: target save failed' && $still && $still->basename === $old->basename && is_file($still->filename)
+				&& $np->bf_images->implode(',', 'basename') === $imagesBefore && $np->bf_image->implode(',', 'basename') === $imageBefore
+				&& is_file($np->bf_images->first()->filename),
+				json_encode(array($threw, $imageBefore, $still ? $still->basename . (is_file($still->filename) ? '' : ' (missing on disk)') : '', $imagesBefore, $np->bf_images->implode(',', 'basename'))));
 		} else {
 			check('the fixture page has a file in bf_image (tools/sandbox-fixture.php)', false);
 		}
