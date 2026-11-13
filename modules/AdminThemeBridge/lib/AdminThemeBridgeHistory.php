@@ -9,9 +9,11 @@
  * With the `history` setting on, every admin screen a logged-in user opens with a plain GET (no
  * AJAX, no modal window) is recorded after its Process ran (hookHistoryRecord()): one entry per
  * screen, keyed by its admin-relative URL with the query sorted and the request-only parameters
- * dropped. An editor of one thing (a page, template, field, user, role or permission, by `id`)
- * keeps only the parameters that name it (historyKeepParams()), so `?c=3&id=5` after a save is the
- * same entry as `?id=5`; entries stored under an older key merge when read (0.30.1). A screen
+ * dropped. An editor of one thing (a page, template, field, user, role or permission, by `id`,
+ * at a path ending in `edit`) keeps only the parameters that name it (historyKeepParams()), so
+ * `?c=3&id=5` after a save is the same entry as `?id=5`; another action of those Processes
+ * (`setup/field/changeType?id=5&type=X`) keeps its query; entries stored under an older key
+ * merge when read (0.30.1). A screen
  * visited again moves to the top and counts the visit. The entries live in the
  * user page's meta data (`$user->meta('AdminThemeBridge.history')`), so they follow the user to
  * every browser; at most `historySteps` of them, the oldest go first.
@@ -272,6 +274,13 @@ trait AdminThemeBridgeHistory {
 	 * A history key: an admin-relative path and its query, sorted, without the request-only
 	 * parameters, and for an editor of one thing with only the parameters that name it (0.30.1)
 	 *
+	 * The keep list (historyKeepParams()) applies to the editor itself only, a path whose last
+	 * segment is `edit` (`page/edit/`, `setup/field/edit`, `access/users/edit/`): another action of
+	 * the same Process with an `id` is a screen of its own that its other parameters name (core:
+	 * ProcessField `changeType` `type` and `sendTemplates` `templates`, ProcessTemplate
+	 * `fieldgroup` `fieldgroup` and `rename` `name`, ProcessPageEdit and ProcessPageType
+	 * `template` `template`), so it keeps its query minus the dropped ones (audit A1.1)
+	 *
 	 * @param string $path Relative to the admin
 	 * @param array $query
 	 * @param string $type
@@ -281,7 +290,8 @@ trait AdminThemeBridgeHistory {
 	protected function historyKey($path, array $query, $type = '') {
 		$drop = $this->historyDropParams;
 		$drop[] = $this->wire()->session->CSRF->getTokenName();
-		$keep = $this->historyKeepParams($type);
+		$segments = explode('/', trim((string) $path, '/'));
+		$keep = end($segments) === 'edit' ? $this->historyKeepParams($type) : null;
 		$out = array();
 		foreach($query as $key => $value) {
 			$key = (string) $key;

@@ -1595,6 +1595,21 @@ if(isset($bridge) && $bridge) {
 		$visit($fieldPage, array('id' => 1, 'fieldgroup_id' => 2, 'c' => 1), 'Edit Field: title', 'edit');
 		$ctxEntry = $bridge->historyEntry($proc('ProcessField'), $fieldPage);
 		check('history: a field edited in a template\'s context keeps fieldgroup_id (another screen than the field itself)', is_array($ctxEntry) && substr($ctxEntry['url'], -strlen('edit?fieldgroup_id=2&id=1')) === 'edit?fieldgroup_id=2&id=1', json_encode($ctxEntry));
+		// audit A1.1: the keep list is the editor's (a path ending in `edit`); another action of the Process keeps the query that names its screen
+		$visit($fieldPage, array('id' => 1, 'type' => 'FieldtypeTextarea', 'c' => 1), 'Change type for field: title', 'changeType');
+		$ctEntry = $bridge->historyEntry($proc('ProcessField'), $fieldPage);
+		$keyOf = new \ReflectionMethod($bridge, 'historyKey');
+		$otherKeys = array(
+			$keyOf->invoke($bridge, 'page/edit/template', array('id' => '7', 'template' => '3', 'c' => '1'), 'page'),
+			$keyOf->invoke($bridge, 'setup/template/fieldgroup', array('id' => '2', 'fieldgroup' => '4'), 'template'),
+			$keyOf->invoke($bridge, 'setup/template/rename', array('id' => '2', 'name' => 'x'), 'template'),
+			$keyOf->invoke($bridge, 'setup/field/sendTemplates', array('id' => '1', 'templates' => '2,3'), 'field'),
+			$keyOf->invoke($bridge, 'access/users/edit/', array('id' => '41', 'q' => 'x'), 'user'),
+			$keyOf->invoke($bridge, 'page/edit/', array('id' => '7', 'c' => '0'), 'page'),
+		);
+		check('history: a field\'s "change type" screen keeps its type; page template, fieldgroup, rename, sendTemplates keep theirs; the editors keep only id', is_array($ctEntry) && $ctEntry['type'] === 'field'
+			&& substr($ctEntry['url'], -strlen('setup/field/changeType?id=1&type=FieldtypeTextarea')) === 'setup/field/changeType?id=1&type=FieldtypeTextarea'
+			&& $otherKeys === array('page/edit/template?id=7&template=3', 'setup/template/fieldgroup?fieldgroup=4&id=2', 'setup/template/rename?id=2&name=x', 'setup/field/sendTemplates?id=1&templates=2%2C3', 'access/users/edit/?id=41', 'page/edit/?id=7'), json_encode(array($ctEntry, $otherKeys)));
 		$hu->meta(AdminThemeBridge::historyMeta, array(
 			'page/edit/?id=7' => array('name' => 'Seven', 'type' => 'page', 'url' => 'page/edit/?id=7', 'visits' => 1, 'last' => 1000),
 			'page/edit/?c=0&id=7' => array('name' => 'Seven (renamed)', 'type' => 'page', 'url' => 'page/edit/?c=0&id=7', 'visits' => 2, 'last' => 3000),
