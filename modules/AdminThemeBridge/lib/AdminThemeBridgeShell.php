@@ -388,7 +388,11 @@ trait AdminThemeBridgeShell {
 	 * The ProcessWire mark, read at runtime from the installed core (the file AdminThemeUikit
 	 * renders), inlined unmodified. Bridge does not ship a copy: MPL 2.0 section 2.3 grants no
 	 * trademark rights, so the mark stays the core's own file (ADR 0012). Falls back to the
-	 * product name as text when a future core moves the file.
+	 * home label as text when a future core moves the file.
+	 *
+	 * The mark is the only content of the logo link, which goes home (the admin, or the site on
+	 * the login screen): it names the link "Home", as a custom logo's alt text does (0.30.1, audit
+	 * U2; the product is never named ProcessWire).
 	 *
 	 * @return string
 	 *
@@ -397,9 +401,11 @@ trait AdminThemeBridgeShell {
 		if($this->nativeLogo !== null) return $this->nativeLogo; // the login screen prints it twice
 		$file = $this->wire()->config->paths->wire . 'modules/AdminTheme/AdminThemeUikit/themes/default/logo.svg';
 		$svg = is_file($file) ? trim((string) file_get_contents($file)) : '';
-		if(strpos($svg, '<svg') !== 0) return $this->nativeLogo = "<span class='pw-logo-text'>ProcessWire</span>";
+		$home = $this->wire()->sanitizer->entities1($this->shellLabel('home'));
+		if(strpos($svg, '<svg') !== 0) return $this->nativeLogo = "<span class='pw-logo-text'>$home</span>";
 		// accessible name only; shape, colour model (currentColor) and markup stay as shipped
-		return $this->nativeLogo = (string) preg_replace('/^<svg\b/', "<svg role='img' aria-label='ProcessWire'", $svg, 1);
+		// (no preg_replace: a translated label could hold `$1` or a backslash)
+		return $this->nativeLogo = "<svg role='img' aria-label='$home'" . substr($svg, 4);
 	}
 
 	/**

@@ -2139,6 +2139,12 @@ if(isset($bridge)) {
 		implode(' | ', $apWarnings));
 	check('appearance() values of the wrong type are validated without a PHP warning (an array variant is blue, an object logo is none)', $apOdd['siteVariant'] === 'blue'
 		&& ($apOdd['renderLogo'] === $bridge->renderNativeLogo() || trim((string) $apStored['logoURLDark']) !== ''), $apOdd['renderLogo']);
+	// 0.30.1 (audit U2): the core's mark names the logo link "Home", as a custom logo's alt does; never "ProcessWire"
+	$nativeLogo = $bridge->renderNativeLogo();
+	$homeLabel = $sanitizer->entities1($bridge->shellLabel('home'));
+	$shellSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
+	check('the native logo is named by the home label, not "ProcessWire"; the text fallback too', strpos($nativeLogo, "<svg role='img' aria-label='$homeLabel' ") === 0
+		&& strpos($nativeLogo, "aria-label='ProcessWire'") === false && strpos($shellSrc, "pw-logo-text'>ProcessWire") === false && strpos($shellSrc, "<span class='pw-logo-text'>\$home</span>") !== false, substr($nativeLogo, 0, 80));
 	check('with no hook every reader is as before the hooks (nothing cached)', $apReadAll() === $apBase);
 	// a user's own colour stays above the site's, whoever sets the site's
 	$apUser = $wire->users->get('name=bridge');
