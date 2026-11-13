@@ -49,8 +49,8 @@ Hookable methods of `AdminThemeBridge`, attached as `AdminThemeBridge::<name>`. 
 | `uninstall` | `AdminThemeBridge.module.php:577` | core's `Module` interface | none found | stable | as `install` |
 | `nonce` | `lib/AdminThemeBridgeCsp.php:38` | README.md Content-Security-Policy; contract.md 2.1, 4.1; extensions.md 7 | BridgeCsp; BridgeCustomizer; tools (csp-check.js); smoke; docs example (contract.md 2.1) | stable |  |
 | `moveFiles` | `lib/AdminThemeBridgeFiles.php:140` | contract.md 4.4 | smoke | stable |  |
-| `moveFileAllowed` | `lib/AdminThemeBridgeFiles.php:308` | contract.md 4.4 | smoke | stable |  |
-| `filesMoved` | `lib/AdminThemeBridgeFiles.php:321` | contract.md 4.4 | none found | stable |  |
+| `moveFileAllowed` | `lib/AdminThemeBridgeFiles.php:319` | contract.md 4.4 | smoke | stable |  |
+| `filesMoved` | `lib/AdminThemeBridgeFiles.php:332` | contract.md 4.4 | none found | stable |  |
 | `historyEntry` | `lib/AdminThemeBridgeHistory.php:228` | contract.md 4.1 | smoke | stable |  |
 | `nativeMap` | `lib/AdminThemeBridgeLegacy.php:316` | README.md For module authors; contract.md 3 | smoke; docs example (contract.md 3) | stable |  |
 | `isNativeProcess` | `lib/AdminThemeBridgeLegacy.php:400` | contract.md 3 | smoke | stable |  |

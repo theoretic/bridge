@@ -203,6 +203,12 @@ extensions they may have (`permission`) and whose `contract` range takes one of 
 `contracts`; in a modal window only `head` and `body`. Slots get no CSS of their own: use the
 `pw-*` classes.
 
+Below 768 px the masthead has little room: an extension's `masthead-right` part is cut with an
+ellipsis at 96 px wide (`max-width: 96px; overflow: hidden; white-space: nowrap`), and it may
+shrink further when the masthead needs the space. Keep it to an icon or a short word. Whatever
+the part draws outside its box (a dropdown under a button, a badge, a focus ring) is cut too:
+open a popup in a `<dialog>` or with `position: fixed`.
+
 A stylesheet an extension prints in the `head` slot (a `<link rel=stylesheet>` or a `<style>`)
 is moved in front of `theme.css` by the theme's style-order code, as a stylesheet a field script
 adds at run time is (the theme's sheets must win over module styles, `docs/contract.md` 4.0): it

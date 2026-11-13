@@ -176,7 +176,7 @@ trait AdminThemeBridgeFiles {
 		$back = $this->moveRules($page, $from);
 		$index = (int) $options['index'];
 		$moved = array();
-		$undo = array(); // what to put back if the target cannot be saved: array(moved file, its index in the source, file swapped in)
+		$undo = array(); // what to put back if the target cannot be saved: array(moved file, its index in the source, file swapped in, file it took out of the target)
 		$replaced = array(); // files a replace takes out of the target: unlinked once the target is saved
 		$fail = function(Pagefile $f, $message) use(&$result) {
 			$result['errors'][] = array('hash' => $f->hash, 'basename' => $f->basename, 'message' => $message);
@@ -237,7 +237,7 @@ trait AdminThemeBridgeFiles {
 			if($wasTemp) $dst->isTemp($new, true);
 			if($rules['image'] && $new instanceof Pageimage) $this->moveFit($new, $rules);
 			$moved[] = $new;
-			$undo[] = array($new, $srcIndex, $back2);
+			$undo[] = array($new, $srcIndex, $back2, $current);
 			$result['moved'][] = array('hash' => $new->hash, 'basename' => $new->basename);
 		}
 		if(count($moved)) {
@@ -250,7 +250,7 @@ trait AdminThemeBridgeFiles {
 				// the source is saved without the files: put them back there, so no file is left
 				// on disk with no field pointing to it (0.30.1, audit B3); the target's stored
 				// value never changed, and a replaced file is still on disk. The error goes on as before.
-				$this->moveUndo($page, $from, $src, $dst, $undo);
+				$this->moveUndo($page, $from, $to, $src, $dst, $undo);
 				throw $e;
 			}
 			if(count($replaced)) {
@@ -270,24 +270,35 @@ trait AdminThemeBridgeFiles {
 	}
 
 	/**
-	 * Undo the source side of a move whose target could not be saved: each moved file goes back
-	 * to the source at its old place, a file swapped in leaves it, and the source is saved again
-	 * (0.30.1). A resize on the way in (moveFit()) stays: the file on disk was already rewritten.
+	 * Undo a move whose target could not be saved: each moved file goes back to the source at its
+	 * old place, a file swapped in leaves it, and the source is saved again (0.30.1). The target in
+	 * the page object gets back the file a replace or swap took out of it and is no longer tracked
+	 * as changed, so it holds what the database holds and a later save of the same page object
+	 * changes nothing (1.0.0, audit A2.1). A resize on the way in (moveFit()) stays: the file on
+	 * disk was already rewritten.
 	 *
 	 * @param Page $page
 	 * @param Field $from
+	 * @param Field $to
 	 * @param Pagefiles $src
 	 * @param Pagefiles $dst
-	 * @param array $undo Each: array(file in the target, its index in the source, file swapped in or null)
+	 * @param array $undo Each: array(file in the target, its index in the source, file swapped in
+	 *   or null, file taken out of the target or null)
 	 *
 	 */
-	protected function moveUndo(Page $page, Field $from, Pagefiles $src, Pagefiles $dst, array $undo) {
+	protected function moveUndo(Page $page, Field $from, Field $to, Pagefiles $src, Pagefiles $dst, array $undo) {
 		foreach(array_reverse($undo) as $item) {
-			list($new, $srcIndex, $back2) = $item;
+			list($new, $srcIndex, $back2, $current) = $item;
 			if($back2) $src->removeQuietly($back2);
 			$dst->removeQuietly($new);
 			$this->moveInsert($src, $this->moveRetype($new, $src), $srcIndex);
+			// a field of one file: what it held was its first
+			if($current) $this->moveInsert($dst, $this->moveRetype($current, $dst), 0);
 		}
+		// the target's stored value never changed: nothing of it is to be saved (Pagefiles'
+		// resetTrackChanges() also untracks the field on the page)
+		$dst->resetTrackChanges();
+		$page->untrackChange($to->name);
 		try {
 			$page->trackChange($from->name);
 			$page->save($from->name);

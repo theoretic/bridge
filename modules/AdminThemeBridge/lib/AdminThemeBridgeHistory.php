@@ -286,6 +286,9 @@ trait AdminThemeBridgeHistory {
 	 * `fieldgroup` `fieldgroup` and `rename` `name`, ProcessPageEdit and ProcessPageType
 	 * `template` `template`), so it keeps its query minus the dropped ones (audit A1.1)
 	 *
+	 * The admin answers an editor's path with and without its trailing slash; the key takes the
+	 * form core links to (historyEditorPath(), 1.0.0, audit A2.2), so both are one entry
+	 *
 	 * @param string $path Relative to the admin
 	 * @param array $query
 	 * @param string $type
@@ -297,6 +300,7 @@ trait AdminThemeBridgeHistory {
 		$drop[] = $this->wire()->session->CSRF->getTokenName();
 		$segments = explode('/', trim((string) $path, '/'));
 		$keep = end($segments) === 'edit' ? $this->historyKeepParams($type) : null;
+		if($keep !== null) $path = $this->historyEditorPath((string) $path, $type);
 		$out = array();
 		foreach($query as $key => $value) {
 			$key = (string) $key;
@@ -306,6 +310,22 @@ trait AdminThemeBridgeHistory {
 		}
 		ksort($out);
 		return count($out) ? $path . '?' . http_build_query($out, '', '&', PHP_QUERY_RFC3986) : $path;
+	}
+
+	/**
+	 * An editor's path in the form core links to: `page/edit/` (ProcessPageEdit) and the editors of
+	 * ProcessPageType (`access/users/edit/`, `access/roles/edit/`, `access/permissions/edit/`) with
+	 * the trailing slash, `setup/template/edit` (ProcessTemplate) and `setup/field/edit`
+	 * (ProcessField) without it (1.0.0, audit A2.2)
+	 *
+	 * @param string $path Relative to the admin, its last segment `edit`
+	 * @param string $type An editor's type (historyKeepParams() gives it a list)
+	 * @return string
+	 *
+	 */
+	protected function historyEditorPath($path, $type) {
+		$path = rtrim($path, '/');
+		return in_array($type, array('page', 'user', 'role', 'permission'), true) ? "$path/" : $path;
 	}
 
 	/**
@@ -335,7 +355,8 @@ trait AdminThemeBridgeHistory {
 	/**
 	 * Stored entries, oldest first, with entries under an older key of the same screen merged:
 	 * the newest name and time, the visits added up (entries recorded before 0.30.1 kept `c` and
-	 * other core parameters in the key). An entry stored with `hookKey` keeps its key: a
+	 * other core parameters in the key; before 1.0.0 an editor's path as requested, with or
+	 * without its trailing slash). An entry stored with `hookKey` keeps its key: a
 	 * historyEntry() hook chose it, and the theme's key rule is not the hook's (audit A1.2)
 	 *
 	 * @param array $entries As stored, oldest first
@@ -354,12 +375,13 @@ trait AdminThemeBridgeHistory {
 				$query = array();
 				parse_str(substr($url, $pos + 1), $query);
 				$rebuilt = $this->historyKey(substr($url, 0, $pos), $query, $type);
-				// a key loses parameters only when it had some it should not keep; else it stays
-				// as stored, byte for byte
+				// a key loses parameters only when it had some it should not keep, and an editor's
+				// path takes core's slash form (audit A2.2); else it stays as stored, byte for byte
 				$kept = array();
 				$rpos = strpos($rebuilt, '?');
 				if($rpos !== false) parse_str(substr($rebuilt, $rpos + 1), $kept);
-				if(count($kept) < count($query)) $newKey = $rebuilt;
+				$rebuiltPath = $rpos === false ? $rebuilt : substr($rebuilt, 0, $rpos);
+				if(count($kept) < count($query) || $rebuiltPath !== substr($url, 0, $pos)) $newKey = $rebuilt;
 			}
 			$entry['url'] = $newKey;
 			if(isset($out[$newKey])) {

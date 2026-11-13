@@ -1068,6 +1068,85 @@ if(isset($bridge) && $bridge) {
 				foreach(glob("$keep/*") as $p) unlink($p);
 				rmdir($keep);
 			}
+			// audit A2.1 (1.0.0): after a move, replace or swap whose target save throws, the page object's
+			// target holds what the database holds, in order, untracked; a later save of the same object
+			// changes nothing (reloaded: all four fields and the files on disk as before)
+			$fieldsOf = function(Page $p) {
+				$s = array();
+				foreach(array('bf_files', 'bf_docs', 'bf_images', 'bf_image') as $n) {
+					$s[$n] = array();
+					foreach($p->getUnformatted($n) as $f) $s[$n][] = $f->basename . '|' . $f->description . '|' . $f->tags;
+				}
+				return $s;
+			};
+			$diskOf = function($dir) {
+				$s = array();
+				foreach(glob($dir . '*') as $p) if(is_file($p)) $s[basename($p)] = md5_file($p);
+				ksort($s);
+				return $s;
+			};
+			$pages->uncache($np);
+			$np = $pages->get($np->id);
+			$np->of(false);
+			$dir = $np->filesManager()->path();
+			$a21 = array(
+				'move' => array('bf_files', 'bf_docs', $np->bf_files->first(), array()),
+				'replace' => array('bf_images', 'bf_image', $np->bf_images->first(), 'replace'),
+				'swap' => array('bf_images', 'bf_image', $np->bf_images->first(), 'swap'),
+			);
+			foreach($a21 as $how => $case) {
+				list($fromName, $toName, $file, $resolve) = $case;
+				$pages->uncache($np);
+				$np = $pages->get($np->id);
+				$np->of(false);
+				$before = $fieldsOf($np);
+				$diskBefore = $diskOf($dir);
+				$basename = $file ? $file->basename : '';
+				$saveThrow = $wire->addHookBefore('Pages::saveFieldReady', function(HookEvent $e) use($toName) {
+					if($e->arguments(1)->name === $toName) throw new WireException('smoke: target save failed');
+				});
+				$threw = '';
+				try {
+					$bridge->moveFiles($np, $fg->getFieldContext($fromName), $fg->getFieldContext($toName), array($basename),
+						$resolve ? array('resolve' => array($basename => $resolve)) : array());
+				} catch(\Throwable $e) {
+					$threw = $e->getMessage();
+				}
+				$wire->removeHook($saveThrow);
+				$inMemory = $fieldsOf($np);
+				$tracked = $np->isChanged($toName);
+				$saved = '';
+				try {
+					// (the memory cache kept: a full uncacheAll() here made a later sort by name in this run
+					// ask for a `pages.name<default language id>` column, which does not exist)
+					$np->save(array('uncacheAll' => false));
+				} catch(\Throwable $e) {
+					$saved = $e->getMessage();
+				}
+				$pages->uncache($np);
+				$np = $pages->get($np->id);
+				$np->of(false);
+				$after = $fieldsOf($np);
+				$diskAfter = $diskOf($dir);
+				check("A2.1 a $how whose target save throws leaves the page object's $toName as stored, untracked; a later save changes nothing",
+					$threw === 'smoke: target save failed' && $inMemory[$toName] === $before[$toName] && $inMemory[$fromName] === $before[$fromName]
+					&& !$tracked && $saved === '' && $after === $before && $diskAfter === $diskBefore,
+					json_encode(array($threw, $tracked, $saved, $before[$toName], $inMemory[$toName], $after[$toName], array_keys(array_diff_assoc($diskBefore, $diskAfter)))));
+				// a failed line must not leave the fixture short of a file: a target saved empty is filled
+				// again from the file still on disk (moved aside first, so it keeps its name)
+				foreach($before[$toName] as $row) {
+					list($bn, $desc) = explode('|', $row);
+					if($np->getUnformatted($toName)->getFile($bn) || $np->getUnformatted($fromName)->getFile($bn) || !is_file($dir . $bn)) continue;
+					$asideDir = sys_get_temp_dir() . '/bridge-a21-' . getmypid();
+					if(!is_dir($asideDir) && !@mkdir($asideDir)) continue;
+					rename($dir . $bn, "$asideDir/$bn");
+					$np->getUnformatted($toName)->add("$asideDir/$bn");
+					$np->getUnformatted($toName)->last()->description = $desc;
+					$np->save($toName);
+					@unlink("$asideDir/$bn");
+					@rmdir($asideDir);
+				}
+			}
 			$wire->removeHook($deleteSeen);
 		} else {
 			check('the fixture page has a file in bf_image (tools/sandbox-fixture.php)', false);
@@ -1638,6 +1717,46 @@ if(isset($bridge) && $bridge) {
 		check('history: a typed key a historyEntry hook chose (template ?id=N&version=2) survives the merge on read, apart from the plain ?id=N row, and the drawer marks it', substr($hookedKey, -strlen("edit?id=$tpl->id&version=2")) === "edit?id=$tpl->id&version=2"
 			&& count($hookedEntries) === 2 && isset($hookedEntries[$hookedKey]) && $hookedEntries[$hookedKey]['visits'] === 1 && $hookedEntries[$hookedKey]['url'] === $hookedKey
 			&& substr_count($hookedTable, "aria-current='page'") === 1 && strpos($hookedTable, "version=2' aria-current='page'") !== false, json_encode(array($hookedKey, $hookedEntries)));
+		// audit A2.2 (1.0.0): an editor's path with and without its trailing slash is one key, in the form
+		// core links to (Page/User::editUrl() and ProcessPageType `edit/?id=`, Template/Field::editUrl()
+		// `edit?id=`); entries stored in the other form merge on read; a hook's key stays as stored
+		$slashKeys = array();
+		foreach(array(
+			array('page/edit', 'page'), array('setup/template/edit', 'template'), array('setup/field/edit', 'field'),
+			array('access/users/edit', 'user'), array('access/roles/edit', 'role'), array('access/permissions/edit', 'permission'),
+			array('setup/languages/edit', 'screen'),
+		) as $sk) {
+			$slashKeys[$sk[1]] = array($keyOf->invoke($bridge, $sk[0], array('id' => '9'), $sk[1]), $keyOf->invoke($bridge, $sk[0] . '/', array('id' => '9', 'c' => '1'), $sk[1]));
+		}
+		$bridge->historyClear();
+		$adminPath = (string) $config->urls->admin;
+		foreach(array('setup/field/edit/?id=1', 'setup/field/edit?id=1') as $uri) {
+			$_SERVER['REQUEST_URI'] = $adminPath . $uri;
+			$visit($fieldPage, array('id' => 1), 'Edit Field: title', 'edit');
+			$bridge->historyRecord($proc('ProcessField'));
+		}
+		unset($_SERVER['REQUEST_URI']);
+		$slashRecorded = $bridge->historyEntries();
+		$hu->meta(AdminThemeBridge::historyMeta, array(
+			'setup/field/edit/?id=1' => array('name' => 'Title old', 'type' => 'field', 'url' => 'setup/field/edit/?id=1', 'visits' => 2, 'last' => 1000),
+			'access/users/edit?id=41' => array('name' => 'User', 'type' => 'user', 'url' => 'access/users/edit?id=41', 'visits' => 1, 'last' => 1500),
+			'setup/field/edit?id=1' => array('name' => 'Title', 'type' => 'field', 'url' => 'setup/field/edit?id=1', 'visits' => 1, 'last' => 2000),
+			'page/edit?id=7&version=2' => array('name' => 'Hooked', 'type' => 'page', 'url' => 'page/edit?id=7&version=2', 'visits' => 1, 'last' => 2500, 'hookKey' => true),
+		));
+		$slashMerged = $bridge->historyEntries();
+		check('A2.2 history: an editor\'s two slash forms are one key, in core\'s form (page, users, roles, permissions edit/; template, field edit); stored ones merge; a hook\'s key stays',
+			$slashKeys === array(
+				'page' => array('page/edit/?id=9', 'page/edit/?id=9'), 'template' => array('setup/template/edit?id=9', 'setup/template/edit?id=9'),
+				'field' => array('setup/field/edit?id=9', 'setup/field/edit?id=9'), 'user' => array('access/users/edit/?id=9', 'access/users/edit/?id=9'),
+				'role' => array('access/roles/edit/?id=9', 'access/roles/edit/?id=9'), 'permission' => array('access/permissions/edit/?id=9', 'access/permissions/edit/?id=9'),
+				'screen' => array('setup/languages/edit?id=9', 'setup/languages/edit/?id=9'),
+			)
+			&& array_keys($slashRecorded) === array('setup/field/edit?id=1') && $slashRecorded['setup/field/edit?id=1']['visits'] === 2
+			&& array_keys($slashMerged) === array('page/edit?id=7&version=2', 'setup/field/edit?id=1', 'access/users/edit/?id=41')
+			&& $slashMerged['setup/field/edit?id=1']['visits'] === 3 && $slashMerged['setup/field/edit?id=1']['name'] === 'Title'
+			&& !empty($slashMerged['page/edit?id=7&version=2']['hookKey']) && $slashMerged['access/users/edit/?id=41']['url'] === 'access/users/edit/?id=41',
+			json_encode(array($slashKeys, $slashRecorded, $slashMerged)));
+		$bridge->historyClear();
 		// 0.26.0: request-only parameters leave the key; the drawer marks the key historyEntry() returns
 		$bridge->historyClear();
 		$visit($modPage, array('reset' => 2), 'Modules');
@@ -2539,6 +2658,14 @@ check('slots in the masthead: masthead-right before the display controls, masthe
 check('slots in the content head, the footer and the user menu', strpos($tplSrc['_content.php'], "<div id='pw-content-head-buttons'><?php echo \$adminTheme->renderAddNewButton() . \$adminTheme->renderSlot('content-head-buttons'); ?></div>") !== false
 	&& strpos($tplSrc['_footer.php'], "</p>\n\t\t<?php\n\t\techo \$adminTheme->renderSlot('footer');") !== false
 	&& strpos($tplSrc['lib/AdminThemeBridgeShell.php'], "\$out\" . \$this->renderSlot('user-nav') . \$this->renderColorPicker()") !== false);
+// audit A1.3 (1.0.0): section 4 tells extension authors what the phone rule does to a masthead-right part
+$slotDoc = (string) @file_get_contents(dirname(__DIR__) . '/docs/extensions.md');
+$slotDoc4 = preg_match('/\n## 4\. Slots\n(.*?)\n## 5\. /s', $slotDoc, $slotM) ? $slotM[1] : '';
+check('A1.3 docs/extensions.md 4: below 768 px a masthead-right part is cut with an ellipsis at 96 px; keep it to an icon or a short word; the rule says so',
+	strpos($slotDoc4, "Below 768 px the masthead has little room: an extension's `masthead-right` part is cut with an\nellipsis at 96 px wide") !== false
+	&& strpos($slotDoc4, 'shrink further when the masthead needs the space. Keep it to an icon or a short word.') !== false
+	&& strpos($slotDoc4, 'open a popup in a `<dialog>` or with `position: fixed`.') !== false
+	&& (bool) preg_match('/@media \(max-width: 767px\) \{[^@]*\.pw-masthead-right > \[data-bridge-slot\] \{ min-width: 0; max-width: 96px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; \}/', (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/styles/90-responsive.css')));
 if(isset($bridge) && $bridge) {
 	$slotNames = array_keys($bridge->slotTags());
 	check('the surface lists the slots', $bridge->extensionSurface()['slots'] === $slotNames && count($slotNames) === 8);
