@@ -145,6 +145,10 @@ theme from an older one, so an extension that needs them also declares
 `'requires' => 'AdminThemeBridge>=0.30.0'`; the compatibility checker reports a hook, read,
 setting or token that an older surface lacks.
 
+What of this surface 1.x keeps, what it does not cover, and how an entry is added or deprecated:
+[ADR 0024](decisions/0024-the-1-0-compatibility-promise.md), with every entry's status in
+[docs/surface-1.0.md](surface-1.0.md).
+
 ## 4. Slots
 
 A slot is a named place in the shell that extensions fill through their manifest's `slots`:

@@ -2996,6 +2996,26 @@ check('CHANGELOG\'s first heading is 0.30.1, the module version', isset($bridge)
 check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
 	&& is_file(dirname(__DIR__) . '/docs/decisions/0021-extensions-are-modules-on-a-published-surface.md'));
+// 1.0 readiness, step 2: ADR 0024, the 1.0 compatibility promise, six decisions, linked from both contract docs
+$adr24Link = 'decisions/0024-the-1-0-compatibility-promise.md';
+$adr24 = (string) @file_get_contents(dirname(__DIR__) . '/docs/' . $adr24Link);
+$adr24Decision = preg_match('/\n## Decision\n(.*?)\n## /s', $adr24, $m24) ? $m24[1] : '';
+$adr24Missing = array();
+foreach(array(
+	'1. **What 1.x keeps.**', '`docs/surface-1.0.md` marks `stable`', 'component contract, version 1', 'JSON/AJAX contracts', '`getModuleInfo()`',
+	'2. **What 1.x does not cover.**', "classic scripts' internals and file names", 'not on `tokens`', 'shadow DOM', 'visual design', 'the `tools/` and `tests/` scripts', 'a doc calls internal',
+	'3. **Thin methods (audit A1).**', 'same name, arguments and return', '`AdminThemeBridge::<name>` hooks keep firing',
+	'4. **Coupling to core (audit A3).**', 'conformance suite', 'current upstream dev core', 'stated in the README',
+	'5. **Deprecation.**', 'only in a major release', 'at least one', '`bridge-extensions` log', 'names it with what to use instead',
+	'6. **Additions.**', 'may be added in a minor', "`'requires' => 'AdminThemeBridge>=<version>'`",
+) as $needle) {
+	if(strpos($adr24Decision, $needle) === false) $adr24Missing[] = $needle;
+}
+$adr24Sec3 = preg_match('/\n## 3\. The surface\n(.*?)\n## /s', $devDoc, $m24s) ? $m24s[1] : '';
+$adr24Intro = (string) strstr($contractDoc, "\n## 1. ", true);
+check("ADR 0024 states the six decisions of the 1.0 promise; docs/extensions.md 3 and docs/contract.md's intro link it", $adr24Decision !== '' && !count($adr24Missing)
+	&& strpos($adr24Sec3, '](' . $adr24Link . ')') !== false && strpos($adr24Sec3, '](surface-1.0.md)') !== false && strpos($adr24Intro, '](' . $adr24Link . ')') !== false,
+	'missing: ' . implode(' | ', $adr24Missing));
 // 0.27.1: content of draggable rows centred vertically (template field list, repeater item header)
 if(isset($bridge) && $bridge) {
 	$themeCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');

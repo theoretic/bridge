@@ -4,6 +4,9 @@ What a module must do to run on the Bridge admin shell without the legacy jQuery
 what the shell promises to every module, legacy or not. Milestone 1.4, 2026-10-14. The contract
 version is reported as `window.Bridge.contract` and expected in `getBridgeComponent()['version']`.
 
+What of this contract 1.x keeps and what it does not cover is
+[ADR 0024](decisions/0024-the-1-0-compatibility-promise.md), the 1.0 compatibility promise.
+
 ## 1. Invariants the shell keeps (for every module)
 
 Upstream markup, ids, classes and endpoints are kept byte-compatible (ADR 0003):
