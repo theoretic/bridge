@@ -2280,11 +2280,14 @@ if(isset($bridge)) {
 		$extStyles = $bridge->extensionStyles();
 		$wire->users->setCurrentUser($guest);
 		// BridgeSample is the bundled styles fixture (0.29.0): its one stylesheet, with its module version
-		check('extensionStyles() lists the stylesheets of a signed-in user\'s extensions', $extStyles === array(array('extension' => 'BridgeSample', 'url' => $config->urls->siteModules . 'BridgeSample/BridgeSample.css?v=0.1.0')), json_encode($extStyles));
+		// a subset (audit-fixes step 1): a third-party extension installed in the sandbox adds its own entries
+		check('extensionStyles() lists the stylesheets of a signed-in user\'s extensions', in_array(array('extension' => 'BridgeSample', 'url' => $config->urls->siteModules . 'BridgeSample/BridgeSample.css?v=0.1.0'), $extStyles, true), json_encode($extStyles));
 		// the four bundled extensions (step 6): BridgeCsp and BridgeAdminAccessControl by the 'bridge' info key, ProcessBridgeDemo and BridgeSample by the interface; ties by class name
 		$extByName = array_column($extList, null, 'name');
-		check('the sandbox lists the four bundled extensions, compatible, with their module URLs', array_column($extList, 'name') === array('BridgeAdminAccessControl', 'BridgeCsp', 'BridgeSample', 'ProcessBridgeDemo')
-			&& count(array_filter(array_column($extList, 'compatible'))) === 4
+		// a subset, in order (audit-fixes step 1): a third-party extension installed in the sandbox may sit between them
+		$extBundled = array('BridgeAdminAccessControl', 'BridgeCsp', 'BridgeSample', 'ProcessBridgeDemo');
+		check('the sandbox lists the four bundled extensions, compatible, with their module URLs', array_values(array_intersect(array_column($extList, 'name'), $extBundled)) === $extBundled
+			&& count(array_filter(array_map(function($n) use($extByName) { return !empty($extByName[$n]['compatible']); }, $extBundled))) === 4
 			&& $extByName['BridgeCsp']['module'] === ''
 			&& $extByName['BridgeSample']['module'] === $config->urls->siteModules . 'BridgeSample/BridgeSample.mjs?v=0.1.0'
 			&& $extByName['ProcessBridgeDemo']['module'] === $config->urls->siteModules . 'BridgeDemo/ProcessBridgeDemo.mjs?v=' . $modules->getModuleInfoProperty('ProcessBridgeDemo', 'version'), json_encode($extList));
@@ -2489,11 +2492,12 @@ if(isset($bridge) && $bridge && $wire->modules->isInstalled('BridgeSample')) {
 	$tags = $bridge->slotTags();
 	foreach(array('masthead-right', 'user-nav', 'content-head-buttons', 'footer', 'body') as $s) {
 		$part = $bridge->renderSlot($s);
-		check("BridgeSample fills the $s slot", $part === "<{$tags[$s]} data-bridge-slot='$s' data-bridge-extension='BridgeSample'><pw-bridgesample data-slot='$s'>BridgeSample</pw-bridgesample></{$tags[$s]}>", $part);
+		// BridgeSample's part, whatever another installed extension adds beside it (audit-fixes step 1)
+		check("BridgeSample fills the $s slot", strpos($part, "<{$tags[$s]} data-bridge-slot='$s' data-bridge-extension='BridgeSample'><pw-bridgesample data-slot='$s'>BridgeSample</pw-bridgesample></{$tags[$s]}>") !== false, $part);
 	}
-	check('BridgeSample has a drawer, and no head or masthead part', array_keys($bridge->extensionDrawers()) === array('ext-bridgesample')
+	check('BridgeSample has a drawer, and no head or masthead part', in_array('ext-bridgesample', array_keys($bridge->extensionDrawers()), true)
 		&& strpos($bridge->renderDrawers(), "<div class='pw-drawer-body'><pw-bridgesample data-slot='drawer'>") !== false
-		&& $bridge->renderSlot('head') === '' && $bridge->renderSlot('masthead') === '');
+		&& strpos($bridge->renderSlot('head'), 'BridgeSample') === false && strpos($bridge->renderSlot('masthead'), 'BridgeSample') === false);
 	$loggedIn->setValue($bridge, $loggedInWas);
 	$wire->users->setCurrentUser($guest);
 	$smList->setValue($bridge, null);
@@ -2565,9 +2569,12 @@ $runCompat = function(array $args) use($extCompat) {
 	fclose($pipes[2]);
 	return array(proc_close($proc), $out);
 };
-list($ccCode, $ccOut) = $runCompat(array());
+// the repo's own modules/ by path (audit-fixes step 1): the default scan also reads sandbox/*/app/modules,
+// where a third-party extension may be installed
+$ccRepoModules = dirname(__DIR__) . '/modules';
+list($ccCode, $ccOut) = $runCompat(array($ccRepoModules));
 $ccOk = function($out, $name) { return (bool) preg_match('/^' . $name . ' .* ok\s*$/m', $out); };
-check('extension-compat.php on this checkout: the four bundled extensions, 0 incompatible, exit 0', $ccCode === 0 && strpos($ccOut, "\n4 extensions, 0 incompatible") !== false
+check('extension-compat.php on this checkout\'s modules/: the four bundled extensions, 0 incompatible, exit 0', $ccCode === 0 && strpos($ccOut, "\n4 extensions, 0 incompatible") !== false
 	&& $ccOk($ccOut, 'BridgeAdminAccessControl') && $ccOk($ccOut, 'BridgeCsp') && $ccOk($ccOut, 'ProcessBridgeDemo') && $ccOk($ccOut, 'BridgeSample'), "exit $ccCode: " . trim($ccOut));
 $ccTmp = sys_get_temp_dir() . '/bridge-compat-' . getmypid();
 @mkdir("$ccTmp/old", 0777, true);
@@ -2579,7 +2586,7 @@ if(is_array($surfaceJson)) {
 	$edited['contracts'] = array('1.0');
 	$edited['slots'] = array_values(array_diff($edited['slots'], array('footer')));
 	file_put_contents("$ccTmp/surface.json", json_encode($edited));
-	list($ccCode, $ccOut) = $runCompat(array("--surface=$ccTmp/surface.json"));
+	list($ccCode, $ccOut) = $runCompat(array("--surface=$ccTmp/surface.json", $ccRepoModules));
 	check('extension-compat.php against contract 1.0 without footer: all four incompatible, BridgeSample also on its slot, exit 4', $ccCode === 4
 		&& substr_count($ccOut, 'INCOMPATIBLE  contract ^0.1 takes none of 1.0') === 3 && (bool) preg_match('/^BridgeSample .*INCOMPATIBLE  contract \^0\.2 takes none of 1\.0; .*slots footer not on the target surface$/m', $ccOut), "exit $ccCode: " . trim($ccOut));
 }
