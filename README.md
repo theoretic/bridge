@@ -4,8 +4,8 @@ A [ProcessWire](https://processwire.com) admin built from native web components 
 every existing Inputfield and Process module.
 
 The name says what it is: a bridge between the jQuery-era admin and the modern web stack.
-"Bridge" is a working name. Status: beta, AdminThemeBridge 0.30.1; the component contract is
-version 1 and may still change before 1.0, the extension contract is 1.0.
+"Bridge" is a working name. Status: AdminThemeBridge 0.30.1; the component contract is
+version 1, the extension contract is 1.0.
 
 ## What it is
 
@@ -106,6 +106,14 @@ with no difference caused by the theme
 the other four having admin screens that fail the same way under Uikit on those copies.
 Behaviour checks run in Chromium and Firefox, keyboard and screen reader checks among them.
 Pro modules (ProFields, FormBuilder, ListerPro) have not been tested.
+
+From 1.0 the theme follows semantic versioning: what
+[ADR 0024](docs/decisions/0024-the-1-0-compatibility-promise.md) promises breaks only in a major
+release. The public surface is listed entry by entry in
+[docs/surface-1.0.md](docs/surface-1.0.md); the component contract stays version 1 and the
+extension contract 1.0, with extensions written for 0.1 and 0.2 still honoured. Supported core:
+3.0.227 and later, on PHP 8.1 and later (the theme's `requires`); a release is made only after
+the conformance suite ran against the current upstream dev core.
 
 ## Install
 

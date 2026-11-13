@@ -4,8 +4,10 @@ What a module must do to run on the Bridge admin shell without the legacy jQuery
 what the shell promises to every module, legacy or not. Milestone 1.4, 2026-10-14. The contract
 version is reported as `window.Bridge.contract` and expected in `getBridgeComponent()['version']`.
 
-What of this contract 1.x keeps and what it does not cover is
-[ADR 0024](decisions/0024-the-1-0-compatibility-promise.md), the 1.0 compatibility promise.
+Version 1 is frozen for all of 1.x: its documented parts change only in 2.0, and what a 1.x
+minor adds comes beside them. What 1.x keeps and what it does not cover is
+[ADR 0024](decisions/0024-the-1-0-compatibility-promise.md), the 1.0 compatibility promise;
+section 7 lists what is not part of version 1.
 
 ## 1. Invariants the shell keeps (for every module)
 
@@ -477,12 +479,12 @@ For a Process: implement `BridgeComponent` too; its `module` is imported once pe
 
 Verified 2026-10-14 on the atispro sandbox under Bridge in `auto` mode.
 
-## 7. Not covered yet
+## 7. Not part of version 1
 
-Covered since this section was first written: WireTabs on native pages (`scripts/wire-tabs.js`, 4.4); the `pw-modal` options `data-buttons`, `data-autoclose`, `data-close` (4.2, `<pw-dialog>`); `Inputfields.reload()` and the `#find-`, `#focus-`, `#highlight-` hash actions (4.2). Still open (audit 2026-10-20, findings B10 and B12):
+Covered since this section was first written: WireTabs on native pages (`scripts/wire-tabs.js`, 4.4); the `pw-modal` options `data-buttons`, `data-autoclose`, `data-close` (4.2, `<pw-dialog>`); `Inputfields.reload()` and the `#find-`, `#focus-`, `#highlight-` hash actions (4.2). Not part of version 1 (audit 2026-10-20, findings B10 and B12), each marked "may be added in 1.x" (then as an addition in a minor, ADR 0024 decision 6) or "will not be added":
 
-- Header actions: `Inputfields.addHeaderAction()` and its `InputfieldHeaderAction` markup are not in the facade. A click inside one does not collapse its field (collapse.ts), but nothing builds them on a native page.
-- The rest of upstream's `Inputfields` API that the facade lacks: `init`, `show`, `hide`, `toggleAll`, `startSpinner`, `stopSpinner`, `columnWidth`, `insertBefore` and `insertAfter`, `header`, `content`, `icon`. `toggle(target, open)` ignores `open`.
-- The `InputfieldFormNoWidths` mode (column widths off for a whole form).
-- `ProcessLister.results` and `.filters` are DOM elements, where upstream has jQuery objects.
-- A `<pw-field>` element was dropped (PLAN.md, milestone 1.3 findings): `li.Inputfield` is the contract.
+- Header actions: `Inputfields.addHeaderAction()` and its `InputfieldHeaderAction` markup are not in the facade. A click inside one does not collapse its field (collapse.ts), but nothing builds them on a native page. **Undecided.**
+- The rest of upstream's `Inputfields` API that the facade lacks: `init`, `show`, `hide`, `toggleAll`, `startSpinner`, `stopSpinner`, `columnWidth`, `insertBefore` and `insertAfter`, `header`, `content`, `icon`. `toggle(target, open)` ignores `open`. **Undecided.**
+- The `InputfieldFormNoWidths` mode (column widths off for a whole form). **Undecided.**
+- `ProcessLister.results` and `.filters` are DOM elements, where upstream has jQuery objects. **Undecided.**
+- A `<pw-field>` element was dropped (PLAN.md, milestone 1.3 findings): `li.Inputfield` is the contract. **Will not be added.**
