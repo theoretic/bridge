@@ -226,8 +226,9 @@ trait AdminThemeBridgeFiles {
 					if($back['image'] && $back2 instanceof Pageimage) $this->moveFit($back2, $back);
 					$result['swapped'][] = array('hash' => $back2->hash, 'basename' => $back2->basename);
 				} else {
-					// not delete(): its unlink is queued for the page's next files save, which the source's
-					// save runs first, so a failing target save would leave its stored file gone (audit B1.1)
+					// delete() only once the target is saved: its unlink is queued for the page's next files
+					// save, which the source's save runs first, so a failing target save would leave its stored
+					// file gone (audit B1.1)
 					$dst->removeQuietly($current);
 					$replaced[] = $current;
 				}
@@ -252,8 +253,15 @@ trait AdminThemeBridgeFiles {
 				$this->moveUndo($page, $from, $src, $dst, $undo);
 				throw $e;
 			}
-			// the target is saved without them: the replaced files (and an image's variations) go now
-			foreach($replaced as $gone) $gone->unlink();
+			if(count($replaced)) {
+				// the target is saved without them: the replaced files go through core's hookable delete()
+				// (no longer in the array, so it only queues the unlink) and core unlinks them, an image's
+				// variations too, on a files save while the field counts as changed (Pagefiles::hookPageSave())
+				foreach($replaced as $gone) $dst->delete($gone);
+				$page->trackChange($to->name);
+				$page->filesManager()->save();
+				$page->untrackChange($to->name);
+			}
 			$this->filesMoved($page, $from, $to, $moved);
 		}
 		$result['ok'] = count($moved) > 0;

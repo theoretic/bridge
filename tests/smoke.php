@@ -1007,6 +1007,11 @@ if(isset($bridge) && $bridge) {
 			$saveThrow = $wire->addHookBefore('Pages::saveFieldReady', function(HookEvent $e) {
 				if($e->arguments(1)->name === 'bf_image') throw new WireException('smoke: target save failed');
 			});
+			$deleted = array(); // what core's hookable Pagefiles::delete() is given
+			$deleteSeen = $wire->addHookBefore('Pagefiles::delete', function(HookEvent $e) use(&$deleted) {
+				$item = $e->arguments(0);
+				$deleted[] = is_object($item) ? $item->basename : (string) $item;
+			});
 			$threw = '';
 			try {
 				$bridge->moveFiles($np, $fg->getFieldContext('bf_images'), $fg->getFieldContext('bf_image'), array($img->basename), array('resolve' => array($img->basename => 'replace')));
@@ -1021,8 +1026,48 @@ if(isset($bridge) && $bridge) {
 			check('B1.1 a replace whose target save throws keeps the replaced file on disk and both fields as they were',
 				$threw === 'smoke: target save failed' && $still && $still->basename === $old->basename && is_file($still->filename)
 				&& $np->bf_images->implode(',', 'basename') === $imagesBefore && $np->bf_image->implode(',', 'basename') === $imageBefore
-				&& is_file($np->bf_images->first()->filename),
-				json_encode(array($threw, $imageBefore, $still ? $still->basename . (is_file($still->filename) ? '' : ' (missing on disk)') : '', $imagesBefore, $np->bf_images->implode(',', 'basename'))));
+				&& is_file($np->bf_images->first()->filename) && !count($deleted),
+				json_encode(array($threw, $imageBefore, $still ? $still->basename . (is_file($still->filename) ? '' : ' (missing on disk)') : '', $imagesBefore, $np->bf_images->implode(',', 'basename'), $deleted)));
+			// B1.1, the replace that succeeds: the old file goes through Pagefiles::delete() once and core
+			// unlinks it and its variations. The fixture is put back after: a copy of the old file is re-added.
+			$dir = $np->filesManager()->path();
+			$oldName = $still ? $still->basename : '';
+			$keep = sys_get_temp_dir() . '/bridge-replace-' . getmypid();
+			$kept = array();
+			// (only while the old file is on disk: without it there is nothing to put back)
+			if($oldName && is_file($dir . $oldName) && @mkdir($keep)) {
+				foreach(glob($dir . pathinfo($oldName, PATHINFO_FILENAME) . '.*') as $p) { copy($p, "$keep/" . basename($p)); $kept[] = basename($p); }
+				$newName = 'smoke-replace-' . getmypid() . '.' . pathinfo($img->basename, PATHINFO_EXTENSION);
+				copy($np->bf_images->first()->filename, "$keep/$newName");
+				$np->bf_images->add("$keep/$newName");
+				$np->save('bf_images');
+				$deleted = array();
+				$r = array('ok' => false);
+				try {
+					$r = $bridge->moveFiles($np, $fg->getFieldContext('bf_images'), $fg->getFieldContext('bf_image'), array($newName), array('resolve' => array($newName => 'replace')));
+				} catch(\Throwable $e) {
+					$r['error'] = $e->getMessage();
+				}
+				$pages->uncache($np);
+				$np = $pages->get($np->id);
+				$np->of(false);
+				$left = array();
+				foreach($kept as $k) if(is_file($dir . $k)) $left[] = $k;
+				check('B1.1 a replace that succeeds puts the old file through Pagefiles::delete() once; it and its variations leave the disk',
+					$r['ok'] && $deleted === array($oldName) && !count($left) && $np->bf_image->implode(',', 'basename') === $newName && $np->bf_images->implode(',', 'basename') === $imagesBefore,
+					json_encode(array($r, $deleted, $left, $np->bf_image->implode(',', 'basename'))));
+				// put the fixture back: the new file out, the old one (a copy, and its variations) in
+				if($np->bf_image->getFile($newName)) { $np->bf_image->delete($newName); $np->save('bf_image'); }
+				if($np->bf_images->getFile($newName)) { $np->bf_images->delete($newName); $np->save('bf_images'); }
+				$pages->uncache($np);
+				$np = $pages->get($np->id);
+				$np->of(false);
+				if(!$np->bf_image->getFile($oldName)) { $np->bf_image->add("$keep/$oldName"); $np->save('bf_image'); }
+				foreach($kept as $k) { if(!is_file($dir . $k)) copy("$keep/$k", $dir . $k); }
+				foreach(glob("$keep/*") as $p) unlink($p);
+				rmdir($keep);
+			}
+			$wire->removeHook($deleteSeen);
 		} else {
 			check('the fixture page has a file in bf_image (tools/sandbox-fixture.php)', false);
 		}
