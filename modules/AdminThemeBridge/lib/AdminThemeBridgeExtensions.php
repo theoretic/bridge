@@ -438,7 +438,7 @@ trait AdminThemeBridgeExtensions {
 				'--pw-status-warning-border', '--pw-status-warning-fg', '--pw-status-warning-icon', '--pw-status-error-bg',
 				'--pw-status-error-border', '--pw-status-error-fg', '--pw-status-error-icon', '--pw-success-bg', '--pw-warning-bg',
 				'--pw-danger-bg', '--pw-label-size', '--pw-control-height', '--pw-login-bg', '--pw-range-fill',
-				'--pw-branch-max',
+				'--pw-branch-max', '--pw-item-bg',
 			),
 			'events' => array(
 				'pw-runtime-ready', 'pw-legacy-loaded', 'pw-legacy-handover', 'pw-uikit-loaded', 'pw-component-loaded',

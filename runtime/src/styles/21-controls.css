@@ -98,7 +98,7 @@
 
 /* chips: asmSelect, selectize, page tags */
 .asmList .asmListItem, .asmList .asmListItem.ui-state-default, .selectize-input .item, .InputfieldTextTags .selectize-input .item {
-	background: var(--secondary);
+	background: var(--pw-item-bg);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
 	color: var(--secondary-foreground);

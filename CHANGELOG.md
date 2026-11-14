@@ -1,5 +1,14 @@
 # Changelog
 
+## AdminThemeBridge 1.1.0: list item background token (2026-11-14)
+
+Owner's request: make the background of list items settable from Bridge Customizer (page reference rows, repeater items), apart from the other muted surfaces. A minor release: one token added to the surface (ADR 0024, decision 6).
+
+- **Token `--pw-item-bg`**, declared with the derived tokens as `var(--secondary)`, so every scheme and variant looks as before. It is now the background of the selected rows of a page reference field (PageAutocomplete), asmSelect items, tag chips (selectize, InputfieldTextTags) and repeater item headers, which used `--secondary` or `--muted` directly. An extension sets it through `tokenOverrides()` without changing tabs, table hovers and the other surfaces those two colour.
+- **Surface**: tokens 78 → 79 (`docs/extensions.md` 3, `docs/contract.md` 4.0, `docs/surface-1.0.md`). Extension contract stays 1.0; an extension that sets the token declares `requires AdminThemeBridge>=1.1.0`.
+- Budgets unchanged: theme.css 17717 of 18432 B gzip, fields.css 5925 of 6144 B.
+- Checks: a smoke line for the token (on the surface, declared as `var(--secondary)`, the background of the four kinds of items in the built CSS); the token-count pins moved to 79.
+
 ## AdminThemeBridge 1.0.0: the 1.0 compatibility promise, extension contract 1.0, out of beta (2026-11-13)
 
 Owner's brief: this version of AdminThemeBridge deserves 1.0.0; first a short "1.0 readiness" sprint that lists the public surface, decides what 1.x keeps, freezes the extension contract as 1.0, drops the beta label and fixes the nits a 1.0 would otherwise freeze. The owner ruled on every open question and on each surface entry that was not plainly stable (all as recommended). Bundled modules keep their own versions (Bridge CSP 0.1.4, BridgeAdminAccessControl 0.1.1, BridgeDemo 0.3.0, BridgeSample 0.1.0): 1.0.0 is the theme's.

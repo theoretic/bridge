@@ -177,6 +177,8 @@
 	--pw-danger-bg: var(--pw-status-error-bg);
 	/* the login page (40-login.css, 0.30.0) */
 	--pw-login-bg: var(--muted);
+	/* list items: page list rows, asmSelect and tag chips, repeater item headers (1.1.0) */
+	--pw-item-bg: var(--secondary);
 	--pw-shadow-card: var(--shadow-sm);
 	--pw-shadow-dropdown: var(--shadow-md);
 }

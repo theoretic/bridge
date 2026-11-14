@@ -33,7 +33,7 @@ How to read the columns:
 | reads | 18 | 18 |
 | settings | 22 | 22 |
 | slots | 8 | 8 |
-| tokens | 78 | 78 |
+| tokens | 79 | 79 |
 | events | 28 | 28 |
 | runtime | 12 | 12 |
 
@@ -220,6 +220,7 @@ CSS custom properties an extension's stylesheets may read or set (`tokens` in it
 | `--pw-login-bg` | `runtime/src/styles/00-tokens.css:179` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
 | `--pw-range-fill` | `runtime/src/styles/00-tokens.css:73` | contract.md 4.1 (`setupRangeFill()`); extensions.md 3 | none found | stable | added for 1.0 (ruled 2026-11-13); set by script on each `input[type=range]`, the declaration is the value where none was set |
 | `--pw-branch-max` | `runtime/src/styles/00-tokens.css:74` | contract.md 4.1 (`setupTreeFit()`); extensions.md 3 | none found | stable | added for 1.0 (ruled 2026-11-13); set by script on the deepest open page-tree branch, the declaration is the value where none was set |
+| `--pw-item-bg` | `runtime/src/styles/00-tokens.css:181` | contract.md 4.0; extensions.md 3 | BridgeCustomizer | stable | added in 1.1.0 (a minor, ADR 0024 decision 6): the background of list items (page list rows, asmSelect and tag chips, repeater item headers), `var(--secondary)` by default |
 
 ## Events
 
