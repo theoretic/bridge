@@ -376,7 +376,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * @var array
 	 *
 	 */
-	protected $variants = array('blue', 'vibrant', 'black', 'pink', 'green', 'custom');
+	protected $variants = array('red', 'blue', 'vibrant', 'black', 'pink', 'green', 'custom');
 
 	/**
 	 * The user page's meta key of the user's own colour (userColors(), 0.22.0)
@@ -528,7 +528,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->set('legacyStack', self::legacyAuto);
 		$this->set('uikit', self::uikitAuto);
 		$this->set('maxWidth', 1600);
-		$this->set('variant', 'blue');
+		$this->set('variant', 'red');
 		$this->set('primaryColor', '');
 		$this->set('colorScheme', 'auto');
 		$this->set('logoURL', '');

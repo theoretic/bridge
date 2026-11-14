@@ -1,13 +1,17 @@
 # Changelog
 
-## AdminThemeBridge 1.1.0: list item background token (2026-11-14)
+## AdminThemeBridge 1.1.0: new default colours, list item background token (2026-11-14)
 
-Owner's request: make the background of list items settable from Bridge Customizer (page reference rows, repeater items), apart from the other muted surfaces. A minor release: one token added to the surface (ADR 0024, decision 6).
+Owner's requests: make the background of list items settable from Bridge Customizer (page reference rows, repeater items), apart from the other muted surfaces; then take the colours set on the owner's site with Bridge Customizer as the theme's defaults. A minor release: one token and one preset added (ADR 0024, decision 6); defaults and visual design are not covered by the 1.0 promise.
 
-- **Token `--pw-item-bg`**, declared with the derived tokens as `var(--secondary)`, so every scheme and variant looks as before. It is now the background of the selected rows of a page reference field (PageAutocomplete), asmSelect items, tag chips (selectize, InputfieldTextTags) and repeater item headers, which used `--secondary` or `--muted` directly. An extension sets it through `tokenOverrides()` without changing tabs, table hovers and the other surfaces those two colour.
+- **New light defaults** (the owner's Customizer settings): page background `#edf0f4` (was white), cards and menus white as before, borders and control edges `#c9d2dd` (were `#e5e5e5`). The dark scheme is unchanged.
+- **Preset `red`, `#e83561`, the new default colour** (the setting `variant` defaults to `red`, an invalid or missing value falls back to it); `blue` and the other presets stay, and a site that stored `blue` keeps it. Like Boss blue and pink it keeps white text on its buttons (4.1 to 1). In the theme's config screen, the user menu's colour picker and `data-pw-variant`.
+- **Contrast on the grey page**: the focus ring is the primary mixed 75 % (was 80 %) with the text colour, so cyan stays at 3 to 1 or more; the primary tint of rows (`--pw-primary-bg`) mixes over the card instead of the page, as before in light.
+
+- **Token `--pw-item-bg`**: in light the page background (the owner's rule: list items follow the background), in dark `var(--secondary)` as before. It is now the background of the selected rows of a page reference field (PageAutocomplete), asmSelect items, tag chips (selectize, InputfieldTextTags) and repeater item headers, which used `--secondary` or `--muted` directly. An extension sets it through `tokenOverrides()` without changing tabs, table hovers and the other surfaces those two colour.
 - **Surface**: tokens 78 → 79 (`docs/extensions.md` 3, `docs/contract.md` 4.0, `docs/surface-1.0.md`). Extension contract stays 1.0; an extension that sets the token declares `requires AdminThemeBridge>=1.1.0`.
-- Budgets unchanged: theme.css 17717 of 18432 B gzip, fields.css 5925 of 6144 B.
-- Checks: a smoke line for the token (on the surface, declared as `var(--secondary)`, the background of the four kinds of items in the built CSS); the token-count pins moved to 79.
+- Budgets unchanged: theme.css 17748 of 18432 B gzip, fields.css 5925 of 6144 B, runtime.js + index chunk 15659 of 15872 B.
+- Checks: a smoke line for the token (on the surface, light and dark values, the background of the four kinds of items in the built CSS); the token-count, preset and control-edge pins follow; `tools/screens-check.js` G covers `red` (white text at 3.5 like blue and pink); `screens-check` 29/0 and `scheme-scan` 0 findings in chromium.
 
 ## AdminThemeBridge 1.0.0: the 1.0 compatibility promise, extension contract 1.0, out of beta (2026-11-13)
 

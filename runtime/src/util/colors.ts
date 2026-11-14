@@ -13,7 +13,7 @@ import { fetchOk, failed } from './fail';
 
 type Site = { variant?: string; primary?: string };
 
-const VARIANTS = ['blue', 'vibrant', 'black', 'pink', 'green', 'custom'];
+const VARIANTS = ['red', 'blue', 'vibrant', 'black', 'pink', 'green', 'custom'];
 const HEX = /^#[0-9a-f]{6}$/;
 
 let timer = 0;
@@ -42,10 +42,10 @@ export function pick(el: HTMLElement, save: boolean): void {
 	if ((variant && VARIANTS.indexOf(variant) < 0) || (variant === 'custom' && !HEX.test(color))) return;
 	const site = pwConfig<{ site?: Site }>('AdminThemeBridge').site || {};
 	if (variant) apply(variant, color);
-	else apply(site.variant || 'blue', site.primary || '');
+	else apply(site.variant || 'red', site.primary || '');
 	box.querySelectorAll<HTMLElement>('button[data-pw-variant-pick]').forEach(b => b.setAttribute('aria-pressed', String(b.getAttribute('data-pw-variant-pick') === variant)));
 	// the colour in use is ringed: the pick, or the site's after "Site default"
-	const inUse = variant || site.variant || 'blue';
+	const inUse = variant || site.variant || 'red';
 	box.querySelectorAll<HTMLElement>('.pw-color-swatch').forEach(s => s.classList.toggle('pw-color-current', (s.getAttribute('data-pw-variant') || 'custom') === inUse));
 	if (!save) return;
 	// one request for a quick run of picks

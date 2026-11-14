@@ -170,7 +170,7 @@ check('theme script times out page-save notices', strpos($mainJs, 'this.setupNot
 check('AdminThemeBridge is installed in this sandbox (tools/sandbox-admin.php)', $modules->isInstalled('AdminThemeBridge'));
 if($modules->isInstalled('AdminThemeBridge')) {
 	$bridge = $modules->getModule('AdminThemeBridge', array('noInit' => true, 'noPermissionCheck' => true));
-	check('theme default variant is a preset', in_array($bridge->getVariant(), array('blue', 'vibrant', 'black', 'pink', 'green', 'custom'), true), $bridge->getVariant());
+	check('theme default variant is a preset', in_array($bridge->getVariant(), array('red', 'blue', 'vibrant', 'black', 'pink', 'green', 'custom'), true), $bridge->getVariant());
 	check('theme colour scheme is valid', in_array($bridge->getColorScheme(), array('auto', 'light', 'dark'), true), $bridge->getColorScheme());
 	check('theme html attributes carry the variant', strpos($bridge->renderHtmlAttributes(), 'data-pw-variant=') !== false);
 	// the loader reads 'template=admin' from the module info cache; without it the theme loads at
@@ -1471,7 +1471,7 @@ if(isset($bridge) && $bridge) {
 		$picker = $bridge->renderColorPicker();
 		check('a user\'s own custom colour is the page\'s, printed before first paint', $bridge->getVariant() === 'custom' && $bridge->getPrimaryColor() === '#7c3aed'
 			&& strpos($bridge->renderHtmlAttributes(), "style='--pw-primary:#7c3aed'") !== false, $bridge->renderHtmlAttributes());
-		check('the picker: five named presets, a custom colour, the site default, the CSRF token', substr_count($picker, "' data-pw-variant='") === 5
+		check('the picker: six named presets, a custom colour, the site default, the CSRF token', substr_count($picker, "' data-pw-variant='") === 6
 			&& strpos($picker, "data-pw-variant-pick='custom' value='#7c3aed'") !== false && strpos($picker, "class='pw-color-reset' data-pw-variant-pick=''") !== false
 			&& strpos($picker, 'data-token-name=') !== false && strpos($picker, "pw-color-custom pw-color-current'") !== false);
 		$cu->meta(AdminThemeBridge::userColorsMeta, array('variant' => 'purple', 'color' => ''));
@@ -1993,7 +1993,7 @@ $widgetsCss = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/style
 check('UX4 whole items drag after a touch hold; only handles take the finger at once', strpos($srcOf('util/sortable.ts'), "if (e.pointerType === 'touch' && getComputedStyle(grip).touchAction !== 'none') {") !== false
 	&& strpos($widgetsCss, '.asmListSortable .asmListItem, .pw-sortable-item { touch-action: none; }') === false && strpos($widgetsCss, '.InputfieldRepeaterDrag { touch-action: none; }') !== false);
 $tokensCss = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/styles/00-tokens.css');
-check('UX5 neutral control edges (the owner\'s call, 0.22.0) and one stacking scale', strpos($tokensCss, '--input: #e5e5e5;') !== false && strpos($tokensCss, '--pw-z-popup: 80;') !== false
+check('UX5 control edges in the owner\'s blue-grey (1.1.0; neutral since 0.22.0) and one stacking scale', strpos($tokensCss, '--input: #c9d2dd;') !== false && strpos($tokensCss, '--pw-z-popup: 80;') !== false
 	&& strpos($widgetsCss, '.pw-group-actions { position: fixed; z-index: var(--pw-z-popup);') !== false);
 
 // 0.20.0: dialogs, drawer and tabs (audit UX1); the browser side is tools/a11y-check.js
@@ -2227,8 +2227,8 @@ if(isset($bridge)) {
 	// declared with the derived tokens as var(--secondary) (same value as before), and the only background of those items
 	$itemTheme = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
 	$itemFields = (string) @file_get_contents($themeDir . 'assets/dist/fields.css');
-	check('--pw-item-bg is on the surface, declared as var(--secondary), and the background of asmSelect/tag chips, page list rows and repeater item headers',
-		in_array('--pw-item-bg', $surface['tokens'], true) && (bool) preg_match('/--pw-item-bg:\s*var\(--secondary\);/', (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/styles/00-tokens.css'))
+	check('--pw-item-bg is on the surface, the page background in light and var(--secondary) in dark, and the background of asmSelect/tag chips, page list rows and repeater item headers',
+		in_array('--pw-item-bg', $surface['tokens'], true) && (bool) preg_match('/--pw-item-bg:\s*var\(--background\);.*\[data-pw-scheme="dark"\] \{[^}]*--pw-item-bg:\s*var\(--secondary\);/s', (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/styles/00-tokens.css'))
 		&& (bool) preg_match('/\.asmList \.asmListItem,[^{]*\{background:var\(--pw-item-bg\)/', $itemTheme)
 		&& (bool) preg_match('/\.InputfieldRepeaterItem>\.InputfieldHeader,[^{]*\{[^}]*background:var\(--pw-item-bg\)/', $itemTheme)
 		&& (bool) preg_match('/div\.InputfieldPageAutocomplete>ol>li\{[^}]*background:var\(--pw-item-bg\)/', $itemFields));
@@ -2384,7 +2384,7 @@ if(isset($bridge)) {
 		&& strpos($apAttrs, "data-pw-variant='custom'") !== false && strpos($apAttrs, '--pw-primary:#aa3300') !== false, $apAttrs);
 	$bridge->removeHook($apHook);
 	$apHook = $apSet(array('variant' => 'custom', 'primaryColor' => 'red'));
-	check('an appearance() hook with custom and no valid colour gives blue', $bridge->siteVariant() === 'blue' && $bridge->sitePrimaryColor() === '');
+	check('an appearance() hook with custom and no valid colour gives red, the default', $bridge->siteVariant() === 'red' && $bridge->sitePrimaryColor() === '');
 	$bridge->removeHook($apHook);
 	$apHook = $apSet(array('logoURL' => 'site/assets/x/logo.svg?v=3', 'logoURLDark' => ''));
 	$apLogo = $bridge->renderLogo();
@@ -2414,7 +2414,7 @@ if(isset($bridge)) {
 	restore_error_handler();
 	check('an appearance() hook returning null or an array without the keys leaves every reader at the stored value, without a PHP warning', $apNull === $apBase && $apEmpty === $apBase && !count($apWarnings),
 		implode(' | ', $apWarnings));
-	check('appearance() values of the wrong type are validated without a PHP warning (an array variant is blue, an object logo is none)', $apOdd['siteVariant'] === 'blue'
+	check('appearance() values of the wrong type are validated without a PHP warning (an array variant is red, the default, an object logo is none)', $apOdd['siteVariant'] === 'red'
 		&& ($apOdd['renderLogo'] === $bridge->renderNativeLogo() || trim((string) $apStored['logoURLDark']) !== ''), $apOdd['renderLogo']);
 	// 0.30.1 (audit U2): the core's mark names the logo link "Home", as a custom logo's alt does; never "ProcessWire"
 	$nativeLogo = $bridge->renderNativeLogo();
@@ -2456,7 +2456,7 @@ if(isset($bridge)) {
 	$bridge->removeHook($apHook);
 	$apField = function($name) use($apFields) { $f = $apFields->getChildByName($name); return $f ? $f : null; };
 	$apNoteOk = $apField('variant') && $apField('maxWidth') && $apField('colorScheme') && $apField('labelSize')
-		&& (string) $apField('variant')->attr('value') === (in_array($apStored['variant'], array('blue', 'vibrant', 'black', 'pink', 'green', 'custom'), true) ? $apStored['variant'] : 'blue')
+		&& (string) $apField('variant')->attr('value') === (in_array($apStored['variant'], array('red', 'blue', 'vibrant', 'black', 'pink', 'green', 'custom'), true) ? $apStored['variant'] : 'blue')
 		&& (int) $apField('maxWidth')->attr('value') === max(0, min(4000, (int) $apStored['maxWidth']))
 		&& strpos((string) $apField('variant')->notes, 'An extension sets this for the admin: custom.') !== false
 		&& strpos((string) $apField('primaryColor')->notes, 'An extension sets this for the admin: #aa3300.') !== false

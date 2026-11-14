@@ -84,8 +84,8 @@ trait AdminThemeBridgeUserColors {
 	 */
 	protected function validVariant($variant, $color) {
 		$variant = is_scalar($variant) ? (string) $variant : '';
-		if(!in_array($variant, $this->variants, true)) $variant = 'blue';
-		if($variant === 'custom' && self::hexColor(is_scalar($color) ? $color : '') === '') $variant = 'blue';
+		if(!in_array($variant, $this->variants, true)) $variant = 'red';
+		if($variant === 'custom' && self::hexColor(is_scalar($color) ? $color : '') === '') $variant = 'red';
 		return $variant;
 	}
 
@@ -140,6 +140,7 @@ trait AdminThemeBridgeUserColors {
 		// the colour in use is ringed, the site's included when the user has none of their own
 		$inUse = $this->getVariant();
 		$names = array(
+			'red' => __('Red', __FILE__),
 			'blue' => __('Blue', __FILE__),
 			'vibrant' => __('Vibrant', __FILE__),
 			'black' => __('Black', __FILE__),

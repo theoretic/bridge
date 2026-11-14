@@ -278,7 +278,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		const root = document.documentElement;
 		const btn = document.getElementById('submit_save');
 		const rows = [];
-		for(const scheme of ['light', 'dark']) for(const v of ['blue', 'vibrant', 'black', 'pink', 'green']) {
+		for(const scheme of ['light', 'dark']) for(const v of ['red', 'blue', 'vibrant', 'black', 'pink', 'green']) {
 			root.setAttribute('data-pw-scheme', scheme);
 			root.setAttribute('data-pw-variant', v);
 			// past the buttons' 150ms colour transition
@@ -288,7 +288,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			const ring = getComputedStyle(root).getPropertyValue('--ring').trim();
 			const text = ratio(s.color, s.backgroundColor);
 			const focus = ratio(ring, page);
-			const need = (v === 'blue' || v === 'pink') && rgb(s.color).every(x => x > 240) ? 3.5 : 4.5;
+			const need = (v === 'red' || v === 'blue' || v === 'pink') && rgb(s.color).every(x => x > 240) ? 3.5 : 4.5;
 			rows.push({ scheme, v, text: +text.toFixed(2), need, focus: +focus.toFixed(2), ok: text >= need && focus >= 3 });
 		}
 		return rows;

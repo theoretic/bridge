@@ -74,14 +74,15 @@ trait AdminThemeBridgeConfig {
 		$f = $modules->get('InputfieldRadios');
 		$f->attr('name', 'variant');
 		$f->label = __('Colour', __FILE__);
-		$f->addOption('blue', __('Blue (default)', __FILE__));
+		$f->addOption('red', __('Red (default)', __FILE__));
+		$f->addOption('blue', __('Blue', __FILE__));
 		$f->addOption('vibrant', __('Vibrant', __FILE__));
 		$f->addOption('black', __('Black', __FILE__));
 		$f->addOption('pink', __('Pink', __FILE__));
 		$f->addOption('green', __('Green', __FILE__));
 		$f->addOption('custom', __('Custom colour', __FILE__));
 		$f->optionColumns = 1;
-		$f->attr('value', in_array($stored['variant'], $this->variants, true) ? $stored['variant'] : 'blue');
+		$f->attr('value', in_array($stored['variant'], $this->variants, true) ? $stored['variant'] : 'red');
 		$f->columnWidth = 50;
 		$fs->add($f);
 

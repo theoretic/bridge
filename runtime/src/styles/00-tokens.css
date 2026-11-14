@@ -14,8 +14,9 @@
 /* 1. base values (light) ----------------------------------------------------------------------- */
 :root, [data-pw-scheme="light"] {
 	color-scheme: light;
-	/* shadcn tokens, vega neutral */
-	--background: #fff;
+	/* shadcn tokens, vega neutral; since 1.1.0 the page a cool grey with white cards and blue-grey
+	 * edges (the owner's colours, as set on atispro with Bridge Customizer) */
+	--background: #edf0f4;
 	--foreground: #0a0a0a;
 	--card: #fff;
 	--card-foreground: #0a0a0a;
@@ -28,8 +29,8 @@
 	--accent: #f5f5f5;
 	--accent-foreground: #171717;
 	--destructive: #e7000b;
-	--border: #e5e5e5;
-	--input: #e5e5e5;
+	--border: #c9d2dd;
+	--input: #c9d2dd;
 	--shadow-xs: 0 1px 2px 0 rgb(0 0 0 / .05);
 	--shadow-sm: 0 1px 3px 0 rgb(0 0 0 / .1), 0 1px 2px -1px rgb(0 0 0 / .1);
 	--shadow-md: 0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1);
@@ -43,11 +44,13 @@
 	/* select chevron: a data URI cannot read tokens, so one per scheme, stroke = --muted-foreground */
 	--pw-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 	--pw-input-bg: transparent;
-	/* text on the primary colour: white for the darker presets (blue, pink, black, custom) */
+	/* text on the primary colour: white for the darker presets (red, blue, pink, black, custom) */
 	--primary-foreground: #fff;
+	/* list items (1.1.0): the page's background in light, the muted surface in dark (section 3) */
+	--pw-item-bg: var(--background);
 }
 :root {
-	--pw-primary: #3584EA;
+	--pw-primary: #e83561;
 
 	/* type and metrics: font sizes in rem, so a larger browser font size scales the whole
 	 * interface, not only the headings (audit C25); line heights unitless */
@@ -75,19 +78,22 @@
 }
 
 /* 2. colour presets: AdminThemeBoss's primaries -------------------------------------------------- */
+[data-pw-variant="red"] { --pw-primary: #e83561; }
 [data-pw-variant="blue"] { --pw-primary: #3584EA; }
 [data-pw-variant="vibrant"] { --pw-primary: #00BED7; }
 [data-pw-variant="black"] { --pw-primary: #171717; }
 [data-pw-variant="pink"] { --pw-primary: #f413a9; }
 [data-pw-variant="green"] { --pw-primary: #0aad77; }
 /* white on cyan and green is 2.3 and 2.9 to 1: these two take dark text (8.8 and 6.8; audit C21).
- * White on Boss blue and pink stays (3.7 and 3.8, enough for 14px medium buttons as UI, below
+ * White on Boss blue and pink and on the default red (1.1.0) stays (3.7, 3.8 and 4.1, enough for 14px medium buttons as UI, below
  * 4.5 for body text: ADR 0010 keeps Boss's colours) */
 [data-pw-variant="vibrant"], [data-pw-variant="green"] { --primary-foreground: #0a0a0a; }
 
 /* 3. dark scheme: vega dark neutrals, primary kept per variant ----------------------------------- */
 [data-pw-scheme="dark"] {
 	color-scheme: dark;
+	/* list items: page list rows, asmSelect and tag chips, repeater item headers (1.1.0) */
+	--pw-item-bg: var(--secondary);
 	--background: #0a0a0a;
 	--foreground: #fafafa;
 	--card: #171717;
@@ -120,9 +126,10 @@
 :root, [data-pw-scheme], [data-pw-variant] {
 	--primary: var(--pw-primary);
 	/* focus ring: the primary darkened toward the text colour, solid. At half opacity it was 1.5 to
-	 * 2.2 to 1 against the page; as it is now it is at least 3.4 (cyan, light) and 5 or more
-	 * elsewhere (WCAG 2.2 focus appearance; audit C21). --ring-50 keeps its name for components. */
-	--ring: color-mix(in srgb, var(--primary) 80%, var(--foreground));
+	 * 2.2 to 1 against the page; solid it is at least 3 (cyan, light, on the 1.1.0 grey page: 75 %
+	 * since then) and 5 or more elsewhere (WCAG 2.2 focus appearance; audit C21). --ring-50 is
+	 * internal (1.0), an alias the theme's own rules still use. */
+	--ring: color-mix(in srgb, var(--primary) 75%, var(--foreground));
 	--ring-50: var(--ring);
 	/* its widths: the outline around links and buttons, the halo around inputs and pills */
 	--ring-width: 2px;
@@ -168,7 +175,8 @@
 	--pw-primary-hover: color-mix(in srgb, var(--primary) 90%, var(--background));
 	--pw-primary-40: color-mix(in srgb, var(--primary) 40%, transparent);
 	--pw-primary-20: color-mix(in srgb, var(--primary) 20%, transparent);
-	--pw-primary-bg: color-mix(in srgb, var(--primary) 8%, var(--background));
+	/* over the card, where the tinted rows sit (1.1.0: the page itself is grey in light) */
+	--pw-primary-bg: color-mix(in srgb, var(--primary) 8%, var(--card));
 	--pw-muted-bg: var(--muted);
 	--pw-selection-bg: var(--primary);
 	/* alert tints: the status palette */
@@ -177,8 +185,6 @@
 	--pw-danger-bg: var(--pw-status-error-bg);
 	/* the login page (40-login.css, 0.30.0) */
 	--pw-login-bg: var(--muted);
-	/* list items: page list rows, asmSelect and tag chips, repeater item headers (1.1.0) */
-	--pw-item-bg: var(--secondary);
 	--pw-shadow-card: var(--shadow-sm);
 	--pw-shadow-dropdown: var(--shadow-md);
 }

@@ -385,7 +385,7 @@ kept. Ruled: stable, documented.
 | hook `renderBreadcrumbs()` | The breadcrumb markup above the content (empty in modals, for guests, on the page tree, with fewer than two crumbs outside the page editor); the docs name it only as the example hook | Its return value becomes a contract: a hook after may parse or wrap that markup, so its outer element and classes stay |
 | read `extensionAllowed($info)` | Whether the current user may have an extension (its `permission`, superusers always) | Low: the rule is the manifest's `permission` key, already documented |
 | read `nonceScriptTag($openTag)` | Puts this request's CSP nonce on a `<script>` open tag that has none | Low: the same contract as `nonceAttr()` |
-| read `getVariant()` | The colour preset in use (the user's own over the site's) | The preset names (`blue`, `vibrant`, `black`, `pink`, `green`, `custom`) are frozen; they are already documented as `data-pw-variant` values |
+| read `getVariant()` | The colour preset in use (the user's own over the site's) | The preset names (`blue`, `vibrant`, `black`, `pink`, `green`, `custom`; `red` added in 1.1.0) are frozen; they are already documented as `data-pw-variant` values |
 | read `getColorScheme()` | The colour scheme setting in effect, after `appearance()` (`auto`, `light`, `dark`); named only in ADR 0023 | Low: the three values |
 | read `shellLabel($key)` | A translated label of the shell templates; the theme's own templates call it, so a site's copy of them does too | The key list (`lang`, `skip`, `menu`, `mainNav`, `search`, `home`, `pagination`, …) is frozen: keys may be added, none renamed or removed |
 | read `getHistorySteps()` | The `historySteps` setting when it is 1 to 10000, else 100 | Low |
