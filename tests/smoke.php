@@ -170,6 +170,9 @@ check('theme script times out page-save notices', strpos($mainJs, 'this.setupNot
 check('AdminThemeBridge is installed in this sandbox (tools/sandbox-admin.php)', $modules->isInstalled('AdminThemeBridge'));
 if($modules->isInstalled('AdminThemeBridge')) {
 	$bridge = $modules->getModule('AdminThemeBridge', array('noInit' => true, 'noPermissionCheck' => true));
+	// 1.1.1: the default preset red is labelled ProcessWire (config screen and user menu)
+	check('the default preset red is labelled ProcessWire', strpos((string) @file_get_contents($themeDir . 'lib/AdminThemeBridgeConfig.php'), "addOption('red', __('ProcessWire (default)', __FILE__))") !== false
+		&& strpos((string) @file_get_contents($themeDir . 'lib/AdminThemeBridgeUserColors.php'), "'red' => __('ProcessWire', __FILE__)") !== false);
 	check('theme default variant is a preset', in_array($bridge->getVariant(), array('red', 'blue', 'vibrant', 'black', 'pink', 'green', 'custom'), true), $bridge->getVariant());
 	check('theme colour scheme is valid', in_array($bridge->getColorScheme(), array('auto', 'light', 'dark'), true), $bridge->getColorScheme());
 	check('theme html attributes carry the variant', strpos($bridge->renderHtmlAttributes(), 'data-pw-variant=') !== false);
@@ -3162,7 +3165,7 @@ check('docs/extensions.md 13: the four hookables, the token selectors as tokenCs
 check('docs/contract.md 4.0 names style[data-pw-tokens] and .pw-admin-title; ADR 0023 exists', strpos($contractDoc, '<style data-pw-keep data-pw-tokens>') !== false
 	&& strpos($contractDoc, "<span class='pw-admin-title'>") !== false && is_file(dirname(__DIR__) . '/docs/decisions/0023-appearance-seams-for-extensions.md'));
 $changelogSrc = (string) @file_get_contents(dirname(__DIR__) . '/CHANGELOG.md');
-check('CHANGELOG\'s first heading is 1.1.0, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.1.0'
+check('CHANGELOG\'s first heading is 1.1.1, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.1.1'
 	&& $clm[1] === $modules->getModuleInfoProperty('AdminThemeBridge', 'versionStr'), isset($clm[1]) ? $clm[1] : '');
 check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
@@ -3392,7 +3395,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 1.1.0', $themeVersion === '1.1.0', $themeVersion);
+	check('the theme version is 1.1.1', $themeVersion === '1.1.1', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;

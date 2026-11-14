@@ -140,7 +140,7 @@ trait AdminThemeBridgeUserColors {
 		// the colour in use is ringed, the site's included when the user has none of their own
 		$inUse = $this->getVariant();
 		$names = array(
-			'red' => __('Red', __FILE__),
+			'red' => __('ProcessWire', __FILE__),
 			'blue' => __('Blue', __FILE__),
 			'vibrant' => __('Vibrant', __FILE__),
 			'black' => __('Black', __FILE__),

@@ -1,5 +1,12 @@
 # Changelog
 
+## AdminThemeBridge 1.1.1: the default colour preset is named ProcessWire (2026-11-14)
+
+Owner's request: the default colour should read as ProcessWire's, not as a generic red.
+
+- The preset `red` (`#e83561`, the default since 1.1.0) is labelled **ProcessWire** in the theme's config screen ("ProcessWire (default)") and in the user menu's colour picker. Its value `red` (`data-pw-variant`, `getVariant()`) is unchanged, so nothing stored or hooked changes.
+- A site whose config stores another preset keeps it: a theme setting saved before 1.1.0 holds `blue`, the default of that time. Choose ProcessWire under Appearance > Colour and save to switch.
+
 ## AdminThemeBridge 1.1.0: new default colours, list item background token (2026-11-14)
 
 Owner's requests: make the background of list items settable from Bridge Customizer (page reference rows, repeater items), apart from the other muted surfaces; then take the colours set on the owner's site with Bridge Customizer as the theme's defaults. A minor release: one token and one preset added (ADR 0024, decision 6); defaults and visual design are not covered by the 1.0 promise.

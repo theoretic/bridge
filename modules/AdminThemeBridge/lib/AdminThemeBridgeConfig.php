@@ -74,7 +74,7 @@ trait AdminThemeBridgeConfig {
 		$f = $modules->get('InputfieldRadios');
 		$f->attr('name', 'variant');
 		$f->label = __('Colour', __FILE__);
-		$f->addOption('red', __('Red (default)', __FILE__));
+		$f->addOption('red', __('ProcessWire (default)', __FILE__));
 		$f->addOption('blue', __('Blue', __FILE__));
 		$f->addOption('vibrant', __('Vibrant', __FILE__));
 		$f->addOption('black', __('Black', __FILE__));
