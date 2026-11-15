@@ -1,5 +1,14 @@
 # Changelog
 
+## AdminThemeBridge 1.2.0: untranslated language tabs faded, not italic; two tokens for them (2026-11-15)
+
+Owner's request: an untranslated language's tab title should be faded rather than in italics by default, and the look should be settable (Bridge Customizer).
+
+- **The tab of a language whose value is empty** (the core's `langTabEmpty`, Bridge's `pw-empty`) now shows its label in the text colour at half opacity, upright. Before 1.2.0 it was the muted colour in italics. At `.5` the text colour is about 4 to 1 on the card in both schemes; the muted colour at half opacity would be 2 to 1, which is why the colour changes too.
+- **Tokens `--pw-lang-tab-empty-opacity`** (`.5`) **and `--pw-lang-tab-empty-style`** (`normal`), on the surface (tokens 79 -> 81): an extension sets them through `tokenOverrides()`, e.g. `italic` and `1` for the look before 1.2.0. A minor release under ADR 0024 (decision 6); extension contract stays 1.0.
+- Budgets unchanged: theme.css 17790 of 18432 B gzip.
+- Checks: a smoke line for the tokens and the rule; the token-count pins moved to 81; `docs/surface-1.0.md`'s line references for `00-tokens.css` refreshed; `scheme-scan` 0 findings in chromium.
+
 ## AdminThemeBridge 1.1.1: the default colour preset is named ProcessWire (2026-11-14)
 
 Owner's request: the default colour should read as ProcessWire's, not as a generic red.

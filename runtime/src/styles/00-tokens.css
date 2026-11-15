@@ -63,6 +63,9 @@
 	/* a field label's size and the height of an input or a button (0.30.0): rem, so the scale applies */
 	--pw-label-size: .875rem;
 	--pw-control-height: 2.25rem;
+	/* an untranslated language's tab (1.2.0): faded text colour, upright */
+	--pw-lang-tab-empty-opacity: .5;
+	--pw-lang-tab-empty-style: normal;
 	--pw-masthead-h: 56px;
 	--pw-field-pad: 20px;
 	--pw-field-pad-bottom: 23px;

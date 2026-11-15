@@ -2225,9 +2225,16 @@ if(isset($bridge)) {
 	$added10 = array_merge(array_diff(array('pw-scheme-change', 'pw-variant-change', 'pw-scale-change', 'pw-tabs-change'), $surface['events']),
 		array_diff(array('--pw-range-fill', '--pw-branch-max'), $surface['tokens']));
 	check('the four documented events and --pw-range-fill, --pw-branch-max are on the surface; --ring-50 is not', !count($added10) && count($surface['events']) === 28
-		&& count($surface['tokens']) === 79 && count($surface['reads']) === 18 && !in_array('--ring-50', $surface['tokens'], true), implode(', ', $added10));
+		&& count($surface['tokens']) === 81 && count($surface['reads']) === 18 && !in_array('--ring-50', $surface['tokens'], true), implode(', ', $added10));
 	// 1.1.0: --pw-item-bg, the list items' background (page list rows, asmSelect and tag chips, repeater item headers), on the surface,
 	// declared with the derived tokens as var(--secondary) (same value as before), and the only background of those items
+	// 1.2.0: an untranslated language's tab: the text colour at --pw-lang-tab-empty-opacity (.5), upright (--pw-lang-tab-empty-style: normal)
+	$langTok = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/styles/00-tokens.css');
+	$langTheme = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
+	check('untranslated language tabs: two tokens on the surface (.5, normal), the rule reads them with the text colour, no italics left',
+		count(array_intersect(array('--pw-lang-tab-empty-opacity', '--pw-lang-tab-empty-style'), $surface['tokens'])) === 2
+		&& (bool) preg_match('/--pw-lang-tab-empty-opacity:\s*\.5;\s*--pw-lang-tab-empty-style:\s*normal;/', $langTok)
+		&& (bool) preg_match('/li\.langTabEmpty\)[^{]*\{color:var\(--foreground\);opacity:var\(--pw-lang-tab-empty-opacity\);font-style:var\(--pw-lang-tab-empty-style\)/', $langTheme));
 	$itemTheme = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
 	$itemFields = (string) @file_get_contents($themeDir . 'assets/dist/fields.css');
 	check('--pw-item-bg is on the surface, the page background in light and var(--secondary) in dark, and the background of asmSelect/tag chips, page list rows and repeater item headers',
@@ -2580,8 +2587,8 @@ if(isset($bridge)) {
 		&& strpos($sec3, 'the read `themeAssetUrl` is off the surface') !== false && strpos($sec3, 'A new extension declares `^0.2 || ^1.0`') !== false);
 	check('docs/contract.md 4.0 no longer keeps --ring-50 for components: it is internal', strpos($contractDoc10, 'The name is kept for components') === false
 		&& strpos($contractDoc10, 'The theme also declares `--ring-50`, the same solid colour, for its own rules: it is internal') !== false);
-	check('docs/surface-1.0.md: the maintainer\'s list ruled, counts 18 reads, 79 tokens, 28 events, themeAssetUrl not a Reads row', strpos($inventory, '**Ruled 2026-11-13, as recommended**') !== false
-		&& strpos($inventory, '| reads | 18 | 18 |') !== false && strpos($inventory, '| tokens | 79 | 79 |') !== false && strpos($inventory, '| events | 28 | 28 |') !== false
+	check('docs/surface-1.0.md: the maintainer\'s list ruled, counts 18 reads, 81 tokens, 28 events, themeAssetUrl not a Reads row', strpos($inventory, '**Ruled 2026-11-13, as recommended**') !== false
+		&& strpos($inventory, '| reads | 18 | 18 |') !== false && strpos($inventory, '| tokens | 81 | 81 |') !== false && strpos($inventory, '| events | 28 | 28 |') !== false
 		&& !preg_match('/^\| `themeAssetUrl` \|/m', $inventory));
 	// step 3: the client side (runtime/src/extensions.ts, a chunk of its own)
 	$rtIndex = (string) @file_get_contents($runtimeSrc . 'index.ts');
@@ -3140,7 +3147,7 @@ if(preg_match('/\n(Components may use the tokens [^\n]*)\n/', $contractDoc, $tok
 	$docTokens = array_values(array_unique($tokMatch[1]));
 }
 $surfaceTokens = isset($bridge) && $bridge ? $bridge->extensionSurface()['tokens'] : array();
-check('docs/contract.md 4.0: every token its paragraph names is on the surface, --secondary-foreground and the four metric tokens among them', count($docTokens) > 40 && count($surfaceTokens) === 79
+check('docs/contract.md 4.0: every token its paragraph names is on the surface, --secondary-foreground and the four metric tokens among them', count($docTokens) > 40 && count($surfaceTokens) === 81
 	&& !array_diff($docTokens, $surfaceTokens) && !array_diff(array('--secondary-foreground', '--pw-font-size', '--pw-line-height', '--pw-field-pad', '--pw-field-pad-bottom'), $docTokens),
 	'off the surface: ' . implode(',', array_diff($docTokens, $surfaceTokens)));
 check('ADR 0022 exists and the README says extension contract 1.0', is_file(dirname(__DIR__) . '/docs/decisions/0022-styling-extensions-styles-and-tokens.md')
@@ -3165,7 +3172,7 @@ check('docs/extensions.md 13: the four hookables, the token selectors as tokenCs
 check('docs/contract.md 4.0 names style[data-pw-tokens] and .pw-admin-title; ADR 0023 exists', strpos($contractDoc, '<style data-pw-keep data-pw-tokens>') !== false
 	&& strpos($contractDoc, "<span class='pw-admin-title'>") !== false && is_file(dirname(__DIR__) . '/docs/decisions/0023-appearance-seams-for-extensions.md'));
 $changelogSrc = (string) @file_get_contents(dirname(__DIR__) . '/CHANGELOG.md');
-check('CHANGELOG\'s first heading is 1.1.1, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.1.1'
+check('CHANGELOG\'s first heading is 1.2.0, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.2.0'
 	&& $clm[1] === $modules->getModuleInfoProperty('AdminThemeBridge', 'versionStr'), isset($clm[1]) ? $clm[1] : '');
 check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
@@ -3395,7 +3402,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 1.1.1', $themeVersion === '1.1.1', $themeVersion);
+	check('the theme version is 1.2.0', $themeVersion === '1.2.0', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;

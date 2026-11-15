@@ -33,7 +33,7 @@ How to read the columns:
 | reads | 18 | 18 |
 | settings | 22 | 22 |
 | slots | 8 | 8 |
-| tokens | 79 | 79 |
+| tokens | 81 | 81 |
 | events | 28 | 28 |
 | runtime | 12 | 12 |
 
@@ -142,85 +142,87 @@ CSS custom properties an extension's stylesheets may read or set (`tokens` in it
 
 | Name | Defined | Documented | Used by | Status | Note |
 |---|---|---|---|---|---|
-| `--background` | `runtime/src/styles/00-tokens.css:18` | contract.md 4.0; extensions.md 13 | BridgeCustomizer; BridgeQuiet; smoke; docs example (extensions.md 13) | stable |  |
-| `--foreground` | `runtime/src/styles/00-tokens.css:19` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet; smoke | stable |  |
-| `--card` | `runtime/src/styles/00-tokens.css:20` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
-| `--card-foreground` | `runtime/src/styles/00-tokens.css:21` | contract.md 4.0 | BridgeCustomizer | stable |  |
-| `--popover` | `runtime/src/styles/00-tokens.css:22` | contract.md 4.0 | BridgeCustomizer | stable |  |
-| `--popover-foreground` | `runtime/src/styles/00-tokens.css:23` | contract.md 4.0 | BridgeCustomizer | stable |  |
-| `--primary` | `runtime/src/styles/00-tokens.css:121` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
-| `--primary-foreground` | `runtime/src/styles/00-tokens.css:47` | contract.md 4.0 | none found | stable |  |
-| `--secondary` | `runtime/src/styles/00-tokens.css:24` | contract.md 4.0 | BridgeCustomizer | stable |  |
-| `--secondary-foreground` | `runtime/src/styles/00-tokens.css:25` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
-| `--muted` | `runtime/src/styles/00-tokens.css:26` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet; smoke | stable |  |
-| `--muted-foreground` | `runtime/src/styles/00-tokens.css:27` | contract.md 4.0; extensions.md 7, 10 | BridgeSample; BridgeCustomizer; BridgeQuiet; tools (scaffold-extension.php); smoke | stable |  |
-| `--accent` | `runtime/src/styles/00-tokens.css:28` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
-| `--accent-foreground` | `runtime/src/styles/00-tokens.css:29` | contract.md 4.0 | BridgeCustomizer | stable |  |
-| `--destructive` | `runtime/src/styles/00-tokens.css:30` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet; smoke | stable |  |
-| `--border` | `runtime/src/styles/00-tokens.css:31` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
-| `--input` | `runtime/src/styles/00-tokens.css:32` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet; tools (a11y-check.js); smoke | stable |  |
-| `--ring` | `runtime/src/styles/00-tokens.css:125` | contract.md 4.0; extensions.md 13 | BridgeQuiet; tools (screens-check.js); smoke | stable | contract.md 4.0 says `--ring-50` is internal (ruled 2026-11-13) |
-| `--radius` | `runtime/src/styles/00-tokens.css:59` | contract.md 4.0; extensions.md 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
-| `--radius-sm` | `runtime/src/styles/00-tokens.css:130` | contract.md 4.0 | smoke | stable |  |
-| `--radius-md` | `runtime/src/styles/00-tokens.css:131` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
-| `--radius-lg` | `runtime/src/styles/00-tokens.css:132` | contract.md 4.0 | none found | stable |  |
-| `--radius-xl` | `runtime/src/styles/00-tokens.css:133` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
-| `--shadow-xs` | `runtime/src/styles/00-tokens.css:33` | contract.md 4.0 | none found | stable |  |
-| `--shadow-sm` | `runtime/src/styles/00-tokens.css:34` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
-| `--shadow-md` | `runtime/src/styles/00-tokens.css:35` | contract.md 4.0 | none found | stable |  |
-| `--shadow-lg` | `runtime/src/styles/00-tokens.css:36` | contract.md 4.0 | none found | stable |  |
-| `--pw-primary` | `runtime/src/styles/00-tokens.css:50` | contract.md 4.0 | BridgeCustomizer; tools (a11y-check.js); smoke | stable |  |
-| `--pw-primary-hover` | `runtime/src/styles/00-tokens.css:168` | contract.md 4.0; extensions.md 13 | none found | stable |  |
-| `--pw-primary-bg` | `runtime/src/styles/00-tokens.css:171` | contract.md 4.0 | none found | stable |  |
-| `--pw-primary-20` | `runtime/src/styles/00-tokens.css:170` | contract.md 4.0 | none found | stable |  |
-| `--pw-on-primary` | `runtime/src/styles/00-tokens.css:166` | contract.md 4.0 | none found | stable |  |
-| `--pw-bg` | `runtime/src/styles/00-tokens.css:140` | contract.md 4.0 | none found | stable |  |
-| `--pw-surface` | `runtime/src/styles/00-tokens.css:141` | contract.md 4.0 | none found | stable |  |
-| `--pw-surface-2` | `runtime/src/styles/00-tokens.css:142` | contract.md 4.0 | none found | stable |  |
-| `--pw-line` | `runtime/src/styles/00-tokens.css:143` | contract.md 4.0 | smoke | stable |  |
-| `--pw-text` | `runtime/src/styles/00-tokens.css:155` | contract.md 4.0 | none found | stable |  |
-| `--pw-text-muted` | `runtime/src/styles/00-tokens.css:156` | contract.md 4.0 | none found | stable |  |
-| `--pw-h1` | `runtime/src/styles/00-tokens.css:164` | contract.md 4.0 | BridgeCustomizer | stable |  |
-| `--pw-input-bg` | `runtime/src/styles/00-tokens.css:45` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet | stable |  |
-| `--pw-input-border` | `runtime/src/styles/00-tokens.css:146` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
-| `--pw-radius` | `runtime/src/styles/00-tokens.css:138` | contract.md 4.0 | none found | stable |  |
-| `--pw-radius-m` | `runtime/src/styles/00-tokens.css:139` | contract.md 4.0 | none found | stable |  |
-| `--pw-shadow-card` | `runtime/src/styles/00-tokens.css:180` | contract.md 4.0 | none found | stable |  |
-| `--pw-shadow-dropdown` | `runtime/src/styles/00-tokens.css:181` | contract.md 4.0 | none found | stable |  |
-| `--pw-font` | `runtime/src/styles/00-tokens.css:54` | contract.md 4.0 | BridgeQuiet | stable |  |
-| `--pw-font-size` | `runtime/src/styles/00-tokens.css:55` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
-| `--pw-line-height` | `runtime/src/styles/00-tokens.css:56` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
-| `--pw-gutter` | `runtime/src/styles/00-tokens.css:66` | contract.md 4.0; extensions.md 12 | BridgeCustomizer; BridgeQuiet | stable |  |
-| `--pw-field-pad` | `runtime/src/styles/00-tokens.css:64` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
-| `--pw-field-pad-bottom` | `runtime/src/styles/00-tokens.css:65` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
-| `--pw-z-notices` | `runtime/src/styles/00-tokens.css:148` | contract.md 4.0 | BridgeCustomizer | stable |  |
-| `--pw-z-popup` | `runtime/src/styles/00-tokens.css:149` | contract.md 4.0 | smoke | stable |  |
-| `--pw-z-masthead` | `runtime/src/styles/00-tokens.css:150` | contract.md 4.0 | none found | stable |  |
-| `--pw-z-drawer` | `runtime/src/styles/00-tokens.css:151` | contract.md 4.0 | none found | stable |  |
-| `--pw-z-dropdown` | `runtime/src/styles/00-tokens.css:152` | contract.md 4.0 | none found | stable |  |
-| `--pw-z-picker` | `runtime/src/styles/00-tokens.css:153` | contract.md 4.0 | none found | stable |  |
-| `--pw-z-overlay` | `runtime/src/styles/00-tokens.css:154` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-success-bg` | `runtime/src/styles/00-tokens.css:40` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-success-border` | `runtime/src/styles/00-tokens.css:40` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-success-fg` | `runtime/src/styles/00-tokens.css:40` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-success-icon` | `runtime/src/styles/00-tokens.css:40` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-warning-bg` | `runtime/src/styles/00-tokens.css:41` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-warning-border` | `runtime/src/styles/00-tokens.css:41` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-warning-fg` | `runtime/src/styles/00-tokens.css:41` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-warning-icon` | `runtime/src/styles/00-tokens.css:41` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-error-bg` | `runtime/src/styles/00-tokens.css:42` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-error-border` | `runtime/src/styles/00-tokens.css:42` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-error-fg` | `runtime/src/styles/00-tokens.css:42` | contract.md 4.0 | none found | stable |  |
-| `--pw-status-error-icon` | `runtime/src/styles/00-tokens.css:42` | contract.md 4.0 | none found | stable |  |
-| `--pw-success-bg` | `runtime/src/styles/00-tokens.css:175` | contract.md 4.0 | none found | stable |  |
-| `--pw-warning-bg` | `runtime/src/styles/00-tokens.css:176` | contract.md 4.0 | none found | stable |  |
-| `--pw-danger-bg` | `runtime/src/styles/00-tokens.css:177` | contract.md 4.0 | BridgeQuiet | stable |  |
-| `--pw-label-size` | `runtime/src/styles/00-tokens.css:61` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke | stable |  |
-| `--pw-control-height` | `runtime/src/styles/00-tokens.css:62` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke | stable |  |
-| `--pw-login-bg` | `runtime/src/styles/00-tokens.css:179` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
-| `--pw-range-fill` | `runtime/src/styles/00-tokens.css:73` | contract.md 4.1 (`setupRangeFill()`); extensions.md 3 | none found | stable | added for 1.0 (ruled 2026-11-13); set by script on each `input[type=range]`, the declaration is the value where none was set |
-| `--pw-branch-max` | `runtime/src/styles/00-tokens.css:74` | contract.md 4.1 (`setupTreeFit()`); extensions.md 3 | none found | stable | added for 1.0 (ruled 2026-11-13); set by script on the deepest open page-tree branch, the declaration is the value where none was set |
-| `--pw-item-bg` | `runtime/src/styles/00-tokens.css:181` | contract.md 4.0; extensions.md 3 | BridgeCustomizer | stable | added in 1.1.0 (a minor, ADR 0024 decision 6): the background of list items (page list rows, asmSelect and tag chips, repeater item headers), `var(--secondary)` by default |
+| `--background` | `runtime/src/styles/00-tokens.css:19` | contract.md 4.0; extensions.md 13 | BridgeCustomizer; BridgeQuiet; smoke; docs example (extensions.md 13) | stable |  |
+| `--foreground` | `runtime/src/styles/00-tokens.css:20` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet; smoke | stable |  |
+| `--card` | `runtime/src/styles/00-tokens.css:21` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
+| `--card-foreground` | `runtime/src/styles/00-tokens.css:22` | contract.md 4.0 | BridgeCustomizer | stable |  |
+| `--popover` | `runtime/src/styles/00-tokens.css:23` | contract.md 4.0 | BridgeCustomizer | stable |  |
+| `--popover-foreground` | `runtime/src/styles/00-tokens.css:24` | contract.md 4.0 | BridgeCustomizer | stable |  |
+| `--primary` | `runtime/src/styles/00-tokens.css:130` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
+| `--primary-foreground` | `runtime/src/styles/00-tokens.css:48` | contract.md 4.0 | none found | stable |  |
+| `--secondary` | `runtime/src/styles/00-tokens.css:25` | contract.md 4.0 | BridgeCustomizer | stable |  |
+| `--secondary-foreground` | `runtime/src/styles/00-tokens.css:26` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
+| `--muted` | `runtime/src/styles/00-tokens.css:27` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet; smoke | stable |  |
+| `--muted-foreground` | `runtime/src/styles/00-tokens.css:28` | contract.md 4.0; extensions.md 7, 10 | BridgeSample; BridgeCustomizer; BridgeQuiet; tools (scaffold-extension.php); smoke | stable |  |
+| `--accent` | `runtime/src/styles/00-tokens.css:29` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
+| `--accent-foreground` | `runtime/src/styles/00-tokens.css:30` | contract.md 4.0 | BridgeCustomizer | stable |  |
+| `--destructive` | `runtime/src/styles/00-tokens.css:31` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet; smoke | stable |  |
+| `--border` | `runtime/src/styles/00-tokens.css:32` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
+| `--input` | `runtime/src/styles/00-tokens.css:33` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet; tools (a11y-check.js); smoke | stable |  |
+| `--ring` | `runtime/src/styles/00-tokens.css:135` | contract.md 4.0; extensions.md 13 | BridgeQuiet; tools (screens-check.js); smoke | stable | contract.md 4.0 says `--ring-50` is internal (ruled 2026-11-13) |
+| `--radius` | `runtime/src/styles/00-tokens.css:62` | contract.md 4.0; extensions.md 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
+| `--radius-sm` | `runtime/src/styles/00-tokens.css:140` | contract.md 4.0 | smoke | stable |  |
+| `--radius-md` | `runtime/src/styles/00-tokens.css:141` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
+| `--radius-lg` | `runtime/src/styles/00-tokens.css:142` | contract.md 4.0 | none found | stable |  |
+| `--radius-xl` | `runtime/src/styles/00-tokens.css:143` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
+| `--shadow-xs` | `runtime/src/styles/00-tokens.css:34` | contract.md 4.0 | none found | stable |  |
+| `--shadow-sm` | `runtime/src/styles/00-tokens.css:35` | contract.md 4.0 | BridgeCustomizer; smoke | stable |  |
+| `--shadow-md` | `runtime/src/styles/00-tokens.css:36` | contract.md 4.0 | none found | stable |  |
+| `--shadow-lg` | `runtime/src/styles/00-tokens.css:37` | contract.md 4.0 | none found | stable |  |
+| `--pw-primary` | `runtime/src/styles/00-tokens.css:53` | contract.md 4.0 | BridgeCustomizer; tools (a11y-check.js); smoke | stable |  |
+| `--pw-primary-hover` | `runtime/src/styles/00-tokens.css:178` | contract.md 4.0; extensions.md 13 | none found | stable |  |
+| `--pw-primary-bg` | `runtime/src/styles/00-tokens.css:182` | contract.md 4.0 | none found | stable |  |
+| `--pw-primary-20` | `runtime/src/styles/00-tokens.css:180` | contract.md 4.0 | none found | stable |  |
+| `--pw-on-primary` | `runtime/src/styles/00-tokens.css:176` | contract.md 4.0 | none found | stable |  |
+| `--pw-bg` | `runtime/src/styles/00-tokens.css:150` | contract.md 4.0 | none found | stable |  |
+| `--pw-surface` | `runtime/src/styles/00-tokens.css:151` | contract.md 4.0 | none found | stable |  |
+| `--pw-surface-2` | `runtime/src/styles/00-tokens.css:152` | contract.md 4.0 | none found | stable |  |
+| `--pw-line` | `runtime/src/styles/00-tokens.css:153` | contract.md 4.0 | smoke | stable |  |
+| `--pw-text` | `runtime/src/styles/00-tokens.css:165` | contract.md 4.0 | none found | stable |  |
+| `--pw-text-muted` | `runtime/src/styles/00-tokens.css:166` | contract.md 4.0 | none found | stable |  |
+| `--pw-h1` | `runtime/src/styles/00-tokens.css:174` | contract.md 4.0 | BridgeCustomizer | stable |  |
+| `--pw-input-bg` | `runtime/src/styles/00-tokens.css:46` | contract.md 4.0 | BridgeCustomizer; BridgeQuiet | stable |  |
+| `--pw-input-border` | `runtime/src/styles/00-tokens.css:156` | contract.md 4.0 | BridgeQuiet; smoke | stable |  |
+| `--pw-radius` | `runtime/src/styles/00-tokens.css:148` | contract.md 4.0 | none found | stable |  |
+| `--pw-radius-m` | `runtime/src/styles/00-tokens.css:149` | contract.md 4.0 | none found | stable |  |
+| `--pw-shadow-card` | `runtime/src/styles/00-tokens.css:191` | contract.md 4.0 | none found | stable |  |
+| `--pw-shadow-dropdown` | `runtime/src/styles/00-tokens.css:192` | contract.md 4.0 | none found | stable |  |
+| `--pw-font` | `runtime/src/styles/00-tokens.css:57` | contract.md 4.0 | BridgeQuiet | stable |  |
+| `--pw-font-size` | `runtime/src/styles/00-tokens.css:58` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
+| `--pw-line-height` | `runtime/src/styles/00-tokens.css:59` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
+| `--pw-gutter` | `runtime/src/styles/00-tokens.css:72` | contract.md 4.0; extensions.md 12 | BridgeCustomizer; BridgeQuiet | stable |  |
+| `--pw-field-pad` | `runtime/src/styles/00-tokens.css:70` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
+| `--pw-field-pad-bottom` | `runtime/src/styles/00-tokens.css:71` | contract.md 4.0; extensions.md 12 | BridgeQuiet; smoke | stable |  |
+| `--pw-z-notices` | `runtime/src/styles/00-tokens.css:158` | contract.md 4.0 | BridgeCustomizer | stable |  |
+| `--pw-z-popup` | `runtime/src/styles/00-tokens.css:159` | contract.md 4.0 | smoke | stable |  |
+| `--pw-z-masthead` | `runtime/src/styles/00-tokens.css:160` | contract.md 4.0 | none found | stable |  |
+| `--pw-z-drawer` | `runtime/src/styles/00-tokens.css:161` | contract.md 4.0 | none found | stable |  |
+| `--pw-z-dropdown` | `runtime/src/styles/00-tokens.css:162` | contract.md 4.0 | none found | stable |  |
+| `--pw-z-picker` | `runtime/src/styles/00-tokens.css:163` | contract.md 4.0 | none found | stable |  |
+| `--pw-z-overlay` | `runtime/src/styles/00-tokens.css:164` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-success-bg` | `runtime/src/styles/00-tokens.css:41` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-success-border` | `runtime/src/styles/00-tokens.css:41` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-success-fg` | `runtime/src/styles/00-tokens.css:41` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-success-icon` | `runtime/src/styles/00-tokens.css:41` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-warning-bg` | `runtime/src/styles/00-tokens.css:42` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-warning-border` | `runtime/src/styles/00-tokens.css:42` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-warning-fg` | `runtime/src/styles/00-tokens.css:42` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-warning-icon` | `runtime/src/styles/00-tokens.css:42` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-error-bg` | `runtime/src/styles/00-tokens.css:43` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-error-border` | `runtime/src/styles/00-tokens.css:43` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-error-fg` | `runtime/src/styles/00-tokens.css:43` | contract.md 4.0 | none found | stable |  |
+| `--pw-status-error-icon` | `runtime/src/styles/00-tokens.css:43` | contract.md 4.0 | none found | stable |  |
+| `--pw-success-bg` | `runtime/src/styles/00-tokens.css:186` | contract.md 4.0 | none found | stable |  |
+| `--pw-warning-bg` | `runtime/src/styles/00-tokens.css:187` | contract.md 4.0 | none found | stable |  |
+| `--pw-danger-bg` | `runtime/src/styles/00-tokens.css:188` | contract.md 4.0 | BridgeQuiet | stable |  |
+| `--pw-label-size` | `runtime/src/styles/00-tokens.css:64` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke | stable |  |
+| `--pw-control-height` | `runtime/src/styles/00-tokens.css:65` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke | stable |  |
+| `--pw-login-bg` | `runtime/src/styles/00-tokens.css:190` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
+| `--pw-range-fill` | `runtime/src/styles/00-tokens.css:79` | contract.md 4.1 (`setupRangeFill()`); extensions.md 3 | none found | stable | added for 1.0 (ruled 2026-11-13); set by script on each `input[type=range]`, the declaration is the value where none was set |
+| `--pw-branch-max` | `runtime/src/styles/00-tokens.css:80` | contract.md 4.1 (`setupTreeFit()`); extensions.md 3 | none found | stable | added for 1.0 (ruled 2026-11-13); set by script on the deepest open page-tree branch, the declaration is the value where none was set |
+| `--pw-item-bg` | `runtime/src/styles/00-tokens.css:50` | contract.md 4.0; extensions.md 3 | BridgeCustomizer | stable | added in 1.1.0 (a minor, ADR 0024 decision 6): the background of list items (page list rows, asmSelect and tag chips, repeater item headers), `var(--secondary)` by default |
+| `--pw-lang-tab-empty-opacity` | `runtime/src/styles/00-tokens.css:67` | contract.md 4.0; extensions.md 3 | BridgeCustomizer | stable | added in 1.2.0: the opacity of an untranslated language's tab label, `.5` by default |
+| `--pw-lang-tab-empty-style` | `runtime/src/styles/00-tokens.css:68` | contract.md 4.0; extensions.md 3 | BridgeCustomizer | stable | added in 1.2.0: its font style, `normal` by default (`italic` before 1.2.0) |
 
 ## Events
 

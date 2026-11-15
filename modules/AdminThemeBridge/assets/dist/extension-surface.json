@@ -161,7 +161,9 @@
 		"--pw-login-bg",
 		"--pw-range-fill",
 		"--pw-branch-max",
-		"--pw-item-bg"
+		"--pw-item-bg",
+		"--pw-lang-tab-empty-opacity",
+		"--pw-lang-tab-empty-style"
 	],
 	"events": [
 		"pw-runtime-ready",

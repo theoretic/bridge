@@ -184,8 +184,10 @@ ul.InputfieldFileList > li { list-style: none; }
 	font-weight: 600;
 }
 /* empty language value: dim the label only (opacity would let the baseline show through the active tab) */
-/* an empty language: in italics; the muted colour itself stays readable (at 65 % it was 2.5 to 1) */
-.langTabs > ul :is(li.pw-empty, li.langTabEmpty):not(.uk-active, .ui-tabs-active) a { color: var(--muted-foreground); font-style: italic; font-weight: 400; }
+/* an empty language (1.2.0): the text colour faded, upright; two public tokens let an extension change
+ * both. At .5 the text colour is 4 to 1 on the card in both schemes (the muted colour faded would be
+ * 2 to 1); italics were the default before 1.2.0 */
+.langTabs > ul :is(li.pw-empty, li.langTabEmpty):not(.uk-active, .ui-tabs-active) a { color: var(--foreground); opacity: var(--pw-lang-tab-empty-opacity); font-style: var(--pw-lang-tab-empty-style); font-weight: 400; }
 /* icon + text links inside fields (Add New, Create New, Add Filter): keep a gap */
 .InputfieldContent a > :is(.fa, .fas, .far):first-child { margin-right: .3em; }
 
