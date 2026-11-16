@@ -91,6 +91,16 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 */
 	const extensionContracts = array('0.1', '0.2', '1.0');
 
+	/**
+	 * What the theme's template files (default.php, _main.php, init.php...) need from this class.
+	 * Raise it when a template file starts calling a method that an older class lacks. The files
+	 * compare it with their own copy: when a module upgrade replaces the files during a request that
+	 * already loaded the older class (ProcessWire's module download or upload), the new files would
+	 * otherwise call methods the class in memory does not have.
+	 *
+	 */
+	const templateApi = 1;
+
 	const legacyAlways = 'always';
 	const legacyAuto = 'auto';
 	// the uikit setting's modes (the same stored values as the legacy stack's, plus never)

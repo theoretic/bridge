@@ -14,6 +14,8 @@ if(!defined("PROCESSWIRE")) die();
 /** @var AdminThemeBridge $adminTheme */
 
 $adminTheme = $config->wire('adminTheme');
+// an older class still loaded after an upgrade during this request (default.php says so)
+if(!defined(get_class($adminTheme) . '::templateApi') || constant(get_class($adminTheme) . '::templateApi') < 1) return;
 
 // no percentage gap between columns: the gap is CSS padding instead. Same value as
 // AdminThemeUikit, so InputfieldWrapper breaks rows at the same fields under both themes.

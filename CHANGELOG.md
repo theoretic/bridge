@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased: an upgrade from the Modules page no longer ends in an error
+
+Seen on a site upgraded from 0.9.5 to 1.2.0 through ProcessWire's module download: the request that replaced the files had already loaded the 0.9.5 class, then rendered its page with the new template files, and `_main.php` called `shellLabel()`, which 0.9.5 lacks. The upgrade itself completed; the next request was fine.
+
+- **`AdminThemeBridge::templateApi`** (1): what the template files need from the class. `default.php` and `init.php` compare it with their own copy; on an older class `default.php` prints one line with a link to Modules > Refresh, and `init.php` skips its settings. Raise it when a template file starts calling a method an older class lacks.
+- Works for upgrades from any earlier version, since the check ships in the new files.
+
 ## AdminThemeBridge 1.2.0: untranslated language tabs faded, not italic; two tokens for them (2026-11-15)
 
 Owner's request: an untranslated language's tab title should be faded rather than in italics by default, and the look should be settable (Bridge Customizer).
