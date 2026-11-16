@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: an upgrade from the Modules page no longer ends in an error
+## AdminThemeBridge 1.2.1: an upgrade from the Modules page no longer ends in an error (2026-11-16)
 
 Seen on a site upgraded from 0.9.5 to 1.2.0 through ProcessWire's module download: the request that replaced the files had already loaded the 0.9.5 class, then rendered its page with the new template files, and `_main.php` called `shellLabel()`, which 0.9.5 lacks. The upgrade itself completed; the next request was fine.
 
