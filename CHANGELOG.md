@@ -1,5 +1,15 @@
 # Changelog
 
+## AdminThemeBridge 1.3.0: a custom colour gets the text colour that reads better on it (2026-11-17)
+
+A Bridge user's critique of the colour settings: free colour choice can leave text that cannot be read. The first part of the answer is in the theme; the rest (presets, key colours, contrast warnings) is Bridge Customizer's.
+
+- **Text on a custom primary colour** (the theme's "Custom colour", a user's own colour from the user menu, an extension's `primaryColor` through `appearance()`): white or near-black (`#0a0a0a`), whichever has the higher WCAG 2 contrast ratio against the colour, white on a tie. Before 1.3.0 it was always white, so a yellow or a light cyan got white text. The theme prints `--primary-foreground` beside `--pw-primary` on `<html style>`, and the user menu's live pick sets and removes it the same way. `docs/contract.md` 4.0 says so.
+- **Which sites change**: only those with a custom colour on which near-black reads better than white: light colours, and mid-tones such as `#e83561` (the `red` preset's value) entered as a custom colour (4.82 to 1 against white's 4.11). Their buttons, checked switches, selections and other text on the primary colour turn near-black. The six presets keep their text colours in both schemes (near-black on `vibrant` and `green`, white on the others); with a preset the `<html>` attributes are as in 1.2.1.
+- **Surface unchanged**: no token, hook, read or setting added; `--primary-foreground` and `--pw-on-primary` were already public. Extension contract stays 1.0.
+- **Runtime**: the colours chunk grows from 1494 to 1867 B raw (748 to 938 B gzip, budget 8192 B). Its new name renames the index chunk and the chunks that import it (contents equal apart from chunk names), so `runtime.js` and `manifest.php` change by that name; `chunks.json` lists the 1.3.0 set and keeps 1.2.1's as the release before. Budgets: runtime.js + index chunk 15667 of 15872 B gzip (15659 in 1.2.1); theme.css 17790 of 18432 B and fields.css 5925 of 6144 B, both byte-identical to 1.2.1; classic scripts 47436 of 47616 B, unchanged.
+- Checks: smoke lines for the rule (`#171717` and the seven colours of the critique get white; `#ffd400`, `#00bed7` and `#e83561` get near-black; a non-colour gets white) and for the `<html>` attributes with a custom colour and with a preset; `tools/a11y-check.js` section 7b picks `#ffd400` and `vibrant` in the user menu and reads the primary button's text colour. Section 7's count of the picker's controls is eight (it said seven since 1.1.0 added `red`).
+
 ## AdminThemeBridge 1.2.1: an upgrade from the Modules page no longer ends in an error (2026-11-16)
 
 Seen on a site upgraded from 0.9.5 to 1.2.0 through ProcessWire's module download: the request that replaced the files had already loaded the 0.9.5 class, then rendered its page with the new template files, and `_main.php` called `shellLabel()`, which 0.9.5 lacks. The upgrade itself completed; the next request was fine.
