@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased: Ctrl+click and middle click open admin buttons in a new tab
+
+Owner's request: Ctrl+click on every link-like element in the admin should open it in a new tab; it did not on the module list's Settings, Install and Delete, which are buttons.
+
+- **One listener for the whole admin** (`scripts/main.js`, `ProcessWireAdminTheme.newTab`), on window in the capture phase, so it runs before the theme's and core's own handlers, with or without the legacy stack. Ctrl (Cmd on a Mac) with the main button, or the middle button; Shift and Alt are left alone (Shift+click on Save keeps meaning the classic save).
+- **Covered:** the module list's Settings (its settings page, `collapse_info=1` as a plain click); Install and Delete, which post in a new tab (`formtarget`) after the theme's confirm, while this tab stays as it was; a button inside a link (core's `InputfieldButton` with `href`, such as Add New, and its head copy); links that open a dialog (`.pw-modal`, `.pw-panel`, asmSelect edit links, PageTable rows), which open their page without `modal=`; a page title in the tree and a Lister row title, which open the page's editor (a plain click still opens the row). Items of a copied head-button menu keep the key.
+- **For modules:** `data-pw-href` makes any element a link; `ProcessWireAdminTheme.newTab.add(selector, fn)` adds a kind of element; `ProcessWireAdminTheme.newTab.open(url)` opens a tab as a Ctrl+click on a link would. Additions only; the extension contract stays 1.0.
+- Check: `tools/new-tab-check.js` (in `tools/ci.sh`): every case with the key and with the middle button, posts stopped before the server, a plain click on Settings still in the same tab.
+
 ## AdminThemeBridge 1.2.1: an upgrade from the Modules page no longer ends in an error (2026-11-16)
 
 Seen on a site upgraded from 0.9.5 to 1.2.0 through ProcessWire's module download: the request that replaced the files had already loaded the 0.9.5 class, then rendered its page with the new template files, and `_main.php` called `shellLabel()`, which 0.9.5 lacks. The upgrade itself completed; the next request was fine.
