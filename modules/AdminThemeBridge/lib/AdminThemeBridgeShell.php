@@ -185,7 +185,8 @@ trait AdminThemeBridgeShell {
 	}
 
 	/**
-	 * Attributes for <html>: variant, scheme (when not auto) and the custom primary
+	 * Attributes for <html>: variant, scheme (when not auto) and the custom primary with its text
+	 * colour (1.3.0: white or near-black, whichever reads better, onPrimary())
 	 *
 	 * @return string
 	 *
@@ -195,7 +196,10 @@ trait AdminThemeBridgeShell {
 		$out = " data-pw-variant='$variant'";
 		$scheme = $this->getColorScheme();
 		if($scheme !== 'auto') $out .= " data-pw-scheme='$scheme'";
-		if($variant === 'custom') $out .= " style='--pw-primary:" . $this->getPrimaryColor() . "'";
+		if($variant === 'custom') {
+			$color = $this->getPrimaryColor();
+			$out .= " style='--pw-primary:$color;--primary-foreground:" . self::onPrimary($color) . "'";
+		}
 		return $out;
 	}
 

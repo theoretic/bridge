@@ -1473,7 +1473,7 @@ if(isset($bridge) && $bridge) {
 		$memo->setValue($bridge, null);
 		$picker = $bridge->renderColorPicker();
 		check('a user\'s own custom colour is the page\'s, printed before first paint', $bridge->getVariant() === 'custom' && $bridge->getPrimaryColor() === '#7c3aed'
-			&& strpos($bridge->renderHtmlAttributes(), "style='--pw-primary:#7c3aed'") !== false, $bridge->renderHtmlAttributes());
+			&& strpos($bridge->renderHtmlAttributes(), "style='--pw-primary:#7c3aed;--primary-foreground:#ffffff'") !== false, $bridge->renderHtmlAttributes());
 		check('the picker: six named presets, a custom colour, the site default, the CSRF token', substr_count($picker, "' data-pw-variant='") === 6
 			&& strpos($picker, "data-pw-variant-pick='custom' value='#7c3aed'") !== false && strpos($picker, "class='pw-color-reset' data-pw-variant-pick=''") !== false
 			&& strpos($picker, 'data-token-name=') !== false && strpos($picker, "pw-color-custom pw-color-current'") !== false);
@@ -1489,6 +1489,30 @@ if(isset($bridge) && $bridge) {
 		$wire->users->setCurrentUser($guest);
 		$memo->setValue($bridge, null);
 	}
+	// 1.3.0: a custom primary gets its text colour worked out (white or near-black, the higher WCAG ratio)
+	check('onPrimary: #171717 → white, #ffd400 → near-black, #00bed7 → near-black', AdminThemeBridge::onPrimary('#171717') === '#ffffff'
+		&& AdminThemeBridge::onPrimary('#ffd400') === '#0a0a0a' && AdminThemeBridge::onPrimary('#00BED7') === '#0a0a0a');
+	$onSeven = array();
+	foreach(array('#c25500', '#a636ff', '#008476', '#188818', '#e2008a', '#0077d4', '#6060ff') as $c) $onSeven[$c] = AdminThemeBridge::onPrimary($c);
+	check('onPrimary: the seven colours of the brief all take white', array_unique(array_values($onSeven)) === array('#ffffff'), json_encode($onSeven));
+	check('onPrimary: the red preset colour #e83561 as a custom colour → near-black (4.82 against 4.11)', AdminThemeBridge::onPrimary('#e83561') === '#0a0a0a');
+	check('onPrimary: a non-colour → white', AdminThemeBridge::onPrimary('red') === '#ffffff' && AdminThemeBridge::onPrimary('') === '#ffffff' && AdminThemeBridge::onPrimary('#ffd40') === '#ffffff');
+	$onScheme = $bridge->getColorScheme();
+	$onHook = $bridge->addHookAfter('appearance', function(HookEvent $e) { $e->return = array_merge($e->return, array('variant' => 'custom', 'primaryColor' => '#ffd400')); });
+	$onAttrs = $bridge->renderHtmlAttributes();
+	$bridge->removeHook($onHook);
+	check('<html> with custom #ffd400: --pw-primary and near-black --primary-foreground in one style', strpos($onAttrs, "style='--pw-primary:#ffd400;--primary-foreground:#0a0a0a'") !== false
+		&& substr_count($onAttrs, 'style=') === 1, $onAttrs);
+	$onHook = $bridge->addHookAfter('appearance', function(HookEvent $e) { $e->return = array_merge($e->return, array('variant' => 'custom', 'primaryColor' => '#171717')); });
+	$onAttrs = $bridge->renderHtmlAttributes();
+	$bridge->removeHook($onHook);
+	check('<html> with custom #171717: white --primary-foreground', strpos($onAttrs, "style='--pw-primary:#171717;--primary-foreground:#ffffff'") !== false, $onAttrs);
+	$onHook = $bridge->addHookAfter('appearance', function(HookEvent $e) { $e->return = array_merge($e->return, array('variant' => 'pink')); });
+	$onAttrs = $bridge->renderHtmlAttributes();
+	$bridge->removeHook($onHook);
+	check('<html> with a preset (pink): no style attribute, as before 1.3.0', $onAttrs === " data-pw-variant='pink'" . ($onScheme !== 'auto' ? " data-pw-scheme='$onScheme'" : ''), $onAttrs);
+	check('the live pick sets and removes the text colour with the custom primary', strpos($srcOf('util/colors.ts'), "root.style.setProperty('--primary-foreground', onPrimary(color))") !== false
+		&& strpos($srcOf('util/colors.ts'), "root.style.removeProperty('--primary-foreground')") !== false);
 	check('the picker saves through the admin, before the Process runs', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "addHookBefore('ProcessController::execute', \$this, 'hookUserColorsSave')") !== false
 		&& strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeUserColors.php'), '$this->wire()->session->CSRF->hasValidToken()') !== false);
 }

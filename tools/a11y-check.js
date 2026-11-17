@@ -228,8 +228,8 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	const colours = () => page.evaluate(() => ({ variant: document.documentElement.getAttribute('data-pw-variant'),
 		primary: document.documentElement.style.getPropertyValue('--pw-primary'),
 		pressed: Array.from(document.querySelectorAll('.pw-color-pick button[aria-pressed="true"]')).map(b => b.getAttribute('data-pw-variant-pick')) }));
-	const named = await page.$$eval('.pw-color-pick button, .pw-color-pick input', els => els.every(el => el.getAttribute('aria-label')) && els.length === 7);
-	check('colour picker: seven named controls in the user menu', named);
+	const named = await page.$$eval('.pw-color-pick button, .pw-color-pick input', els => els.every(el => el.getAttribute('aria-label')) && els.length === 8);
+	check('colour picker: eight named controls in the user menu (six presets, a custom colour, Site default)', named);
 	const site = await colours();
 	await page.hover('#tools-toggle');
 	await page.waitForTimeout(300);
@@ -246,6 +246,43 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	await page.reload({ waitUntil: 'networkidle' });
 	const back = await colours();
 	check('colour picker: "Site default" goes back to the site\'s colour', back.variant === site.variant && back.pressed.join() === '', JSON.stringify({ site, back }));
+	// 7b. the text on a custom colour (1.3.0): white or near-black, whichever reads better, set live
+	// beside --pw-primary; a preset removes it. Starts from the site's colour (after "Site default"
+	// above); a user colour saved before the run is put back at the end.
+	{
+		const onButton = () => page.evaluate(() => {
+			const b = document.querySelector('#submit_save, button.ui-button:not(.ui-priority-secondary)');
+			return { color: b ? getComputedStyle(b).color : 'no-button', fg: document.documentElement.style.getPropertyValue('--primary-foreground'),
+				primary: document.documentElement.style.getPropertyValue('--pw-primary'), variant: document.documentElement.getAttribute('data-pw-variant') };
+		});
+		const loaded = await onButton();
+		await page.hover('#tools-toggle');
+		await page.waitForTimeout(300);
+		await page.locator('.pw-color-pick input[data-pw-variant-pick="custom"]').fill('#ffd400');
+		await page.waitForTimeout(700);
+		const yellow = await onButton();
+		check('7b custom #ffd400: near-black text on the primary button, set inline', yellow.color === 'rgb(10, 10, 10)' && yellow.fg === '#0a0a0a' && yellow.primary === '#ffd400', JSON.stringify(yellow));
+		await page.hover('#tools-toggle');
+		await page.waitForTimeout(300);
+		await page.click('.pw-color-pick [data-pw-variant-pick="vibrant"]');
+		await page.waitForTimeout(700);
+		const cyan = await onButton();
+		check('7b vibrant: near-black from the preset rule, no inline text colour', cyan.color === 'rgb(10, 10, 10)' && cyan.fg === '' && cyan.primary === '' && cyan.variant === 'vibrant', JSON.stringify(cyan));
+		await page.hover('#tools-toggle');
+		await page.waitForTimeout(300);
+		await page.click('.pw-color-pick .pw-color-reset');
+		await page.waitForTimeout(700);
+		const reset = await onButton();
+		check('7b "Site default" puts back what the page loaded with', JSON.stringify(reset) === JSON.stringify(loaded), JSON.stringify({ loaded, reset }));
+		if(site.pressed.length || (site.variant === 'custom' && site.primary)) {
+			await page.reload({ waitUntil: 'networkidle' });
+			await page.hover('#tools-toggle');
+			await page.waitForTimeout(300);
+			if(site.pressed[0] === 'custom') await page.locator('.pw-color-pick input[data-pw-variant-pick="custom"]').fill(site.primary);
+			else if(site.pressed.length) await page.click(`.pw-color-pick [data-pw-variant-pick="${site.pressed[0]}"]`);
+			await page.waitForTimeout(700);
+		}
+	}
 
 	// 8. phone width (0.30.1, audits U1 and B1.3): no screen scrolls sideways from 767 to 320 px, also with a
 	// wide custom logo; below 768 px the search is its icon and opens over the masthead with the focus in it

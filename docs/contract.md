@@ -220,7 +220,7 @@ Components may use the tokens instead of fixed colours so they follow variant an
 
 From 0.9.2:
 - Derived tokens (`--primary`, `--ring`, the `--pw-*` aliases, colour mixes) are declared on `:root`, `[data-pw-scheme]` and `[data-pw-variant]`, so an element that sets its own scheme or variant gets values computed for it.
-- `--primary-foreground` follows the variant: near-black on the cyan (`vibrant`) and `green` presets, white on the others and on a custom colour.
+- `--primary-foreground` follows the variant: near-black on the cyan (`vibrant`) and `green` presets, white on the others. From 1.3.0 a custom colour gets white or near-black (`#0a0a0a`), whichever has the higher contrast ratio against it (white on a tie), printed inline on `<html>` beside `--pw-primary` and set the same way by the user menu's live pick.
 - `--ring` is the primary darkened toward the text colour, at least 3 to 1 against the page. The theme also declares `--ring-50`, the same solid colour, for its own rules: it is internal (not on the extension surface, `docs/extensions.md` 3), so a component uses `--ring`.
 - Font sizes and line heights are in rem.
 - The status palette is `--pw-status-{success,warning,error}-{bg,border,fg,icon}`, used by notices, `--pw-success-bg`, `--pw-warning-bg` and `--pw-danger-bg`.
