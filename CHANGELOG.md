@@ -1,5 +1,16 @@
 # Changelog
 
+## AdminThemeBridge 1.3.0: a live filter on the Modules list (2026-11-20)
+
+Owner's request: a text field beside the section select of the Modules page that filters the modules while typing, without a reload, and a cross that clears it.
+
+- **A search field beside each section select** (`select.modules_section_select`: the Site, Core, Configurable and Install tabs). From three characters typed, a module stays when its name, title or class contains the text, in any case; the other rows are hidden, and so is a section left without one. Fewer than three characters show every module. Typing reacts to each keystroke (the `input` event); Enter does not submit the modules form.
+- **The cross** beside the field shows from three characters; a click on it, or Escape in the field, empties the field and shows every module again.
+- **With the section select**: while the field filters, its list shows all its sections whatever the select says; the select is not changed and applies again once the field is cleared. The fields of the tabs share their text, so a filter follows to another tab. When nothing matches, a line says so ("No modules match").
+- Works with the legacy stack too: `scripts/modules-filter.js` is printed on ProcessModule's list screen in every mode (`processAddonScripts()`, not on a module's own screens), and hides by class, never by `style.display`, which the section select owns. Its words are three new runtime labels, translatable in the theme's textdomain.
+- Budgets: the classic scripts' total raised from 46.5 to 47.5 KiB gzip for the new script (1046 B; 48482 B in all); theme.css 17956 of 18432 B. Extension surface and contract 1.0 unchanged.
+- Checks: smoke lines for where the script prints, the three-character rule, what it matches, hiding by class and the labels.
+
 ## AdminThemeBridge 1.2.1: an upgrade from the Modules page no longer ends in an error (2026-11-16)
 
 Seen on a site upgraded from 0.9.5 to 1.2.0 through ProcessWire's module download: the request that replaced the files had already loaded the 0.9.5 class, then rendered its page with the new template files, and `_main.php` called `shellLabel()`, which 0.9.5 lacks. The upgrade itself completed; the next request was fine.

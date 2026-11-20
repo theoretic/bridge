@@ -436,6 +436,21 @@ trait AdminThemeBridgeLegacy {
 	}
 
 	/**
+	 * Scripts a Process's screen gets in every mode, legacy stack or not: additions of the theme
+	 * that no upstream script does, so nothing takes them over (1.3.0: the filter of ProcessModule's
+	 * list, scripts/modules-filter.js; not on a module's own screens: edit, download, installConf)
+	 *
+	 * @param Process|null $process
+	 * @return array Paths relative to the theme directory
+	 *
+	 */
+	public function processAddonScripts($process) {
+		if(!$process instanceof Process || $process->className() !== 'ProcessModule') return array();
+		if(strlen((string) $this->wire()->input->urlSegment1)) return array();
+		return array('scripts/modules-filter.js');
+	}
+
+	/**
 	 * Does this Process's edit form save without a reload (scripts/page-save.js)? The page editor
 	 * (and its subclasses, as before), and by exact class the screens whose edit forms page-save.js
 	 * knows (milestone 3.8): fields, templates, module settings, the profile, and users, roles and

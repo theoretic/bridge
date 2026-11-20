@@ -1576,7 +1576,21 @@ if(isset($bridge) && $bridge) {
 	}
 	$headSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php');
 	check('the drawers script is printed where a drawer is, deferred', strpos($headSrc, "if(count(\$this->drawerNames())) \$print[] = \$this->themeAssetUrl('scripts/drawers.js');") !== false
-		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "'scripts/page-save.js', 'scripts/drawers.js');") !== false && is_file($themeDir . 'scripts/drawers.js'));
+		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "'scripts/page-save.js', 'scripts/drawers.js', 'scripts/modules-filter.js');") !== false && is_file($themeDir . 'scripts/drawers.js'));
+	// the Modules list's filter (1.3.0): printed on ProcessModule's list only, legacy stack or not
+	$pmProbe = $modules->getModule('ProcessModule', array('noInit' => true, 'noPermissionCheck' => true));
+	$pfProbe = $modules->getModule('ProcessField', array('noInit' => true, 'noPermissionCheck' => true));
+	check('the Modules filter script is printed on the Modules list only', $bridge->processAddonScripts($pmProbe) === array('scripts/modules-filter.js')
+		&& $bridge->processAddonScripts($pfProbe) === array() && $bridge->processAddonScripts(null) === array() && is_file($themeDir . 'scripts/modules-filter.js')
+		&& strpos($headSrc, 'foreach($this->processAddonScripts($process) as $file)') !== false);
+	$mfSrc = (string) file_get_contents($themeDir . '../../runtime/src/classic/modules-filter.js');
+	check('the Modules filter starts at 3 characters, on input, and matches title, class and name', strpos($mfSrc, 'var MIN = 3;') !== false
+		&& strpos($mfSrc, "input.addEventListener('input'") !== false && strpos($mfSrc, "querySelectorAll('select.modules_section_select')") !== false
+		&& strpos($mfSrc, "getAttribute('data-name') || named.getAttribute('title')") !== false);
+	check('the Modules filter hides by class, not by style.display (the section select owns it)', strpos($mfSrc, '.style.display') === false
+		&& strpos($themeCss, '.pw-modules-filtering .pw-filter-out{display:none!important}') !== false);
+	$mfLabels = $bridge->runtimeLabels();
+	check('the Modules filter words are runtime labels', isset($mfLabels['filterModules'], $mfLabels['clearFilter'], $mfLabels['noModulesMatch']));
 	$mastheadSrc = (string) file_get_contents($themeDir . '_masthead.php');
 	$logoAt = strpos($mastheadSrc, "class='pw-logo-link'");
 	$buttonsAt = strpos($mastheadSrc, 'renderDrawerButtons()');
@@ -3172,7 +3186,7 @@ check('docs/extensions.md 13: the four hookables, the token selectors as tokenCs
 check('docs/contract.md 4.0 names style[data-pw-tokens] and .pw-admin-title; ADR 0023 exists', strpos($contractDoc, '<style data-pw-keep data-pw-tokens>') !== false
 	&& strpos($contractDoc, "<span class='pw-admin-title'>") !== false && is_file(dirname(__DIR__) . '/docs/decisions/0023-appearance-seams-for-extensions.md'));
 $changelogSrc = (string) @file_get_contents(dirname(__DIR__) . '/CHANGELOG.md');
-check('CHANGELOG\'s first heading is 1.2.0, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.2.0'
+check('CHANGELOG\'s first heading is 1.3.0, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.3.0'
 	&& $clm[1] === $modules->getModuleInfoProperty('AdminThemeBridge', 'versionStr'), isset($clm[1]) ? $clm[1] : '');
 check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
@@ -3402,7 +3416,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 1.2.1', $themeVersion === '1.2.1', $themeVersion);
+	check('the theme version is 1.3.0', $themeVersion === '1.3.0', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;

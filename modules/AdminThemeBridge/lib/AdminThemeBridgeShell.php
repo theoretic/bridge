@@ -467,6 +467,9 @@ trait AdminThemeBridgeShell {
 			'remove' => __('Remove', __FILE__),
 			'moreActions' => __('More actions', __FILE__), // the arrow next to a Save button
 			'select' => __('Select', __FILE__), // shows the checkboxes of the fields list (0.23.0)
+			'filterModules' => __('Filter modules', __FILE__), // the Modules list's search field (1.3.0)
+			'clearFilter' => __('Clear', __FILE__), // the cross that empties that field
+			'noModulesMatch' => __('No modules match', __FILE__),
 			'imageViewList' => __('Show as a list with details', __FILE__),
 			'imageViewLeft' => __('Show as a list with thumbnails', __FILE__),
 			'imageViewGrid' => __('Show as a grid', __FILE__),

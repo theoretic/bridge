@@ -322,6 +322,8 @@ trait AdminThemeBridgeHead {
 			&& $this->saveInPlaceProcess($process);
 		// stand-ins for the current Process's scripts on a page without the legacy stack (ADR 0016)
 		foreach($this->nativeProcessScripts() as $file) $print[] = $this->themeAssetUrl($file);
+		// a screen's own additions, printed with the legacy stack too (the Modules list's filter, 1.3.0)
+		foreach($this->processAddonScripts($process) as $file) $print[] = $this->themeAssetUrl($file);
 		// a save waits for the uploads and other requests to the screen, whatever the in-place
 		// setting, modal windows included
 		if($this->saveInPlaceProcess($process)) $print[] = $this->themeAssetUrl('scripts/save-wait.js');

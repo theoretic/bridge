@@ -41,3 +41,15 @@ body.modal #ProcessListerResults:empty { min-height: 60vh; }
  * specific as .pw-logo-link img (display: block), which hid neither (audit C20) */
 .pw-logo-link img.pw-logo-dark, [data-pw-scheme="dark"] .pw-logo-link img.pw-logo-light { display: none; }
 [data-pw-scheme="dark"] .pw-logo-link img.pw-logo-dark { display: block; }
+
+/* the Modules list's filter beside the section select (scripts/modules-filter.js, 1.3.0): hidden by
+ * class, so the select's own style.display stays its; while it filters, every section shows */
+.pw-modules-filter { position: relative; display: inline-flex; align-items: center; margin-left: 8px; vertical-align: middle; }
+.ModulesList .pw-modules-filter input[type=search] { width: 16rem; max-width: 60vw; padding-right: 32px; }
+.pw-modules-filter input::-webkit-search-cancel-button { display: none; }
+.pw-modules-filter-clear { position: absolute; right: 4px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: var(--radius); background: none; color: var(--muted-foreground); cursor: pointer; }
+.pw-modules-filter-clear:hover, .pw-modules-filter-clear:focus-visible { color: var(--foreground); background: var(--accent); }
+.pw-modules-filter-clear[hidden] { display: none; }
+.pw-modules-filtering > .modules_section { display: block !important; }
+.pw-modules-filtering .pw-filter-out { display: none !important; }
+.pw-modules-filter-none:empty { display: none; }

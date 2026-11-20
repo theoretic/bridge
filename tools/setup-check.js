@@ -79,6 +79,79 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	});
 	check('A the section select shows one section, then all', section && section.ok && section.back === section.all, JSON.stringify(section));
 
+	// A2: the filter beside the section select (scripts/modules-filter.js, 1.3.0), typed with the keyboard
+	const F = '.pw-modules-filter input';
+	const listState = () => page.evaluate(() => {
+		const s = [...document.querySelectorAll('select.modules_section_select')].find(x => x.offsetParent !== null);
+		const list = s.closest('p').parentElement;
+		const wrap = s.parentElement.querySelector('.pw-modules-filter');
+		const rows = [...list.querySelectorAll('.modules_section tr')].filter(tr => tr.cells.length && tr.cells[0].tagName === 'TD');
+		const vis = rows.filter(tr => tr.offsetParent !== null);
+		const none = list.querySelector('.pw-modules-filter-none');
+		return {
+			field: !!wrap && !!wrap.querySelector('input'), value: wrap ? wrap.querySelector('input').value : null,
+			cross: !!wrap && wrap.querySelector('.pw-modules-filter-clear').offsetParent !== null,
+			rows: rows.length, visible: vis.length,
+			visibleText: vis.map(tr => (tr.cells[0].textContent + ' ' + ((tr.cells[0].querySelector('[title]') || {}).title || '')).toLowerCase()),
+			sectionsShown: [...list.querySelectorAll(':scope > .modules_section')].filter(x => x.offsetParent !== null).length,
+			none: none && none.offsetParent !== null ? none.textContent : '',
+			focused: document.activeElement === (wrap && wrap.querySelector('input')),
+			others: [...document.querySelectorAll('.pw-modules-filter input')].map(i => i.value),
+			filteredOut: list.querySelectorAll('.pw-filter-out').length,
+		};
+	});
+	const filterInput = page.locator(F).filter({ visible: true }).first();
+	const before = await listState();
+	check('A2 a filter field beside the visible section select, no cross yet', before.field && !before.cross && before.visible === before.rows && before.rows > 1, JSON.stringify(before).slice(0, 300));
+	// a term from the last visible module's class, so other rows drop out
+	const term = await page.evaluate(() => {
+		const s = [...document.querySelectorAll('select.modules_section_select')].find(x => x.offsetParent !== null);
+		const smalls = [...s.closest('p').parentElement.querySelectorAll('small.ModuleClass')];
+		return smalls.length ? smalls[smalls.length - 1].textContent.trim() : '';
+	});
+	await filterInput.click();
+	await page.keyboard.type(term.slice(0, 2));
+	const two = await listState();
+	check('A2 two characters filter nothing and show no cross', two.visible === two.rows && !two.cross, JSON.stringify(two).slice(0, 300));
+	await page.keyboard.type(term.slice(2));
+	const typed = await listState();
+	check('A2 typing the class name: every row left contains it, others hidden, the cross shows', typed.visible >= 1 && typed.visible < typed.rows && typed.cross
+		&& typed.visibleText.every(t => t.indexOf(term.toLowerCase()) > -1) && !typed.none, JSON.stringify({ term, typed }).slice(0, 300));
+	check('A2 the other tabs\' fields follow the text', typed.others.every(v => v === term), JSON.stringify(typed.others));
+	// any case, and a section the select hides still shows its matches while the field filters
+	const sectionSet = await page.evaluate((t) => {
+		const s = [...document.querySelectorAll('select.modules_section_select')].find(x => x.offsetParent !== null);
+		const o = [...s.options].find(x => x.value && !x.value.toLowerCase().startsWith(t.slice(0, 3).toLowerCase()));
+		if(!o) return null;
+		s.value = o.value;
+		s.dispatchEvent(new Event('change', { bubbles: true }));
+		return o.value;
+	}, term);
+	await filterInput.fill('');
+	await filterInput.pressSequentially(term.toUpperCase());
+	const upper = await listState();
+	check('A2 the filter ignores case and the section select while it filters', upper.visible === typed.visible, JSON.stringify({ sectionSet, upper }).slice(0, 300));
+	await page.locator('.pw-modules-filter-clear').filter({ visible: true }).first().click();
+	const cleared = await listState();
+	const selected = await page.evaluate(() => [...document.querySelectorAll('select.modules_section_select')].find(x => x.offsetParent !== null).value);
+	check('A2 the cross empties the field, hides itself, keeps the focus; the section select applies again', cleared.value === '' && !cleared.cross && cleared.focused
+		&& cleared.filteredOut === 0 && (sectionSet ? cleared.sectionsShown === 1 && selected === sectionSet : cleared.visible === cleared.rows), JSON.stringify({ sectionSet, cleared }).slice(0, 300));
+	await page.evaluate(() => {
+		const s = [...document.querySelectorAll('select.modules_section_select')].find(x => x.offsetParent !== null);
+		s.value = '';
+		s.dispatchEvent(new Event('change', { bubbles: true }));
+	});
+	await page.keyboard.type('zqzqzq');
+	const nothing = await listState();
+	check('A2 no match: no rows, no sections, a line says so', nothing.visible === 0 && nothing.sectionsShown === 0 && nothing.none.length > 0, JSON.stringify(nothing).slice(0, 300));
+	const url = page.url();
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(300);
+	check('A2 Enter in the field submits nothing', page.url() === url && (await listState()).value === 'zqzqzq');
+	await page.keyboard.press('Escape');
+	const esc = await listState();
+	check('A2 Escape clears the field and shows every module', esc.value === '' && esc.visible === esc.rows && !esc.none && !esc.cross, JSON.stringify(esc).slice(0, 300));
+
 	// B: field editor
 	await open('setup/field/edit/?id=1');
 	await noJquery('B field editor');
