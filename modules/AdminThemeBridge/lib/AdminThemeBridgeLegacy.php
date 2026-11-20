@@ -452,8 +452,11 @@ trait AdminThemeBridgeLegacy {
 		$class = $process->className();
 		if(!isset($items[$class])) return array();
 		if(strlen((string) $this->wire()->input->urlSegment1)) return array();
-		// every module, field or template is the most a list can show
-		if(count($this->wire($items[$class])) < self::listFilterMinRows) return array();
+		// every module, field or template is the most a list can show; Fields and Templates are not
+		// Countable (WireSaveableItems), Modules is a WireArray
+		$all = $this->wire($items[$class]);
+		$total = $all instanceof WireSaveableItems ? count($all->getAllValues('id')) : count($all);
+		if($total < self::listFilterMinRows) return array();
 		return array('scripts/list-filter.js');
 	}
 

@@ -1594,7 +1594,7 @@ if(isset($bridge) && $bridge) {
 		&& strpos($themeCss, '.pw-list-filtering .InputfieldStateCollapsed>.InputfieldContent{display:block!important}') !== false);
 	check('the list filter: 10 rows or more, the same number on both sides, and no script where no list can reach it', AdminThemeBridge::listFilterMinRows === 10
 		&& strpos($lfSrc, 'var MIN_ROWS = ' . AdminThemeBridge::listFilterMinRows . ';') !== false && strpos($lfSrc, 'if(rowsOf(found.list).length >= MIN_ROWS)') !== false
-		&& strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeLegacy.php'), 'if(count($this->wire($items[$class])) < self::listFilterMinRows) return array();') !== false);
+		&& strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeLegacy.php'), 'if($total < self::listFilterMinRows) return array();') !== false);
 	$lfLabels = $bridge->runtimeLabels();
 	check('the list filter words are runtime labels', isset($lfLabels['filterModules'], $lfLabels['filterFields'], $lfLabels['filterTemplates'], $lfLabels['clearFilter'],
 		$lfLabels['noModulesMatch'], $lfLabels['noFieldsMatch'], $lfLabels['noTemplatesMatch']));
