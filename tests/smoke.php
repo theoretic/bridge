@@ -1576,21 +1576,25 @@ if(isset($bridge) && $bridge) {
 	}
 	$headSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php');
 	check('the drawers script is printed where a drawer is, deferred', strpos($headSrc, "if(count(\$this->drawerNames())) \$print[] = \$this->themeAssetUrl('scripts/drawers.js');") !== false
-		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "'scripts/page-save.js', 'scripts/drawers.js', 'scripts/modules-filter.js');") !== false && is_file($themeDir . 'scripts/drawers.js'));
-	// the Modules list's filter (1.3.0): printed on ProcessModule's list only, legacy stack or not
-	$pmProbe = $modules->getModule('ProcessModule', array('noInit' => true, 'noPermissionCheck' => true));
-	$pfProbe = $modules->getModule('ProcessField', array('noInit' => true, 'noPermissionCheck' => true));
-	check('the Modules filter script is printed on the Modules list only', $bridge->processAddonScripts($pmProbe) === array('scripts/modules-filter.js')
-		&& $bridge->processAddonScripts($pfProbe) === array() && $bridge->processAddonScripts(null) === array() && is_file($themeDir . 'scripts/modules-filter.js')
+		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "'scripts/page-save.js', 'scripts/drawers.js', 'scripts/list-filter.js');") !== false && is_file($themeDir . 'scripts/drawers.js'));
+	// the filter of the Modules, Fields and Templates lists (1.3.0): printed on their list screens only, legacy stack or not
+	$lfProbes = array();
+	foreach(array('ProcessModule', 'ProcessField', 'ProcessTemplate', 'ProcessUser') as $class) $lfProbes[$class] = $modules->getModule($class, array('noInit' => true, 'noPermissionCheck' => true));
+	check('the list filter script is printed on the Modules, Fields and Templates lists only', $bridge->processAddonScripts($lfProbes['ProcessModule']) === array('scripts/list-filter.js')
+		&& $bridge->processAddonScripts($lfProbes['ProcessField']) === array('scripts/list-filter.js') && $bridge->processAddonScripts($lfProbes['ProcessTemplate']) === array('scripts/list-filter.js')
+		&& $bridge->processAddonScripts($lfProbes['ProcessUser']) === array() && $bridge->processAddonScripts(null) === array() && is_file($themeDir . 'scripts/list-filter.js')
 		&& strpos($headSrc, 'foreach($this->processAddonScripts($process) as $file)') !== false);
-	$mfSrc = (string) file_get_contents($themeDir . '../../runtime/src/classic/modules-filter.js');
-	check('the Modules filter starts at 3 characters, on input, and matches title, class and name', strpos($mfSrc, 'var MIN = 3;') !== false
-		&& strpos($mfSrc, "input.addEventListener('input'") !== false && strpos($mfSrc, "querySelectorAll('select.modules_section_select')") !== false
-		&& strpos($mfSrc, "getAttribute('data-name') || named.getAttribute('title')") !== false);
-	check('the Modules filter hides by class, not by style.display (the section select owns it)', strpos($mfSrc, '.style.display') === false
-		&& strpos($themeCss, '.pw-modules-filtering .pw-filter-out{display:none!important}') !== false);
-	$mfLabels = $bridge->runtimeLabels();
-	check('the Modules filter words are runtime labels', isset($mfLabels['filterModules'], $mfLabels['clearFilter'], $mfLabels['noModulesMatch']));
+	$lfSrc = (string) file_get_contents($themeDir . '../../runtime/src/classic/list-filter.js');
+	check('the list filter: one engine, an adapter per list (section selects, #ProcessFieldList, #ProcessTemplateList), from 3 characters on input', strpos($lfSrc, 'var MIN = 3;') !== false
+		&& strpos($lfSrc, "input.addEventListener('input'") !== false && strpos($lfSrc, "all('select.modules_section_select')") !== false
+		&& strpos($lfSrc, "boxList('#ProcessFieldList', '#field_filter_form')") !== false && strpos($lfSrc, "boxList('#ProcessTemplateList', 'form#filters')") !== false
+		&& strpos($lfSrc, "getAttribute('data-name') || named.getAttribute('title')") !== false);
+	check('the list filter hides by class, not by style.display (the section select owns it), and opens collapsed tag boxes', strpos($lfSrc, '.style.display') === false
+		&& strpos($themeCss, '.pw-list-filtering .pw-filter-out{display:none!important}') !== false
+		&& strpos($themeCss, '.pw-list-filtering .InputfieldStateCollapsed>.InputfieldContent{display:block!important}') !== false);
+	$lfLabels = $bridge->runtimeLabels();
+	check('the list filter words are runtime labels', isset($lfLabels['filterModules'], $lfLabels['filterFields'], $lfLabels['filterTemplates'], $lfLabels['clearFilter'],
+		$lfLabels['noModulesMatch'], $lfLabels['noFieldsMatch'], $lfLabels['noTemplatesMatch']));
 	$mastheadSrc = (string) file_get_contents($themeDir . '_masthead.php');
 	$logoAt = strpos($mastheadSrc, "class='pw-logo-link'");
 	$buttonsAt = strpos($mastheadSrc, 'renderDrawerButtons()');

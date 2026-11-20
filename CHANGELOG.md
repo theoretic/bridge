@@ -1,15 +1,16 @@
 # Changelog
 
-## AdminThemeBridge 1.3.0: a live filter on the Modules list (2026-11-20)
+## AdminThemeBridge 1.3.0: a live filter on the Modules, Fields and Templates lists (2026-11-20)
 
-Owner's request: a text field beside the section select of the Modules page that filters the modules while typing, without a reload, and a cross that clears it.
+Owner's request: a text field that filters the Modules list while typing, without a reload, with a cross that clears it; then the same on the Fields and Templates lists, right of their Filters box's label, sharing the code.
 
-- **A search field beside each section select** (`select.modules_section_select`: the Site, Core, Configurable and Install tabs). From three characters typed, a module stays when its name, title or class contains the text, in any case; the other rows are hidden, and so is a section left without one. Fewer than three characters show every module. Typing reacts to each keystroke (the `input` event); Enter does not submit the modules form.
-- **The cross** beside the field shows from three characters; a click on it, or Escape in the field, empties the field and shows every module again.
-- **With the section select**: while the field filters, its list shows all its sections whatever the select says; the select is not changed and applies again once the field is cleared. The fields of the tabs share their text, so a filter follows to another tab. When nothing matches, a line says so ("No modules match").
-- Works with the legacy stack too: `scripts/modules-filter.js` is printed on ProcessModule's list screen in every mode (`processAddonScripts()`, not on a module's own screens), and hides by class, never by `style.display`, which the section select owns. Its words are three new runtime labels, translatable in the theme's textdomain.
-- Budgets: the classic scripts' total raised from 46.5 to 47.5 KiB gzip for the new script (1046 B; 48482 B in all); theme.css 17956 of 18432 B. Extension surface and contract 1.0 unchanged.
-- Checks: smoke lines for where the script prints, the three-character rule, what it matches, hiding by class and the labels.
+- **Where**: on the Modules page beside each section select (`select.modules_section_select`: the Site, Core, Configurable and Install tabs); on the Fields and Templates lists in the header of the Filters box, right of its label (a click or a key in the field does not open or close the box).
+- **What it matches**: modules by name, title and class; fields and templates by name and label. From three characters typed, a row stays when it contains the text, in any case; the other rows are hidden, and so is a section or tag box left without one. Fewer than three characters show everything. Typing reacts to each keystroke (the `input` event); Enter submits nothing.
+- **The cross** beside the field shows from three characters; a click on it, or Escape in the field, empties the field and shows every row again.
+- **While it filters** a list shows all its sections and tag boxes, also those the section select or a collapsed tag box hides; the select and the collapsed state apply again once the field is cleared. The Modules tabs' fields share their text, so a filter follows to another tab. When nothing matches, a line says so ("No modules match", "No fields match", "No templates match").
+- **One script, `scripts/list-filter.js`**: one engine (field, cross, matching, hiding, the empty line) and a small adapter per list (where its field goes, its rows, its groups, the text a row matches on); another list is one more adapter. Printed on the three list screens in every mode, legacy stack included (`processAddonScripts()`, not on edit, add or tag screens). It hides by class, never by `style.display`, which the section select owns. Its words are seven runtime labels, translatable in the theme's textdomain.
+- Budgets: the classic scripts' total raised from 46.5 to 48 KiB gzip for the new script (1550 B; 48986 B in all); theme.css 17997 of 18432 B. Extension surface and contract 1.0 unchanged.
+- Checks: smoke lines for where the script prints, the adapters, the three-character rule, hiding by class and the labels; `tools/setup-check.js` A2 (Modules) and A3 (Fields, Templates) type in the fields with the keyboard.
 
 ## AdminThemeBridge 1.2.1: an upgrade from the Modules page no longer ends in an error (2026-11-16)
 

@@ -437,17 +437,19 @@ trait AdminThemeBridgeLegacy {
 
 	/**
 	 * Scripts a Process's screen gets in every mode, legacy stack or not: additions of the theme
-	 * that no upstream script does, so nothing takes them over (1.3.0: the filter of ProcessModule's
-	 * list, scripts/modules-filter.js; not on a module's own screens: edit, download, installConf)
+	 * that no upstream script does, so nothing takes them over (1.3.0: the filter of the Modules,
+	 * Fields and Templates lists, scripts/list-filter.js; on their list screens only, not on edit,
+	 * add, tags and the like)
 	 *
 	 * @param Process|null $process
 	 * @return array Paths relative to the theme directory
 	 *
 	 */
 	public function processAddonScripts($process) {
-		if(!$process instanceof Process || $process->className() !== 'ProcessModule') return array();
+		if(!$process instanceof Process) return array();
+		if(!in_array($process->className(), array('ProcessModule', 'ProcessField', 'ProcessTemplate'), true)) return array();
 		if(strlen((string) $this->wire()->input->urlSegment1)) return array();
-		return array('scripts/modules-filter.js');
+		return array('scripts/list-filter.js');
 	}
 
 	/**

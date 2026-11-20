@@ -531,7 +531,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * @var array paths relative to the theme's directory
 	 *
 	 */
-	protected $deferrableScripts = array('scripts/setup.js', 'scripts/screens.js', 'scripts/link.js', 'scripts/image-select.js', 'scripts/save-wait.js', 'scripts/page-save.js', 'scripts/drawers.js', 'scripts/modules-filter.js');
+	protected $deferrableScripts = array('scripts/setup.js', 'scripts/screens.js', 'scripts/link.js', 'scripts/image-select.js', 'scripts/save-wait.js', 'scripts/page-save.js', 'scripts/drawers.js', 'scripts/list-filter.js');
 
 	public function __construct() {
 		parent::__construct();
