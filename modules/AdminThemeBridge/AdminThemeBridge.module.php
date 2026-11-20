@@ -101,6 +101,13 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 */
 	const templateApi = 1;
 
+	/**
+	 * The fewest rows a list needs to get the live filter (scripts/list-filter.js, 1.3.0): the
+	 * Modules, Fields and Templates lists; the script has its own copy (MIN_ROWS)
+	 *
+	 */
+	const listFilterMinRows = 10;
+
 	const legacyAlways = 'always';
 	const legacyAuto = 'auto';
 	// the uikit setting's modes (the same stored values as the legacy stack's, plus never)

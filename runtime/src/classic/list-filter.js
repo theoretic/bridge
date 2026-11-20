@@ -18,6 +18,9 @@
  *   - Fields, Templates: one field in the header of the Filters box, right of its label; matches
  *     the name and the label.
  *
+ * A list gets its field only when it shows ten rows or more (MIN_ROWS; the server prints the
+ * script only where that can be, processAddonScripts()); a Modules tab with fewer has none.
+ *
  * From three characters typed (the input event: no submit, no reload) a row stays when its text
  * contains the field's text, in any case. Fewer characters filter nothing. A cross beside the field
  * (also from three characters) and Escape empty it; Enter submits nothing. While it filters, a list
@@ -30,11 +33,14 @@
 (function() {
 	'use strict';
 	var MIN = 3;
+	var MIN_ROWS = 10; // keep in step with AdminThemeBridge::listFilterMinRows
 	var pw = window.ProcessWire;
 	var config = pw && pw.config ? pw.config.AdminThemeBridge : null;
 	var labels = (config && config.labels) || {};
 
 	function all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+	/** a list's rows: the table rows with data cells (not a header row) */
+	function rowsOf(list) { return all('tr', list).filter(function(tr) { return tr.cells.length && tr.cells[0].tagName === 'TD'; }); }
 	function cellText(tr, i) { return tr.cells[i] ? tr.cells[i].textContent : ''; }
 	/** the header of the first box of a list's Filters form, the field goes right of its label */
 	function filtersHeader(form) { return form ? form.querySelector('.InputfieldHeader') : null; }
@@ -94,7 +100,9 @@
 	var lists = [];
 	if(document.querySelector('.pw-list-filter')) return;
 	SCREENS.forEach(function(screen) {
-		screen.lists().forEach(function(found) { add(screen, found.list, found.anchor); });
+		screen.lists().forEach(function(found) {
+			if(rowsOf(found.list).length >= MIN_ROWS) add(screen, found.list, found.anchor);
+		});
 	});
 	if(!lists.length) return;
 
@@ -151,8 +159,7 @@
 			var shown = 0;
 			var groups = all(l.screen.groups, l.list);
 			var left = groups.map(function() { return 0; });
-			all('tr', l.list).forEach(function(tr) {
-				if(!tr.cells.length || tr.cells[0].tagName !== 'TD') return;
+			rowsOf(l.list).forEach(function(tr) {
 				var keep = !on || l.screen.text(tr).toLowerCase().indexOf(term) > -1;
 				tr.classList.toggle('pw-filter-out', !keep);
 				if(!keep) return;
