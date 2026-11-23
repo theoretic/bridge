@@ -52,8 +52,9 @@ trait AdminThemeBridgeUserColors {
 	}
 
 	/**
-	 * The text colour on a custom primary (1.3.0): white or the theme's near-black, whichever has
-	 * the higher WCAG 2 contrast ratio against it; white on a tie and for anything not #rrggbb.
+	 * The text colour on a custom primary (1.3.0): white unless the colour is very light, that is
+	 * unless white's WCAG 2 contrast ratio against it is under 2 (unrounded); then the theme's
+	 * near-black. White for anything not #rrggbb.
 	 * Internal (not on the extension surface); runtime/src/util/colors.ts repeats it for the live pick.
 	 *
 	 * @param string $color
@@ -69,9 +70,7 @@ trait AdminThemeBridgeUserColors {
 			$c = $c <= 0.03928 ? $c / 12.92 : pow(($c + 0.055) / 1.055, 2.4);
 			$lum += $weight * $c;
 		}
-		// #0a0a0a: each channel 10/255, under 0.03928, so its luminance is (10/255)/12.92
-		$dark = (10 / 255) / 12.92;
-		return 1.05 / ($lum + 0.05) >= ($lum + 0.05) / ($dark + 0.05) ? '#ffffff' : '#0a0a0a';
+		return 1.05 / ($lum + 0.05) >= 2 ? '#ffffff' : '#0a0a0a';
 	}
 
 	/**

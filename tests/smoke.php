@@ -1489,13 +1489,16 @@ if(isset($bridge) && $bridge) {
 		$wire->users->setCurrentUser($guest);
 		$memo->setValue($bridge, null);
 	}
-	// 1.3.0: a custom primary gets its text colour worked out (white or near-black, the higher WCAG ratio)
-	check('onPrimary: #171717 → white, #ffd400 → near-black, #00bed7 → near-black', AdminThemeBridge::onPrimary('#171717') === '#ffffff'
-		&& AdminThemeBridge::onPrimary('#ffd400') === '#0a0a0a' && AdminThemeBridge::onPrimary('#00BED7') === '#0a0a0a');
+	// 1.3.0: a custom primary gets its text colour worked out (white unless white's WCAG ratio is under 2)
+	check('onPrimary: #171717 → white, #00bed7 → white (2.25), #ffd400 → near-black, #ffffff → near-black', AdminThemeBridge::onPrimary('#171717') === '#ffffff'
+		&& AdminThemeBridge::onPrimary('#ffd400') === '#0a0a0a' && AdminThemeBridge::onPrimary('#00BED7') === '#ffffff' && AdminThemeBridge::onPrimary('#ffffff') === '#0a0a0a');
 	$onSeven = array();
 	foreach(array('#c25500', '#a636ff', '#008476', '#188818', '#e2008a', '#0077d4', '#6060ff') as $c) $onSeven[$c] = AdminThemeBridge::onPrimary($c);
 	check('onPrimary: the seven colours of the brief all take white', array_unique(array_values($onSeven)) === array('#ffffff'), json_encode($onSeven));
-	check('onPrimary: the red preset colour #e83561 as a custom colour → near-black (4.82 against 4.11)', AdminThemeBridge::onPrimary('#e83561') === '#0a0a0a');
+	$onSeven = array();
+	foreach(array('#ff8f00', '#8e00ff', '#00958e', '#009100', '#e70000', '#008fff', '#0000ff') as $c) $onSeven[$c] = AdminThemeBridge::onPrimary($c);
+	check('onPrimary: Bridge Customizer preset colours all take white (Gold #ff8f00 lowest, 2.29)', array_unique(array_values($onSeven)) === array('#ffffff'), json_encode($onSeven));
+	check('onPrimary: the red preset colour #e83561 as a custom colour → white (4.11)', AdminThemeBridge::onPrimary('#e83561') === '#ffffff');
 	check('onPrimary: a non-colour → white', AdminThemeBridge::onPrimary('red') === '#ffffff' && AdminThemeBridge::onPrimary('') === '#ffffff' && AdminThemeBridge::onPrimary('#ffd40') === '#ffffff');
 	$onScheme = $bridge->getColorScheme();
 	$onHook = $bridge->addHookAfter('appearance', function(HookEvent $e) { $e->return = array_merge($e->return, array('variant' => 'custom', 'primaryColor' => '#ffd400')); });

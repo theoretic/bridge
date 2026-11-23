@@ -246,7 +246,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	await page.reload({ waitUntil: 'networkidle' });
 	const back = await colours();
 	check('colour picker: "Site default" goes back to the site\'s colour', back.variant === site.variant && back.pressed.join() === '', JSON.stringify({ site, back }));
-	// 7b. the text on a custom colour (1.3.0): white or near-black, whichever reads better, set live
+	// 7b. the text on a custom colour (1.3.0): white unless the colour is very light (white under 2:1), set live
 	// beside --pw-primary; a preset removes it. Starts from the site's colour (after "Site default"
 	// above); a user colour saved before the run is put back at the end.
 	{
@@ -262,6 +262,12 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.waitForTimeout(700);
 		const yellow = await onButton();
 		check('7b custom #ffd400: near-black text on the primary button, set inline', yellow.color === 'rgb(10, 10, 10)' && yellow.fg === '#0a0a0a' && yellow.primary === '#ffd400', JSON.stringify(yellow));
+		await page.hover('#tools-toggle');
+		await page.waitForTimeout(300);
+		await page.locator('.pw-color-pick input[data-pw-variant-pick="custom"]').fill('#008fff');
+		await page.waitForTimeout(700);
+		const azure = await onButton();
+		check('7b custom #008fff (a mid-tone): white text on the primary button, set inline', azure.color === 'rgb(255, 255, 255)' && azure.fg === '#ffffff' && azure.primary === '#008fff', JSON.stringify(azure));
 		await page.hover('#tools-toggle');
 		await page.waitForTimeout(300);
 		await page.click('.pw-color-pick [data-pw-variant-pick="vibrant"]');

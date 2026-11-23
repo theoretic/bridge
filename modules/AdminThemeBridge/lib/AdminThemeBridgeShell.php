@@ -186,7 +186,7 @@ trait AdminThemeBridgeShell {
 
 	/**
 	 * Attributes for <html>: variant, scheme (when not auto) and the custom primary with its text
-	 * colour (1.3.0: white or near-black, whichever reads better, onPrimary())
+	 * colour (1.3.0: white unless the colour is very light, onPrimary())
 	 *
 	 * @return string
 	 *

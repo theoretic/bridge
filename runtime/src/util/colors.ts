@@ -20,8 +20,8 @@ const HEX = /^#[0-9a-f]{6}$/;
 let timer = 0;
 
 /**
- * The text colour on a custom primary, as AdminThemeBridge::onPrimary() (1.3.0): white or the
- * theme's near-black, whichever has the higher WCAG 2 contrast ratio; white on a tie
+ * The text colour on a custom primary, as AdminThemeBridge::onPrimary() (1.3.0): white unless
+ * white's WCAG 2 contrast ratio against it is under 2 (a very light colour), then the theme's near-black
  */
 function onPrimary(color: string): string {
 	if (!HEX.test(color)) return '#ffffff';
@@ -31,8 +31,7 @@ function onPrimary(color: string): string {
 		c = c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 		lum += weight * c;
 	});
-	const dark = (10 / 255) / 12.92;
-	return 1.05 / (lum + 0.05) >= (lum + 0.05) / (dark + 0.05) ? '#ffffff' : '#0a0a0a';
+	return 1.05 / (lum + 0.05) >= 2 ? '#ffffff' : '#0a0a0a';
 }
 
 function apply(variant: string, color: string): void {
