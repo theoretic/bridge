@@ -2408,7 +2408,7 @@ if(isset($bridge)) {
 	$bridge->set('labelSize', $sizeKept[0]);
 	$bridge->set('controlHeight', $sizeKept[1]);
 	check('getLabelSize/getControlHeight are reads and labelSize/controlHeight settings on the surface', in_array('getLabelSize', $surface['reads'], true) && in_array('getControlHeight', $surface['reads'], true)
-		&& in_array('labelSize', $surface['settings'], true) && in_array('controlHeight', $surface['settings'], true) && count($surface['settings']) === 22, count($surface['settings']));
+		&& in_array('labelSize', $surface['settings'], true) && in_array('controlHeight', $surface['settings'], true) && count($surface['settings']) === 24, count($surface['settings']));
 	$sizeConfigSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeConfig.php');
 	check('the config screen has the fields labelSize and controlHeight after maxWidth', strpos($sizeConfigSrc, "attr('name', 'labelSize')") > (int) strpos($sizeConfigSrc, "attr('name', 'maxWidth')")
 		&& strpos($sizeConfigSrc, "attr('name', 'controlHeight')") > (int) strpos($sizeConfigSrc, "attr('name', 'labelSize')"));
@@ -3220,7 +3220,7 @@ check('docs/extensions.md 13: the four hookables, the token selectors as tokenCs
 check('docs/contract.md 4.0 names style[data-pw-tokens] and .pw-admin-title; ADR 0023 exists', strpos($contractDoc, '<style data-pw-keep data-pw-tokens>') !== false
 	&& strpos($contractDoc, "<span class='pw-admin-title'>") !== false && is_file(dirname(__DIR__) . '/docs/decisions/0023-appearance-seams-for-extensions.md'));
 $changelogSrc = (string) @file_get_contents(dirname(__DIR__) . '/CHANGELOG.md');
-check('CHANGELOG\'s first heading is 1.5.1, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.5.1'
+check('CHANGELOG\'s first heading is 1.6.0, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.6.0'
 	&& $clm[1] === $modules->getModuleInfoProperty('AdminThemeBridge', 'versionStr'), isset($clm[1]) ? $clm[1] : '');
 check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
@@ -3450,7 +3450,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 1.5.1', $themeVersion === '1.5.1', $themeVersion);
+	check('the theme version is 1.6.0', $themeVersion === '1.6.0', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;
@@ -4036,6 +4036,17 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	while($clR = $clQ->fetch(\PDO::FETCH_ASSOC)) $clCols[] = $clR['Field'];
 	check('change log: columns id, ts, users_id, kind, object_id, context_id, action, tab, diff', $clCols === array('id', 'ts', 'users_id', 'kind', 'object_id', 'context_id', 'action', 'tab', 'diff'), implode(', ', $clCols));
 	check('change log: retention 30 days by default', $clTheme->getChangesDays() === 30);
+	// 1.6.0 step 6: Features > Warn about changes made elsewhere (changesWarn, on) and Days the change log keeps (changesDays)
+	$clDefault = $modules->wire(new AdminThemeBridge());
+	$clConfigSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeConfig.php');
+	check('change log settings: changesWarn on and changesDays 30 by default, both on the config screen', (int) $clDefault->get('changesWarn') === 1 && (int) $clDefault->get('changesDays') === 30
+		&& strpos($clConfigSrc, "attr('name', 'changesWarn')") !== false && strpos($clConfigSrc, "attr('name', 'changesDays')") !== false);
+	check('change log settings: off binds no log hook, no ?bridgeChanges=1 answer and no _bridge_tab input', strpos($clThemeSrc, 'if($this->changesWarn) $this->hookChangeLog();') !== false
+		&& preg_match('/if\(\$this->changesWarn\) \{\s*\$this->addHookBefore\(\'ProcessController::execute\', \$this, \'hookChangesFragment\'\);\s*\$this->addHookAfter\(\'InputfieldForm::render\', \$this, \'hookChangeTabInput\'\);\s*\}/', $clThemeSrc) === 1
+		&& substr_count($clThemeSrc, "'hookChangesFragment'") === 1 && substr_count($clThemeSrc, "'hookChangeTabInput'") === 1);
+	check('change log settings: off prints no snapshot, so the runtime loads no changes chunk', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeChanges.php'), "if(!\$this->changesWarn) return '';") !== false
+		&& strpos((string) file_get_contents($themeDir . '_head.php'), "if(\$plan->deps !== '')") !== false
+		&& strpos((string) file_get_contents(__DIR__ . '/../runtime/src/index.ts'), "if (document.getElementById('pw-deps')) importAgain(() => import('./util/changes'))") !== false);
 	$clTheme->hookChangeLog();
 	$clMax = (int) $clDb->query('SELECT MAX(id) FROM bridge_changes')->fetchColumn();
 	$clRows = function() use($clDb, &$clMax) {
@@ -4163,6 +4174,9 @@ if($modules->isInstalled('AdminThemeBridge')) {
 			&& !array_diff(array_keys($cdItems), $cdDeps['templates']) && !array_diff($cdItemFields, $cdDeps['fields'])
 			&& count($cdDeps['templates']) === count(array_unique($cdDeps['templates'])), json_encode(array('items' => $cdItems, 'depth' => $cdDepth, 'deps' => $cdDeps)));
 		check('deps: the JSON is safe inside <script> (no <, >, &)', $cdJson !== '' && !preg_match('/[<>&]/', $cdJson));
+		$cdTheme->set('changesWarn', 0);
+		check('deps: with changesWarn off page edit prints none (changeDeps() still answers)', $cdTheme->changeDepsJson() === '' && is_array($cdTheme->changeDeps()));
+		$cdTheme->set('changesWarn', 1);
 		$cdPf = $modules->getModule('ProcessField', array('noInit' => true, 'noPermissionCheck' => true));
 		$cdAt($cdFieldPage, $cdPf, '');
 		check('deps: the Fields list prints none', $cdTheme->changeDepsJson() === '' && $cdTheme->changeDeps() === null);

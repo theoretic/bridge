@@ -65,7 +65,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '1.5.1',
+			'version' => '1.6.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -579,6 +579,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		$this->set('pageSaveInPlace', 1);
 		$this->set('pageAddSkipTemplate', 0);
 		$this->set('dangerWarn', 1);
+		$this->set('changesWarn', 1);
+		$this->set('changesDays', 30);
 		$this->set('userColors', 1);
 		$this->set('dataTableSortRows', 10);
 		$this->set('printScripts', '');
@@ -634,8 +636,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// whichever theme is current: the profile and user editors are where this theme is chosen
 		if($this->bossForcesUikit()) $this->addHookBefore('Pages::saveReady', $this, 'hookUserThemeSave');
 		// whichever theme is current: a colleague on another theme changing a field still warns a
-		// Bridge user (the change log, 1.6.0, lib/AdminThemeBridgeChanges.php)
-		$this->hookChangeLog();
+		// Bridge user (the change log, 1.6.0, lib/AdminThemeBridgeChanges.php); the changesWarn
+		// setting off: nothing is written
+		if($this->changesWarn) $this->hookChangeLog();
 		if(!$this->isCurrent()) return;
 
 		$this->addBodyClass('AdminThemeBridge');
@@ -684,9 +687,11 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		}
 		// the check on tab focus: what changed elsewhere since the screen rendered (1.6.0,
 		// lib/AdminThemeBridgeChanges.php); answered before the Process boots
-		$this->addHookBefore('ProcessController::execute', $this, 'hookChangesFragment');
 		// the saving tab's id goes with each POST form we render, so a tab is not warned about itself
-		$this->addHookAfter('InputfieldForm::render', $this, 'hookChangeTabInput');
+		if($this->changesWarn) {
+			$this->addHookBefore('ProcessController::execute', $this, 'hookChangesFragment');
+			$this->addHookAfter('InputfieldForm::render', $this, 'hookChangeTabInput');
+		}
 		// LanguageTabs appends `setupLanguageTabs($('#form'))` to each form with language tabs; on a
 		// page without jQuery the runtime sets them up itself (milestone 2.4). On every wrapper, as
 		// the repeater's AJAX item is one: its config script and the Lister's bookmark line get the

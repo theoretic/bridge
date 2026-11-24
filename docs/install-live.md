@@ -71,6 +71,12 @@ The history drawer (0.25.0) keeps each user's visited screens in the `pages_meta
 user pages (`AdminThemeBridge.history`), and the page tree drawer its open branches in a browser
 cookie (`bridge_tree_open`). No install step, no table, nothing to copy between sites.
 
+The changed-elsewhere warnings (1.6.0, [changes.md](changes.md)) keep a log in the table
+`bridge_changes`, made on install, or on the first admin request after a plain-copy upgrade when
+it is missing (the database user needs CREATE). Uninstalling the theme drops it. Rows go after
+30 days (Features > Days the change log keeps); Features > Warn about changes made elsewhere off
+stops all writes.
+
 Browser caching (0.9.11): the module's `.htaccess` gives its versioned files (`?v=` URLs) and its
 hashed files (runtime chunks, icon font subsets) `Cache-Control: public, max-age=31536000,
 immutable` on Apache with `mod_headers`. On nginx the same is one rule in the site's server block:

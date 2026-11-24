@@ -263,6 +263,29 @@ trait AdminThemeBridgeConfig {
 		$f->columnWidth = 50;
 		$fs->add($f);
 
+		/** @var InputfieldCheckbox $f */
+		$f = $modules->get('InputfieldCheckbox');
+		$f->attr('name', 'changesWarn');
+		$f->label = __('Warn about changes made elsewhere', __FILE__);
+		$f->description = __('When the user comes back to an admin tab, a dialog lists what changed since the screen opened, in another tab, browser or machine: on the page editor its page, template and fields (repeater and FieldsetPage items included), on Add New the template, on the field and template editors that field or template. It names who saved and when and, where the user may see them, the settings before and after.', __FILE__);
+		$f->notes = __('Saves made outside the admin (API scripts, migrations, the command line) change fields and templates without a warning. Changes are logged on admin saves whichever admin theme the saving user has.', __FILE__);
+		$f->attr('value', 1);
+		if($this->changesWarn) $f->attr('checked', 'checked');
+		$f->columnWidth = 50;
+		$fs->add($f);
+
+		/** @var InputfieldInteger $f */
+		$f = $modules->get('InputfieldInteger');
+		$f->attr('name', 'changesDays');
+		$f->label = __('Days the change log keeps', __FILE__);
+		$f->description = __('Changes older than this are removed from the log; a screen left open longer is no longer warned about them. Default 30.', __FILE__);
+		$f->attr('value', $this->getChangesDays());
+		$f->attr('min', 1);
+		$f->attr('max', 3650);
+		$f->showIf = 'changesWarn=1';
+		$f->columnWidth = 50;
+		$fs->add($f);
+
 		/** @var InputfieldInteger $f */
 		$f = $modules->get('InputfieldInteger');
 		$f->attr('name', 'dataTableSortRows');

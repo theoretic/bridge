@@ -1,5 +1,20 @@
 # Changelog
 
+## AdminThemeBridge 1.6.0: a warning on return to a tab when something changed elsewhere (2026-11-24)
+
+Owner's request: when a user comes back to an admin tab, check whether changes made in other tabs, browsers or on other machines affect the open screen (the page's template changed, a file field's allowed types changed), and show what changed in a dialog. `docs/changes.md` explains.
+
+- **Where it warns**: the page editor (users, roles and permissions too) when its template, a field on it (also as an override on this template), the template's field list, or the page itself changed, at any depth of repeater and FieldsetPage items; Add New when the chosen or the parent's template changed; the field and template editors when that field or template changed. The page tree, lists and module settings show nothing.
+- **The dialog** (`<dialog class="pw-changes">`, `role="alertdialog"`): per changed object what, who ("you, in another tab" for the same user elsewhere) and when, the settings before and after, and what it means here when known (upload types no longer allowed; unsaved fields another save may overwrite). Reload page asks first over unsaved changes; Keep editing leaves the changes in a banner under the headline. Saves made in the same tab never warn.
+- **When**: on `pw-tab-focus` only (a return to the tab), one GET of the screen's URL with `bridgeChanges=1` and the screen's snapshot (`script#pw-deps`); no timer.
+- **The change log**: the table `bridge_changes` (made on install, or when missing after a plain-copy upgrade; dropped on uninstall), written by hooks on the core's field, template, fieldgroup, field-context and admin page saves, bound on every admin request whichever admin theme the saving user has. Page saves are logged for admin requests only; each saving tab sends its id (`_bridge_tab`, `X-Bridge-Tab`). Rows go after 30 days, at most once an hour.
+- **Who sees what**: the server re-checks access (the page still editable, else only "You can no longer save this page"; `field-admin` / `template-admin` for those editors). Users without the admin permission see the values of labels, descriptions, extensions, max files, required, column width, collapsed and the inputfield type; code-like settings by name only; the rest as a count.
+- **Settings**: Features > Warn about changes made elsewhere (`changesWarn`, on) and Days the change log keeps (`changesDays`, 30). Off: no hook writes, no snapshot is printed, no chunk loads; the table stays.
+- **Not covered**: saves outside the admin (API scripts, migrations, cron, the command line) change fields and templates without a warning; a page saved that way still shows as saved by someone else, without details.
+- **Surface**: the hook `changeDeps()` (hooks 21 to 22), so a module can add ids a screen depends on, and the settings `changesWarn` and `changesDays` (settings 22 to 24). A minor release under ADR 0024; extension contract stays 1.0.
+- **Runtime**: the chunk `util/changes.ts` (3375 B gzip, budget 8192), loaded only on screens that print a snapshot. Budgets: runtime.js + index chunk 15729 of 15872 B gzip; theme.css 18167 of 18432 B (the dialog and banner); fields.css 5925 of 6144 B and the classic scripts 49090 of 49152 B, unchanged. No budget raised. `chunks.json` lists the 1.6.0 set and keeps 1.5.1's as the release before.
+- Checks: smoke lines for the table, the hooks and diffs, the snapshot on the nesting fixture, the endpoint's permission and detail filters, the same-tab skip and the settings.
+
 ## AdminThemeBridge 1.5.1: the new-tab listener moves out of main.js (2026-11-24)
 
 Owner's request: keep `scripts/main.js` within its size budget rather than raising it. 1.5.0's listener had pushed `scripts/main.js` to 13945 B gzip (budget 13312) and the classic scripts to 50007 B (budget 49152).

@@ -4,7 +4,7 @@ A [ProcessWire](https://processwire.com) admin built from native web components 
 every existing Inputfield and Process module.
 
 The name says what it is: a bridge between the jQuery-era admin and the modern web stack.
-"Bridge" is a working name. Status: AdminThemeBridge 1.5.1; the component contract is
+"Bridge" is a working name. Status: AdminThemeBridge 1.6.0; the component contract is
 version 1, the extension contract is 1.0.
 
 ## What it is
@@ -87,6 +87,11 @@ are the point. A screen with a jQuery-era field loads that field's stack, as it 
   several admin tabs open, the tab
   that gets the focus back updates both in the background (Features > Page tree on each page,
   Show history, History steps).
+- Back in a tab after changes made elsewhere (another tab, browser or machine), a dialog says
+  what changed on the screen's page, template or fields, by whom and when, with the settings
+  before and after; repeater and FieldsetPage items count too
+  ([docs/changes.md](docs/changes.md); Features > Warn about changes made elsewhere, on by
+  default).
 - The keyboard reaches what the pointer does: tabs move with the arrow keys, Alt+Up and Down
   sort lists and move pages in the tree, Ctrl+Space selects; dialogs take the focus and ask
   before closing over unsaved changes. Reduced motion turns the flashes and smooth scrolls off,

@@ -417,7 +417,7 @@ trait AdminThemeBridgeExtensions {
 			'settings' => array(
 				'legacyStack', 'uikit', 'maxWidth', 'variant', 'primaryColor', 'colorScheme', 'logoURL', 'logoURLDark',
 				'extendedBreadcrumbs', 'pageTreeDrawer', 'history', 'historySteps', 'pageSaveInPlace', 'pageAddSkipTemplate',
-				'dangerWarn', 'userColors', 'dataTableSortRows', 'printScripts', 'nativeOverrides', 'extensionDev',
+				'dangerWarn', 'changesWarn', 'changesDays', 'userColors', 'dataTableSortRows', 'printScripts', 'nativeOverrides', 'extensionDev',
 				'labelSize', 'controlHeight',
 			),
 			// the shell slots (slotTags())

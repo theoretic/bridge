@@ -31,13 +31,13 @@ How to read the columns:
 |---|---|---|
 | hooks | 22 | 22 |
 | reads | 18 | 18 |
-| settings | 22 | 22 |
+| settings | 24 | 24 |
 | slots | 8 | 8 |
 | tokens | 81 | 81 |
 | events | 28 | 28 |
 | runtime | 12 | 12 |
 
-Total: 188 entries (182 on contract 0.2: one read taken off, four events and two tokens added; 1.6.0 added the hook `changeDeps`).
+Total: 190 entries (182 on contract 0.2: one read taken off, four events and two tokens added; 1.6.0 added the hook `changeDeps` and the settings `changesWarn`, `changesDays`).
 
 ## Hooks
 
@@ -114,6 +114,8 @@ Theme settings an extension may read (`settings` in its manifest). "Defined" is 
 | `pageSaveInPlace` | `AdminThemeBridge.module.php:540` | Features > Save without reload | contract.md 4.3 | none found | stable |  |
 | `pageAddSkipTemplate` | `AdminThemeBridge.module.php:541` | Features > Step 2 if template auto-selected | contract.md 4.4 | smoke | stable |  |
 | `dangerWarn` | `AdminThemeBridge.module.php:542` | Features > Warn before risky actions | contract.md 4.2; README (by its label) | smoke | stable |  |
+| `changesWarn` | `AdminThemeBridge.module.php:582` | Features > Warn about changes made elsewhere | changes.md; install-live.md; README (by its label) | smoke | stable | added in 1.6.0 (minor: entries may be added in 1.x) |
+| `changesDays` | `AdminThemeBridge.module.php:583` | Features > Days the change log keeps | changes.md; install-live.md | smoke | stable | added in 1.6.0 (minor: entries may be added in 1.x) |
 | `userColors` | `AdminThemeBridge.module.php:543` | Appearance > Users choose their own colour | extensions.md 13 | BridgeCustomizer; smoke | stable |  |
 | `dataTableSortRows` | `AdminThemeBridge.module.php:544` | Features > Datatable sortable rows threshold | contract.md 4.4 | smoke | stable |  |
 | `printScripts` | `AdminThemeBridge.module.php:545` | Legacy > Site scripts that never wait for the legacy stack | contract.md 3; README (by its label) | smoke | stable |  |

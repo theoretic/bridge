@@ -21,7 +21,9 @@
  * UPDATE (core keeps no old values: trackChangesValues is never on, and `label` is not tracked);
  * the row is written in `saved`, so a failed save writes nothing, nor does a save with no change.
  * Page saves (and one-field saves, Pages::savedField) are logged only for admin requests of a logged-in user, not from the CLI or the front
- * end. Rows older than getChangesDays() go at most once an hour, on write.
+ * end. Rows older than getChangesDays() go at most once an hour, on write. With the changesWarn
+ * setting off (Features > Warn about changes made elsewhere) no hook is bound, no snapshot printed
+ * and nothing answers `?bridgeChanges=1`; the table stays.
  *
  * The check on tab focus is an AJAX GET of any admin URL with `bridgeChanges=1` and `deps`, the
  * screen's snapshot (changeDeps()) as JSON with the cursor it last got. hookChangesFragment()
@@ -133,7 +135,8 @@ trait AdminThemeBridgeChanges {
 	}
 
 	/**
-	 * changeDeps() as the JSON _head.php prints, safe inside `<script>`; '' when there is none
+	 * changeDeps() as the JSON _head.php prints, safe inside `<script>`; '' when there is none or
+	 * the changesWarn setting is off (then the runtime loads no changes chunk either)
 	 *
 	 * Internal: not on the extension surface.
 	 *
@@ -141,6 +144,7 @@ trait AdminThemeBridgeChanges {
 	 *
 	 */
 	public function changeDepsJson() {
+		if(!$this->changesWarn) return '';
 		$deps = $this->changeDeps();
 		if(!is_array($deps)) return '';
 		$json = json_encode($deps, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);

@@ -65,6 +65,8 @@
 		"pageSaveInPlace",
 		"pageAddSkipTemplate",
 		"dangerWarn",
+		"changesWarn",
+		"changesDays",
 		"userColors",
 		"dataTableSortRows",
 		"printScripts",
