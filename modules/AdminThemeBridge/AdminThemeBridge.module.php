@@ -682,6 +682,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 			$this->addHookBefore('ProcessController::execute', $this, 'hookHistoryFragment');
 			$this->addHookAfter('ProcessController::execute', $this, 'hookHistoryRecord');
 		}
+		// the check on tab focus: what changed elsewhere since the screen rendered (1.6.0,
+		// lib/AdminThemeBridgeChanges.php); answered before the Process boots
+		$this->addHookBefore('ProcessController::execute', $this, 'hookChangesFragment');
 		// LanguageTabs appends `setupLanguageTabs($('#form'))` to each form with language tabs; on a
 		// page without jQuery the runtime sets them up itself (milestone 2.4). On every wrapper, as
 		// the repeater's AJAX item is one: its config script and the Lister's bookmark line get the

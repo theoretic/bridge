@@ -22,6 +22,11 @@
  * Page saves are logged only for admin requests of a logged-in user, not from the CLI or the front
  * end. Rows older than getChangesDays() go at most once an hour, on write.
  *
+ * The check on tab focus is an AJAX GET of any admin URL with `bridgeChanges=1` and `deps`, the
+ * screen's snapshot (changeDeps()) as JSON with the cursor it last got. hookChangesFragment()
+ * answers it before the Process boots and exits: JSON `{cursor, page, changes, more}` from
+ * changesAnswer(), 403 and no body for a guest. Not AJAX: the screen renders as usual.
+ *
  */
 trait AdminThemeBridgeChanges {
 
@@ -215,6 +220,278 @@ trait AdminThemeBridgeChanges {
 			$this->changeError($e);
 			return 0;
 		}
+	}
+
+	/**
+	 * Hook before ProcessController::execute: the answer to `?bridgeChanges=1` (AJAX GET only), sent
+	 * before the Process boots, then exit; 403 without a body for a guest
+	 *
+	 * @param HookEvent $event
+	 *
+	 */
+	public function hookChangesFragment(HookEvent $event) {
+		$input = $this->wire()->input;
+		if($input->get('bridgeChanges') === null || !$input->requestMethod('GET') || !$this->wire()->config->ajax) return;
+		$answer = $this->changesRequest();
+		header('Cache-Control: no-store');
+		if($answer === null) {
+			http_response_code(403);
+			exit;
+		}
+		header('Content-Type: application/json; charset=utf-8');
+		echo json_encode($answer, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PARTIAL_OUTPUT_ON_ERROR);
+		exit;
+	}
+
+	/**
+	 * changesAnswer() for the request's `deps` parameter (the snapshot as JSON)
+	 *
+	 * Internal: not on the extension surface.
+	 *
+	 * @return array|null Null for a guest
+	 *
+	 */
+	public function changesRequest() {
+		$json = $this->wire()->input->get('deps');
+		$deps = is_string($json) && strlen($json) <= 65536 ? json_decode($json, true) : null;
+		return $this->changesAnswer(is_array($deps) ? $deps : array());
+	}
+
+	/**
+	 * What changed since a snapshot, for the current user (the `?bridgeChanges=1` answer)
+	 *
+	 * The snapshot is only a list of ids to look at, never trusted. Its screen decides what the
+	 * user must hold: page-edit a page they can still see (else nothing) and edit (else only
+	 * `message`: they can no longer save it); page-add `page-edit`; field-edit `field-admin`;
+	 * template-edit `template-admin`; any other screen gets nothing. One query on the log (rows past
+	 * the cursor of the snapshot's fields, templates, their fieldgroups, the field contexts there and
+	 * the page) and the page itself. A row's diff is whole for a user with `field-admin` (fields,
+	 * contexts) or `template-admin` (templates, fieldgroups); others get changeSafeProps only, the
+	 * code-like properties named (`named`), the rest counted (`hidden`).
+	 *
+	 * Internal: not on the extension surface.
+	 *
+	 * @param array $deps The snapshot: screen, cursor, page (id, modified), template, fieldgroup, fields, templates
+	 * @return array|null Keys: cursor (the newest row seen), page (who saved it since, or null),
+	 *  changes (rows, newest first: id, kind, action, ts, user, you, object, name, label, in, diff,
+	 *  named, hidden), more (true when rows past the 50 newest were left out), message (only when
+	 *  the page can no longer be saved). Null for a guest.
+	 *
+	 */
+	public function changesAnswer(array $deps) {
+		$user = $this->wire()->user;
+		if(!$user || !$user->isLoggedin()) return null;
+		$cursor = isset($deps['cursor']) ? max(0, (int) $deps['cursor']) : 0;
+		$screen = isset($deps['screen']) ? (string) $deps['screen'] : '';
+		$out = array('cursor' => $cursor, 'page' => null, 'changes' => array(), 'more' => false);
+		$fields = $this->changeIds($deps, 'fields');
+		$templates = $this->changeIds($deps, 'templates');
+		if(!empty($deps['template']) && is_scalar($deps['template'])) $templates[] = (int) $deps['template'];
+		$page = null;
+		if($screen === 'page-edit') {
+			$pageId = isset($deps['page']['id']) && is_scalar($deps['page']['id']) ? (int) $deps['page']['id'] : 0;
+			if($pageId < 1) return $out;
+			$page = $this->wire()->pages->getById(array($pageId), array('getOne' => true));
+			if($page->id && !$page->listable()) return $out;
+			if(!$page->id || !$page->editable()) {
+				$out['message'] = __('You can no longer save this page', __FILE__);
+				return $out;
+			}
+		} else if($screen === 'page-add') {
+			if(!$user->hasPermission('page-edit')) return $out;
+		} else if($screen === 'field-edit') {
+			if(!$user->hasPermission('field-admin')) return $out;
+		} else if($screen === 'template-edit') {
+			if(!$user->hasPermission('template-admin')) return $out;
+		} else {
+			return $out;
+		}
+		$templates = array_values(array_unique(array_filter($templates)));
+		$fieldgroups = array();
+		if(!empty($deps['fieldgroup']) && is_scalar($deps['fieldgroup'])) $fieldgroups[] = (int) $deps['fieldgroup'];
+		foreach($templates as $id) {
+			$template = $this->wire()->templates->get($id);
+			if($template instanceof Template && $template->fieldgroup) $fieldgroups[] = (int) $template->fieldgroup->id;
+		}
+		$fieldgroups = array_values(array_unique(array_filter($fieldgroups)));
+		$rows = $this->changeRows($cursor, $fields, $templates, $fieldgroups, $page ? (int) $page->id : 0);
+		if(count($rows) > 50) {
+			$out['more'] = true;
+			$rows = array_slice($rows, 0, 50);
+		}
+		if(count($rows)) $out['cursor'] = max($cursor, (int) $rows[0]['id']);
+		$userIds = array();
+		foreach($rows as $row) $userIds[] = (int) $row['users_id'];
+		$pageMoved = $page && isset($deps['page']['modified']) && is_scalar($deps['page']['modified'])
+			&& (int) $page->modified > (int) $deps['page']['modified'];
+		if($pageMoved) $userIds[] = (int) $page->modified_users_id;
+		$names = $this->changeUserNames($userIds);
+		if($pageMoved) {
+			$by = (int) $page->modified_users_id;
+			$out['page'] = array('id' => (int) $page->id, 'modified' => (int) $page->modified,
+				'user' => isset($names[$by]) ? $names[$by] : '', 'you' => $by === (int) $user->id);
+		}
+		foreach($rows as $row) $out['changes'][] = $this->changeEntry($row, $names);
+		return $out;
+	}
+
+	/**
+	 * A list of ids from the snapshot: positive integers, each once, at most 500
+	 *
+	 * @param array $deps
+	 * @param string $key
+	 * @return array
+	 *
+	 */
+	protected function changeIds(array $deps, $key) {
+		$ids = array();
+		if(!isset($deps[$key]) || !is_array($deps[$key])) return $ids;
+		foreach($deps[$key] as $id) {
+			if(!is_scalar($id) || (int) $id < 1) continue;
+			$ids[(int) $id] = (int) $id;
+			if(count($ids) >= 500) break;
+		}
+		return array_values($ids);
+	}
+
+	/**
+	 * The log's rows past the cursor that touch the given ids, newest first, at most 51
+	 *
+	 * @param int $cursor
+	 * @param array $fields Field ids (field rows, and context rows in one of the fieldgroups)
+	 * @param array $templates Template ids
+	 * @param array $fieldgroups Fieldgroup ids
+	 * @param int $pageId 0 for none
+	 * @return array
+	 *
+	 */
+	protected function changeRows($cursor, array $fields, array $templates, array $fieldgroups, $pageId) {
+		$in = function(array $ids) { return implode(',', array_map('intval', $ids)); };
+		$where = array();
+		if(count($fields)) $where[] = "(kind='field' AND object_id IN(" . $in($fields) . '))';
+		if(count($templates)) $where[] = "(kind='template' AND object_id IN(" . $in($templates) . '))';
+		if(count($fieldgroups)) $where[] = "(kind='fieldgroup' AND object_id IN(" . $in($fieldgroups) . '))';
+		if(count($fields) && count($fieldgroups)) $where[] = "(kind='context' AND object_id IN(" . $in($fields) . ') AND context_id IN(' . $in($fieldgroups) . '))';
+		if($pageId) $where[] = "(kind='page' AND object_id=" . (int) $pageId . ')';
+		if(!count($where) || !$this->changeTableReady()) return array();
+		try {
+			$query = $this->wire()->database->prepare('SELECT id, ts, users_id, kind, object_id, context_id, action, diff FROM `' . self::changesTable .
+				'` WHERE id>:cursor AND (' . implode(' OR ', $where) . ') ORDER BY id DESC LIMIT 51');
+			$query->bindValue(':cursor', (int) $cursor, \PDO::PARAM_INT);
+			$query->execute();
+			$rows = $query->fetchAll(\PDO::FETCH_ASSOC);
+			$query->closeCursor();
+			return $rows;
+		} catch(\Exception $e) {
+			$this->changeError($e);
+			return array();
+		}
+	}
+
+	/**
+	 * Users' names by id, in one query
+	 *
+	 * @param array $ids
+	 * @return array id => name
+	 *
+	 */
+	protected function changeUserNames(array $ids) {
+		$ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+		$names = array();
+		if(!count($ids)) return $names;
+		try {
+			$query = $this->wire()->database->query('SELECT id, name FROM pages WHERE id IN(' . implode(',', $ids) . ')');
+			while($row = $query->fetch(\PDO::FETCH_ASSOC)) $names[(int) $row['id']] = (string) $row['name'];
+			$query->closeCursor();
+		} catch(\Exception $e) {
+			$this->changeError($e);
+		}
+		return $names;
+	}
+
+	/**
+	 * A log row as the answer gives it: who, what, and the diff the current user may see
+	 *
+	 * @param array $row
+	 * @param array $names User names by id
+	 * @return array
+	 *
+	 */
+	protected function changeEntry(array $row, array $names) {
+		$user = $this->wire()->user;
+		$kind = (string) $row['kind'];
+		$objectId = (int) $row['object_id'];
+		$diff = $row['diff'] !== null ? json_decode((string) $row['diff'], true) : array();
+		if(!is_array($diff)) $diff = array();
+		$by = (int) $row['users_id'];
+		$entry = array('id' => (int) $row['id'], 'kind' => $kind, 'action' => (string) $row['action'], 'ts' => (int) $row['ts'],
+			'user' => isset($names[$by]) ? $names[$by] : '', 'you' => $by === (int) $user->id, 'object' => $objectId,
+			'name' => '', 'label' => '', 'in' => '', 'diff' => array(), 'named' => array(), 'hidden' => 0);
+		$item = null;
+		if($kind === 'field' || $kind === 'context') $item = $this->wire()->fields->get($objectId);
+		else if($kind === 'template') $item = $this->wire()->templates->get($objectId);
+		else if($kind === 'fieldgroup') $item = $this->wire()->fieldgroups->get($objectId);
+		if($item instanceof Saveable && $item->id) {
+			$entry['name'] = (string) $item->name;
+			if($item instanceof Field || $item instanceof Template) $entry['label'] = (string) $item->getLabel();
+		} else if(isset($diff['name'][0]) && is_string($diff['name'][0])) {
+			$entry['name'] = $diff['name'][0];
+		}
+		if($kind === 'context') {
+			$fieldgroup = $this->wire()->fieldgroups->get((int) $row['context_id']);
+			if($fieldgroup instanceof Fieldgroup) $entry['in'] = (string) $fieldgroup->name;
+		}
+		if(isset($diff['_more'])) {
+			$entry['hidden'] = (int) $diff['_more'];
+			unset($diff['_more']);
+		}
+		if($kind === 'page') {
+			$full = true;
+		} else if($kind === 'field' || $kind === 'context') {
+			$full = $user->hasPermission('field-admin');
+		} else {
+			$full = $user->hasPermission('template-admin');
+		}
+		if($full) {
+			$entry['diff'] = $diff;
+			return $entry;
+		}
+		foreach($diff as $key => $value) {
+			$key = (string) $key;
+			if($this->changeSafeProp($key)) {
+				$entry['diff'][$key] = $value;
+			} else if($this->changeCodeProp($key)) {
+				$entry['named'][] = $key;
+			} else if($value !== array() && $value !== false) {
+				$entry['hidden']++;
+			}
+		}
+		return $entry;
+	}
+
+	/**
+	 * Is a property one whose values any editor of the page may see (labels, descriptions in any
+	 * language, extensions, max files, required, column width, collapsed, inputfield class)?
+	 *
+	 * @param string $key
+	 * @return bool
+	 *
+	 */
+	protected function changeSafeProp($key) {
+		if(preg_match('/^(label|description)\d*$/', $key)) return true;
+		return in_array($key, array('extensions', 'maxFiles', 'required', 'columnWidth', 'collapsed', 'inputfieldClass'), true);
+	}
+
+	/**
+	 * Is a property code-like (show/required conditions, selectors, code, hooks, access role ids):
+	 * named to a user without the admin permission, its values never shown?
+	 *
+	 * @param string $key
+	 * @return bool
+	 *
+	 */
+	protected function changeCodeProp($key) {
+		return (bool) preg_match('/^(showIf|requiredIf|roles|rolesPermissions)$|Roles$|[sS]elector|Code$|[hH]ook/', $key);
 	}
 
 	/**

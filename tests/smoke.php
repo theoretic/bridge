@@ -4209,5 +4209,122 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	$cdAt($cdPageWas, $cdProcessWas, '', $cdGetWas);
 }
 
+// 1.6.0: the check on tab focus, ?bridgeChanges=1 (changesAnswer(); sprint changed-elsewhere, step 3)
+if($modules->isInstalled('AdminThemeBridge')) {
+	$caTheme = $modules->getModule('AdminThemeBridge', array('noInit' => true, 'noPermissionCheck' => true));
+	$caSrc = (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php');
+	$caLibSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeChanges.php');
+	check('changes: the endpoint is a hook before ProcessController::execute, bound after the isCurrent() return; it exits after its answer',
+		($caAt = strpos($caSrc, "\$this->addHookBefore('ProcessController::execute', \$this, 'hookChangesFragment');")) !== false && $caAt > strpos($caSrc, 'if(!$this->isCurrent()) return;')
+		&& preg_match('/function hookChangesFragment\(HookEvent \$event\) \{.*?http_response_code\(403\);\s*exit;.*?echo json_encode\(\$answer[^;]*;\s*exit;/s', $caLibSrc) === 1);
+	$caAjaxWas = $config->ajax;
+	$caGetWas = $input->get->getArray();
+	$caSet = function(array $get) use($input) {
+		foreach(array_keys($input->get->getArray()) as $k) $input->get->remove($k);
+		foreach($get as $k => $v) $input->get->$k = $v;
+	};
+	$caSet(array('bridgeChanges' => '1'));
+	$config->ajax = false;
+	ob_start();
+	$caE = new HookEvent(array('object' => $wire->wire(new ProcessController()), 'method' => 'execute', 'arguments' => array()));
+	$caTheme->hookChangesFragment($caE);
+	$caOut = ob_get_clean();
+	check('changes: not AJAX, the request is left alone (no answer, the screen renders)', $caOut === '' && !$caE->replace && $caE->return === null);
+	$caSu = $users->get('name=bridge');
+	$caEd = $users->get('name=acl');
+	$caGuest = $users->getGuestUser();
+	$caPage = $pages->get('/bridge-fixture/');
+	$caField = $wire->fields->get('bf_files');
+	$caUserWas = $wire->user;
+	if(!$caSu->id || !$caEd->id || !$caPage->id || !$caField instanceof Field || !$caPage->template->hasField($caField)) {
+		check('changes: users bridge and acl, /bridge-fixture/ and its bf_files exist', false);
+	} else {
+		// the change log's hooks are bound by its block above (a second instance would write each row twice);
+		// the permission names are read now, before the field save below empties the page cache (CLI languages)
+		$wire->permissions->getPermissionNameIds();
+		$caMax = (int) $wire->database->query('SELECT MAX(id) FROM bridge_changes')->fetchColumn();
+		$caDeps = array('screen' => 'page-edit', 'cursor' => $caMax, 'page' => array('id' => $caPage->id, 'modified' => (int) $caPage->modified),
+			'template' => $caPage->template->id, 'fieldgroup' => $caPage->template->fieldgroup->id, 'fields' => array($caField->id), 'templates' => array($caPage->template->id));
+		$caAs = function($user, array $deps) use($wire, $caTheme) {
+			$wire->users->setCurrentUser($user);
+			return $caTheme->changesAnswer($deps);
+		};
+		$caExt = (string) $caField->get('extensions');
+		$caShowIf = (string) $caField->get('showIf');
+		$caNotes = $caField->get('notes');
+		$wire->users->setCurrentUser($caSu);
+		try {
+			$caNone = $caAs($caSu, $caDeps);
+			check('changes: nothing since the snapshot, nothing to say, the cursor kept', is_array($caNone) && $caNone['changes'] === array() && $caNone['cursor'] === $caMax && $caNone['page'] === null, json_encode($caNone));
+			$caField->set('extensions', "$caExt smoke");
+			$caField->set('showIf', 'bf_text=smoke');
+			$caField->set('notes', 'smoke notes');
+			$wire->fields->save($caField);
+			$caRowId = (int) $wire->database->query('SELECT MAX(id) FROM bridge_changes')->fetchColumn();
+			$wire->database->queryLog(true);
+			$caFull = $caAs($caSu, $caDeps);
+			$caLog = $wire->database->queryLog();
+			$wire->database->queryLog(false);
+			$caLogQueries = count(array_filter($caLog, function($q) { return stripos((string) $q, 'bridge_changes') !== false; }));
+			$caEntry = isset($caFull['changes'][0]) ? $caFull['changes'][0] : null;
+			check('changes: a superuser sees the field row with the full diff (extensions, showIf, notes values), the new cursor', $caEntry && count($caFull['changes']) === 1
+				&& $caEntry['kind'] === 'field' && $caEntry['object'] === (int) $caField->id && $caEntry['name'] === 'bf_files' && $caEntry['user'] === 'bridge' && $caEntry['you'] === true
+				&& $caEntry['diff']['extensions'] === array($caExt, "$caExt smoke") && $caEntry['diff']['showIf'][1] === 'bf_text=smoke' && $caEntry['diff']['notes'][1] === 'smoke notes'
+				&& $caEntry['named'] === array() && $caEntry['hidden'] === 0 && $caFull['cursor'] === $caRowId, json_encode($caFull));
+			check('changes: one query on the log', $caLogQueries === 1, implode("\n", $caLog));
+			$caEditor = $caAs($caEd, $caDeps);
+			$caEntry = isset($caEditor['changes'][0]) ? $caEditor['changes'][0] : null;
+			check('changes: a plain editor (acl) sees safe properties only: extensions shown, showIf named, notes counted', $caEntry && $caEntry['diff'] === array('extensions' => array($caExt, "$caExt smoke"))
+				&& $caEntry['named'] === array('showIf') && $caEntry['hidden'] === 1 && $caEntry['you'] === false && $caEntry['user'] === 'bridge', json_encode($caEditor));
+			$caAgain = $caAs($caEd, array_merge($caDeps, array('cursor' => $caEditor['cursor'])));
+			check('changes: with the new cursor the row is not given again', is_array($caAgain) && $caAgain['changes'] === array(), json_encode($caAgain));
+			$caForged = $caAs($caEd, array_merge($caDeps, array('screen' => 'field-edit')));
+			check('changes: a field-edit snapshot from a user without field-admin gets nothing', is_array($caForged) && $caForged['changes'] === array(), json_encode($caForged));
+			check('changes: a field-edit snapshot from a superuser gets the row', count($caAs($caSu, array_merge($caDeps, array('screen' => 'field-edit')))['changes']) === 1);
+			check('changes: an unknown screen gets nothing', $caAs($caSu, array_merge($caDeps, array('screen' => 'x')))['changes'] === array());
+			check('changes: a guest gets nothing (null: 403), the request\'s deps too', $caAs($caGuest, $caDeps) === null
+				&& ($caSet(array('bridgeChanges' => '1', 'deps' => json_encode($caDeps))) || true) && $caTheme->changesRequest() === null);
+			$wire->users->setCurrentUser($caSu);
+			check('changes: changesRequest() reads the deps parameter', count($caTheme->changesRequest()['changes']) === 1);
+			$caHome = $pages->get(1);
+			$wire->users->setCurrentUser($caEd);
+			$caHomeCan = $caHome->listable() && !$caHome->editable();
+			$caLost = $caAs($caEd, array_merge($caDeps, array('page' => array('id' => 1, 'modified' => 0))));
+			check('changes: a page the editor sees but cannot edit: only "You can no longer save this page"', $caHomeCan && is_array($caLost) && $caLost['changes'] === array()
+				&& $caLost['page'] === null && isset($caLost['message']) && $caLost['message'] === 'You can no longer save this page', json_encode($caLost));
+			$caModified = $caAs($caSu, array_merge($caDeps, array('page' => array('id' => $caPage->id, 'modified' => (int) $caPage->modified - 60))));
+			check('changes: a page saved since the snapshot gives the page entry (who, when)', is_array($caModified['page']) && $caModified['page']['id'] === (int) $caPage->id
+				&& $caModified['page']['modified'] === (int) $caPage->modified && $caModified['page']['user'] === (string) $users->get((int) $caPage->modified_users_id)->name, json_encode($caModified['page']));
+			$caAclName = 'BridgeAdminAccessControl';
+			if($modules->isInstalled($caAclName)) {
+				$caAcl = $modules->get($caAclName);
+				$caRulesWas = $caAcl->get('rules');
+				$caRules = $wire->wire(new BridgeAccessRules())->fromConfig(array());
+				$caRules->add(array('role' => $wire->roles->get('acl-editor')->id, 'page' => $caPage->id, 'mode' => 'deny', 'inherit' => true));
+				$caCfg = $caRules->toConfig();
+				try {
+					$caAcl->set('rules', $caCfg['rules']);
+					$caAcl->addEnforcementHooks();
+					$caDenied = $caAs($caEd, $caDeps);
+					check('changes: a page BridgeAdminAccessControl denies to the editor yields nothing', is_array($caDenied) && $caDenied['changes'] === array()
+						&& $caDenied['page'] === null && !isset($caDenied['message']), json_encode($caDenied));
+				} finally {
+					$caAcl->set('rules', $caRulesWas);
+				}
+			}
+		} finally {
+			$wire->users->setCurrentUser($caSu);
+			$caField->set('extensions', $caExt);
+			$caField->set('showIf', $caShowIf);
+			$caField->set('notes', $caNotes);
+			$wire->fields->save($caField);
+			$wire->users->setCurrentUser($caUserWas);
+			$wire->database->exec('DELETE FROM bridge_changes WHERE id>' . (int) $caMax);
+		}
+	}
+	$config->ajax = $caAjaxWas;
+	$caSet($caGetWas);
+}
+
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);
