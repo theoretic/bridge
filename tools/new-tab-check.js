@@ -38,14 +38,17 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	page.on('pageerror', e => { if(!ignore || !ignore.test(e.message)) errors.push(page.url().replace(ADMIN, '') + ': ' + e.message); });
 	page.on('dialog', d => d.accept());
 
-	// Install and Delete never reach the server: every post to the module list gets a stub (the
-	// form is multipart/form-data, so the body is read for the field name either way)
+	// Install and Delete never reach the server: a post to the module list that names either field
+	// gets a stub (the form is multipart/form-data, so the body is read for the field name either
+	// way); any other post there, the login form among them, goes through
 	const posts = [];
 	await ctx.route(url => /\/module\/?$/.test(url.pathname), async route => {
 		const req = route.request();
 		if(req.method() !== 'POST') return route.continue();
 		const body = req.postData() || '';
 		const field = /name="(install|delete)"\s+([^\r\n-][^\r\n]*)/.exec(body) || /(?:^|&)(install|delete)=([^&]*)/.exec(body);
+		// a body that cannot be read is stopped too: it may be one of them
+		if(!field && body && !/name="(install|delete)"/.test(body)) return route.continue();
 		posts.push(field ? field[1] + '=' + field[2].trim() : 'post');
 		return route.fulfill({ status: 200, contentType: 'text/html', body: '<p>new-tab-check: post stopped</p>' });
 	});
