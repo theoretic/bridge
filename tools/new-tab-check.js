@@ -11,7 +11,7 @@
 //   [PW_STATE=<login state file>] PROBE_PASS=<sandbox bridge password> node tools/new-tab-check.js
 //     <playwright-core dir> <firefox|chromium|webkit>
 // Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url>.
-// Uses tools/sandbox-fixture.php's template "bridge_native" and its page (NATIVE_ID, default 1517,
+// Uses tools/sandbox-fixture.php's template "bridge_native" and its page (NATIVE_ID, default 1500 as in the atispro sandbox,
 // with bf_pagetable). A module list without an uninstalled or deleteable module reports that case
 // as not found, not as failed.
 //
@@ -20,7 +20,7 @@ const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
 const sandbox = require('./lib/sandbox.cjs');
 const ADMIN = sandbox.adminUrl();
-const NATIVE_ID = process.env.NATIVE_ID || 1517;
+const NATIVE_ID = process.env.NATIVE_ID || 1500;  // tools/lib/sandbox-ids.php; tools/ci.sh exports it
 const KEY = process.platform === 'darwin' ? 'Meta' : 'Control';
 const results = [];
 const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info === undefined ? '' : String(info).slice(0, 400) }); };
@@ -38,16 +38,16 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	page.on('pageerror', e => { if(!ignore || !ignore.test(e.message)) errors.push(page.url().replace(ADMIN, '') + ': ' + e.message); });
 	page.on('dialog', d => d.accept());
 
-	// Install and Delete never reach the server: any post with install= or delete= gets a stub
+	// Install and Delete never reach the server: every post to the module list gets a stub (the
+	// form is multipart/form-data, so the body is read for the field name either way)
 	const posts = [];
 	await ctx.route(url => /\/module\/?$/.test(url.pathname), async route => {
 		const req = route.request();
-		const body = req.method() === 'POST' ? (req.postData() || '') : '';
-		if(/(^|&)(install|delete)=/.test(body)) {
-			posts.push(body);
-			return route.fulfill({ status: 200, contentType: 'text/html', body: '<p>new-tab-check: post stopped</p>' });
-		}
-		return route.continue();
+		if(req.method() !== 'POST') return route.continue();
+		const body = req.postData() || '';
+		const field = /name="(install|delete)"\s+([^\r\n-][^\r\n]*)/.exec(body) || /(?:^|&)(install|delete)=([^&]*)/.exec(body);
+		posts.push(field ? field[1] + '=' + field[2].trim() : 'post');
+		return route.fulfill({ status: 200, contentType: 'text/html', body: '<p>new-tab-check: post stopped</p>' });
 	});
 
 	const open = async (path) => {
