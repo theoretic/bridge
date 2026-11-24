@@ -1,6 +1,6 @@
 {
 	"note": "chunks of the last release and of the release before; a build keeps them, `npm run release-chunks` moves the list on (scripts/prune-chunks.mjs)",
-	"version": "1.4.0",
+	"version": "1.5.0",
 	"chunks": [
 		"ask-hfpRBlF8.js",
 		"asmselect-NKN_jzwi.js",
