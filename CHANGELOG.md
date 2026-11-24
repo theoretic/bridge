@@ -1,5 +1,13 @@
 # Changelog
 
+## AdminThemeBridge 1.5.1: the new-tab listener moves out of main.js (2026-11-24)
+
+Owner's request: keep `scripts/main.js` within its size budget rather than raising it. 1.5.0's listener had pushed `scripts/main.js` to 13945 B gzip (budget 13312) and the classic scripts to 50007 B (budget 49152).
+
+- **The listener is a runtime chunk now** (`runtime/src/util/new-tab.ts`, 1269 B gzip), loaded by the runtime entry on every admin page, as the risk warnings are. `scripts/main.js` keeps only `ProcessWireAdminTheme.newTab` with `add()`, so a kind of element added before the runtime loads still counts; `newTab.open()` arrives with the chunk. Behaviour is unchanged.
+- Budgets: `scripts/main.js` 13028 B gzip (budget 13312), classic scripts 49090 B (budget 49152), `runtime.js` with its entry chunk 15690 B (budget 15872). No budget raised.
+- `tools/new-tab-unit.js` loads the chunk next to `scripts/main.js`.
+
 ## AdminThemeBridge 1.5.0: Ctrl+click and middle click open admin buttons in a new tab (2026-11-24)
 
 Owner's request: Ctrl+click on every link-like element in the admin should open it in a new tab; it did not on the module list's Settings, Install and Delete, which are buttons.
