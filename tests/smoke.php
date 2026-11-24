@@ -1473,7 +1473,7 @@ if(isset($bridge) && $bridge) {
 		$memo->setValue($bridge, null);
 		$picker = $bridge->renderColorPicker();
 		check('a user\'s own custom colour is the page\'s, printed before first paint', $bridge->getVariant() === 'custom' && $bridge->getPrimaryColor() === '#7c3aed'
-			&& strpos($bridge->renderHtmlAttributes(), "style='--pw-primary:#7c3aed'") !== false, $bridge->renderHtmlAttributes());
+			&& strpos($bridge->renderHtmlAttributes(), "style='--pw-primary:#7c3aed;--primary-foreground:#ffffff'") !== false, $bridge->renderHtmlAttributes());
 		check('the picker: six named presets, a custom colour, the site default, the CSRF token', substr_count($picker, "' data-pw-variant='") === 6
 			&& strpos($picker, "data-pw-variant-pick='custom' value='#7c3aed'") !== false && strpos($picker, "class='pw-color-reset' data-pw-variant-pick=''") !== false
 			&& strpos($picker, 'data-token-name=') !== false && strpos($picker, "pw-color-custom pw-color-current'") !== false);
@@ -1489,6 +1489,33 @@ if(isset($bridge) && $bridge) {
 		$wire->users->setCurrentUser($guest);
 		$memo->setValue($bridge, null);
 	}
+	// 1.4.0: a custom primary gets its text colour worked out (white unless white's WCAG ratio is under 2)
+	check('onPrimary: #171717 → white, #00bed7 → white (2.25), #ffd400 → near-black, #ffffff → near-black', AdminThemeBridge::onPrimary('#171717') === '#ffffff'
+		&& AdminThemeBridge::onPrimary('#ffd400') === '#0a0a0a' && AdminThemeBridge::onPrimary('#00BED7') === '#ffffff' && AdminThemeBridge::onPrimary('#ffffff') === '#0a0a0a');
+	$onSeven = array();
+	foreach(array('#c25500', '#a636ff', '#008476', '#188818', '#e2008a', '#0077d4', '#6060ff') as $c) $onSeven[$c] = AdminThemeBridge::onPrimary($c);
+	check('onPrimary: the seven colours of the brief all take white', array_unique(array_values($onSeven)) === array('#ffffff'), json_encode($onSeven));
+	$onSeven = array();
+	foreach(array('#ff8f00', '#8e00ff', '#00958e', '#009100', '#e70000', '#008fff', '#0000ff') as $c) $onSeven[$c] = AdminThemeBridge::onPrimary($c);
+	check('onPrimary: Bridge Customizer preset colours all take white (Gold #ff8f00 lowest, 2.29)', array_unique(array_values($onSeven)) === array('#ffffff'), json_encode($onSeven));
+	check('onPrimary: the red preset colour #e83561 as a custom colour → white (4.11)', AdminThemeBridge::onPrimary('#e83561') === '#ffffff');
+	check('onPrimary: a non-colour → white', AdminThemeBridge::onPrimary('red') === '#ffffff' && AdminThemeBridge::onPrimary('') === '#ffffff' && AdminThemeBridge::onPrimary('#ffd40') === '#ffffff');
+	$onScheme = $bridge->getColorScheme();
+	$onHook = $bridge->addHookAfter('appearance', function(HookEvent $e) { $e->return = array_merge($e->return, array('variant' => 'custom', 'primaryColor' => '#ffd400')); });
+	$onAttrs = $bridge->renderHtmlAttributes();
+	$bridge->removeHook($onHook);
+	check('<html> with custom #ffd400: --pw-primary and near-black --primary-foreground in one style', strpos($onAttrs, "style='--pw-primary:#ffd400;--primary-foreground:#0a0a0a'") !== false
+		&& substr_count($onAttrs, 'style=') === 1, $onAttrs);
+	$onHook = $bridge->addHookAfter('appearance', function(HookEvent $e) { $e->return = array_merge($e->return, array('variant' => 'custom', 'primaryColor' => '#171717')); });
+	$onAttrs = $bridge->renderHtmlAttributes();
+	$bridge->removeHook($onHook);
+	check('<html> with custom #171717: white --primary-foreground', strpos($onAttrs, "style='--pw-primary:#171717;--primary-foreground:#ffffff'") !== false, $onAttrs);
+	$onHook = $bridge->addHookAfter('appearance', function(HookEvent $e) { $e->return = array_merge($e->return, array('variant' => 'pink')); });
+	$onAttrs = $bridge->renderHtmlAttributes();
+	$bridge->removeHook($onHook);
+	check('<html> with a preset (pink): no style attribute, as before 1.4.0', $onAttrs === " data-pw-variant='pink'" . ($onScheme !== 'auto' ? " data-pw-scheme='$onScheme'" : ''), $onAttrs);
+	check('the live pick sets and removes the text colour with the custom primary', strpos($srcOf('util/colors.ts'), "root.style.setProperty('--primary-foreground', onPrimary(color))") !== false
+		&& strpos($srcOf('util/colors.ts'), "root.style.removeProperty('--primary-foreground')") !== false);
 	check('the picker saves through the admin, before the Process runs', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "addHookBefore('ProcessController::execute', \$this, 'hookUserColorsSave')") !== false
 		&& strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeUserColors.php'), '$this->wire()->session->CSRF->hasValidToken()') !== false);
 }
@@ -1576,7 +1603,28 @@ if(isset($bridge) && $bridge) {
 	}
 	$headSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php');
 	check('the drawers script is printed where a drawer is, deferred', strpos($headSrc, "if(count(\$this->drawerNames())) \$print[] = \$this->themeAssetUrl('scripts/drawers.js');") !== false
-		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "'scripts/page-save.js', 'scripts/drawers.js');") !== false && is_file($themeDir . 'scripts/drawers.js'));
+		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "'scripts/page-save.js', 'scripts/drawers.js', 'scripts/list-filter.js');") !== false && is_file($themeDir . 'scripts/drawers.js'));
+	// the filter of the Modules, Fields and Templates lists (1.3.0): printed on their list screens only, legacy stack or not
+	$lfProbes = array();
+	foreach(array('ProcessModule', 'ProcessField', 'ProcessTemplate', 'ProcessUser') as $class) $lfProbes[$class] = $modules->getModule($class, array('noInit' => true, 'noPermissionCheck' => true));
+	check('the list filter script is printed on the Modules, Fields and Templates lists only', $bridge->processAddonScripts($lfProbes['ProcessModule']) === array('scripts/list-filter.js')
+		&& $bridge->processAddonScripts($lfProbes['ProcessField']) === array('scripts/list-filter.js') && $bridge->processAddonScripts($lfProbes['ProcessTemplate']) === array('scripts/list-filter.js')
+		&& $bridge->processAddonScripts($lfProbes['ProcessUser']) === array() && $bridge->processAddonScripts(null) === array() && is_file($themeDir . 'scripts/list-filter.js')
+		&& strpos($headSrc, 'foreach($this->processAddonScripts($process) as $file)') !== false);
+	$lfSrc = (string) file_get_contents($themeDir . '../../runtime/src/classic/list-filter.js');
+	check('the list filter: one engine, an adapter per list (section selects, #ProcessFieldList, #ProcessTemplateList), from 3 characters on input', strpos($lfSrc, 'var MIN = 3;') !== false
+		&& strpos($lfSrc, "input.addEventListener('input'") !== false && strpos($lfSrc, "all('select.modules_section_select')") !== false
+		&& strpos($lfSrc, "boxList('#ProcessFieldList', '#field_filter_form')") !== false && strpos($lfSrc, "boxList('#ProcessTemplateList', 'form#filters')") !== false
+		&& strpos($lfSrc, "getAttribute('data-name') || named.getAttribute('title')") !== false);
+	check('the list filter hides by class, not by style.display (the section select owns it), and opens collapsed tag boxes', strpos($lfSrc, '.style.display') === false
+		&& strpos($themeCss, '.pw-list-filtering .pw-filter-out{display:none!important}') !== false
+		&& strpos($themeCss, '.pw-list-filtering .InputfieldStateCollapsed>.InputfieldContent{display:block!important}') !== false);
+	check('the list filter: 10 rows or more, the same number on both sides, and no script where no list can reach it', AdminThemeBridge::listFilterMinRows === 10
+		&& strpos($lfSrc, 'var MIN_ROWS = ' . AdminThemeBridge::listFilterMinRows . ';') !== false && strpos($lfSrc, 'if(rowsOf(found.list).length >= MIN_ROWS)') !== false
+		&& strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeLegacy.php'), 'if($total < self::listFilterMinRows) return array();') !== false);
+	$lfLabels = $bridge->runtimeLabels();
+	check('the list filter words are runtime labels', isset($lfLabels['filterModules'], $lfLabels['filterFields'], $lfLabels['filterTemplates'], $lfLabels['clearFilter'],
+		$lfLabels['noModulesMatch'], $lfLabels['noFieldsMatch'], $lfLabels['noTemplatesMatch']));
 	$mastheadSrc = (string) file_get_contents($themeDir . '_masthead.php');
 	$logoAt = strpos($mastheadSrc, "class='pw-logo-link'");
 	$buttonsAt = strpos($mastheadSrc, 'renderDrawerButtons()');
@@ -3172,7 +3220,7 @@ check('docs/extensions.md 13: the four hookables, the token selectors as tokenCs
 check('docs/contract.md 4.0 names style[data-pw-tokens] and .pw-admin-title; ADR 0023 exists', strpos($contractDoc, '<style data-pw-keep data-pw-tokens>') !== false
 	&& strpos($contractDoc, "<span class='pw-admin-title'>") !== false && is_file(dirname(__DIR__) . '/docs/decisions/0023-appearance-seams-for-extensions.md'));
 $changelogSrc = (string) @file_get_contents(dirname(__DIR__) . '/CHANGELOG.md');
-check('CHANGELOG\'s first heading is 1.2.0, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.2.0'
+check('CHANGELOG\'s first heading is 1.4.0, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.4.0'
 	&& $clm[1] === $modules->getModuleInfoProperty('AdminThemeBridge', 'versionStr'), isset($clm[1]) ? $clm[1] : '');
 check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
@@ -3402,7 +3450,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 1.2.1', $themeVersion === '1.2.1', $themeVersion);
+	check('the theme version is 1.4.0', $themeVersion === '1.4.0', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;

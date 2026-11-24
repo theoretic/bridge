@@ -116,8 +116,10 @@ for (const f of existsSync(scriptsDir) ? readdirSync(scriptsDir).filter(f => f.e
 // total raised from 40 to 42 KiB after the UIkit layer (owner's decision, 2026-10-22), and to
 // 42.25 KiB for scripts/save-wait.js (owner's decision, 2026-10-29); 46 KiB for scripts/drawers.js, the
 // page tree and history drawers (0.25.0, user request); 46.5 KiB for the history drawer's polish: a retried
-// fetch, the focus kept over a refresh, the Clear button (0.26.0, user request)
-const CLASSIC_TOTAL = 46.5 * 1024;
+// fetch, the focus kept over a refresh, the Clear button (0.26.0, user request); 48 KiB for
+// scripts/list-filter.js, the filter of the Modules, Fields and Templates lists (1.3.0, owner's request;
+// the Modules list alone took 47.5)
+const CLASSIC_TOTAL = 48 * 1024;
 console.log(`classic scripts: ${classicTotal} B gzip (budget ${CLASSIC_TOTAL})`);
 if (classicTotal > CLASSIC_TOTAL) { console.error('classic scripts: over the total gzip budget'); failed = true; }
 

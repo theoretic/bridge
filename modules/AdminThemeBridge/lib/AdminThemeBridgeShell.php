@@ -185,7 +185,8 @@ trait AdminThemeBridgeShell {
 	}
 
 	/**
-	 * Attributes for <html>: variant, scheme (when not auto) and the custom primary
+	 * Attributes for <html>: variant, scheme (when not auto) and the custom primary with its text
+	 * colour (1.4.0: white unless the colour is very light, onPrimary())
 	 *
 	 * @return string
 	 *
@@ -195,7 +196,10 @@ trait AdminThemeBridgeShell {
 		$out = " data-pw-variant='$variant'";
 		$scheme = $this->getColorScheme();
 		if($scheme !== 'auto') $out .= " data-pw-scheme='$scheme'";
-		if($variant === 'custom') $out .= " style='--pw-primary:" . $this->getPrimaryColor() . "'";
+		if($variant === 'custom') {
+			$color = $this->getPrimaryColor();
+			$out .= " style='--pw-primary:$color;--primary-foreground:" . self::onPrimary($color) . "'";
+		}
 		return $out;
 	}
 
@@ -467,6 +471,14 @@ trait AdminThemeBridgeShell {
 			'remove' => __('Remove', __FILE__),
 			'moreActions' => __('More actions', __FILE__), // the arrow next to a Save button
 			'select' => __('Select', __FILE__), // shows the checkboxes of the fields list (0.23.0)
+			// the search field of the Modules, Fields and Templates lists (1.3.0)
+			'filterModules' => __('Filter modules', __FILE__),
+			'filterFields' => __('Filter fields', __FILE__),
+			'filterTemplates' => __('Filter templates', __FILE__),
+			'clearFilter' => __('Clear', __FILE__), // the cross that empties that field
+			'noModulesMatch' => __('No modules match', __FILE__),
+			'noFieldsMatch' => __('No fields match', __FILE__),
+			'noTemplatesMatch' => __('No templates match', __FILE__),
 			'imageViewList' => __('Show as a list with details', __FILE__),
 			'imageViewLeft' => __('Show as a list with thumbnails', __FILE__),
 			'imageViewGrid' => __('Show as a grid', __FILE__),

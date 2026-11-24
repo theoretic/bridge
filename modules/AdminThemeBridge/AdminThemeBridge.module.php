@@ -63,7 +63,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '1.2.1',
+			'version' => '1.4.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -100,6 +100,13 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 *
 	 */
 	const templateApi = 1;
+
+	/**
+	 * The fewest rows a list needs to get the live filter (scripts/list-filter.js, 1.3.0): the
+	 * Modules, Fields and Templates lists; the script has its own copy (MIN_ROWS)
+	 *
+	 */
+	const listFilterMinRows = 10;
 
 	const legacyAlways = 'always';
 	const legacyAuto = 'auto';
@@ -531,7 +538,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	 * @var array paths relative to the theme's directory
 	 *
 	 */
-	protected $deferrableScripts = array('scripts/setup.js', 'scripts/screens.js', 'scripts/link.js', 'scripts/image-select.js', 'scripts/save-wait.js', 'scripts/page-save.js', 'scripts/drawers.js');
+	protected $deferrableScripts = array('scripts/setup.js', 'scripts/screens.js', 'scripts/link.js', 'scripts/image-select.js', 'scripts/save-wait.js', 'scripts/page-save.js', 'scripts/drawers.js', 'scripts/list-filter.js');
 
 	public function __construct() {
 		parent::__construct();

@@ -41,3 +41,19 @@ body.modal #ProcessListerResults:empty { min-height: 60vh; }
  * specific as .pw-logo-link img (display: block), which hid neither (audit C20) */
 .pw-logo-link img.pw-logo-dark, [data-pw-scheme="dark"] .pw-logo-link img.pw-logo-light { display: none; }
 [data-pw-scheme="dark"] .pw-logo-link img.pw-logo-dark { display: block; }
+
+/* the filter of the Modules, Fields and Templates lists (scripts/list-filter.js, 1.3.0): beside the
+ * section select, or in the Filters box's header. Hidden by class, so the select's own
+ * style.display stays its; while it filters, every section and tag box shows, collapsed or not */
+.pw-list-filter { position: relative; display: inline-flex; align-items: center; margin-left: 8px; vertical-align: middle; cursor: auto; }
+.pw-list-filter input[type=search] { width: 16rem; max-width: 60vw; padding-right: 32px; }
+.InputfieldHeader .pw-list-filter { margin: -6px 0 -6px 16px; font-weight: 400; }
+.InputfieldHeader .pw-list-filter input[type=search] { min-height: 32px; padding-top: 4px; padding-bottom: 4px; }
+.pw-list-filter input::-webkit-search-cancel-button { display: none; }
+.pw-list-filter-clear { position: absolute; right: 4px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: var(--radius); background: none; color: var(--muted-foreground); cursor: pointer; }
+.pw-list-filter-clear:hover, .pw-list-filter-clear:focus-visible { color: var(--foreground); background: var(--accent); }
+.pw-list-filter-clear[hidden] { display: none; }
+.pw-list-filtering > .modules_section { display: block !important; }
+.pw-list-filtering .InputfieldStateCollapsed > .InputfieldContent { display: block !important; }
+.pw-list-filtering .pw-filter-out { display: none !important; }
+.pw-list-filter-none:empty { display: none; }

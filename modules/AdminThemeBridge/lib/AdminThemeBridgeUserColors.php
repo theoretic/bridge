@@ -52,6 +52,28 @@ trait AdminThemeBridgeUserColors {
 	}
 
 	/**
+	 * The text colour on a custom primary (1.4.0): white unless the colour is very light, that is
+	 * unless white's WCAG 2 contrast ratio against it is under 2 (unrounded); then the theme's
+	 * near-black. White for anything not #rrggbb.
+	 * Internal (not on the extension surface); runtime/src/util/colors.ts repeats it for the live pick.
+	 *
+	 * @param string $color
+	 * @return string '#ffffff' or '#0a0a0a'
+	 *
+	 */
+	public static function onPrimary($color) {
+		$color = self::hexColor($color);
+		if($color === '') return '#ffffff';
+		$lum = 0.0;
+		foreach(array(0.2126, 0.7152, 0.0722) as $i => $weight) {
+			$c = hexdec(substr($color, 1 + 2 * $i, 2)) / 255;
+			$c = $c <= 0.03928 ? $c / 12.92 : pow(($c + 0.055) / 1.055, 2.4);
+			$lum += $weight * $c;
+		}
+		return 1.05 / ($lum + 0.05) >= 2 ? '#ffffff' : '#0a0a0a';
+	}
+
+	/**
 	 * The site's colour variant (the setting, or what an extension's appearance() hook sets), validated
 	 *
 	 * @return string

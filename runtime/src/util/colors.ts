@@ -2,7 +2,8 @@
  * The user's own colour (0.22.0): the picker at the end of the user menu
  * (AdminThemeBridge::renderColorPicker()). A preset, a custom colour or "Site default" applies at
  * once, the same way the server prints it (`data-pw-variant` and, for a custom colour,
- * `--pw-primary` on <html>; `pw-variant-<name>` on <body>), and is saved for the user with a POST
+ * `--pw-primary` and its text colour `--primary-foreground` on <html>, 1.4.0; `pw-variant-<name>`
+ * on <body>), and is saved for the user with a POST
  * to the admin (hookUserColorsSave()). A custom colour previews while the native picker moves and
  * saves when it is set. Listeners hear `pw-variant-change` on document (detail: variant, color).
  * The theme script hands the clicks here through Bridge.colors().
@@ -18,12 +19,32 @@ const HEX = /^#[0-9a-f]{6}$/;
 
 let timer = 0;
 
+/**
+ * The text colour on a custom primary, as AdminThemeBridge::onPrimary() (1.4.0): white unless
+ * white's WCAG 2 contrast ratio against it is under 2 (a very light colour), then the theme's near-black
+ */
+function onPrimary(color: string): string {
+	if (!HEX.test(color)) return '#ffffff';
+	let lum = 0;
+	[0.2126, 0.7152, 0.0722].forEach((weight, i) => {
+		let c = parseInt(color.slice(1 + 2 * i, 3 + 2 * i), 16) / 255;
+		c = c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+		lum += weight * c;
+	});
+	return 1.05 / (lum + 0.05) >= 2 ? '#ffffff' : '#0a0a0a';
+}
+
 function apply(variant: string, color: string): void {
 	const root = document.documentElement;
 	if (root.getAttribute('data-pw-variant') === variant && (variant !== 'custom' || root.style.getPropertyValue('--pw-primary') === color)) return;
 	root.setAttribute('data-pw-variant', variant);
-	if (variant === 'custom') root.style.setProperty('--pw-primary', color);
-	else root.style.removeProperty('--pw-primary');
+	if (variant === 'custom') {
+		root.style.setProperty('--pw-primary', color);
+		root.style.setProperty('--primary-foreground', onPrimary(color));
+	} else {
+		root.style.removeProperty('--pw-primary');
+		root.style.removeProperty('--primary-foreground');
+	}
 	VARIANTS.forEach(v => document.body.classList.toggle('pw-variant-' + v, v === variant));
 	document.dispatchEvent(new CustomEvent('pw-variant-change', { detail: { variant, color } }));
 }
