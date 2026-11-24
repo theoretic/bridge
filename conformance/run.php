@@ -275,7 +275,7 @@ function isThemeAsset($url) {
  * their example fields). Not part of the module-facing contract.
  */
 function isThemeOwnField($name) {
-	return (bool) preg_match('/^(wrap_)?(Inputfield_)?(_adminTheme\w*|theme[A-Z]\w*)$/', $name);
+	return (bool) preg_match('/^(wrap_)?(Inputfield_)?(_adminTheme\w*|theme[A-Z]\w*|_bridge_tab)$/', $name);
 }
 
 function classList($el) {

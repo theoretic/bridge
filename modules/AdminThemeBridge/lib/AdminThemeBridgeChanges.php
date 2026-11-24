@@ -11,7 +11,8 @@
  * admin request whichever admin theme is current). One row per change: `id` (the cursor), `ts`,
  * `users_id`, `kind` (field, template, fieldgroup, context, page), `object_id`, `context_id` (the
  * fieldgroup of a context change), `action` (saved, renamed, deleted, trashed, moved), `tab` (the
- * saving tab's id, step 04 fills it) and `diff`, JSON of at most changeDiffMax bytes:
+ * saving tab's id, changeTab(): the `_bridge_tab` input hookChangeTabInput() adds to the forms this
+ * theme renders, or the `X-Bridge-Tab` header of an AJAX save; the client fills both) and `diff`, JSON of at most changeDiffMax bytes:
  *  - field, template, context: property => array(old, new), long values cut;
  *  - fieldgroup: `added` and `removed` (field ids), `reordered` (true when the order alone moved);
  *  - page: each changed property => null (no values), `name`, `parent`, `template` => array(old, new).
@@ -25,7 +26,8 @@
  * The check on tab focus is an AJAX GET of any admin URL with `bridgeChanges=1` and `deps`, the
  * screen's snapshot (changeDeps()) as JSON with the cursor it last got. hookChangesFragment()
  * answers it before the Process boots and exits: JSON `{cursor, page, changes, more}` from
- * changesAnswer(), 403 and no body for a guest. Not AJAX: the screen renders as usual.
+ * changesAnswer(), 403 and no body for a guest. Not AJAX: the screen renders as usual. Rows saved
+ * from the asking tab (the snapshot's `tab`) are skipped: a tab is never warned about itself.
  *
  */
 trait AdminThemeBridgeChanges {
@@ -223,6 +225,45 @@ trait AdminThemeBridgeChanges {
 	}
 
 	/**
+	 * A tab id as the log keeps it: letters, digits, `_` and `-`, at most 64; anything else is ''
+	 *
+	 * @param mixed $value
+	 * @return string
+	 *
+	 */
+	protected function changeTabId($value) {
+		if(!is_string($value) || $value === '' || strlen($value) > 64) return '';
+		return preg_match('/\A[A-Za-z0-9_-]+\z/', $value) ? $value : '';
+	}
+
+	/**
+	 * The saving tab's id: the posted `_bridge_tab`, else the `X-Bridge-Tab` header; '' when neither
+	 *
+	 * @return string
+	 *
+	 */
+	protected function changeTab() {
+		$tab = $this->changeTabId($this->wire()->input->post('_bridge_tab'));
+		if($tab === '' && isset($_SERVER['HTTP_X_BRIDGE_TAB'])) $tab = $this->changeTabId($_SERVER['HTTP_X_BRIDGE_TAB']);
+		return $tab;
+	}
+
+	/**
+	 * Hook after InputfieldForm::render: an empty hidden `_bridge_tab` input before the end of a POST
+	 * form, for the client to fill with its tab id; other forms are left alone
+	 *
+	 * @param HookEvent $event
+	 *
+	 */
+	public function hookChangeTabInput(HookEvent $event) {
+		$out = $event->return;
+		if(!is_string($out) || strpos($out, "name='_InputfieldForm'") === false || strpos($out, "name='_bridge_tab'") !== false) return;
+		$at = strrpos($out, '</form>');
+		if($at === false) return;
+		$event->return = substr($out, 0, $at) . "<input type='hidden' name='_bridge_tab' value='' />" . substr($out, $at);
+	}
+
+	/**
 	 * Hook before ProcessController::execute: the answer to `?bridgeChanges=1` (AJAX GET only), sent
 	 * before the Process boots, then exit; 403 without a body for a guest
 	 *
@@ -265,13 +306,14 @@ trait AdminThemeBridgeChanges {
 	 * `message`: they can no longer save it); page-add `page-edit`; field-edit `field-admin`;
 	 * template-edit `template-admin`; any other screen gets nothing. One query on the log (rows past
 	 * the cursor of the snapshot's fields, templates, their fieldgroups, the field contexts there and
-	 * the page) and the page itself. A row's diff is whole for a user with `field-admin` (fields,
+	 * the page) and the page itself. Rows the snapshot's `tab` saved are left out, and the page entry
+	 * too when the newest save of the page past the cursor was that tab's. A row's diff is whole for a user with `field-admin` (fields,
 	 * contexts) or `template-admin` (templates, fieldgroups); others get changeSafeProps only, the
 	 * code-like properties named (`named`), the rest counted (`hidden`).
 	 *
 	 * Internal: not on the extension surface.
 	 *
-	 * @param array $deps The snapshot: screen, cursor, page (id, modified), template, fieldgroup, fields, templates
+	 * @param array $deps The snapshot: screen, cursor, page (id, modified), template, fieldgroup, fields, templates, tab
 	 * @return array|null Keys: cursor (the newest row seen), page (who saved it since, or null),
 	 *  changes (rows, newest first: id, kind, action, ts, user, you, object, name, label, in, diff,
 	 *  named, hidden), more (true when rows past the 50 newest were left out), message (only when
@@ -314,16 +356,33 @@ trait AdminThemeBridgeChanges {
 			if($template instanceof Template && $template->fieldgroup) $fieldgroups[] = (int) $template->fieldgroup->id;
 		}
 		$fieldgroups = array_values(array_unique(array_filter($fieldgroups)));
-		$rows = $this->changeRows($cursor, $fields, $templates, $fieldgroups, $page ? (int) $page->id : 0);
+		$tab = isset($deps['tab']) ? $this->changeTabId($deps['tab']) : '';
+		$rows = $this->changeRows($cursor, $fields, $templates, $fieldgroups, $page ? (int) $page->id : 0, $tab);
+		// this tab's own page saves come back only to tell whether the page entry is someone else's
+		$ownPage = false;
+		$pageSeen = false;
+		$own = 0;
+		foreach($rows as $i => $row) {
+			if($row['kind'] === 'page' && !$pageSeen) {
+				$pageSeen = true;
+				$ownPage = $tab !== '' && $row['tab'] === $tab && $page && (int) $row['ts'] >= (int) $page->modified;
+			}
+			if($tab !== '' && $row['tab'] === $tab) {
+				$own = max($own, (int) $row['id']);
+				unset($rows[$i]);
+			}
+		}
+		$rows = array_values($rows);
+		if($own) $out['cursor'] = max($cursor, $own);
 		if(count($rows) > 50) {
 			$out['more'] = true;
 			$rows = array_slice($rows, 0, 50);
 		}
-		if(count($rows)) $out['cursor'] = max($cursor, (int) $rows[0]['id']);
+		if(count($rows)) $out['cursor'] = max($out['cursor'], (int) $rows[0]['id']);
 		$userIds = array();
 		foreach($rows as $row) $userIds[] = (int) $row['users_id'];
 		$pageMoved = $page && isset($deps['page']['modified']) && is_scalar($deps['page']['modified'])
-			&& (int) $page->modified > (int) $deps['page']['modified'];
+			&& (int) $page->modified > (int) $deps['page']['modified'] && !$ownPage;
 		if($pageMoved) $userIds[] = (int) $page->modified_users_id;
 		$names = $this->changeUserNames($userIds);
 		if($pageMoved) {
@@ -355,17 +414,19 @@ trait AdminThemeBridgeChanges {
 	}
 
 	/**
-	 * The log's rows past the cursor that touch the given ids, newest first, at most 51
+	 * The log's rows past the cursor that touch the given ids, newest first, at most 51; with a tab,
+	 * none of that tab's rows but its page rows (the caller drops them after reading them)
 	 *
 	 * @param int $cursor
 	 * @param array $fields Field ids (field rows, and context rows in one of the fieldgroups)
 	 * @param array $templates Template ids
 	 * @param array $fieldgroups Fieldgroup ids
 	 * @param int $pageId 0 for none
+	 * @param string $tab The asking tab's id, '' for none
 	 * @return array
 	 *
 	 */
-	protected function changeRows($cursor, array $fields, array $templates, array $fieldgroups, $pageId) {
+	protected function changeRows($cursor, array $fields, array $templates, array $fieldgroups, $pageId, $tab = '') {
 		$in = function(array $ids) { return implode(',', array_map('intval', $ids)); };
 		$where = array();
 		if(count($fields)) $where[] = "(kind='field' AND object_id IN(" . $in($fields) . '))';
@@ -375,9 +436,10 @@ trait AdminThemeBridgeChanges {
 		if($pageId) $where[] = "(kind='page' AND object_id=" . (int) $pageId . ')';
 		if(!count($where) || !$this->changeTableReady()) return array();
 		try {
-			$query = $this->wire()->database->prepare('SELECT id, ts, users_id, kind, object_id, context_id, action, diff FROM `' . self::changesTable .
-				'` WHERE id>:cursor AND (' . implode(' OR ', $where) . ') ORDER BY id DESC LIMIT 51');
+			$query = $this->wire()->database->prepare('SELECT id, ts, users_id, kind, object_id, context_id, action, tab, diff FROM `' . self::changesTable .
+				'` WHERE id>:cursor AND (' . implode(' OR ', $where) . ')' . ($tab !== '' ? " AND (tab<>:tab OR kind='page')" : '') . ' ORDER BY id DESC LIMIT 51');
 			$query->bindValue(':cursor', (int) $cursor, \PDO::PARAM_INT);
+			if($tab !== '') $query->bindValue(':tab', $tab);
 			$query->execute();
 			$rows = $query->fetchAll(\PDO::FETCH_ASSOC);
 			$query->closeCursor();
@@ -914,7 +976,7 @@ trait AdminThemeBridgeChanges {
 			$query->bindValue(':object_id', (int) $objectId, \PDO::PARAM_INT);
 			$query->bindValue(':context_id', (int) $contextId, \PDO::PARAM_INT);
 			$query->bindValue(':action', $action);
-			$query->bindValue(':tab', '');
+			$query->bindValue(':tab', $this->changeTab());
 			$query->bindValue(':diff', count($diff) ? $this->changeDiffJson($diff) : null, count($diff) ? \PDO::PARAM_STR : \PDO::PARAM_NULL);
 			$query->execute();
 			$id = (int) $database->lastInsertId();

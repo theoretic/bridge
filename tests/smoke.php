@@ -4286,6 +4286,40 @@ if($modules->isInstalled('AdminThemeBridge')) {
 				&& ($caSet(array('bridgeChanges' => '1', 'deps' => json_encode($caDeps))) || true) && $caTheme->changesRequest() === null);
 			$wire->users->setCurrentUser($caSu);
 			check('changes: changesRequest() reads the deps parameter', count($caTheme->changesRequest()['changes']) === 1);
+			// step 04: the saving tab's id (posted _bridge_tab here; X-Bridge-Tab on AJAX) goes into the row; its own tab skips it
+			$caTabMax = (int) $wire->database->query('SELECT MAX(id) FROM bridge_changes')->fetchColumn();
+			$input->post->_bridge_tab = 'smokeTabA';
+			$caField->set('notes', 'smoke notes tab');
+			$wire->fields->save($caField);
+			$input->post->remove('_bridge_tab');
+			$caTabRow = $wire->database->query("SELECT id, tab FROM bridge_changes WHERE id>$caTabMax ORDER BY id DESC LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+			check('changes: a save posting _bridge_tab writes its tab id into the row', $caTabRow && $caTabRow['tab'] === 'smokeTabA', json_encode($caTabRow));
+			$caTabDeps = array_merge($caDeps, array('cursor' => $caTabMax));
+			$caTabA = $caAs($caSu, array_merge($caTabDeps, array('tab' => 'smokeTabA')));
+			$caTabB = $caAs($caSu, array_merge($caTabDeps, array('tab' => 'smokeTabB')));
+			check('changes: the saving tab (A) is not told of its own save (skipped by the query, the cursor kept); another tab (B) of the same user is, marked you', is_array($caTabA) && $caTabA['changes'] === array()
+				&& $caTabA['cursor'] === $caTabMax && isset($caTabB['changes'][0]) && count($caTabB['changes']) === 1 && $caTabB['changes'][0]['you'] === true
+				&& $caTabB['changes'][0]['object'] === (int) $caField->id, json_encode(array($caTabA, $caTabB)));
+			$caBadTab = $caAs($caSu, array_merge($caTabDeps, array('tab' => "smokeTabA' OR 1")));
+			check('changes: a malformed tab id skips nothing', count($caBadTab['changes']) === 1);
+			$caTabTs = (int) $caPage->modified + 1;
+			$wire->database->exec("INSERT INTO bridge_changes SET ts=$caTabTs, users_id=" . (int) $caSu->id . ", kind='page', object_id=" . (int) $caPage->id . ", context_id=0, action='saved', tab='smokeTabA', diff=NULL");
+			$caPageDeps = array_merge($caTabDeps, array('page' => array('id' => $caPage->id, 'modified' => (int) $caPage->modified - 60)));
+			$caPageA = $caAs($caSu, array_merge($caPageDeps, array('tab' => 'smokeTabA')));
+			$caPageB = $caAs($caSu, array_merge($caPageDeps, array('tab' => 'smokeTabB')));
+			check('changes: the page saved last by the asking tab gives no page entry and no page row there; another tab gets both', is_array($caPageA) && $caPageA['page'] === null && $caPageA['changes'] === array()
+				&& is_array($caPageB['page']) && count($caPageB['changes']) === 2 && $caPageB['changes'][0]['kind'] === 'page', json_encode(array($caPageA, $caPageB)));
+			$caFormE = new HookEvent(array('object' => $caTheme, 'method' => 'render', 'arguments' => array()));
+			$caFormE->return = "<form method='post'><input type='hidden' name='_InputfieldForm' value='x' /></form>";
+			$caTheme->hookChangeTabInput($caFormE);
+			$caGetE = new HookEvent(array('object' => $caTheme, 'method' => 'render', 'arguments' => array()));
+			$caGetE->return = "<form method='get'></form>";
+			$caTheme->hookChangeTabInput($caGetE);
+			check('changes: a POST form we render ends with an empty _bridge_tab input, a GET form gets none; bound after the isCurrent() return',
+				$caFormE->return === "<form method='post'><input type='hidden' name='_InputfieldForm' value='x' /><input type='hidden' name='_bridge_tab' value='' /></form>"
+				&& $caGetE->return === "<form method='get'></form>"
+				&& ($caTabAt = strpos($caSrc, "\$this->addHookAfter('InputfieldForm::render', \$this, 'hookChangeTabInput');")) !== false && $caTabAt > strpos($caSrc, 'if(!$this->isCurrent()) return;')
+				&& strpos($caLibSrc, "\$_SERVER['HTTP_X_BRIDGE_TAB']") !== false);
 			$caHome = $pages->get(1);
 			$wire->users->setCurrentUser($caEd);
 			$caHomeCan = $caHome->listable() && !$caHome->editable();

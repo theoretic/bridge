@@ -49,7 +49,8 @@ Bridge digests also record the UIkit layer (ADR 0017), not compared with Uikit's
 - Scripts Bridge defers on a native page (`ProcessWire.config.AdminThemeBridge.legacyScripts`) count as registered.
 - Column widths that differ by at most three points (`columnWidthSpacing` is a theme setting).
 - Fields and controls a theme adds for itself: Uikit's per-field theme settings (`themeOffset`,
-  `themeColor`, `themeBorder`, `themeInputSize`, `_adminTheme*` examples).
+  `themeColor`, `themeBorder`, `themeInputSize`, `_adminTheme*` examples), and Bridge's `_bridge_tab`
+  (the saving tab's id on its POST forms, 1.6.0).
 - Counter ids of anonymous Inputfields (`InputfieldMarkup73`), compared by position instead.
 - Stylesheets are reported in the JSON but not diffed (a theme may ask modules for their
   stylesheets through `loadStyles` or not).
