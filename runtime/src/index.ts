@@ -68,6 +68,8 @@ export const Bridge = {
 		if (pwConfig<{ dangerWarn?: boolean }>('AdminThemeBridge').dangerWarn) importAgain(() => import('./guards')).then(m => m.start()).catch(err => failed('risky-action warnings', err));
 		// Ctrl+click and middle click: a new tab (1.5.0, a chunk since 1.5.1)
 		importAgain(() => import('./util/new-tab')).then(m => m.start()).catch(err => failed('new tabs', err));
+		// changes made elsewhere, on a screen that prints what it depends on (1.6.0)
+		if (document.getElementById('pw-deps')) importAgain(() => import('./util/changes')).then(m => m.start()).catch(err => failed('changes', err));
 		Inputfields.init(document);
 		void loadProcess();
 		void loadComponentsFrom(document);

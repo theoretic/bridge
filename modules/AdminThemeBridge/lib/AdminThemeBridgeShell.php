@@ -535,6 +535,36 @@ trait AdminThemeBridgeShell {
 			'warnVerbSave' => __('Save', __FILE__),
 			'warnVerbTrash' => __('Move to trash', __FILE__),
 			'warnVerbMove' => __('Move', __FILE__),
+			// changes made elsewhere (1.6.0, runtime util/changes.ts); each %s or %d is filled in order
+			'changesTitle' => __('This page changed elsewhere', __FILE__),
+			'changesAddTitle' => __('What this new page depends on changed elsewhere', __FILE__),
+			'changesFieldTitle' => __('This field changed elsewhere', __FILE__),
+			'changesTemplateTitle' => __('This template changed elsewhere', __FILE__),
+			'changesPage' => __('This page', __FILE__),
+			'changesField' => __('Field %s', __FILE__),
+			'changesFieldIn' => __('Field %s on template %s', __FILE__), // a setting of the field on one template only
+			'changesTemplate' => __('Template %s', __FILE__),
+			'changesFieldgroup' => __('Fields of template %s', __FILE__),
+			'changesYou' => __('you, in another tab', __FILE__), // who changed it, followed by when
+			'changesSaved' => __('changed', __FILE__),
+			'changesRenamed' => __('renamed', __FILE__),
+			'changesDeleted' => __('deleted', __FILE__),
+			'changesTrashed' => __('moved to the trash', __FILE__),
+			'changesMoved' => __('moved', __FILE__),
+			'changesProperty' => __('Setting', __FILE__), // the table's columns
+			'changesBefore' => __('Before', __FILE__),
+			'changesAfter' => __('After', __FILE__),
+			'changesProps' => __('Changed: %s', __FILE__),
+			'changesAdded' => __('Fields added: %d', __FILE__),
+			'changesRemoved' => __('Fields removed: %d', __FILE__),
+			'changesReordered' => __('Fields reordered', __FILE__),
+			'changesNamed' => __('Also changed, not shown: %s', __FILE__),
+			'changesHidden' => __('Other settings changed (%d)', __FILE__),
+			'changesExtGone' => __('Uploads you add now are checked against the new types: %s no longer allowed.', __FILE__),
+			'changesOverwrite' => __('Your unsaved changes to %s may overwrite this save.', __FILE__),
+			'changesMore' => __('More changes were left out.', __FILE__),
+			'changesReload' => __('Reload page', __FILE__),
+			'changesKeep' => __('Keep editing', __FILE__),
 		);
 	}
 

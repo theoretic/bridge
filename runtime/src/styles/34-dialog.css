@@ -74,8 +74,8 @@ dialog.pw-lightbox::backdrop { background: rgb(0 0 0 / .85); }
 .pw-lightbox .pw-lightbox-next { right: 16px; }
 .pw-lightbox .pw-lightbox-close { top: 16px; right: 16px; transform: none; }
 /* small choice dialog (runtime util/choose.ts, the repeater's copy / clone / paste in place of vex) */
-dialog.pw-ask { width: calc(100% - 32px); max-width: 520px; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--background); color: var(--foreground); box-shadow: var(--shadow-lg); }
-dialog.pw-ask::backdrop { background: rgb(0 0 0 / .5); }
+dialog:is(.pw-ask, .pw-changes) { width: calc(100% - 32px); max-width: 520px; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--background); color: var(--foreground); box-shadow: var(--shadow-lg); }
+dialog:is(.pw-ask, .pw-changes)::backdrop { background: rgb(0 0 0 / .5); }
 .pw-ask-message { margin: 0 0 12px; font-weight: 600; }
 .pw-ask select { width: 100%; }
 .pw-ask-note { margin-top: 8px; }
@@ -88,3 +88,14 @@ dialog.pw-ask::backdrop { background: rgb(0 0 0 / .5); }
 .pw-ask-danger .pw-ask-message .fa { margin-right: 4px; color: var(--destructive); }
 .ui-button.pw-button-danger { --pw-danger-button: color-mix(in srgb, var(--destructive) 75%, #000); border-color: var(--pw-danger-button); background: var(--pw-danger-button); color: #fff; }
 .ui-button.pw-button-danger:hover { background: color-mix(in srgb, var(--destructive) 62%, #000); color: #fff; }
+/* changes made elsewhere (runtime util/changes.ts, 1.6.0): the dialog and the banner under the headline */
+dialog.pw-changes { max-width: 640px; max-height: 85vh; overflow: auto; }
+.pw-changes-head { display: flex; justify-content: space-between; gap: 8px; }
+.pw-changes-item { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.pw-changes-item h3 { margin: 0; font-size: 1rem; }
+.pw-changes-item small, .pw-changes-who { color: var(--pw-text-muted); font-weight: 400; }
+.pw-changes-item p { margin: 4px 0 0; }
+.pw-changes-diff { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: .875rem; }
+.pw-changes-diff :is(th, td) { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.pw-changes-banner { margin: 0 0 16px; padding: 8px 12px; border: 1px solid var(--pw-status-warning-border); border-radius: var(--radius-md); background: var(--pw-status-warning-bg); color: var(--pw-status-warning-fg); font-size: .875rem; }
+.pw-changes-banner :is(p, ul) { margin: 0 0 8px; }

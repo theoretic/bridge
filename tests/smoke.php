@@ -4320,6 +4320,12 @@ if($modules->isInstalled('AdminThemeBridge')) {
 				&& $caGetE->return === "<form method='get'></form>"
 				&& ($caTabAt = strpos($caSrc, "\$this->addHookAfter('InputfieldForm::render', \$this, 'hookChangeTabInput');")) !== false && $caTabAt > strpos($caSrc, 'if(!$this->isCurrent()) return;')
 				&& strpos($caLibSrc, "\$_SERVER['HTTP_X_BRIDGE_TAB']") !== false);
+			// step 05 (Q9): one-field saves (AJAX uploads) logged in admin requests; the client sends its tab on admin XHR posts
+			$caClient = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/util/changes.ts');
+			check('changes: Pages::savedField logged as a page row (admin requests only); the changes chunk fills _bridge_tab and sends X-Bridge-Tab on XMLHttpRequest posts',
+				strpos($caLibSrc, "\$pages->addHookAfter('savedField', \$this, 'hookChangePageFieldSaved');") !== false
+				&& preg_match('/function hookChangePageFieldSaved\(.*?changeLogPages\(\).*?changeWrite\(\'page\'/s', $caLibSrc)
+				&& strpos($caClient, "setRequestHeader('X-Bridge-Tab', id)") !== false && strpos($caClient, "'input[name=\"_bridge_tab\"]'") !== false);
 			$caHome = $pages->get(1);
 			$wire->users->setCurrentUser($caEd);
 			$caHomeCan = $caHome->listable() && !$caHome->editable();

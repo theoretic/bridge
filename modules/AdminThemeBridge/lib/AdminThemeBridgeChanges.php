@@ -20,7 +20,7 @@
  * Old values of a field or template come from its stored row, read in `saveReady` before the
  * UPDATE (core keeps no old values: trackChangesValues is never on, and `label` is not tracked);
  * the row is written in `saved`, so a failed save writes nothing, nor does a save with no change.
- * Page saves are logged only for admin requests of a logged-in user, not from the CLI or the front
+ * Page saves (and one-field saves, Pages::savedField) are logged only for admin requests of a logged-in user, not from the CLI or the front
  * end. Rows older than getChangesDays() go at most once an hour, on write.
  *
  * The check on tab focus is an AJAX GET of any admin URL with `bridgeChanges=1` and `deps`, the
@@ -56,6 +56,7 @@ trait AdminThemeBridgeChanges {
 		$fields->addHookAfter('saveFieldgroupContext', $this, 'hookChangeContextAfter');
 		$pages->addHookAfter('saveReady', $this, 'hookChangePageReady');
 		$pages->addHookAfter('saved', $this, 'hookChangePageSaved');
+		$pages->addHookAfter('savedField', $this, 'hookChangePageFieldSaved');
 		$pages->addHookAfter('moved', $this, 'hookChangePageAction');
 		$pages->addHookAfter('trashed', $this, 'hookChangePageAction');
 		$pages->addHookAfter('deleted', $this, 'hookChangePageAction');
@@ -738,6 +739,22 @@ trait AdminThemeBridgeChanges {
 		$row = $this->changesPending[$key];
 		unset($this->changesPending[$key]);
 		$id = $this->changeWrite('page', (int) $page->id, 0, $row['action'], $row['diff']);
+		if($id) $this->changesPageRows[(int) $page->id] = $id;
+	}
+
+	/**
+	 * Hook after Pages::savedField: a page's one-field save in the admin (ProcessPageEdit's AJAX
+	 * save, as an upload makes it), which moves `modified` without Pages::saveReady. Called only
+	 * when the field's save succeeded, so no pending row is needed.
+	 *
+	 * @param HookEvent $event
+	 *
+	 */
+	public function hookChangePageFieldSaved(HookEvent $event) {
+		$page = $event->arguments(0);
+		$field = $event->arguments(1);
+		if(!$page instanceof Page || !$page->id || !$field instanceof Field || !$this->changeLogPages()) return;
+		$id = $this->changeWrite('page', (int) $page->id, 0, 'saved', array((string) $field->name => null));
 		if($id) $this->changesPageRows[(int) $page->id] = $id;
 	}
 
