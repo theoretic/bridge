@@ -21,6 +21,7 @@ require_once(__DIR__ . '/lib/AdminThemeBridgeCsp.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeUserColors.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeDrawers.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeHistory.php');
+require_once(__DIR__ . '/lib/AdminThemeBridgeChanges.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeExtensions.php');
 
 /**
@@ -58,6 +59,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	use AdminThemeBridgeUserColors;
 	use AdminThemeBridgeDrawers;
 	use AdminThemeBridgeHistory;
+	use AdminThemeBridgeChanges;
 	use AdminThemeBridgeExtensions;
 
 	public static function getModuleInfo() {
@@ -415,6 +417,26 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	const treeDrawerCookie = 'bridge_tree_open';
 
 	/**
+	 * The change log behind "changed elsewhere" warnings (1.6.0, lib/AdminThemeBridgeChanges.php):
+	 * its table, the WireCache name of its last prune, and the most bytes of a row's diff
+	 *
+	 */
+	const changesTable = 'bridge_changes';
+	const changesPruneCache = 'AdminThemeBridge.changesPrune';
+	const changesDiffMax = 4096;
+
+	/**
+	 * The change log's state for this request: hooks bound, the table known to exist (null before
+	 * it is asked), rows waiting for their save to finish ("kind:id" => data), and the row written
+	 * for each page saved (page id => row id)
+	 *
+	 */
+	protected $changesHooked = false;
+	protected $changesTableOk = null;
+	protected $changesPending = array();
+	protected $changesPageRows = array();
+
+	/**
 	 * Query parameters that belong to the request, not to the screen: left out of a history entry's URL
 	 *
 	 * @var array
@@ -581,6 +603,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 
 	public function ___install() {
 		parent::___install();
+		$this->changeTableReady(true);
 		if($this->bossForcesUikit()) {
 			$this->warning($this->_('AdminThemeBoss has "activate for all users" on: it switches every user back to Uikit on each request. Turn it off in its module settings, then select Bridge in your profile.'));
 		}
@@ -588,12 +611,13 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 
 	/**
 	 * Uninstall: the theme's WireCache entries (script verdicts, kept forever, and the module-cache
-	 * repair state) go with it (audit B13)
+	 * repair state) go with it (audit B13), and the change log's table (1.6.0)
 	 *
 	 */
 	public function ___uninstall() {
 		parent::___uninstall();
 		$this->wire()->cache->delete('AdminThemeBridge.*');
+		$this->changeTableDrop();
 	}
 
 	public function init() {
@@ -609,6 +633,9 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		if(!$page || $page->template->name !== 'admin') return;
 		// whichever theme is current: the profile and user editors are where this theme is chosen
 		if($this->bossForcesUikit()) $this->addHookBefore('Pages::saveReady', $this, 'hookUserThemeSave');
+		// whichever theme is current: a colleague on another theme changing a field still warns a
+		// Bridge user (the change log, 1.6.0, lib/AdminThemeBridgeChanges.php)
+		$this->hookChangeLog();
 		if(!$this->isCurrent()) return;
 
 		$this->addBodyClass('AdminThemeBridge');

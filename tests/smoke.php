@@ -4019,5 +4019,92 @@ if($modules->isInstalled($aclName) && isset($acl, $aclEditor, $aclRestricted, $a
 	check('ACL editor: the config is left as found', $modules->getConfig($aclName) === $aclSavedStep4);
 }
 
+// 1.6.0: the change log behind "changed elsewhere" warnings (lib/AdminThemeBridgeChanges.php). Last,
+// as its hooks stay bound for the rest of the run; the rows it writes are deleted at the end
+if($modules->isInstalled('AdminThemeBridge')) {
+	$clTheme = $modules->getModule('AdminThemeBridge', array('noInit' => true, 'noPermissionCheck' => true));
+	$clDb = $wire->database;
+	$clThemeSrc = (string) file_get_contents($themeDir . 'AdminThemeBridge.module.php');
+	check('change log: hooks bound in init() after the Boss hook, before the isCurrent() return', ($clAt = strpos($clThemeSrc, '$this->hookChangeLog();')) !== false
+		&& $clAt > strpos($clThemeSrc, "\$this->addHookBefore('Pages::saveReady', \$this, 'hookUserThemeSave');")
+		&& $clAt < strpos($clThemeSrc, 'if(!$this->isCurrent()) return;'));
+	check('change log: the table is made on install and lazily (no upgrade method), dropped on uninstall', substr_count($clThemeSrc, '$this->changeTableReady(true);') === 1
+		&& strpos($clThemeSrc, 'function ___upgrade(') === false && strpos($clThemeSrc, '$this->changeTableDrop();') !== false);
+	check('change log: table bridge_changes exists (made when missing)', $clTheme->changeTableReady(true) && $clDb->tableExists('bridge_changes'));
+	$clCols = array();
+	$clQ = $clDb->query('SHOW COLUMNS FROM bridge_changes');
+	while($clR = $clQ->fetch(\PDO::FETCH_ASSOC)) $clCols[] = $clR['Field'];
+	check('change log: columns id, ts, users_id, kind, object_id, context_id, action, tab, diff', $clCols === array('id', 'ts', 'users_id', 'kind', 'object_id', 'context_id', 'action', 'tab', 'diff'), implode(', ', $clCols));
+	check('change log: retention 30 days by default', $clTheme->getChangesDays() === 30);
+	$clTheme->hookChangeLog();
+	$clMax = (int) $clDb->query('SELECT MAX(id) FROM bridge_changes')->fetchColumn();
+	$clRows = function() use($clDb, &$clMax) {
+		$q = $clDb->prepare('SELECT * FROM bridge_changes WHERE id>:id ORDER BY id');
+		$q->bindValue(':id', $clMax, \PDO::PARAM_INT);
+		$q->execute();
+		return $q->fetchAll(\PDO::FETCH_ASSOC);
+	};
+	$clOld = time() - 31 * 86400;
+	$clDb->exec("INSERT INTO bridge_changes SET ts=$clOld, users_id=0, kind='field', object_id=0, context_id=0, action='saved', tab='', diff=NULL");
+	$clOldId = (int) $clDb->lastInsertId();
+	$wire->cache->delete('AdminThemeBridge.changesPrune');
+	$clField = $wire->fields->get('bf_files');
+	check('change log: the fixture field bf_files exists (tools/sandbox-fixture.php)', $clField instanceof Field);
+	if($clField instanceof Field) {
+		$clExt = (string) $clField->get('extensions');
+		$clNotes = $clField->get('notes');
+		try {
+			$clField->set('extensions', "$clExt smoke");
+			$clField->set('notes', str_repeat('n', 500));
+			$wire->fields->save($clField);
+			$clGot = array_values(array_filter($clRows(), function($r) use($clOldId) { return (int) $r['id'] !== $clOldId; }));
+			$clDiff = isset($clGot[0]) ? json_decode((string) $clGot[0]['diff'], true) : null;
+			check('change log: a field save writes one row (field, its id, saved)', count($clGot) === 1 && $clGot[0]['kind'] === 'field'
+				&& (int) $clGot[0]['object_id'] === (int) $clField->id && $clGot[0]['action'] === 'saved', json_encode($clGot));
+			check('change log: the row holds the old and new extensions', is_array($clDiff) && isset($clDiff['extensions'])
+				&& $clDiff['extensions'] === array($clExt, "$clExt smoke"), json_encode($clDiff));
+			check('change log: a long value is cut to 200 characters and an ellipsis', is_array($clDiff) && isset($clDiff['notes'][1])
+				&& $clDiff['notes'][1] === str_repeat('n', 200) . '…' && count($clDiff) === 2, json_encode($clDiff));
+			$clPrunedRow = (int) $clDb->query("SELECT COUNT(*) FROM bridge_changes WHERE id=$clOldId")->fetchColumn();
+			check('change log: a write prunes rows past the retention, and marks the prune for an hour', $clPrunedRow === 0
+				&& $wire->cache->get('AdminThemeBridge.changesPrune'));
+			$clCount = count($clRows());
+			$wire->fields->save($clField);
+			check('change log: a save with nothing changed writes nothing', count($clRows()) === $clCount);
+			$clFg = $wire->templates->get('bridge_fixture') ? $wire->templates->get('bridge_fixture')->fieldgroup : null;
+			if($clFg && $clFg->hasField($clField)) {
+				$clCtxWas = $clFg->getFieldContextArray((int) $clField->id);
+				$clCtx = $clFg->getFieldContext($clField);
+				$clCtx->set('extensions', 'txt');
+				$wire->fields->saveFieldgroupContext($clCtx, $clFg);
+				$clGot = $clRows();
+				$clLast = end($clGot);
+				$clDiff = $clLast ? json_decode((string) $clLast['diff'], true) : null;
+				check('change log: a context save writes a context row (field id, fieldgroup id) with the override', count($clGot) === $clCount + 1
+					&& $clLast['kind'] === 'context' && (int) $clLast['object_id'] === (int) $clField->id && (int) $clLast['context_id'] === (int) $clFg->id
+					&& isset($clDiff['extensions'][1]) && $clDiff['extensions'][1] === 'txt', json_encode($clLast));
+				$clCtx = $clFg->getFieldContext($clField);
+				$clCtx->set('extensions', "$clExt smoke");
+				$wire->fields->saveFieldgroupContext($clCtx, $clFg);
+				check('change log: the context is left as found', $clFg->getFieldContextArray((int) $clField->id) == $clCtxWas, json_encode($clFg->getFieldContextArray((int) $clField->id)));
+			}
+		} finally {
+			$clField->set('extensions', $clExt);
+			$clField->set('notes', $clNotes);
+			$wire->fields->save($clField);
+		}
+		$clCount = count($clRows());
+		$clPage = $pages->get('/bridge-fixture/');
+		if($clPage->id) {
+			// marked as changed, saved with its own values: the hook sees a change, the data stays
+			$clPage->of(false);
+			$clPage->trackChange('title');
+			$pages->save($clPage, array('quiet' => true, 'uncacheAll' => false));
+			check('change log: a page API save from the CLI writes none', count($clRows()) === $clCount);
+		}
+	}
+	$clDb->exec('DELETE FROM bridge_changes WHERE id>' . (int) $clMax);
+}
+
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit($fails ? 1 : 0);
