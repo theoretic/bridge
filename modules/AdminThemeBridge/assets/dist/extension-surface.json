@@ -26,7 +26,8 @@
 		"tokenOverrides",
 		"appearance",
 		"adminTitle",
-		"faviconUrl"
+		"faviconUrl",
+		"changeDeps"
 	],
 	"reads": [
 		"useLegacyStack",

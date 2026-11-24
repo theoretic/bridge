@@ -29,7 +29,7 @@ How to read the columns:
 
 | List | In `extensionSurface()` | Rows below |
 |---|---|---|
-| hooks | 21 | 21 |
+| hooks | 22 | 22 |
 | reads | 18 | 18 |
 | settings | 22 | 22 |
 | slots | 8 | 8 |
@@ -37,7 +37,7 @@ How to read the columns:
 | events | 28 | 28 |
 | runtime | 12 | 12 |
 
-Total: 187 entries (182 on contract 0.2: one read taken off, four events and two tokens added).
+Total: 188 entries (182 on contract 0.2: one read taken off, four events and two tokens added; 1.6.0 added the hook `changeDeps`).
 
 ## Hooks
 
@@ -66,6 +66,7 @@ Hookable methods of `AdminThemeBridge`, attached as `AdminThemeBridge::<name>`. 
 | `appearance` | `lib/AdminThemeBridgeShell.php:61` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
 | `adminTitle` | `lib/AdminThemeBridgeShell.php:344` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
 | `faviconUrl` | `lib/AdminThemeBridgeShell.php:383` | contract.md 4.0; extensions.md 3, 13 | BridgeCustomizer; smoke; docs example (extensions.md 13) | stable |  |
+| `changeDeps` | `lib/AdminThemeBridgeChanges.php:83` | extensions.md 3 | `_head.php` (`script#pw-deps`); smoke | stable | added in 1.6.0 (minor: entries may be added in 1.x) |
 
 ## Reads
 

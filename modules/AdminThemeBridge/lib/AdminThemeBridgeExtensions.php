@@ -406,7 +406,7 @@ trait AdminThemeBridgeExtensions {
 				'install', 'uninstall', 'nonce', 'moveFiles', 'moveFileAllowed', 'filesMoved', 'historyEntry',
 				'nativeMap', 'isNativeProcess', 'isNativeInputfield', 'scriptNeeds', 'renderBreadcrumbs',
 				'sortableDataTable', 'uikitReasons', 'extensionSurface', 'drawerNames', 'navCacheKey', 'tokenOverrides', 'appearance',
-				'adminTitle', 'faviconUrl',
+				'adminTitle', 'faviconUrl', 'changeDeps',
 			),
 			'reads' => array(
 				'useLegacyStack', 'componentInfo', 'extensions', 'extensionInfo', 'extensionAllowed', 'extensionStyles', 'cspNonce',

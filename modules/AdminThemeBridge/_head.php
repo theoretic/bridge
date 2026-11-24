@@ -77,4 +77,7 @@ foreach($plan->modulePreloads as $url) echo "\n\t<link rel='modulepreload' href=
 foreach($plan->scripts as $script) {
 	echo "\n\t<script type='text/javascript' src='" . $attr($script['url']) . "'" . ($script['defer'] ? ' defer' : '') . "$nonce></script>";
 }
+// the edit screen's dependency snapshot (changeDeps(), 1.6.0): a data block, never run, so CSP does not
+// ask for the nonce; it carries one as every tag here does. The JSON escapes <, >, &, ' and "
+if($plan->deps !== '') echo "\n\t<script type='application/json' id='pw-deps'$nonce>" . $plan->deps . "</script>";
 echo "\n";

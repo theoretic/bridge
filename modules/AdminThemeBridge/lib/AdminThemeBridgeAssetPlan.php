@@ -102,6 +102,15 @@ class AdminThemeBridgeAssetPlan {
 	public $scripts = array();
 
 	/**
+	 * The screen's dependency snapshot (changeDepsJson(), 1.6.0), printed as
+	 * `<script type="application/json" id="pw-deps">`; '' prints nothing
+	 *
+	 * @var string JSON
+	 *
+	 */
+	public $deps = '';
+
+	/**
 	 * ProcessWire.config.AdminThemeBridge as the page sends it
 	 *
 	 * @var array

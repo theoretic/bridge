@@ -107,7 +107,7 @@ test compares the two, and the `hooks` line with the methods the class declares.
 
 - **contract**: `1.0`
 - **contracts**: `0.1`, `0.2`, `1.0`
-- **hooks**: `install`, `uninstall`, `nonce`, `moveFiles`, `moveFileAllowed`, `filesMoved`, `historyEntry`, `nativeMap`, `isNativeProcess`, `isNativeInputfield`, `scriptNeeds`, `renderBreadcrumbs`, `sortableDataTable`, `uikitReasons`, `extensionSurface`, `drawerNames`, `navCacheKey`, `tokenOverrides`, `appearance`, `adminTitle`, `faviconUrl`
+- **hooks**: `install`, `uninstall`, `nonce`, `moveFiles`, `moveFileAllowed`, `filesMoved`, `historyEntry`, `nativeMap`, `isNativeProcess`, `isNativeInputfield`, `scriptNeeds`, `renderBreadcrumbs`, `sortableDataTable`, `uikitReasons`, `extensionSurface`, `drawerNames`, `navCacheKey`, `tokenOverrides`, `appearance`, `adminTitle`, `faviconUrl`, `changeDeps`
 - **reads**: `useLegacyStack`, `componentInfo`, `extensions`, `extensionInfo`, `extensionAllowed`, `extensionStyles`, `cspNonce`, `nonceAttr`, `nonceScriptTag`, `getVariant`, `getColorScheme`, `shellLabel`, `getHistorySteps`, `tokenCss`, `getLabelSize`, `getControlHeight`, `isLoginScreen`, `renderAdminTitle`
 - **settings**: `legacyStack`, `uikit`, `maxWidth`, `variant`, `primaryColor`, `colorScheme`, `logoURL`, `logoURLDark`, `extendedBreadcrumbs`, `pageTreeDrawer`, `history`, `historySteps`, `pageSaveInPlace`, `pageAddSkipTemplate`, `dangerWarn`, `userColors`, `dataTableSortRows`, `printScripts`, `nativeOverrides`, `extensionDev`, `labelSize`, `controlHeight`
 - **slots**: `head`, `masthead`, `masthead-right`, `user-nav`, `content-head-buttons`, `footer`, `drawer`, `body`

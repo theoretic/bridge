@@ -84,6 +84,8 @@ trait AdminThemeBridgeHead {
 			$plan->scripts[] = array('url' => $file, 'defer' => $defer);
 		}
 		$plan->client = $head['bridgeJs'];
+		// what an edit screen depends on, for the changed-elsewhere check (1.6.0)
+		$plan->deps = $this->changeDepsJson();
 		return $plan;
 	}
 

@@ -2538,8 +2538,8 @@ if(isset($bridge)) {
 			&& strpos($apBody, ' pw-variant-green ') !== false && preg_match_all('/ pw-variant-/', $apBody2) === 1 && strpos($apBody2, ' pw-variant-' . $bridge->getVariant() . ' ') !== false, $apBody . '|' . $apBody2);
 	}
 	// 0.30.0: adminTitle($place) and faviconUrl() (sprint bridge-customizer, step 5)
-	check('adminTitle and faviconUrl are hooks (21) and renderAdminTitle a read on the surface', in_array('adminTitle', $surface['hooks'], true) && in_array('faviconUrl', $surface['hooks'], true)
-		&& in_array('renderAdminTitle', $surface['reads'], true) && count($surface['hooks']) === 21, count($surface['hooks']));
+	check('adminTitle and faviconUrl are hooks (22 since 1.6.0: changeDeps) and renderAdminTitle a read on the surface', in_array('adminTitle', $surface['hooks'], true) && in_array('faviconUrl', $surface['hooks'], true)
+		&& in_array('renderAdminTitle', $surface['reads'], true) && count($surface['hooks']) === 22, count($surface['hooks']));
 	check('no hook: renderAdminTitle() and faviconUrl() are empty', $bridge->renderAdminTitle('masthead') === '' && $bridge->renderAdminTitle('login') === '' && $bridge->faviconUrl() === '');
 	$atHook = $bridge->addHookAfter('adminTitle', function(HookEvent $e) { if($e->arguments(0) === 'masthead') $e->return = 'Acme <b>'; });
 	$atMast = $bridge->renderAdminTitle('masthead');
@@ -4104,6 +4104,109 @@ if($modules->isInstalled('AdminThemeBridge')) {
 		}
 	}
 	$clDb->exec('DELETE FROM bridge_changes WHERE id>' . (int) $clMax);
+}
+
+// 1.6.0: the dependency snapshot edit screens print (changeDeps(), script#pw-deps; sprint changed-elsewhere, step 2)
+if($modules->isInstalled('AdminThemeBridge')) {
+	$cdTheme = $modules->getModule('AdminThemeBridge', array('noInit' => true, 'noPermissionCheck' => true));
+	$cdHead = (string) file_get_contents($themeDir . '_head.php');
+	check('deps: _head.php prints the plan\'s snapshot as a JSON data block (nonce as every tag), assetPlan() fills it', strpos($cdHead, "if(\$plan->deps !== '') echo \"\\n\\t<script type='application/json' id='pw-deps'\$nonce>\" . \$plan->deps . \"</script>\";") !== false
+		&& strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), '$plan->deps = $this->changeDepsJson();') !== false && property_exists('ProcessWire\\AdminThemeBridgeAssetPlan', 'deps'));
+	check('deps: changeDeps is a hook on the surface', method_exists($cdTheme, '___changeDeps') && in_array('changeDeps', $cdTheme->extensionSurface()['hooks'], true));
+	$cdAdmin = $pages->get($config->adminRootPageID);
+	$cdEditPage = $cdAdmin->child('name=page, include=all')->child('name=edit, include=all');
+	$cdSetup = $cdAdmin->child('name=setup, include=all');
+	$cdFieldPage = $cdSetup->child('name=field, include=all');
+	$cdTplPage = $cdSetup->child('name=template, include=all');
+	$cdNest = $pages->get('/bridge-nesting/');
+	$cdPageWas = $wire->page;
+	$cdProcessWas = $wire->wire('process');
+	$cdGetWas = $input->get->getArray();
+	$cdAt = function($adminPage, $process, $segment, array $get = array()) use($wire, $input) {
+		$wire->wire('page', $adminPage);
+		$wire->wire('process', $process);
+		foreach(array_keys($input->get->getArray()) as $k) $input->get->remove($k);
+		foreach($get as $k => $v) $input->get->$k = $v;
+		$input->setUrlSegments($segment === '' ? array() : array($segment));
+	};
+	if(!$cdNest->id || !$cdEditPage->id || !$cdFieldPage->id || !$cdTplPage->id) {
+		check('deps: the nesting fixture page and the admin editors exist', false);
+	} else {
+		$cdPe = $modules->getModule('ProcessPageEdit', array('noInit' => true, 'noPermissionCheck' => true));
+		$cdPe->setPage($cdNest);
+		$cdAt($cdEditPage, $cdPe, '', array('id' => $cdNest->id));
+		$cdJson = $cdTheme->changeDepsJson();
+		$cdDeps = json_decode($cdJson, true);
+		$cdMax = (int) $wire->database->query('SELECT MAX(id) FROM bridge_changes')->fetchColumn();
+		// expected: every repeater/FieldsetPage item template reachable from the page's template, found here by name
+		$cdItems = array();
+		$cdDepth = 0;
+		$cdFsp = false;
+		$cdWalk = function(Template $t, $depth) use(&$cdWalk, &$cdItems, &$cdDepth, &$cdFsp, $wire) {
+			foreach($t->fieldgroup as $f) {
+				if(!$f->type instanceof FieldtypeRepeater) continue;
+				$item = $wire->templates->get(FieldtypeRepeater::templateNamePrefix . $f->name);
+				if(!$item || isset($cdItems[$item->id])) continue;
+				$cdItems[$item->id] = $f->name;
+				$cdDepth = max($cdDepth, $depth + 1);
+				if($f->type instanceof FieldtypeFieldsetPage) $cdFsp = true;
+				$cdWalk($item, $depth + 1);
+			}
+		};
+		$cdWalk($cdNest->template, 0);
+		$cdItemFields = array();
+		foreach(array_keys($cdItems) as $id) foreach($wire->templates->get($id)->fieldgroup as $f) $cdItemFields[] = (int) $f->id;
+		check('deps: page edit of /bridge-nesting/ prints page, template, fieldgroup and the cursor', is_array($cdDeps) && $cdDeps['screen'] === 'page-edit' && $cdDeps['cursor'] === $cdMax
+			&& $cdDeps['page'] === array('id' => $cdNest->id, 'modified' => (int) $cdNest->modified) && $cdDeps['template'] === $cdNest->template->id
+			&& $cdDeps['fieldgroup'] === $cdNest->template->fieldgroup->id && $cdDeps['templates'][0] === $cdNest->template->id, $cdJson);
+		check('deps: it lists the inner item templates at every depth (FieldsetPage too) and their fields', is_array($cdDeps) && $cdDepth >= 2 && $cdFsp
+			&& !array_diff(array_keys($cdItems), $cdDeps['templates']) && !array_diff($cdItemFields, $cdDeps['fields'])
+			&& count($cdDeps['templates']) === count(array_unique($cdDeps['templates'])), json_encode(array('items' => $cdItems, 'depth' => $cdDepth, 'deps' => $cdDeps)));
+		check('deps: the JSON is safe inside <script> (no <, >, &)', $cdJson !== '' && !preg_match('/[<>&]/', $cdJson));
+		$cdPf = $modules->getModule('ProcessField', array('noInit' => true, 'noPermissionCheck' => true));
+		$cdAt($cdFieldPage, $cdPf, '');
+		check('deps: the Fields list prints none', $cdTheme->changeDepsJson() === '' && $cdTheme->changeDeps() === null);
+		$cdField = $wire->fields->get('title');
+		$cdRef = new \ReflectionProperty($cdPf, 'field');
+		$cdRef->setValue($cdPf, $cdField);
+		$cdAt($cdFieldPage, $cdPf, 'edit', array('id' => $cdField->id));
+		$cdDeps = $cdTheme->changeDeps();
+		check('deps: field edit lists that field', is_array($cdDeps) && $cdDeps['screen'] === 'field-edit' && $cdDeps['fields'] === array((int) $cdField->id) && $cdDeps['page'] === null, json_encode($cdDeps));
+		$cdPt = $modules->getModule('ProcessTemplate', array('noInit' => true, 'noPermissionCheck' => true));
+		$cdAt($cdTplPage, $cdPt, 'edit', array('id' => $cdNest->template->id));
+		$cdDeps = $cdTheme->changeDeps();
+		check('deps: template edit lists the template, its fieldgroup and fields', is_array($cdDeps) && $cdDeps['screen'] === 'template-edit' && $cdDeps['templates'] === array($cdNest->template->id)
+			&& $cdDeps['fieldgroup'] === $cdNest->template->fieldgroup->id && count($cdDeps['fields']) === count($cdNest->template->fieldgroup), json_encode($cdDeps));
+		$cdAt($cdTplPage, $cdPt, '');
+		check('deps: the Templates list prints none', $cdTheme->changeDeps() === null);
+		$cdAddPage = $cdAdmin->child('name=page, include=all')->child('name=add, include=all');
+		check('deps: the Add Page screen exists', (bool) $cdAddPage->id);
+		if($cdAddPage->id) {
+			$cdPa = $modules->getModule('ProcessPageAdd', array('noInit' => true, 'noPermissionCheck' => true));
+			$cdAt($cdAddPage, $cdPa, '', array('parent_id' => $cdNest->parent_id, 'template_id' => $cdNest->template->id));
+			$cdDeps = $cdTheme->changeDeps();
+			check('deps: page add lists the chosen template and the parent\'s', is_array($cdDeps) && $cdDeps['screen'] === 'page-add' && $cdDeps['page'] === null
+				&& $cdDeps['template'] === $cdNest->template->id && in_array($cdNest->template->id, $cdDeps['templates'], true)
+				&& in_array($cdNest->parent->template->id, $cdDeps['templates'], true), json_encode($cdDeps));
+		}
+		$cdUsers = $cdAdmin->child('name=access, include=all')->child('name=users, include=all');
+		check('deps: the Users screen exists', (bool) $cdUsers->id);
+		if($cdUsers->id) {
+			$cdPu = $modules->getModule('ProcessUser', array('noInit' => true, 'noPermissionCheck' => true));
+			$cdUe = $modules->getModule('ProcessPageEdit', array('noInit' => true, 'noPermissionCheck' => true));
+			$cdUser = $wire->users->get('include=all, sort=id, id!=' . $config->guestUserPageID);
+			$cdUe->setPage($cdUser);
+			$cdEd = new \ReflectionProperty($cdPu, 'editor');
+			$cdEd->setValue($cdPu, $cdUe);
+			$cdAt($cdUsers, $cdPu, 'edit', array('id' => $cdUser->id));
+			$cdDeps = $cdTheme->changeDeps();
+			check('deps: the user editor is a page edit of the user', is_array($cdDeps) && $cdDeps['screen'] === 'page-edit' && $cdDeps['page']['id'] === $cdUser->id
+				&& $cdDeps['template'] === $cdUser->template->id, json_encode($cdDeps));
+			$cdAt($cdUsers, $cdPu, '');
+			check('deps: the users list prints none', $cdTheme->changeDeps() === null);
+		}
+	}
+	$cdAt($cdPageWas, $cdProcessWas, '', $cdGetWas);
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

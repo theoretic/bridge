@@ -66,6 +66,158 @@ trait AdminThemeBridgeChanges {
 	}
 
 	/**
+	 * What the current screen depends on, and where the change log stood when it rendered
+	 *
+	 * Printed by _head.php as `<script type="application/json" id="pw-deps">` (changeDepsJson()); the
+	 * check on tab focus sends it back. Keys: `screen` (page-edit, page-add, field-edit,
+	 * template-edit), `cursor` (the log's highest id, 0 without a table), `page` (`id`, `modified`;
+	 * null on page add), `template`, `fieldgroup` (ids, 0 when none), `fields`, `templates` (ids).
+	 * Page edit (users, roles, permissions and other page types too) lists the page's template and
+	 * fields, and the item templates of repeater and FieldsetPage fields with their fields, at any
+	 * depth; page add the chosen template (when known) and the parent's; field edit the field;
+	 * template edit the template and its fields. A hook may add ids, or return null.
+	 *
+	 * @return array|null Null on any other screen: nothing is printed
+	 *
+	 */
+	public function ___changeDeps() {
+		$process = $this->wire()->process;
+		$adminPage = $this->wire()->page;
+		$input = $this->wire()->input;
+		if(!$process instanceof Process || !$adminPage || !$adminPage->id) return null;
+		$segment = (string) $input->urlSegment1;
+		$pageType = wireInstanceOf($process, 'ProcessPageType');
+		$deps = null;
+		if(($process instanceof ProcessPageEdit && $segment === '') || ($pageType && $segment === 'edit')) {
+			$page = $process->getPage();
+			if(!$page instanceof Page || !$page->id || !$page->template) return null;
+			$fields = array();
+			$templates = array();
+			$this->changeFormIds($page->template, $fields, $templates);
+			$deps = array(
+				'screen' => 'page-edit',
+				'page' => array('id' => (int) $page->id, 'modified' => (int) $page->modified),
+				'template' => (int) $page->template->id,
+				'fieldgroup' => $page->template->fieldgroup ? (int) $page->template->fieldgroup->id : 0,
+				'fields' => $fields,
+				'templates' => $templates,
+			);
+		} else if(($process instanceof ProcessPageAdd && $segment === '') || ($pageType && $segment === 'add')) {
+			$deps = $this->changeAddDeps($pageType ? $this->wire((string) $adminPage->name) : null);
+		} else if($process instanceof ProcessField && $segment === 'edit') {
+			$field = $process->getField();
+			if($field instanceof Field && $field->id) {
+				$deps = array('screen' => 'field-edit', 'page' => null, 'template' => 0, 'fieldgroup' => 0,
+					'fields' => array((int) $field->id), 'templates' => array());
+			}
+		} else if($process instanceof ProcessTemplate && $segment === 'edit') {
+			$template = $this->wire()->templates->get((int) $input->get('id'));
+			if($template instanceof Template) {
+				$fields = array();
+				if($template->fieldgroup) foreach($template->fieldgroup as $field) $fields[] = (int) $field->id;
+				$deps = array('screen' => 'template-edit', 'page' => null, 'template' => (int) $template->id,
+					'fieldgroup' => $template->fieldgroup ? (int) $template->fieldgroup->id : 0,
+					'fields' => $fields, 'templates' => array((int) $template->id));
+			}
+		}
+		if($deps === null) return null;
+		return array_merge(array('cursor' => $this->changeCursor()), $deps);
+	}
+
+	/**
+	 * changeDeps() as the JSON _head.php prints, safe inside `<script>`; '' when there is none
+	 *
+	 * Internal: not on the extension surface.
+	 *
+	 * @return string
+	 *
+	 */
+	public function changeDepsJson() {
+		$deps = $this->changeDeps();
+		if(!is_array($deps)) return '';
+		$json = json_encode($deps, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);
+		return is_string($json) ? $json : '';
+	}
+
+	/**
+	 * The page-add part of changeDeps(): the chosen template and the parent's template
+	 *
+	 * @param mixed $pagesType The PagesType of a ProcessPageType screen (users, roles...), else null
+	 * @return array|null
+	 *
+	 */
+	protected function changeAddDeps($pagesType) {
+		$input = $this->wire()->input;
+		$templates = $this->wire()->templates;
+		$chosen = null;
+		$parent = null;
+		$templateId = (int) $input->get('template_id');
+		if($templateId) $chosen = $templates->get($templateId);
+		$parentId = (int) $input->get('parent_id');
+		if($parentId) $parent = $this->wire()->pages->get($parentId);
+		if($pagesType instanceof PagesType) {
+			if(!$parent || !$parent->id) $parent = $pagesType->getParent();
+			if(!$chosen) $chosen = $pagesType->getTemplate();
+		}
+		if(!$chosen && $parent && $parent->id && $parent->template && count($parent->template->childTemplates) === 1) {
+			$childTemplates = $parent->template->childTemplates;
+			$chosen = $templates->get((int) reset($childTemplates));
+		}
+		$ids = array();
+		if($chosen instanceof Template) $ids[] = (int) $chosen->id;
+		if($parent && $parent->id && $parent->template && !in_array((int) $parent->template->id, $ids, true)) $ids[] = (int) $parent->template->id;
+		if(!count($ids)) return null;
+		return array(
+			'screen' => 'page-add',
+			'page' => null,
+			'template' => $chosen instanceof Template ? (int) $chosen->id : 0,
+			'fieldgroup' => $chosen instanceof Template && $chosen->fieldgroup ? (int) $chosen->fieldgroup->id : 0,
+			'fields' => array(),
+			'templates' => $ids,
+		);
+	}
+
+	/**
+	 * A template's fields and templates as its edit form holds them: repeater and FieldsetPage
+	 * item templates and their fields walked at any depth, each once
+	 *
+	 * @param Template $template
+	 * @param array $fields Field ids, added to
+	 * @param array $templates Template ids, added to
+	 *
+	 */
+	protected function changeFormIds(Template $template, array &$fields, array &$templates) {
+		if(in_array((int) $template->id, $templates, true)) return;
+		$templates[] = (int) $template->id;
+		if(!$template->fieldgroup) return;
+		foreach($template->fieldgroup as $field) {
+			if(!in_array((int) $field->id, $fields, true)) $fields[] = (int) $field->id;
+			if(!$field->type || !wireInstanceOf($field->type, 'FieldtypeRepeater')) continue;
+			$item = $this->wire()->templates->get((int) $field->get('template_id'));
+			if($item instanceof Template) $this->changeFormIds($item, $fields, $templates);
+		}
+	}
+
+	/**
+	 * The change log's highest id (the cursor a snapshot carries), 0 without a table or rows
+	 *
+	 * @return int
+	 *
+	 */
+	protected function changeCursor() {
+		if(!$this->changeTableReady()) return 0;
+		try {
+			$query = $this->wire()->database->query('SELECT MAX(id) FROM `' . self::changesTable . '`');
+			$id = (int) $query->fetchColumn();
+			$query->closeCursor();
+			return $id;
+		} catch(\Exception $e) {
+			$this->changeError($e);
+			return 0;
+		}
+	}
+
+	/**
 	 * Hook after Fields::saveReady and Templates::saveReady: the diff against the stored row,
 	 * kept until `saved`
 	 *
