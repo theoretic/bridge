@@ -228,7 +228,6 @@ var ProcessWireAdminTheme = {
 		// head buttons are copied before upstream init, as AdminThemeUikit does: upstream
 		// setupDropdown() then binds each toggle copy to itself (a copy made afterwards inherits
 		// the original's hide timer, which watches the original and closes the menu after 1s)
-		this.newTab.init();
 		this.setupHeadButtons();
 		if(this.legacy.loaded && typeof ProcessWireAdmin !== 'undefined') {
 			this.prepareUpstreamNav();
@@ -1321,196 +1320,14 @@ var ProcessWireAdminTheme = {
 	},
 
 	/**
-	 * Ctrl+click (Cmd+click on a Mac) and middle click open link-like elements in a new tab, as they
-	 * do on a link (1.5.0). Upstream renders some navigation as buttons or scripts that ignore the
-	 * keys: the module list's Settings (a button that ProcessModule.js sends on), Install and Delete
-	 * (form submits, whose confirm clicks again without the key), a link inside a button (Add New),
-	 * links that open a dialog (.pw-modal, .pw-panel, PageTable and asmSelect edit links), a page
-	 * title in the tree and a Lister title (they open the row; here they open the page's editor).
-	 * One listener on window in the capture phase runs before the theme's and upstream's own, with
-	 * the legacy stack or without; a plain click, Shift and Alt are never touched, and a real link
-	 * the list does not name is left to the browser.
-	 *
-	 * Public: data-pw-href on any element makes it a link (a click goes there, a modified click
-	 * opens a tab); ProcessWireAdminTheme.newTab.add(selector, fn(el) -> url or '') adds a kind;
-	 * ProcessWireAdminTheme.newTab.open(url) opens a URL as a Ctrl+click on a link would.
+	 * Ctrl+click (Cmd+click on a Mac) and middle click open link-like elements in a new tab (1.5.0):
+	 * the runtime's chunk util/new-tab.ts (1.5.1). This object is the public end: add(selector,
+	 * fn(el) -> url or '') adds a kind of element, also before the chunk loads; open(url) comes with
+	 * the chunk.
 	 */
 	newTab: {
-
-		bound: false,
-
-		// selector -> URL; the first match with a URL wins (add() puts new ones first)
-		resolvers: [
-			{ selector: '[data-pw-href]', url: function(el) { return el.getAttribute('data-pw-href'); } },
-			{ selector: 'button.ProcessModuleSettings', url: function(el) {
-				var tr = el.closest('tr');
-				var cm = tr ? tr.querySelector('.ConfigurableModule') : null;
-				var a = cm ? cm.closest('a[href]') : null;
-				return a ? a.getAttribute('href') + '&collapse_info=1' : '';
-			} },
-			// the page tree (not a page select field: its rows have no Edit)
-			{ selector: 'a.PageListPage', url: function(el) {
-				var li = el.parentElement;
-				var edit = li ? li.querySelector(':scope > .PageListActions > .PageListActionEdit > a[href]') : null;
-				return edit ? edit.getAttribute('href') : '';
-			} },
-			{ selector: 'a.actions_toggle', url: function(el) {
-				var cell = el.closest('td') || el.parentElement;
-				var edit = cell ? cell.querySelector('.actions a.PageEdit:not(.PageAdd)[href]') : null;
-				return edit ? edit.getAttribute('href') : '';
-			} },
-			{ selector: '.InputfieldPageTableEdit', url: function(el) {
-				return ProcessWireAdminTheme.newTab.page(el.getAttribute('data-url') || el.getAttribute('href'));
-			} },
-			{ selector: '.asmListItem a[href]', url: function(el) {
-				return ProcessWireAdminTheme.newTab.page(el.getAttribute('href'));
-			} },
-			// in-page panels (data-panel-id) have no page to open
-			{ selector: '.pw-modal, .pw-panel', url: function(el) {
-				if(el.hasAttribute('data-panel-id')) return '';
-				return ProcessWireAdminTheme.newTab.page(el.getAttribute('href') || el.getAttribute('data-href'));
-			} },
-			{ selector: 'a[href] > button', url: function(el) { return el.parentElement.getAttribute('href'); } }
-		],
-
-		// form buttons that post to a page of their own: they post in a new tab
-		submits: 'button[data-install], button[data-delete]',
-
-		add: function(selector, url) {
-			this.resolvers.unshift({ selector: selector, url: url });
-		},
-
-		/**
-		 * A dialog's URL as a page of its own: without modal=..., pw_panel=... ('#' and javascript: none)
-		 *
-		 * @param {string|null} href
-		 * @returns {string}
-		 */
-		page: function(href) {
-			if(!href || href.charAt(0) === '#') return '';
-			try {
-				var url = new URL(href, location.href);
-				if(!/^https?:$/.test(url.protocol)) return '';
-				url.searchParams.delete('modal');
-				url.searchParams.delete('pw_panel');
-				return url.href;
-			} catch(e) {
-				return '';
-			}
-		},
-
-		/**
-		 * Is this a new-tab click: Ctrl or Cmd with the main button, or the middle button
-		 *
-		 * @param {MouseEvent} e
-		 * @returns {boolean}
-		 */
-		wanted: function(e) {
-			if(!e.isTrusted || e.altKey || e.shiftKey) return false;
-			if(e.button === 1) return e.type !== 'click';
-			return e.button === 0 && e.type === 'click' && (e.ctrlKey || e.metaKey);
-		},
-
-		/**
-		 * What a click on t opens: {url} or {submit: button}, or null
-		 *
-		 * @param {Element} t
-		 * @returns {{url?: string, submit?: HTMLButtonElement}|null}
-		 */
-		resolve: function(t) {
-			if(!t || !t.closest) return null;
-			var submit = /** @type {HTMLButtonElement|null} */ (t.closest(this.submits));
-			if(submit && submit.form && !submit.disabled) return { submit: submit };
-			for(var i = 0; i < this.resolvers.length; i++) {
-				var el = t.closest(this.resolvers[i].selector);
-				if(!el) continue;
-				var url = this.resolvers[i].url(el);
-				if(url) return { url: url };
-			}
-			return null;
-		},
-
-		/**
-		 * Open a URL in a new tab as a Ctrl+click on a link does (the browser's own setting decides
-		 * whether the tab comes to the front)
-		 *
-		 * @param {string} url
-		 * @param {MouseEvent} [e] The click: its Cmd key is passed on
-		 */
-		open: function(url, e) {
-			var a = document.createElement('a');
-			a.href = url;
-			a.rel = 'noopener';
-			a.hidden = true;
-			document.body.appendChild(a);
-			var meta = !!(e && e.metaKey);
-			a.dispatchEvent(new MouseEvent('click', { cancelable: true, view: window, ctrlKey: !meta, metaKey: meta }));
-			a.remove();
-		},
-
-		/**
-		 * Post the button's form in a new tab: formtarget stays on the button until that submit
-		 * has gone (a confirm or a risk check may ask first), or a plain click comes instead
-		 *
-		 * @param {HTMLButtonElement} button
-		 * @param {MouseEvent} e
-		 */
-		submit: function(button, e) {
-			button.setAttribute('formtarget', '_blank');
-			button.pwNewTab = true;
-			// a middle click does not click: click it, so its confirm asks first. A Ctrl+click
-			// goes on as it is (the browser's own Ctrl+submit is a new tab too)
-			if(e.type !== 'click') {
-				e.preventDefault();
-				button.click();
-			}
-		},
-
-		done: function(button) {
-			if(!button || !button.pwNewTab) return;
-			button.pwNewTab = false;
-			button.removeAttribute('formtarget');
-		},
-
-		init: function() {
-			if(this.bound) return;
-			this.bound = true;
-			var self = this;
-			var handle = function(e) {
-				if(!self.wanted(e)) {
-					// a plain click on a button left set for a new tab: this one stays here
-					if(e.isTrusted && e.type === 'click' && e.target.closest) self.done(e.target.closest(self.submits));
-					return;
-				}
-				var found = self.resolve(e.target);
-				if(!found) return;
-				if(found.submit) return self.submit(found.submit, e);
-				e.preventDefault();
-				e.stopImmediatePropagation();
-				self.open(found.url, e);
-			};
-			window.addEventListener('click', handle, true);
-			window.addEventListener('auxclick', handle, true);
-			// the middle button's press would start autoscroll (Windows) on what is not a link
-			window.addEventListener('mousedown', function(e) {
-				if(e.button === 1 && e.isTrusted && self.resolve(/** @type {Element} */ (e.target))) e.preventDefault();
-			}, true);
-			// the post has gone (nothing stopped it): the button submits here again
-			window.addEventListener('submit', function(e) {
-				var button = e.submitter;
-				if(!button || !button.pwNewTab) return;
-				setTimeout(function() { if(!e.defaultPrevented) self.done(button); }, 0);
-			});
-			// data-pw-href: a plain click follows it (after everyone else had their say)
-			document.addEventListener('click', function(e) {
-				if(e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
-				var el = e.target.closest && e.target.closest('[data-pw-href]');
-				var href = el ? el.getAttribute('data-pw-href') : '';
-				if(!href || el.closest('a[href]') || el.disabled) return;
-				e.preventDefault();
-				window.location.assign(href);
-			});
-		}
+		resolvers: [],
+		add: function(selector, url) { this.resolvers.unshift({ selector: selector, url: url }); }
 	},
 
 	/**

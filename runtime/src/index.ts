@@ -66,6 +66,8 @@ export const Bridge = {
 		setupModalLinks();
 		// once more after a second: Firefox rejects the import of a page that is being left
 		if (pwConfig<{ dangerWarn?: boolean }>('AdminThemeBridge').dangerWarn) importAgain(() => import('./guards')).then(m => m.start()).catch(err => failed('risky-action warnings', err));
+		// Ctrl+click and middle click: a new tab (1.5.0, a chunk since 1.5.1)
+		importAgain(() => import('./util/new-tab')).then(m => m.start()).catch(err => failed('new tabs', err));
 		Inputfields.init(document);
 		void loadProcess();
 		void loadComponentsFrom(document);
