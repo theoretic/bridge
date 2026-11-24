@@ -436,6 +436,31 @@ trait AdminThemeBridgeLegacy {
 	}
 
 	/**
+	 * Scripts a Process's screen gets in every mode, legacy stack or not: additions of the theme
+	 * that no upstream script does, so nothing takes them over (1.3.0: the filter of the Modules,
+	 * Fields and Templates lists, scripts/list-filter.js; on their list screens only, not on edit,
+	 * add, tags and the like), and only where a list can show listFilterMinRows rows: the script
+	 * itself counts each list's rows and leaves a shorter list without a field
+	 *
+	 * @param Process|null $process
+	 * @return array Paths relative to the theme directory
+	 *
+	 */
+	public function processAddonScripts($process) {
+		if(!$process instanceof Process) return array();
+		$items = array('ProcessModule' => 'modules', 'ProcessField' => 'fields', 'ProcessTemplate' => 'templates');
+		$class = $process->className();
+		if(!isset($items[$class])) return array();
+		if(strlen((string) $this->wire()->input->urlSegment1)) return array();
+		// every module, field or template is the most a list can show; Fields and Templates are not
+		// Countable (WireSaveableItems), Modules is a WireArray
+		$all = $this->wire($items[$class]);
+		$total = $all instanceof WireSaveableItems ? count($all->getAllValues('id')) : count($all);
+		if($total < self::listFilterMinRows) return array();
+		return array('scripts/list-filter.js');
+	}
+
+	/**
 	 * Does this Process's edit form save without a reload (scripts/page-save.js)? The page editor
 	 * (and its subclasses, as before), and by exact class the screens whose edit forms page-save.js
 	 * knows (milestone 3.8): fields, templates, module settings, the profile, and users, roles and

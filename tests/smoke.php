@@ -1603,7 +1603,28 @@ if(isset($bridge) && $bridge) {
 	}
 	$headSrc = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php');
 	check('the drawers script is printed where a drawer is, deferred', strpos($headSrc, "if(count(\$this->drawerNames())) \$print[] = \$this->themeAssetUrl('scripts/drawers.js');") !== false
-		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "'scripts/page-save.js', 'scripts/drawers.js');") !== false && is_file($themeDir . 'scripts/drawers.js'));
+		&& strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "'scripts/page-save.js', 'scripts/drawers.js', 'scripts/list-filter.js');") !== false && is_file($themeDir . 'scripts/drawers.js'));
+	// the filter of the Modules, Fields and Templates lists (1.3.0): printed on their list screens only, legacy stack or not
+	$lfProbes = array();
+	foreach(array('ProcessModule', 'ProcessField', 'ProcessTemplate', 'ProcessUser') as $class) $lfProbes[$class] = $modules->getModule($class, array('noInit' => true, 'noPermissionCheck' => true));
+	check('the list filter script is printed on the Modules, Fields and Templates lists only', $bridge->processAddonScripts($lfProbes['ProcessModule']) === array('scripts/list-filter.js')
+		&& $bridge->processAddonScripts($lfProbes['ProcessField']) === array('scripts/list-filter.js') && $bridge->processAddonScripts($lfProbes['ProcessTemplate']) === array('scripts/list-filter.js')
+		&& $bridge->processAddonScripts($lfProbes['ProcessUser']) === array() && $bridge->processAddonScripts(null) === array() && is_file($themeDir . 'scripts/list-filter.js')
+		&& strpos($headSrc, 'foreach($this->processAddonScripts($process) as $file)') !== false);
+	$lfSrc = (string) file_get_contents($themeDir . '../../runtime/src/classic/list-filter.js');
+	check('the list filter: one engine, an adapter per list (section selects, #ProcessFieldList, #ProcessTemplateList), from 3 characters on input', strpos($lfSrc, 'var MIN = 3;') !== false
+		&& strpos($lfSrc, "input.addEventListener('input'") !== false && strpos($lfSrc, "all('select.modules_section_select')") !== false
+		&& strpos($lfSrc, "boxList('#ProcessFieldList', '#field_filter_form')") !== false && strpos($lfSrc, "boxList('#ProcessTemplateList', 'form#filters')") !== false
+		&& strpos($lfSrc, "getAttribute('data-name') || named.getAttribute('title')") !== false);
+	check('the list filter hides by class, not by style.display (the section select owns it), and opens collapsed tag boxes', strpos($lfSrc, '.style.display') === false
+		&& strpos($themeCss, '.pw-list-filtering .pw-filter-out{display:none!important}') !== false
+		&& strpos($themeCss, '.pw-list-filtering .InputfieldStateCollapsed>.InputfieldContent{display:block!important}') !== false);
+	check('the list filter: 10 rows or more, the same number on both sides, and no script where no list can reach it', AdminThemeBridge::listFilterMinRows === 10
+		&& strpos($lfSrc, 'var MIN_ROWS = ' . AdminThemeBridge::listFilterMinRows . ';') !== false && strpos($lfSrc, 'if(rowsOf(found.list).length >= MIN_ROWS)') !== false
+		&& strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeLegacy.php'), 'if($total < self::listFilterMinRows) return array();') !== false);
+	$lfLabels = $bridge->runtimeLabels();
+	check('the list filter words are runtime labels', isset($lfLabels['filterModules'], $lfLabels['filterFields'], $lfLabels['filterTemplates'], $lfLabels['clearFilter'],
+		$lfLabels['noModulesMatch'], $lfLabels['noFieldsMatch'], $lfLabels['noTemplatesMatch']));
 	$mastheadSrc = (string) file_get_contents($themeDir . '_masthead.php');
 	$logoAt = strpos($mastheadSrc, "class='pw-logo-link'");
 	$buttonsAt = strpos($mastheadSrc, 'renderDrawerButtons()');

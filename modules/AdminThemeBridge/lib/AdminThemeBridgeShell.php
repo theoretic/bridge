@@ -471,6 +471,14 @@ trait AdminThemeBridgeShell {
 			'remove' => __('Remove', __FILE__),
 			'moreActions' => __('More actions', __FILE__), // the arrow next to a Save button
 			'select' => __('Select', __FILE__), // shows the checkboxes of the fields list (0.23.0)
+			// the search field of the Modules, Fields and Templates lists (1.3.0)
+			'filterModules' => __('Filter modules', __FILE__),
+			'filterFields' => __('Filter fields', __FILE__),
+			'filterTemplates' => __('Filter templates', __FILE__),
+			'clearFilter' => __('Clear', __FILE__), // the cross that empties that field
+			'noModulesMatch' => __('No modules match', __FILE__),
+			'noFieldsMatch' => __('No fields match', __FILE__),
+			'noTemplatesMatch' => __('No templates match', __FILE__),
 			'imageViewList' => __('Show as a list with details', __FILE__),
 			'imageViewLeft' => __('Show as a list with thumbnails', __FILE__),
 			'imageViewGrid' => __('Show as a grid', __FILE__),
