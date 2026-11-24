@@ -52,7 +52,7 @@ trait AdminThemeBridgeUserColors {
 	}
 
 	/**
-	 * The text colour on a custom primary (1.3.0): white unless the colour is very light, that is
+	 * The text colour on a custom primary (1.4.0): white unless the colour is very light, that is
 	 * unless white's WCAG 2 contrast ratio against it is under 2 (unrounded); then the theme's
 	 * near-black. White for anything not #rrggbb.
 	 * Internal (not on the extension surface); runtime/src/util/colors.ts repeats it for the live pick.

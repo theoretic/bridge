@@ -2,7 +2,7 @@
  * The user's own colour (0.22.0): the picker at the end of the user menu
  * (AdminThemeBridge::renderColorPicker()). A preset, a custom colour or "Site default" applies at
  * once, the same way the server prints it (`data-pw-variant` and, for a custom colour,
- * `--pw-primary` and its text colour `--primary-foreground` on <html>, 1.3.0; `pw-variant-<name>`
+ * `--pw-primary` and its text colour `--primary-foreground` on <html>, 1.4.0; `pw-variant-<name>`
  * on <body>), and is saved for the user with a POST
  * to the admin (hookUserColorsSave()). A custom colour previews while the native picker moves and
  * saves when it is set. Listeners hear `pw-variant-change` on document (detail: variant, color).
@@ -20,7 +20,7 @@ const HEX = /^#[0-9a-f]{6}$/;
 let timer = 0;
 
 /**
- * The text colour on a custom primary, as AdminThemeBridge::onPrimary() (1.3.0): white unless
+ * The text colour on a custom primary, as AdminThemeBridge::onPrimary() (1.4.0): white unless
  * white's WCAG 2 contrast ratio against it is under 2 (a very light colour), then the theme's near-black
  */
 function onPrimary(color: string): string {

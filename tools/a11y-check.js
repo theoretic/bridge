@@ -246,7 +246,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	await page.reload({ waitUntil: 'networkidle' });
 	const back = await colours();
 	check('colour picker: "Site default" goes back to the site\'s colour', back.variant === site.variant && back.pressed.join() === '', JSON.stringify({ site, back }));
-	// 7b. the text on a custom colour (1.3.0): white unless the colour is very light (white under 2:1), set live
+	// 7b. the text on a custom colour (1.4.0): white unless the colour is very light (white under 2:1), set live
 	// beside --pw-primary; a preset removes it. Starts from the site's colour (after "Site default"
 	// above); a user colour saved before the run is put back at the end.
 	{

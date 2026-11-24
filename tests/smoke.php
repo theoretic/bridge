@@ -1489,7 +1489,7 @@ if(isset($bridge) && $bridge) {
 		$wire->users->setCurrentUser($guest);
 		$memo->setValue($bridge, null);
 	}
-	// 1.3.0: a custom primary gets its text colour worked out (white unless white's WCAG ratio is under 2)
+	// 1.4.0: a custom primary gets its text colour worked out (white unless white's WCAG ratio is under 2)
 	check('onPrimary: #171717 → white, #00bed7 → white (2.25), #ffd400 → near-black, #ffffff → near-black', AdminThemeBridge::onPrimary('#171717') === '#ffffff'
 		&& AdminThemeBridge::onPrimary('#ffd400') === '#0a0a0a' && AdminThemeBridge::onPrimary('#00BED7') === '#ffffff' && AdminThemeBridge::onPrimary('#ffffff') === '#0a0a0a');
 	$onSeven = array();
@@ -1513,7 +1513,7 @@ if(isset($bridge) && $bridge) {
 	$onHook = $bridge->addHookAfter('appearance', function(HookEvent $e) { $e->return = array_merge($e->return, array('variant' => 'pink')); });
 	$onAttrs = $bridge->renderHtmlAttributes();
 	$bridge->removeHook($onHook);
-	check('<html> with a preset (pink): no style attribute, as before 1.3.0', $onAttrs === " data-pw-variant='pink'" . ($onScheme !== 'auto' ? " data-pw-scheme='$onScheme'" : ''), $onAttrs);
+	check('<html> with a preset (pink): no style attribute, as before 1.4.0', $onAttrs === " data-pw-variant='pink'" . ($onScheme !== 'auto' ? " data-pw-scheme='$onScheme'" : ''), $onAttrs);
 	check('the live pick sets and removes the text colour with the custom primary', strpos($srcOf('util/colors.ts'), "root.style.setProperty('--primary-foreground', onPrimary(color))") !== false
 		&& strpos($srcOf('util/colors.ts'), "root.style.removeProperty('--primary-foreground')") !== false);
 	check('the picker saves through the admin, before the Process runs', strpos((string) file_get_contents($themeDir . 'AdminThemeBridge.module.php'), "addHookBefore('ProcessController::execute', \$this, 'hookUserColorsSave')") !== false
@@ -3220,7 +3220,7 @@ check('docs/extensions.md 13: the four hookables, the token selectors as tokenCs
 check('docs/contract.md 4.0 names style[data-pw-tokens] and .pw-admin-title; ADR 0023 exists', strpos($contractDoc, '<style data-pw-keep data-pw-tokens>') !== false
 	&& strpos($contractDoc, "<span class='pw-admin-title'>") !== false && is_file(dirname(__DIR__) . '/docs/decisions/0023-appearance-seams-for-extensions.md'));
 $changelogSrc = (string) @file_get_contents(dirname(__DIR__) . '/CHANGELOG.md');
-check('CHANGELOG\'s first heading is 1.3.0, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.3.0'
+check('CHANGELOG\'s first heading is 1.4.0, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.4.0'
 	&& $clm[1] === $modules->getModuleInfoProperty('AdminThemeBridge', 'versionStr'), isset($clm[1]) ? $clm[1] : '');
 check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
@@ -3450,7 +3450,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 1.3.0', $themeVersion === '1.3.0', $themeVersion);
+	check('the theme version is 1.4.0', $themeVersion === '1.4.0', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;
