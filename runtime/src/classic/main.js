@@ -1322,7 +1322,7 @@ var ProcessWireAdminTheme = {
 
 	/**
 	 * Ctrl+click (Cmd+click on a Mac) and middle click open link-like elements in a new tab, as they
-	 * do on a link (owner's request, 2026-11-17). Upstream renders some navigation as buttons or scripts that ignore the
+	 * do on a link (1.5.0). Upstream renders some navigation as buttons or scripts that ignore the
 	 * keys: the module list's Settings (a button that ProcessModule.js sends on), Install and Delete
 	 * (form submits, whose confirm clicks again without the key), a link inside a button (Add New),
 	 * links that open a dialog (.pw-modal, .pw-panel, PageTable and asmSelect edit links), a page
