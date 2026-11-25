@@ -1,5 +1,14 @@
 # Changelog
 
+## AdminThemeBridge 1.8.1: the floating Save no longer pushes the page down in Firefox (2026-11-25)
+
+Owner's report (paraavis): on the page editor, hovering an image thumbnail made the whole images field disappear, leaving a large empty space above. Firefox only.
+
+- **Cause** (1.7.0): the floating head row was `float: right` and `position: sticky`, and the content body cleared it. Once the page was scrolled, Firefox laid the float out at its stuck place whenever something reflowed (the thumbnail's tooltip on hover is one), so the body cleared a float thousands of pixels down and everything moved by about the scroll distance.
+- **Fix**: on screens with the floating row, `#content` is a wrapping flex box instead: breadcrumbs on their own line, the title beside the button row (the title wraps beside it as before), the body below. The row is no longer a float. CSS only; same look at the top of the page.
+- Budgets: theme.css 18398 of 18432 B gzip. No budget raised.
+- Checks: page-edit-check M0 (scrolled down on the field zoo page, reflows leave the body where it was; fails on 1.8.0 in Firefox); the smoke line for the row's rules follows the new ones.
+
 ## AdminThemeBridge 1.8.0: the live search looks in every text field, in every language (2026-11-25)
 
 Owner's request: the masthead search should find a page by any text field, in any language, but not by textareas; each result names the field that matched, after the template.

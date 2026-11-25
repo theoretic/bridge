@@ -12,7 +12,7 @@
 // Admin URL and password: the sandbox's .credentials (tools/lib/sandbox.cjs), or ADMIN=<admin url>. Pages from
 // tools/sandbox-fixture.php: /bridge-native/ (NATIVE_ID, default 1517) and /bridge-native-parent/
 // (PARENT_ID, default 1518); a legacy editor: 1264 (LEGACY_ID); a native editor with a View tab: the
-// home page (VIEW_ID, default 1).
+// home page (VIEW_ID, default 1); the field zoo /bridge-fixture/ (FIXTURE_ID, default 1494).
 const pw = require(process.argv[2]);
 const browserName = process.argv[3] || 'firefox';
 const sandbox = require('./lib/sandbox.cjs');
@@ -20,6 +20,7 @@ const ADMIN = sandbox.adminUrl();
 const NATIVE = process.env.NATIVE_ID || '1517';
 const PARENT = process.env.PARENT_ID || '1518';
 const LEGACY = process.env.LEGACY_ID || '1264';
+const FIXTURE = process.env.FIXTURE_ID || '1494'; // /bridge-fixture/, the field zoo
 const VIEW = process.env.VIEW_ID || '1';
 const results = [];
 const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info === undefined ? '' : String(info).slice(0, 400) }); };
@@ -256,6 +257,25 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		listed = await page.evaluate(() => /Child A/.test((document.getElementById('ProcessPageEditChildren') || {}).textContent || '') && !!document.querySelector('#ProcessPageEditChildren .PageListItem'));
 	}
 	check('L Children tab shows the page tree, still no jQuery', listed && !(await jq()), await page.evaluate(() => ((document.getElementById('ProcessPageEditChildren') || {}).textContent || '').replace(/\s+/g, ' ').slice(0, 200)));
+
+	// M0 (1.8.1): a reflow while the head row is stuck (a thumbnail's hover) leaves the body where it
+	// was; Firefox laid the sticky float out at its stuck place and the body cleared it. The field zoo
+	// page shows it (the native page did not)
+	await open(FIXTURE);
+	const moved = await page.evaluate(async () => {
+		const frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+		const body = document.getElementById('pw-content-body');
+		const at = () => Math.round(body.getBoundingClientRect().top + window.scrollY);
+		const home = at();
+		const seen = [];
+		window.scrollTo(0, document.documentElement.scrollHeight);
+		await frames();
+		seen.push(at() - home);
+		for(const pad of ['1px', '']) { document.body.style.paddingRight = pad; await frames(); seen.push(at() - home); }
+		window.scrollTo(0, 0);
+		return seen;
+	});
+	check('M0 scrolled down, reflows with the row stuck leave the page body in place', moved.every(d => d === 0), moved.join());
 
 	// M: a legacy editor still runs upstream
 	await open(LEGACY);

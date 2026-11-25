@@ -135,7 +135,9 @@ if(is_file($themeCss)) {
 	// one set of form buttons (1.7.0): the head copies float below the masthead, the originals hide
 	check('head buttons float, the form buttons they copy are hidden, fixed notices sit below them',
 		strpos($css, '#pw-content-head:has(.pw-head-button-copy){display:contents}') !== false
-		&& strpos($css, '#pw-content-head-buttons:has(.pw-head-button-copy){position:sticky;') !== false
+		&& strpos($css, '#pw-content-head-buttons:has(.pw-head-button-copy){float:none;flex:0 1 auto;order:1;margin-left:auto;position:sticky;') !== false
+		// 1.8.1: flex, not a float (Firefox laid the stuck float out where it stuck, the body cleared it)
+		&& strpos($css, '.pw-content:has(>#pw-content-head .pw-head-button-copy){display:flex;') !== false
 		&& strpos($css, 'body:has(.pw-head-button-copy) #pw-content-body :is(.pw-head-button,') !== false
 		&& strpos($css, 'body:has(.pw-head-button-copy) #notices.pw-notices-fixed{top:') !== false);
 	// every font the stylesheet references ships next to it (none until Geist is self-hosted)
@@ -3227,7 +3229,7 @@ check('docs/extensions.md 13: the four hookables, the token selectors as tokenCs
 check('docs/contract.md 4.0 names style[data-pw-tokens] and .pw-admin-title; ADR 0023 exists', strpos($contractDoc, '<style data-pw-keep data-pw-tokens>') !== false
 	&& strpos($contractDoc, "<span class='pw-admin-title'>") !== false && is_file(dirname(__DIR__) . '/docs/decisions/0023-appearance-seams-for-extensions.md'));
 $changelogSrc = (string) @file_get_contents(dirname(__DIR__) . '/CHANGELOG.md');
-check('CHANGELOG\'s first heading is 1.7.0, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.7.0'
+check('CHANGELOG\'s first heading is 1.8.1, the module version', isset($bridge) && $bridge && preg_match('/^## AdminThemeBridge ([0-9.]+):/m', $changelogSrc, $clm) && $clm[1] === '1.8.1'
 	&& $clm[1] === $modules->getModuleInfoProperty('AdminThemeBridge', 'versionStr'), isset($clm[1]) ? $clm[1] : '');
 check('README links docs/extensions.md and ADR 0021 exists', strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), "\n## Extensions\n") !== false
 	&& strpos((string) file_get_contents(dirname(__DIR__) . '/README.md'), '[docs/extensions.md](docs/extensions.md)') !== false
@@ -3457,7 +3459,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 1.8.0', $themeVersion === '1.8.0', $themeVersion);
+	check('the theme version is 1.8.1', $themeVersion === '1.8.1', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;
