@@ -584,7 +584,12 @@ trait AdminThemeBridgeChanges {
 			return;
 		}
 		if($old === null) return;
-		$diff = $this->changeDiff($old, $this->changeItemRow($item));
+		$new = $this->changeItemRow($item);
+		if($kind === 'template') {
+			// core stamps `modified` on every save and re-saves a template whose file moved (`modified`, `ns`)
+			unset($old['modified'], $old['ns'], $new['modified'], $new['ns']);
+		}
+		$diff = $this->changeDiff($old, $new);
 		if(count($diff)) $this->changesPending[$key] = array('action' => 'saved', 'diff' => $diff);
 	}
 

@@ -4114,6 +4114,13 @@ if($modules->isInstalled('AdminThemeBridge')) {
 			check('change log: a page API save from the CLI writes none', count($clRows()) === $clCount);
 		}
 	}
+	$clTpl = $wire->templates->get('bridge_native');
+	if($clTpl instanceof Template) {
+		// core stamps `modified` on every template save: alone it is no change
+		$clCount = count($clRows());
+		$wire->templates->save($clTpl);
+		check('change log: a template save with nothing changed writes nothing (modified, ns left out)', count($clRows()) === $clCount, json_encode($clRows()));
+	}
 	$clDb->exec('DELETE FROM bridge_changes WHERE id>' . (int) $clMax);
 }
 
