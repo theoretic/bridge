@@ -42,7 +42,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			document.addEventListener('pw-page-saved', (e) => { window.__pwSaved = e.detail; }, { once: true });
 		});
 		const mark = await page.evaluate(() => window.__pwMark);
-		await page.click(selector, opts.shift ? { modifiers: ['Shift'] } : {});
+		await page.click(selector + '_copy, ' + selector, opts.shift ? { modifiers: ['Shift'] } : {});
 		for(let i = 0; i < 150; i++) {
 			await page.waitForTimeout(100);
 			let state;

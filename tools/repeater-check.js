@@ -60,7 +60,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	};
 	const save = async () => {
 		await page.evaluate(() => { window.__saved = null; document.addEventListener('pw-page-saved', e => { window.__saved = e.detail; }, { once: true }); });
-		await page.click('#submit_save');
+		await page.click('#submit_save_copy, #submit_save');
 		return waitFor(() => !!window.__saved, null, 30000);
 	};
 	// open the dialog from a trigger and save the page editor in it with this title: the add form

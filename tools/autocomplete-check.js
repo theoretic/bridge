@@ -76,7 +76,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.evaluate(() => { window.__saved = null; document.addEventListener('pw-page-saved', e => { window.__saved = e.detail; }, { once: true }); });
 		await Promise.all([
 			page.waitForLoadState('networkidle'),
-			page.click('#submit_save'),
+			page.click('#submit_save_copy, #submit_save'),
 		]);
 		await waitFor(page, () => !!window.__saved || document.readyState === 'complete', null, 30000);
 		await page.waitForTimeout(800);

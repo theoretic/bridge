@@ -766,6 +766,10 @@ var ProcessWireAdminTheme = {
 			MCE.pwScheme = true;
 			MCE.onConfig(function(settings) {
 				if(settings.inline) return; // edits in the page itself (fields.css)
+				// a sticky toolbar stops below the masthead and the floating head buttons (10-layout.css)
+				var row = document.querySelector('#pw-content-head-buttons:has(.pw-head-button-copy)');
+				var top = document.getElementById('pw-masthead');
+				settings.toolbar_sticky_offset = (top ? top.offsetHeight : 0) + (row ? row.offsetHeight + 16 : 0);
 				// the two shipped skins that have a dark twin; a custom skin_url is left alone
 				if(!settings.skin_url) {
 					var skin = String(settings.skin || 'oxide').replace(/-dark$/, '');

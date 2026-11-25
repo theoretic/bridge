@@ -89,7 +89,7 @@ const PNG = makePng(48, 32, [40, 120, 220]);
 	};
 	const save = async () => {
 		await page.evaluate(() => { window.__saved = null; document.addEventListener('pw-page-saved', e => { window.__saved = e.detail; }, { once: true }); });
-		await page.click('#submit_save');
+		await page.click('#submit_save_copy, #submit_save');
 		// a save with new images can take a while on the single-threaded PHP dev server
 		return waitFor(() => !!window.__saved, null, 30000);
 	};

@@ -154,7 +154,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		}, IMG);
 		if(n) {
 			await page.evaluate(() => { window.__saved = 0; document.addEventListener('pw-page-saved', () => { window.__saved = 1; }, { once: true }); });
-			await page.click('#submit_save');
+			await page.click('#submit_save_copy, #submit_save');
 			await waitFor(page, () => window.__saved === 1, null, 30000);
 			await open('page/edit/?id=' + NATIVE);
 		}

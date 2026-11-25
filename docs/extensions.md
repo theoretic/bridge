@@ -192,7 +192,7 @@ prints nothing. A slot that nothing fills prints nothing at all, not an empty el
 | `masthead` | After the masthead and the notices, after upstream's `masthead` extra markup | `<div>` |
 | `masthead-right` | In the masthead's right group, before the display controls | `<div>` |
 | `user-nav` | In the user menu, after its links, before the colour picker | `<li>` |
-| `content-head-buttons` | In `#pw-content-head-buttons`, after the Add New button | `<div>` |
+| `content-head-buttons` | In `#pw-content-head-buttons`, after the Add New button; on a screen with a form's head buttons the row floats below the masthead while the page scrolls (1.7.0), so keep it short | `<div>` |
 | `footer` | In `#pw-footer`, after the version line, before the debug panel | `<div>` |
 | `drawer` | A drawer of its own: a button beside the logo and a `<dialog class='pw-drawer'>` | the dialog |
 | `body` | At the end of `<body>`, after upstream's `body` extra markup, before the scripts | `<div>` |

@@ -602,7 +602,7 @@
 				source: link,
 				buttons: '#content form button.ui-button[type=submit]',
 				onLoad: function(doc) {
-					$$('#breadcrumbs ul.nav, #Inputfield_submit_save_field_copy', doc).forEach(function(el) { el.style.display = 'none'; });
+					$$('#breadcrumbs ul.nav', doc).forEach(function(el) { el.style.display = 'none'; });
 				},
 				onButton: function() { saved = true; },
 				moreButtons: function(doc) {

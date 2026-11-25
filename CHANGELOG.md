@@ -1,5 +1,20 @@
 # Changelog
 
+## AdminThemeBridge 1.7.0: one Save button, floating below the masthead (2026-11-25)
+
+Owner's request: every edit screen showed Save twice, at the top and at the bottom of the form. The bottom one is gone and the top one stays in view while the page scrolls.
+
+- **One set of form buttons**: outside modal windows, the head copies (Save and its menu, Publish, Save unpublished, Add New on the lists) are the only ones shown; the form's own buttons stay in the form, hidden, and the copies click them as before, so in-place saves, Shift+click (classic save), the wait for uploads, the menus and Ctrl+click on menu links work as they did. An `.InputfieldSubmit` row that held only those buttons is hidden with them. Modal windows keep their buttons (the dialog shows them in its footer).
+- **Floating, not fixed**: the button row is `position: sticky`, 8px below the masthead, on the page's colour so text does not show between the buttons. Sticky keeps the row in its place at the top of the page (the title wraps beside it as before) and floats it only once the page scrolls; `position: fixed` would take it out of the flow (a long title runs under it), would need its right edge worked out against the centred, width-limited container, and on a phone would cover a strip of content from the start. To make sticky span the whole page, `#pw-content-head` is `display: contents` on those screens; the content body clears the row and keeps the head's 20px. CSS only, no script.
+- **Phones**: the row is full width under the masthead, as it was at the top of the page.
+- **Notices** that arrive while the page is scrolled (fixed below the masthead) now sit below the floating row, so they never cover Save.
+- **TinyMCE's sticky toolbar** (stickybars) stops below the masthead and the floating row (`toolbar_sticky_offset`); before, its top part (the menu bar) hid under the masthead.
+- **Delete tab** of the page editor: the floating Save stays, as AdminThemeUikit's head copy did; upstream's hiding of the other button rows finds none to hide.
+- **For module authors** (`docs/contract.md`): the original buttons are `display: none`; a script that looks for a visible original (`:visible`, `offsetParent`) finds none and should look for its `<id>_copy`. The `content-head-buttons` slot floats with the row (`docs/extensions.md`).
+- Trimmed: the field creator's dialog hid a head copy that modal windows never get (`scripts/setup.js`).
+- Budgets: theme.css 18309 of 18432 B gzip, classic scripts 49137 of 49152 B. No budget raised.
+- Checks: smoke lines for the rules and the TinyMCE offset; page-edit-check H0 (form row hidden, the copy floats below the masthead and takes the click at the end of the page); the browser checks click the head Save, as a user does.
+
 ## AdminThemeBridge 1.6.0: a warning on return to a tab when something changed elsewhere (2026-11-24)
 
 Owner's request: when a user comes back to an admin tab, check whether changes made in other tabs, browsers or on other machines affect the open screen (the page's template changed, a file field's allowed types changed), and show what changed in a dialog. `docs/changes.md` explains.

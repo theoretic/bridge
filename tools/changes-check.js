@@ -306,7 +306,7 @@ const PAGE_TITLE = 'This page changed elsewhere';
 		if(!/page\/edit\/\?id=/.test(bp.url())) {
 			await bp.fill('#Inputfield_title', 'changes-check probe');
 			await bp.fill('#Inputfield__pw_page_name', 'changes-check-probe-' + Date.now());
-			await Promise.all([bp.waitForNavigation({ waitUntil: 'networkidle' }), bp.click('#Inputfield_submit_save')]);
+			await Promise.all([bp.waitForNavigation({ waitUntil: 'networkidle' }), bp.click('#Inputfield_submit_save_copy, #Inputfield_submit_save')]);
 		}
 		const m = /page\/edit\/\?id=(\d+)/.exec(bp.url());
 		const id = m ? m[1] : '';
@@ -351,7 +351,7 @@ const PAGE_TITLE = 'This page changed elsewhere';
 		check('F two tabs have two tab ids', tabs[0] && tabs[1] && tabs[0] !== tabs[1], JSON.stringify(tabs));
 		const save = async () => {
 			await p.evaluate(() => { window.__saved = null; document.addEventListener('pw-page-saved', e => { window.__saved = e.detail || true; }, { once: true }); });
-			await p.click('#submit_save');
+			await p.click('#submit_save_copy, #submit_save');
 			for(let t = 0; t < 15000 && !(await p.evaluate(() => !!window.__saved)); t += 200) await p.waitForTimeout(200);
 			return p.evaluate(() => !!window.__saved);
 		};
@@ -364,7 +364,7 @@ const PAGE_TITLE = 'This page changed elsewhere';
 			const q = await tab(a, 'page/edit/?id=' + ids.NATIVE_ID);
 			await q.fill('#Inputfield_bf_text', old);
 			await q.evaluate(() => { window.__saved = null; document.addEventListener('pw-page-saved', () => { window.__saved = true; }, { once: true }); });
-			await q.click('#submit_save');
+			await q.click('#submit_save_copy, #submit_save');
 			for(let t = 0; t < 15000 && !(await q.evaluate(() => !!window.__saved)); t += 200) await q.waitForTimeout(200);
 		});
 		check('F the in-place save posted this tab\'s id', saved && posted.some(x => x.body.includes(tabs[0])), JSON.stringify(posted.map(x => x.url.replace(ADMIN, '') + ' ' + x.tab)));

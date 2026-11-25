@@ -60,7 +60,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 			['pw-form-saved', 'pw-page-saved'].forEach(t => document.addEventListener(t, () => { window.__bridgeSaved++; }, { once: true }));
 		});
 		const url = page.url();
-		await page.locator(selector).first().click();
+		await page.locator(selector + '_copy, ' + selector).first().click();
 		const saved = await waitFor(() => window.__bridgeSaved > 0, null, 30000);
 		const kept = await page.evaluate(() => window.__bridgeMarker === 1).catch(() => false);
 		const notice = await page.evaluate(() => { const n = document.getElementById('notices'); return n ? n.textContent.replace(/\s+/g, ' ').trim() : ''; }).catch(() => '');
@@ -94,7 +94,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		check('A field: a second save in place (put back)', r2.saved && r2.kept && await page.locator('textarea[name=notes], input[name=notes]').first().inputValue() === before, JSON.stringify(r2));
 		// Shift+click stays classic
 		await page.evaluate(() => { window.__bridgeMarker = 1; });
-		await Promise.all([page.waitForNavigation({ timeout: 30000 }).catch(() => null), page.locator('#Inputfield_submit_save_field').first().click({ modifiers: ['Shift'] })]);
+		await Promise.all([page.waitForNavigation({ timeout: 30000 }).catch(() => null), page.locator('#Inputfield_submit_save_field_copy, #Inputfield_submit_save_field').first().click({ modifiers: ['Shift'] })]);
 		await page.waitForLoadState('networkidle').catch(() => {});
 		check('A field: Shift+click saves the classic way (a reload)', !(await page.evaluate(() => window.__bridgeMarker === 1).catch(() => false)));
 	} else {

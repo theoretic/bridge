@@ -60,6 +60,8 @@ body:not(.modal):not(.ProcessLogin) #notices.pw-notices-fixed {
 	overflow-y: auto;
 	overscroll-behavior: contain;
 }
+/* below the floating head buttons (10-layout.css), not over Save */
+body:has(.pw-head-button-copy) #notices.pw-notices-fixed { top: calc(var(--pw-masthead-h) + 2 * var(--pw-notice-gap) + var(--pw-control-height)); }
 #notices li {
 	position: relative;
 	margin: 0 0 6px;

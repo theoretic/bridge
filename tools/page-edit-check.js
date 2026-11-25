@@ -57,7 +57,7 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	// click a save button; returns { inPlace, navigated }
 	const save = async (selector, opts) => {
 		const m = await mark();
-		await page.click(selector, opts && opts.shift ? { modifiers: ['Shift'] } : {});
+		await page.click(selector + '_copy, ' + selector, opts && opts.shift ? { modifiers: ['Shift'] } : {});
 		for(let i = 0; i < 150; i++) {
 			await page.waitForTimeout(100);
 			let state;
@@ -178,15 +178,27 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	}
 	await open(NATIVE);
 
-	// H: Delete tab hides the other buttons; delete needs its confirm box
+	// H0: one Save (1.7.0): the form's own row is hidden, its head copy stays below the masthead
+	check('H0 the form Save row is hidden, its head copy shown', !(await shown('#wrap_submit_save')) && await shown('#submit_save_copy'));
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+	await page.waitForTimeout(300);
+	const stuck = await page.evaluate(() => {
+		const b = document.getElementById('submit_save_copy').getBoundingClientRect();
+		return { top: Math.round(b.top), masthead: Math.round(document.getElementById('pw-masthead').getBoundingClientRect().bottom), hit: document.elementFromPoint(b.left + 5, b.top + 5) === document.getElementById('submit_save_copy') };
+	});
+	check('H0 scrolled to the end, the head Save floats just below the masthead and takes clicks', stuck.top > stuck.masthead && stuck.top < stuck.masthead + 20 && stuck.hit, JSON.stringify(stuck));
+	await page.evaluate(() => window.scrollTo(0, 0));
+
+	// H: Delete tab: the form's buttons stay hidden (upstream's :visible finds none), the head Save
+	// stays as in AdminThemeUikit; delete needs its confirm box
 	await page.click('#_ProcessPageEditDelete');
-	check('H Delete tab hides Save', !(await shown('#wrap_submit_save')) && await page.locator('#wrap_submit_save.pw-hidden-tmp').count() === 1);
+	check('H Delete tab: the form Save row hidden, nothing to restore later', !(await shown('#wrap_submit_save')) && await page.locator('.pw-hidden-tmp').count() === 0);
 	let m = await mark();
 	await page.click('#submit_delete');
 	await page.waitForTimeout(600);
 	check('H Delete without its confirm box does nothing', await page.evaluate(() => window.__pwMark) === m && await page.locator('input[type=hidden][name=submit_delete]').count() === 0);
 	await page.click('#_ProcessPageEditContent');
-	check('H leaving the Delete tab restores Save', await shown('#wrap_submit_save') && await page.locator('.pw-hidden-tmp').count() === 0);
+	check('H leaving the Delete tab keeps the head Save', await shown('#submit_save_copy') && !(await shown('#wrap_submit_save')) && await page.locator('.pw-hidden-tmp').count() === 0);
 
 	// I: in-place save keeps the native editor
 	await open(NATIVE);
@@ -222,10 +234,10 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	dialogs = [];
 	await page.evaluate(() => document.body.classList.add('pw-uploading'));
 	m = await mark();
-	await page.click('#submit_save');
+	await page.click('#submit_save_copy, #submit_save');
 	await page.waitForTimeout(700);
 	const waitingNow = await page.evaluate(() => document.body.classList.contains('pw-save-waiting'));
-	await page.click('#submit_save');
+	await page.click('#submit_save_copy, #submit_save');
 	const asked = await page.waitForSelector('dialog.pw-ask[open]', { timeout: 3000 }).then(() => true, () => false);
 	if(asked) await page.click('dialog.pw-ask[open] button[value="cancel"]');
 	await page.waitForTimeout(500);
