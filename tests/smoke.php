@@ -4229,11 +4229,38 @@ if($modules->isInstalled('AdminThemeBridge')) {
 		check('deps: the Add Page screen exists', (bool) $cdAddPage->id);
 		if($cdAddPage->id) {
 			$cdPa = $modules->getModule('ProcessPageAdd', array('noInit' => true, 'noPermissionCheck' => true));
+			$cdUserWas = $wire->user;
+			$wire->users->setCurrentUser($users->get('name=bridge'));
 			$cdAt($cdAddPage, $cdPa, '', array('parent_id' => $cdNest->parent_id, 'template_id' => $cdNest->template->id));
 			$cdDeps = $cdTheme->changeDeps();
+			$wire->users->setCurrentUser($cdUserWas);
 			check('deps: page add lists the chosen template and the parent\'s', is_array($cdDeps) && $cdDeps['screen'] === 'page-add' && $cdDeps['page'] === null
 				&& $cdDeps['template'] === $cdNest->template->id && in_array($cdNest->template->id, $cdDeps['templates'], true)
 				&& in_array($cdNest->parent->template->id, $cdDeps['templates'], true), json_encode($cdDeps));
+			// fix B2.1: page-add ids come from GET and get signed: only a template and parent the user may add with
+			$cdAcl = $users->get('name=acl');
+			$cdPtItems = $pages->get('/bridge-pt-items/');
+			if($cdAcl->id && $cdPtItems->id && count($cdPtItems->template->childTemplates) === 1) {
+				// the default language object from $languages (see the ACL block: a reloaded copy breaks finds)
+				$cdAclLanguage = $cdAcl->language;
+				if($wire->languages && $cdAclLanguage && (int) $cdAclLanguage->id === (int) $wire->languages->getDefault()->id) $cdAcl->setLanguage($wire->languages->getDefault());
+				$wire->users->setCurrentUser($cdAcl);
+				$cdPtChild = (int) reset($cdPtItems->template->childTemplates);
+				$cdAclDeps = array();
+				foreach(array('role' => array('template_id' => $wire->templates->get('role')->id), 'admin' => array('template_id' => $wire->templates->get('admin')->id),
+					'homeRole' => array('parent_id' => 1, 'template_id' => $wire->templates->get('role')->id), 'adminParent' => array('parent_id' => $config->adminRootPageID),
+					'own' => array('parent_id' => $cdPtItems->id, 'template_id' => $cdPtChild)) as $k => $get) {
+					$cdAt($cdAddPage, $cdPa, '', $get);
+					$cdAclDeps[$k] = $cdTheme->changeDeps();
+				}
+				$wire->users->setCurrentUser($cdUserWas);
+				if($cdAclLanguage) $cdAcl->setLanguage($cdAclLanguage);
+				check('deps: page add for a template or parent the user may not add with (acl: role, admin, admin root) is null; its own is listed', $cdAclDeps['role'] === null
+					&& $cdAclDeps['admin'] === null && $cdAclDeps['homeRole'] === null && $cdAclDeps['adminParent'] === null
+					&& is_array($cdAclDeps['own']) && $cdAclDeps['own']['templates'] === array($cdPtChild, (int) $cdPtItems->template->id), json_encode($cdAclDeps));
+			} else {
+				check('deps: the acl user and /bridge-pt-items/ (one child template) exist', false);
+			}
 		}
 		$cdUsers = $cdAdmin->child('name=access, include=all')->child('name=users, include=all');
 		check('deps: the Users screen exists', (bool) $cdUsers->id);

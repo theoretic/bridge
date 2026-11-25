@@ -211,7 +211,10 @@ trait AdminThemeBridgeChanges {
 	}
 
 	/**
-	 * The page-add part of changeDeps(): the chosen template and the parent's template
+	 * The page-add part of changeDeps(): the chosen template and the parent's template, each only
+	 * when the user may use it (fix B2.1: the ids come from GET and are signed): the parent when
+	 * addable, the template when changeAddAllowed() under that parent, or under one of its
+	 * possible parents when none is given; anything else gives no snapshot
 	 *
 	 * @param mixed $pagesType The PagesType of a ProcessPageType screen (users, roles...), else null
 	 * @return array|null
@@ -223,16 +226,47 @@ trait AdminThemeBridgeChanges {
 		$chosen = null;
 		$parent = null;
 		$templateId = (int) $input->get('template_id');
-		if($templateId) $chosen = $templates->get($templateId);
+		if($templateId) {
+			$chosen = $templates->get($templateId);
+			if(!$chosen instanceof Template) return null;
+		}
 		$parentId = (int) $input->get('parent_id');
 		if($parentId) $parent = $this->wire()->pages->get($parentId);
 		if($pagesType instanceof PagesType) {
 			if(!$parent || !$parent->id) $parent = $pagesType->getParent();
 			if(!$chosen) $chosen = $pagesType->getTemplate();
+			if($parent && $parent->id && !in_array((int) $parent->id, array_map('intval', $pagesType->getParentIDs()), true)) return null;
+			if($chosen instanceof Template) {
+				$typeIds = array();
+				foreach($pagesType->getTemplates() as $t) if($t instanceof Template) $typeIds[] = (int) $t->id;
+				if(!in_array((int) $chosen->id, $typeIds, true)) return null;
+			}
 		}
-		if(!$chosen && $parent && $parent->id && $parent->template && count($parent->template->childTemplates) === 1) {
+		if($parentId && (!$parent || !$parent->id)) return null;
+		if($parent && $parent->id && (!$parent->template || !$parent->addable())) return null;
+		if(!$chosen && $parent && $parent->id && count($parent->template->childTemplates) === 1) {
 			$childTemplates = $parent->template->childTemplates;
 			$chosen = $templates->get((int) reset($childTemplates));
+		}
+		if($chosen instanceof Template) {
+			if($parent && $parent->id) {
+				if(!$this->changeAddAllowed($chosen, $parent)) return null;
+			} else {
+				// ProcessPageAdd::executeTemplate(): the parent is picked among pages of the template's parentTemplates
+				$allowed = false;
+				$parentTemplates = array_filter(array_map('intval', (array) $chosen->parentTemplates));
+				if(count($parentTemplates)) try {
+					$found = $this->wire()->pages->find('templates_id=' . implode('|', $parentTemplates) . ', include=hidden, limit=500, sort=name');
+					foreach($found as $p) {
+						if(!$p->addable() || !$this->changeAddAllowed($chosen, $p)) continue;
+						$allowed = true;
+						break;
+					}
+				} catch(\Exception $e) {
+					$this->changeError($e);
+				}
+				if(!$allowed) return null;
+			}
 		}
 		$ids = array();
 		if($chosen instanceof Template) $ids[] = (int) $chosen->id;
@@ -246,6 +280,54 @@ trait AdminThemeBridgeChanges {
 			'fields' => array(),
 			'templates' => $ids,
 		);
+	}
+
+	/**
+	 * Whether the user may add a page with the template under the parent: ProcessPageAdd's rule
+	 * (getAllowedTemplates() and isAllowedTemplate(), 3.0.274) for one parent; the parent's own
+	 * addable() is asked by the caller
+	 *
+	 * @param Template $template
+	 * @param Page $parent
+	 * @return bool
+	 *
+	 */
+	protected function changeAddAllowed(Template $template, Page $parent) {
+		$config = $this->wire()->config;
+		$user = $this->wire()->user;
+		$isUserTemplate = in_array((int) $template->id, array_map('intval', (array) $config->userTemplateIDs), true);
+		if($parent->hasStatus(Page::statusUnpublished)) {
+			$parentEditable = $parent->editable();
+		} else {
+			$parent->addStatus(Page::statusUnpublished);
+			$parentEditable = $parent->editable();
+			$parent->removeStatus(Page::statusUnpublished);
+		}
+		$allowed = true;
+		if($template->noParents == -1) {
+			if($template->getNumPages() > 0) $allowed = false;
+		} else if($template->noParents) {
+			$allowed = false;
+		}
+		if($template->useRoles && !$user->hasPermission('page-create', $template)) $allowed = false;
+		if(!$template->useRoles && (!$parentEditable || !$user->hasPermission('page-create', $parent))) $allowed = false;
+		if($allowed && $isUserTemplate) {
+			if(!in_array((int) $parent->id, array_map('intval', (array) $config->usersPageIDs), true)) $allowed = false;
+		} else if($allowed && $template->name === 'role' && (int) $parent->id !== (int) $config->rolesPageID) {
+			$allowed = false;
+		} else if($allowed && $template->name === 'permission' && (int) $parent->id !== (int) $config->permissionsPageID) {
+			$allowed = false;
+		}
+		if(!$allowed && $isUserTemplate && $user->hasPermission('user-admin')) $allowed = true;
+		if(!$allowed) return false;
+		$childTemplates = array_map('intval', (array) $parent->template->childTemplates);
+		if(count($childTemplates) && !in_array((int) $template->id, $childTemplates, true)) return false;
+		if($parent->template->noChildren) return false;
+		$parentTemplates = array_map('intval', (array) $template->parentTemplates);
+		if(count($parentTemplates) && !in_array((int) $parent->template->id, $parentTemplates, true)) return false;
+		if($template->noParents == -1) return $template->getNumPages() == 0;
+		if($template->noParents) return false;
+		return true;
 	}
 
 	/**
