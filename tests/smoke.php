@@ -4323,6 +4323,11 @@ if($modules->isInstalled('AdminThemeBridge')) {
 			$caPageB = $caAs($caSu, array_merge($caPageDeps, array('tab' => 'smokeTabB')));
 			check('changes: the page saved last by the asking tab gives no page entry and no page row there; another tab gets both', is_array($caPageA) && $caPageA['page'] === null && $caPageA['changes'] === array()
 				&& is_array($caPageB['page']) && count($caPageB['changes']) === 2 && $caPageB['changes'][0]['kind'] === 'page', json_encode(array($caPageA, $caPageB)));
+			$caPageA2 = is_array($caPageA) && isset($caPageA['modified']) ? $caAs($caSu, array_merge($caPageDeps, array('tab' => 'smokeTabA', 'cursor' => $caPageA['cursor'],
+				'page' => array('id' => $caPage->id, 'modified' => $caPageA['modified'])))) : null;
+			check('changes: the own-save answer carries the page modified time, and a second check with it gives no page entry (A1.1)', is_array($caPageA)
+				&& isset($caPageA['modified']) && $caPageA['modified'] === (int) $caPage->modified && !isset($caPageB['modified'])
+				&& is_array($caPageA2) && $caPageA2['page'] === null && $caPageA2['changes'] === array(), json_encode(array($caPageA, $caPageA2)));
 			$caFormE = new HookEvent(array('object' => $caTheme, 'method' => 'render', 'arguments' => array()));
 			$caFormE->return = "<form method='post'><input type='hidden' name='_InputfieldForm' value='x' /></form>";
 			$caTheme->hookChangeTabInput($caFormE);

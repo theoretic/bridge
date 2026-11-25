@@ -356,6 +356,8 @@ const PAGE_TITLE = 'This page changed elsewhere';
 		check('F the in-place save posted this tab\'s id', saved && posted.some(x => x.body.includes(tabs[0])), JSON.stringify(posted.map(x => x.url.replace(ADMIN, '') + ' ' + x.tab)));
 		let r = await back(p);
 		check('F its own save: no dialog', r.answer && !r.answer.page && !r.answer.changes.length && !r.shown.open, JSON.stringify(r.answer));
+		r = await back(p);
+		check('F its own save, second return: still no dialog', r.answer && !r.answer.page && !r.answer.changes.length && !r.shown.open, JSON.stringify(r.answer));
 		r = await back(other);
 		const it = item(r.shown, /^This page/);
 		check('F the other tab of the same user warns: you, in another tab', r.shown.open && it && /^you, in another tab/.test(it.who), JSON.stringify(r.shown.items));
@@ -425,6 +427,8 @@ const PAGE_TITLE = 'This page changed elsewhere';
 		check('F the legacy upload was added and its XHR carries X-Bridge-Tab', fileUrl && upPost && upPost.tab === qid, JSON.stringify({ added, uploads: uploads.map(x => x.url.replace(ADMIN, '') + ' ' + x.tab), qid }));
 		r = await back(q);
 		check('F after its own upload the tab does not warn itself', r.answer && !r.answer.page && !r.answer.changes.length && !r.shown.open, JSON.stringify(r.answer));
+		r = await back(q);
+		check('F after its own upload, second return: still no warning', r.answer && !r.answer.page && !r.answer.changes.length && !r.shown.open, JSON.stringify(r.answer));
 	});
 
 	// G: a plain editor (acl: page-edit, no field-admin) and bridge on the same page

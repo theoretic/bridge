@@ -322,7 +322,8 @@ trait AdminThemeBridgeChanges {
 	 * @return array|null Keys: cursor (the newest row seen), page (who saved it since, or null),
 	 *  changes (rows, newest first: id, kind, action, ts, user, you, object, name, label, in, diff,
 	 *  named, hidden), more (true when rows past the 50 newest were left out), message (only when
-	 *  the page can no longer be saved). Null for a guest.
+	 *  the page can no longer be saved), modified (only when this tab saved the page last: its
+	 *  current modified time, for the client's snapshot). Null for a guest.
 	 *
 	 */
 	public function changesAnswer(array $deps) {
@@ -390,6 +391,8 @@ trait AdminThemeBridgeChanges {
 			&& (int) $page->modified > (int) $deps['page']['modified'] && !$ownPage;
 		if($pageMoved) $userIds[] = (int) $page->modified_users_id;
 		$names = $this->changeUserNames($userIds);
+		// the client keeps this as its page modified time, or the next check would see its own save as moved
+		if($ownPage) $out['modified'] = (int) $page->modified;
 		if($pageMoved) {
 			$by = (int) $page->modified_users_id;
 			$out['page'] = array('id' => (int) $page->id, 'modified' => (int) $page->modified,

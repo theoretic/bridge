@@ -23,7 +23,7 @@ import { fill, confirm } from './danger';
 
 type Diff = Record<string, unknown>;
 type Entry = { kind: string; action: string; ts: number; user: string; you: boolean; object: number; name: string; label: string; in: string; diff: Diff; named: string[]; hidden: number };
-type Answer = { cursor: number; page: { modified: number; user: string; you: boolean } | null; changes: Entry[]; more: boolean; message?: string };
+type Answer = { cursor: number; page: { modified: number; user: string; you: boolean } | null; changes: Entry[]; more: boolean; message?: string; modified?: number };
 type Deps = { screen: string; cursor: number; page: { modified: number } | null; tab?: string };
 
 const KEY = 'bridge-tab';
@@ -229,6 +229,8 @@ function check(): void {
 		if (!deps || !answer || typeof answer.cursor !== 'number') return;
 		deps.cursor = Math.max(deps.cursor, answer.cursor);
 		if (answer.page && deps.page) deps.page.modified = answer.page.modified;
+		// this tab saved the page last: no entry, but the time moves on all the same
+		if (typeof answer.modified === 'number' && deps.page) deps.page.modified = answer.modified;
 		if (answer.message || answer.page || (answer.changes && answer.changes.length)) show(answer);
 	}).catch(err => console.warn('Bridge: changes check', err)).then(() => { busy = false; });
 }
