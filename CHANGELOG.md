@@ -1,5 +1,17 @@
 # Changelog
 
+## AdminThemeBridge 1.8.0: the live search looks in every text field, in every language (2026-11-25)
+
+Owner's request: the masthead search should find a page by any text field, in any language, but not by textareas; each result names the field that matched, after the template.
+
+- **What it searches**: every field whose type is Text or one of its kinds: Page Title, Email, URL, their multi-language versions and third-party types that extend `FieldtypeText`. Every language column of a multi-language field (`data`, `data<id>`) counts, whatever the user's language. `FieldtypeTextarea` and its kinds (Textarea (Multi-language), CKEditor and TinyMCE fields) stay out. This replaces the ProcessPageSearch setting "fields to search" for the live search; the `type:` prefixes, `field=value` searches and the full search page are as before.
+- **The hint**: after the template name, the label of the first field that has the text (in the template's context, in the user's language), with the language in brackets when the match is in another one: `basic-page · Subtitle (Deutsch)`. No script change: it is the `template_label` the masthead already shows.
+- **Access**: PageFinder checks page access as for any search (unpublished pages, trash for superusers only, users and repeater items left out, BridgeAdminAccessControl's `findReady` limits). A field with access control counts only on the templates where the user may view it, so its content cannot reveal a page.
+- **Speed on big sites**: one join on a derived table, a `UNION` of one `SELECT` per field table with the search on every language column, instead of upstream's `title|subtitle|...` selector, which joins each table once per language and would reach MySQL's 61-table join limit. Matching is LIKE (`%=` for one word, all words for `~=`), as Email and URL columns have no fulltext index. The hint costs no query: the found pages are in memory.
+- **How**: hooks on `ProcessPageSearchLive::getDefaultPageSearchFields` (PW 3.0.242+; older cores keep upstream's fields), `PageFinder::getQueryUnknownField` (the field name `bridge_search_text`, `AdminThemeBridge::searchField`) and `ProcessPageSearchLive::execute`, bound on ProcessPageSearch requests only (`lib/AdminThemeBridgeSearch.php`).
+- Smoke lines: title searched and no textarea; the search field finds a page by its title; the hint names a field; an unknown value finds nothing.
+- Budgets: no script or stylesheet changed (classic scripts 49137 of 49152 B gzip).
+
 ## AdminThemeBridge 1.7.0: one Save button, floating below the masthead (2026-11-25)
 
 Owner's request: every edit screen showed Save twice, at the top and at the bottom of the form. The bottom one is gone and the top one stays in view while the page scrolls.

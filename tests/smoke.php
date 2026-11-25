@@ -3457,7 +3457,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 1.7.0', $themeVersion === '1.7.0', $themeVersion);
+	check('the theme version is 1.8.0', $themeVersion === '1.8.0', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;
@@ -4469,6 +4469,27 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	}
 	$config->ajax = $caAjaxWas;
 	$caSet($caGetWas);
+}
+
+// 1.8.0: the live search looks in every single-line text field in every language, Textarea and its
+// kinds left out; a result names the field that matched (lib/AdminThemeBridgeSearch.php)
+if(isset($bridge) && method_exists($bridge, 'hookSearch')) {
+	$stFields = (new \ReflectionMethod($bridge, 'searchTextFields'))->invoke($bridge);
+	$stTextareas = array_filter($stFields, function($i) { return $i[0]->type instanceof FieldtypeTextarea; });
+	check('search: title is searched, no Textarea kind', isset($stFields['title']) && !count($stTextareas), implode(' ', array_keys($stFields)));
+	$stPage = $pages->findOne("title%=a, template!=admin, has_parent!=2, include=all");
+	if($stPage->id) {
+		(new \ReflectionMethod($bridge, 'hookSearch'))->invoke($bridge);
+		$stWord = mb_substr((string) $stPage->getUnformatted('title'), 0, 12);
+		$stFound = $pages->find('bridge_search_text%=' . $sanitizer->selectorValue($stWord) . ', include=all');
+		check('search: the one search field finds a page by its title', $stFound->has($stPage), $stWord);
+		$stLabel = (new \ReflectionMethod($bridge, 'searchMatchedLabel'))->invoke($bridge, $stPage);
+		check('search: the result names the field that matched', $stLabel !== '', $stWord);
+		$stNone = $pages->find('bridge_search_text%=' . $sanitizer->selectorValue('zz' . md5('none')) . ', include=all');
+		check('search: a value no text field has finds nothing', !$stNone->count());
+	} else {
+		warn('search: no page with a title to search for');
+	}
 }
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

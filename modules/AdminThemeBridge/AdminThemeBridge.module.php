@@ -23,6 +23,7 @@ require_once(__DIR__ . '/lib/AdminThemeBridgeDrawers.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeHistory.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeChanges.php');
 require_once(__DIR__ . '/lib/AdminThemeBridgeExtensions.php');
+require_once(__DIR__ . '/lib/AdminThemeBridgeSearch.php');
 
 /**
  * AdminThemeBridge
@@ -61,11 +62,12 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	use AdminThemeBridgeHistory;
 	use AdminThemeBridgeChanges;
 	use AdminThemeBridgeExtensions;
+	use AdminThemeBridgeSearch;
 
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '1.7.0',
+			'version' => '1.8.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -426,6 +428,13 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	const changesDiffMax = 4096;
 
 	/**
+	 * The live search's one field for every text field (lib/AdminThemeBridgeSearch.php, 1.8.0): no
+	 * field has this name
+	 *
+	 */
+	const searchField = 'bridge_search_text';
+
+	/**
 	 * The change log's state for this request: hooks bound, the table known to exist (null before
 	 * it is asked), rows waiting for their save to finish ("kind:id" => data), and the row written
 	 * for each page saved (page id => row id)
@@ -717,6 +726,8 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 		// inline jQuery code in a native markup field (a module's config screen, notes): A5
 		$this->addHookAfter('InputfieldMarkup::render', $this, 'hookMarkupRender');
 		$this->addHookAfter('InputfieldMarkup::renderValue', $this, 'hookMarkupRender');
+		// the masthead's live search: every text field, every language (1.8.0, lib/AdminThemeBridgeSearch.php)
+		if($page->process == 'ProcessPageSearch') $this->hookSearch();
 	}
 
 	/**
