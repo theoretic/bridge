@@ -4047,6 +4047,12 @@ if($modules->isInstalled('AdminThemeBridge')) {
 	check('change log settings: off prints no snapshot, so the runtime loads no changes chunk', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeChanges.php'), "if(!\$this->changesWarn) return '';") !== false
 		&& strpos((string) file_get_contents($themeDir . '_head.php'), "if(\$plan->deps !== '')") !== false
 		&& strpos((string) file_get_contents(__DIR__ . '/../runtime/src/index.ts'), "if (document.getElementById('pw-deps')) importAgain(() => import('./util/changes'))") !== false);
+	// audit A1.3 (Q12): a modal frame sends its tab's id with every admin POST form while changesWarn is on
+	$clIndexSrc = (string) file_get_contents(__DIR__ . '/../runtime/src/index.ts');
+	$clTabSrc = (string) file_get_contents(__DIR__ . '/../runtime/src/util/tab.ts');
+	check('change log settings: changesWarn reaches the runtime; a modal frame marks any admin POST form with the tab id (A1.3)', strpos((string) file_get_contents($themeDir . 'lib/AdminThemeBridgeHead.php'), "\$bridgeJs['changesWarn'] = (bool) \$this->changesWarn;") !== false
+		&& strpos($clIndexSrc, "/[?&]modal=/.test(location.search) && pwConfig<{ changesWarn?: boolean }>('AdminThemeBridge').changesWarn) importAgain(() => import('./util/tab')).then(m => m.mark(true))") !== false
+		&& strpos($clTabSrc, "(anyForms && ours(f.getAttribute('method') || 'GET', f.getAttribute('action') || location.href))") !== false);
 	$clTheme->hookChangeLog();
 	$clMax = (int) $clDb->query('SELECT MAX(id) FROM bridge_changes')->fetchColumn();
 	$clRows = function() use($clDb, &$clMax) {
@@ -4347,8 +4353,8 @@ if($modules->isInstalled('AdminThemeBridge')) {
 				&& ($caTabAt = strpos($caSrc, "\$this->addHookAfter('InputfieldForm::render', \$this, 'hookChangeTabInput');")) !== false && $caTabAt > strpos($caSrc, 'if(!$this->isCurrent()) return;')
 				&& strpos($caLibSrc, "\$_SERVER['HTTP_X_BRIDGE_TAB']") !== false);
 			// step 05 (Q9): one-field saves (AJAX uploads) logged in admin requests; the client sends its tab on admin XHR posts
-			$caClient = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/util/changes.ts');
-			check('changes: Pages::savedField logged as a page row (admin requests only); the changes chunk fills _bridge_tab and sends X-Bridge-Tab on XMLHttpRequest posts',
+			$caClient = (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/util/tab.ts') . (string) @file_get_contents(dirname(__DIR__) . '/runtime/src/util/changes.ts');
+			check('changes: Pages::savedField logged as a page row (admin requests only); the changes chunk (util/tab.ts, A1.3) fills _bridge_tab and sends X-Bridge-Tab on XMLHttpRequest posts',
 				strpos($caLibSrc, "\$pages->addHookAfter('savedField', \$this, 'hookChangePageFieldSaved');") !== false
 				&& preg_match('/function hookChangePageFieldSaved\(.*?changeLogPages\(\).*?changeWrite\(\'page\'/s', $caLibSrc)
 				&& strpos($caClient, "setRequestHeader('X-Bridge-Tab', id)") !== false && strpos($caClient, "'input[name=\"_bridge_tab\"]'") !== false);

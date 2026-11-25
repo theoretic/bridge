@@ -9,7 +9,8 @@
 //   D the page moved to the trash (a page B adds for the case and deletes for good afterwards)
 //   E a field only inside repeater and FieldsetPage items changed (the nesting page)
 //   F same tab: its own saves never warn (the in-place save; an upload on the legacy stack; the
-//     files-move POST sends X-Bridge-Tab, its answer stubbed so nothing moves), another tab of the
+//     files-move POST sends X-Bridge-Tab, its answer stubbed so nothing moves; the image editor's save as
+//     copy in a modal frame, A1.3), another tab of the
 //     same user does warn ("you, in another tab")
 //   G a plain editor sees the safe settings' values only, the code-like ones named, the rest counted
 // Everything B changes is put back by B at the end of its case (also when the case fails); those
@@ -429,6 +430,31 @@ const PAGE_TITLE = 'This page changed elsewhere';
 		check('F after its own upload the tab does not warn itself', r.answer && !r.answer.page && !r.answer.changes.length && !r.shown.open, JSON.stringify(r.answer));
 		r = await back(q);
 		check('F after its own upload, second return: still no warning', r.answer && !r.answer.page && !r.answer.changes.length && !r.shown.open, JSON.stringify(r.answer));
+
+		// the image editor in a modal frame of the editor (audit A1.3, Q12): "save as copy" posts a
+		// form of its own (not an InputfieldForm) and saves the page; it carries the tab's id
+		const m = await tab(a, 'page/edit/?id=' + ids.NATIVE_ID);
+		const mid = await m.evaluate(() => sessionStorage.getItem('bridge-tab'));
+		const img = await m.evaluate(() => { const i = document.querySelector('#wrap_Inputfield_bf_images img[data-original]'); return i ? i.getAttribute('data-original').split('/').pop().split('?')[0] : ''; });
+		await m.evaluate((u) => { const f = document.createElement('iframe'); f.id = 'changes-check-image'; f.src = u; f.style.cssText = 'width:900px;height:700px'; document.body.appendChild(f); },
+			ADMIN + 'page/image/edit/?id=' + ids.NATIVE_ID + '&file=' + ids.NATIVE_ID + ',' + img + '&rte=0&field=bf_images&modal=1');
+		const fr = await (await m.waitForSelector('#changes-check-image')).contentFrame();
+		await fr.waitForSelector('button.submit_save_copy', { state: 'attached', timeout: 15000 });
+		await m.waitForTimeout(500);
+		const copyPost = m.waitForRequest(rq => rq.method() === 'POST' && rq.url().includes('/page/image/edit/'), { timeout: 15000 }).catch(() => null);
+		undo.push(async () => {
+			// a fresh editor drops the page's temporary images, the copy among them
+			const z = await tab(a, 'page/edit/?id=' + ids.NATIVE_ID);
+			const left = await z.evaluate(() => [...document.querySelectorAll('#wrap_Inputfield_bf_images img[data-original]')].filter(i => /-v\d+\./.test(i.getAttribute('data-original'))).length);
+			if(left) throw new Error('the image copy is still there (' + left + ')');
+		});
+		await fr.evaluate(() => { const b = document.querySelector('button.submit_save_copy'); b.form.requestSubmit(b); });
+		const cp = await copyPost;
+		await fr.waitForLoadState('networkidle').catch(() => {});
+		await m.waitForTimeout(1500);
+		check('F the image editor save as copy (modal frame) posts this tab id', img && cp && (cp.postData() || '').includes(mid), JSON.stringify({ img, mid, posted: !!cp }));
+		r = await back(m);
+		check('F after its own image copy the tab does not warn itself (the copy saved the page: modified moved)', r.answer && typeof r.answer.modified === 'number' && !r.answer.page && !r.answer.changes.length && !r.shown.open, JSON.stringify(r.answer));
 	});
 
 	// G: a plain editor (acl: page-edit, no field-admin) and bridge on the same page

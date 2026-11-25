@@ -9,15 +9,15 @@
  * asks first when a form holds unsaved changes; Keep editing (and Escape, the close button, the
  * backdrop) closes it and lists the changes in a banner under the headline until the page reloads.
  *
- * The tab's id (sessionStorage, so modal iframes share it) goes into the snapshot and into every
- * `_bridge_tab` input the theme adds to its forms, and into an `X-Bridge-Tab` header on every
- * XMLHttpRequest and fetch() POST to the admin (uploads, legacy AJAX saves, moves between file fields), so the server skips this tab's own saves.
+ * The tab's id (util/tab.ts) goes into the snapshot and with this tab's saves, so the server skips
+ * this tab's own saves.
  */
 
 import { label } from './labels';
 import { esc } from './html';
 import { toHTML } from './trusted';
 import { adminUrl } from './pw';
+import { mark } from './tab';
 import { fetchOk } from './fail';
 import { fill, confirm } from './danger';
 
@@ -26,7 +26,6 @@ type Entry = { kind: string; action: string; ts: number; user: string; you: bool
 type Answer = { cursor: number; page: { modified: number; user: string; you: boolean } | null; changes: Entry[]; more: boolean; message?: string; modified?: number };
 type Deps = { screen: string; cursor: number; page: { modified: number } | null; tab?: string };
 
-const KEY = 'bridge-tab';
 const TITLES: Record<string, [string, string]> = {
 	'page-edit': ['changesTitle', 'This page changed elsewhere'],
 	'page-add': ['changesAddTitle', 'What this new page depends on changed elsewhere'],
@@ -46,22 +45,6 @@ let busy = false;
 let dialog: HTMLDialogElement | null = null;
 // the banner's lines, since the page loaded
 const listed: string[] = [];
-
-/** This tab's id: kept in sessionStorage (one per tab, shared by its frames), else for this page only */
-function tabId(): string {
-	let id = '';
-	try {
-		id = sessionStorage.getItem(KEY) || '';
-	} catch { /* storage off */ }
-	if (/^[\w-]{8,64}$/.test(id)) return id;
-	const a = new Uint32Array(3);
-	crypto.getRandomValues(a);
-	id = Array.from(a, n => n.toString(36)).join('-');
-	try {
-		sessionStorage.setItem(KEY, id);
-	} catch { /* storage off */ }
-	return id;
-}
 
 /** The forms with unsaved changes (the leave warning's rule, inputfields/forms.ts) */
 const unsavedForms = (): HTMLFormElement[] => Array.from(document.querySelectorAll<HTMLFormElement>('form.InputfieldFormConfirm:not(.InputfieldFormSubmitted)'))
@@ -247,43 +230,7 @@ export function start(): void {
 		deps = null;
 		return;
 	}
-	const id = deps.tab = tabId();
-	document.querySelectorAll<HTMLInputElement>('input[name="_bridge_tab"]').forEach(i => { i.value = id; });
-	// forms that arrive later, and saves that post a FormData of the form (AJAX saves)
-	document.addEventListener('formdata', e => {
-		if ((e.target as HTMLFormElement).querySelector('input[name="_bridge_tab"]')) e.formData.set('_bridge_tab', id);
-	});
-	// AJAX saves (uploads: the native widget and the legacy stack post with XMLHttpRequest; the
-	// theme's own fetch() saves, such as moves between file fields) say which tab they come from,
-	// on a same-origin admin URL only
-	const ours = (method: string, url: string | URL): boolean => {
-		try {
-			const u = new URL(String(url), location.href);
-			return u.origin === location.origin && u.pathname.indexOf(new URL(adminUrl(), location.href).pathname) === 0 && !/^(GET|HEAD)$/i.test(method);
-		} catch {
-			return false;
-		}
-	};
-	const proto = XMLHttpRequest.prototype as XMLHttpRequest & { pwTab?: boolean };
-	const open = proto.open, send = proto.send;
-	proto.open = function (this: XMLHttpRequest & { pwTab?: boolean }, method: string, url: string | URL, ...rest: unknown[]) {
-		this.pwTab = ours(method, url);
-		return (open as (...a: unknown[]) => void).apply(this, [method, url, ...rest]);
-	} as typeof proto.open;
-	proto.send = function (this: XMLHttpRequest & { pwTab?: boolean }, body?: Document | XMLHttpRequestBodyInit | null) {
-		if (this.pwTab) this.setRequestHeader('X-Bridge-Tab', id);
-		return send.call(this, body);
-	};
-	const fetchOrig = window.fetch;
-	window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
-		const req = input instanceof Request ? input : null;
-		if (ours((init && init.method) || (req ? req.method : 'GET'), req ? req.url : input as string | URL)) {
-			const headers = new Headers((init && init.headers) || (req ? req.headers : undefined));
-			headers.set('X-Bridge-Tab', id);
-			init = Object.assign({}, init, { headers });
-		}
-		return fetchOrig.call(window, input, init);
-	};
+	deps.tab = mark(false);
 	document.addEventListener('pw-tab-focus', check);
 	document.addEventListener('click', e => {
 		const b = (e.target as Element).closest && (e.target as Element).closest('[data-pw-changes]');

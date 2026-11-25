@@ -70,6 +70,8 @@ export const Bridge = {
 		importAgain(() => import('./util/new-tab')).then(m => m.start()).catch(err => failed('new tabs', err));
 		// changes made elsewhere, on a screen that prints what it depends on (1.6.0)
 		if (document.getElementById('pw-deps')) importAgain(() => import('./util/changes')).then(m => m.start()).catch(err => failed('changes', err));
+		// a modal frame sends its tab's id with every admin POST form (the image editor's, Q12)
+		if (/[?&]modal=/.test(location.search) && pwConfig<{ changesWarn?: boolean }>('AdminThemeBridge').changesWarn) importAgain(() => import('./util/tab')).then(m => m.mark(true)).catch(err => failed('changes', err));
 		Inputfields.init(document);
 		void loadProcess();
 		void loadComponentsFrom(document);

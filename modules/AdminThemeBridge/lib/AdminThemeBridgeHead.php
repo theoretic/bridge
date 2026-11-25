@@ -366,6 +366,8 @@ trait AdminThemeBridgeHead {
 		$bridgeJs['pageSave'] = $scripts['pageSave'];
 		// risky action warnings (ADR 0019); a rename only warns when no path history keeps the old URL
 		$bridgeJs['dangerWarn'] = (bool) $this->dangerWarn;
+		// changes made elsewhere (1.6.0): a modal frame sends its tab's id with its POST forms (Q12)
+		$bridgeJs['changesWarn'] = (bool) $this->changesWarn;
 		$bridgeJs['pathHistory'] = $this->wire()->modules->isInstalled('PagePathHistory');
 		// the UIkit layer (ADR 0017): printed, or the URLs the theme script loads it from on demand
 		$bridgeJs['uikit'] = array(
