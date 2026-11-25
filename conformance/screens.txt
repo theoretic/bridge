@@ -3,6 +3,9 @@
 {admin}
 {admin}page/
 {admin}page/edit/?id=1
+# 1.6.0 (docs/changes.md): the changes check answers AJAX GETs only; a plain request with its
+# parameter is the page editor under both themes
+{admin}page/edit/?id=1&bridgeChanges=1
 {admin}page/edit/?id={one-page-per-template}
 {admin}page/add/?parent_id=1
 {admin}page/lister/

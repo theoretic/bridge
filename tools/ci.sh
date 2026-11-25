@@ -41,7 +41,7 @@ SKIP=" ${SKIP:-} "
 # the bundled extensions, checked by tools/extension-check.php and .js
 EXTENSIONS="BridgeCsp BridgeDemo BridgeSample BridgeAdminAccessControl"
 # the browser checks, in the order they run: each needs only the sandbox and its fixture pages
-CHECKS="native-check screens-check pagetree-check repeater-check image-file-check setup-check page-edit-check page-save-check lister-check form-save-check image-select-check a11y-check csp-check drawers-check autocomplete-check acl-check new-tab-check"
+CHECKS="native-check screens-check pagetree-check repeater-check image-file-check setup-check page-edit-check page-save-check lister-check form-save-check image-select-check a11y-check csp-check drawers-check autocomplete-check acl-check new-tab-check changes-check"
 
 failed=()
 retried=()

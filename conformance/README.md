@@ -91,5 +91,6 @@ A FAIL under both themes is a site or module problem, not a theme problem; the s
 On a page editor with the richest field set (the runner's JSON lists field classes per screen):
 collapse and expand a field; change a value that drives a `showIf`; add a repeater item; upload
 an image; open a page picker and select; pick a date; open a `pw-modal` link; save and confirm
-the notice and `?s=1`. Then the page tree: expand a branch, open the actions, move a page.
+the notice and `?s=1`; change a field of that page's template in another browser, come back to
+the tab and confirm the changes dialog (1.6.0, `tools/changes-check.js`). Then the page tree: expand a branch, open the actions, move a page.
 Record pass/fail per item in `RESULTS-<date>.md` with the sandbox and commit.

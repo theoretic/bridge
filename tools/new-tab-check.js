@@ -1,8 +1,8 @@
 // New-tab check (tools/new-tab-check.js, AdminThemeBridge 1.3.0): Ctrl+click (Cmd+click on a Mac)
 // and middle click on the admin's link-like elements open them in a new tab and leave this one
 // where it was: the module list's Settings, Install and Delete (posts, caught before they reach
-// the server: nothing is installed or deleted), a page title in the tree and in the Lister (the
-// page's editor), the tree's Edit, the head copy of Add New (a button inside a link), an asmSelect
+// the server: nothing is installed or deleted), a page title in the tree (middle click only:
+// Ctrl+click selects tree rows, 1.6.0) and in the Lister (the page's editor), the tree's Edit, the head copy of Add New (a button inside a link), an asmSelect
 // edit link and a PageTable row (dialog links, opened without modal=1). A plain click on Settings
 // still goes there in this tab.
 // Needs a Playwright install with its browsers (any project's node_modules/playwright-core).
@@ -97,8 +97,8 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		await page.waitForTimeout(300);
 		return { url: url.replace(ADMIN, ''), post: posts.slice(before).join(' '), stayed: page.url() === here };
 	};
-	const both = async (label, locator, test) => {
-		for(const how of ['key', 'middle']) {
+	const both = async (label, locator, test, hows) => {
+		for(const how of hows || ['key', 'middle']) {
 			if(!(await locator.count())) { check(`${label} (${how})`, false, 'not found'); continue; }
 			await locator.scrollIntoViewIfNeeded();
 			const r = await inNewTab(locator, how);
@@ -140,8 +140,20 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	await waitFor(() => !!document.querySelector('.PageListItem .PageListActionEdit a'));
 	const title = page.locator('.PageListItem:has(> .PageListActions .PageListActionEdit) > a.PageListPage').first();
 	const openBefore = await page.evaluate(() => document.querySelectorAll('.PageListItemOpen').length);
-	await both('B a tree title opens the page\'s editor', title, r => /page\/edit\/\?id=\d+/.test(r.url));
+	await both('B a tree title opens the page\'s editor', title, r => /page\/edit\/\?id=\d+/.test(r.url), ['middle']);
 	check('B the tree title did not open or close its row', await page.evaluate(() => document.querySelectorAll('.PageListItemOpen').length) === openBefore);
+	// Ctrl/Cmd+click on a tree title selects the row (1.6.0): no new tab, this tab stays
+	{
+		const opened = ctx.waitForEvent('page', { timeout: 2000 }).catch(() => null);
+		const here = page.url();
+		// not the home page: it is never selected
+		await page.locator('.PageListItem:not(.PageListID1):has(> .PageListActions .PageListActionEdit) > a.PageListPage').first().click({ modifiers: [KEY] });
+		const tab = await opened;
+		if(tab) await tab.close();
+		const sel = await page.evaluate(() => document.querySelectorAll('.PageListRoot .PageListItem.pw-selected').length);
+		check(`B ${KEY}+click on a tree title selects the row, opens no tab`, !tab && page.url() === here && sel === 1, JSON.stringify({ tab: !!tab, sel }));
+		await page.keyboard.press('Escape');
+	}
 	// its actions show on hover
 	await title.hover();
 	await both('B the tree\'s Edit (a dialog on a long press) opens the editor', page.locator('.PageListActionEdit a').first(), r => /page\/edit\/\?id=\d+/.test(r.url) && !/modal=/.test(r.url));

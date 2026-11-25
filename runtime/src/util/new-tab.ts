@@ -5,8 +5,8 @@
  * ignore the keys: the module list's Settings (a button that ProcessModule.js sends on), Install
  * and Delete (form submits, whose confirm clicks again without the key), a button inside a link
  * (Add New), links that open a dialog (.pw-modal, .pw-panel, PageTable and asmSelect edit links),
- * a page title in the tree and a Lister title (they open the row; here they open the page's
- * editor). One listener on window in the capture phase runs before the theme's and upstream's
+ * a page title in the tree (middle click only: Ctrl/Cmd+click selects tree rows, 1.6.0) and a
+ * Lister title (they open the row; here they open the page's editor). One listener on window in the capture phase runs before the theme's and upstream's
  * own (legacy stack or not); a plain click, Shift and Alt are never touched, and a real link the
  * list does not name is left to the browser.
  *
@@ -111,6 +111,8 @@ export function start(): void {
 			if (e.isTrusted && e.type === 'click' && e.target instanceof Element) done(e.target.closest<Tagged>(SUBMITS));
 			return;
 		}
+		// a page tree title: Ctrl/Cmd+click selects rows (the tree's own), the middle button opens the editor
+		if (e.type === 'click' && e.target instanceof Element && e.target.closest('a.PageListPage')) return;
 		const found = resolve(api, e.target);
 		if (!found) return;
 		if (found.submit) {

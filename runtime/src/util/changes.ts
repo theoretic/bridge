@@ -11,7 +11,7 @@
  *
  * The tab's id (sessionStorage, so modal iframes share it) goes into the snapshot and into every
  * `_bridge_tab` input the theme adds to its forms, and into an `X-Bridge-Tab` header on every
- * XMLHttpRequest POST to the admin (uploads, legacy AJAX saves), so the server skips this tab's own saves.
+ * XMLHttpRequest and fetch() POST to the admin (uploads, legacy AJAX saves, moves between file fields), so the server skips this tab's own saves.
  */
 
 import { label } from './labels';
@@ -251,21 +251,36 @@ export function start(): void {
 	document.addEventListener('formdata', e => {
 		if ((e.target as HTMLFormElement).querySelector('input[name="_bridge_tab"]')) e.formData.set('_bridge_tab', id);
 	});
-	// AJAX saves (uploads: the native widget and the legacy stack post with XMLHttpRequest) say
-	// which tab they come from, on a same-origin admin URL only
+	// AJAX saves (uploads: the native widget and the legacy stack post with XMLHttpRequest; the
+	// theme's own fetch() saves, such as moves between file fields) say which tab they come from,
+	// on a same-origin admin URL only
+	const ours = (method: string, url: string | URL): boolean => {
+		try {
+			const u = new URL(String(url), location.href);
+			return u.origin === location.origin && u.pathname.indexOf(new URL(adminUrl(), location.href).pathname) === 0 && !/^(GET|HEAD)$/i.test(method);
+		} catch {
+			return false;
+		}
+	};
 	const proto = XMLHttpRequest.prototype as XMLHttpRequest & { pwTab?: boolean };
 	const open = proto.open, send = proto.send;
 	proto.open = function (this: XMLHttpRequest & { pwTab?: boolean }, method: string, url: string | URL, ...rest: unknown[]) {
-		let u: URL | null = null;
-		try {
-			u = new URL(String(url), location.href);
-		} catch { /* left alone */ }
-		this.pwTab = !!u && u.origin === location.origin && u.pathname.indexOf(new URL(adminUrl(), location.href).pathname) === 0 && !/^(GET|HEAD)$/i.test(method);
+		this.pwTab = ours(method, url);
 		return (open as (...a: unknown[]) => void).apply(this, [method, url, ...rest]);
 	} as typeof proto.open;
 	proto.send = function (this: XMLHttpRequest & { pwTab?: boolean }, body?: Document | XMLHttpRequestBodyInit | null) {
 		if (this.pwTab) this.setRequestHeader('X-Bridge-Tab', id);
 		return send.call(this, body);
+	};
+	const fetchOrig = window.fetch;
+	window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
+		const req = input instanceof Request ? input : null;
+		if (ours((init && init.method) || (req ? req.method : 'GET'), req ? req.url : input as string | URL)) {
+			const headers = new Headers((init && init.headers) || (req ? req.headers : undefined));
+			headers.set('X-Bridge-Tab', id);
+			init = Object.assign({}, init, { headers });
+		}
+		return fetchOrig.call(window, input, init);
 	};
 	document.addEventListener('pw-tab-focus', check);
 	document.addEventListener('click', e => {
