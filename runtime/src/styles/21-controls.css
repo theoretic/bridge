@@ -143,7 +143,9 @@ ul.InputfieldFileList > li { list-style: none; }
 }
 .InputfieldContent .InputMask.ui-button:hover { border-color: var(--input); color: var(--accent-foreground); background: var(--accent); box-shadow: var(--shadow-xs); }
 .Inputfield .InputfieldContent .InputMask .ui-button-text { display: inline-flex; align-items: center; gap: 6px; padding: 0; line-height: calc(var(--pw-control-height) - 2px); }
-.InputfieldContent .InputMask input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 100px; }
+/* margin 0: InputfieldFile.css gives the input `margin: .25em 0`, which our old 100px font made a
+ * 25px drop, so the label lay over nothing and only the mask's bottom edge took a click */
+.InputfieldContent .InputMask input[type=file] { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
 /* the file input is transparent: its focus shows on the mask (audit C23) */
 .InputfieldContent .InputMask.ui-button:focus-within { box-shadow: 0 0 0 var(--ring-halo) var(--ring-50); }
 .InputfieldFileValidExtensions, .InputfieldImageValidExtensions { margin-left: 8px; color: var(--pw-text-muted); font-size: .8125rem; }

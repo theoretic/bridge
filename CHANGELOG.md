@@ -1,5 +1,13 @@
 # Changelog
 
+## AdminThemeBridge 1.8.2: a click on the "Choose file" label opens the file chooser (2026-11-25)
+
+Owner's report: on a file field, clicking the text of the "Choose file" button did nothing; only part of the button around it reacted.
+
+- **Cause**: the transparent file input over the button had `font-size: 100px` from Bridge and `margin: .25em 0` from the core's InputfieldFile.css, so it sat 25px below the button; the button clips it, and only its bottom few pixels were left to click. Every InputfieldFile field (native and legacy, every browser); image fields have no such margin and were fine.
+- **Fix**: the input gets `margin: 0`, and the 100px font is gone (the input covers the button with `inset: 0` anyway). Covers the Customizer's slot and import pickers too, which use the same button. CSS only; theme.css 18384 of 18432 B gzip, smaller than before.
+- Checks: image-file-check A and Q click the label of every visible "Choose file" on the native and legacy editors and expect the file chooser (fails on 1.8.1 for the file fields); a smoke line for the rule.
+
 ## AdminThemeBridge 1.8.1: the floating Save no longer pushes the page down in Firefox (2026-11-25)
 
 Owner's report (paraavis): on the page editor, hovering an image thumbnail made the whole images field disappear, leaving a large empty space above. Firefox only.

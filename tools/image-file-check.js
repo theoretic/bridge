@@ -94,6 +94,21 @@ const PNG = makePng(48, 32, [40, 120, 220]);
 		return waitFor(() => !!window.__saved, null, 30000);
 	};
 
+	// a click on the "Choose file" label (the text, not just the mask) opens the file chooser:
+	// the field ids whose label did not (1.8.2: the core's input margin pushed the input off it)
+	const chooserMisses = async () => {
+		const misses = [];
+		for(const label of await page.$$('.InputMask .ui-button-text')) {
+			if(!await label.isVisible()) continue;
+			await label.scrollIntoViewIfNeeded();
+			const box = await label.boundingBox();
+			const opened = page.waitForEvent('filechooser', { timeout: 2000 }).then(() => true, () => false);
+			await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+			if(!await opened) misses.push(await label.evaluate(l => (l.closest('.Inputfield') || {}).id));
+		}
+		return misses;
+	};
+
 	// leftovers of an interrupted run: probe uploads are deleted first
 	await open(NATIVE);
 	const leftovers = await page.evaluate(() => {
@@ -116,6 +131,8 @@ const PNG = makePng(48, 32, [40, 120, 220]);
 		tags: document.querySelectorAll('#wrap_Inputfield_bf_files .selectize-control').length,
 		max1: document.querySelector('#wrap_Inputfield_bf_image').classList.contains('InputfieldImageMax1'),
 	}));
+	const nativeMisses = await chooserMisses();
+	check('A a click on each Choose file label opens the file chooser', !nativeMisses.length, nativeMisses.join());
 	check('A image headers get the mode toggles and size slider', built.toggles.every(n => n === 3) && built.sliders === 2, JSON.stringify(built));
 	check('A file tags become tag controls, single image marked Max1', built.tags === 2 && built.max1, JSON.stringify(built));
 
@@ -666,6 +683,8 @@ const PNG = makePng(48, 32, [40, 120, 220]);
 	// Q: a legacy editor keeps upstream's fields
 	await open(LEGACY);
 	check('Q legacy editor: upstream runs the fields', await jq() && await page.evaluate(() => !document.querySelector('[data-pw-image], [data-pw-file]') && !!document.querySelector('#wrap_Inputfield_bf_images .gridImages.ui-sortable')));
+	const legacyMisses = await chooserMisses();
+	check('Q a click on each Choose file label opens the file chooser', !legacyMisses.length, legacyMisses.join());
 
 	check('no page errors', errors.length === 0, errors.join(' | '));
 	await consoleErrors.settle();
