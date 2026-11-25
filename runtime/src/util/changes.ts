@@ -23,7 +23,7 @@ import { fill, confirm } from './danger';
 
 type Diff = Record<string, unknown>;
 type Entry = { kind: string; action: string; ts: number; user: string; you: boolean; object: number; name: string; label: string; in: string; diff: Diff; named: string[]; hidden: number };
-type Answer = { cursor: number; page: { modified: number; user: string; you: boolean } | null; changes: Entry[]; more: boolean; message?: string; modified?: number };
+type Answer = { cursor: number; page: { id: number; modified: number; user: string; you: boolean } | null; changes: Entry[]; more: boolean; message?: string; modified?: number };
 type Deps = { screen: string; cursor: number; page: { modified: number } | null; tab?: string };
 
 const TITLES: Record<string, [string, string]> = {
@@ -43,8 +43,11 @@ const ACTIONS: Record<string, [string, string]> = {
 let deps: Deps | null = null;
 let busy = false;
 let dialog: HTMLDialogElement | null = null;
-// the banner's lines, since the page loaded
-const listed: string[] = [];
+// the banner's lines since the page loaded, one per object
+const listed = new Map<string, string>();
+// the dialog's entries (merged) and other lines while it stays open
+let kept: Entry[] = [];
+let notes: string[] = [];
 
 /** The forms with unsaved changes (the leave warning's rule, inputfields/forms.ts) */
 const unsavedForms = (): HTMLFormElement[] => Array.from(document.querySelectorAll<HTMLFormElement>('form.InputfieldFormConfirm:not(.InputfieldFormSubmitted)'))
@@ -92,12 +95,60 @@ function what(e: Entry): [string, string] {
 	}
 }
 
+/** The object an entry is about: its rows make one block and one banner line */
+const objectKey = (e: Entry): string => e.kind + ':' + e.object + ':' + e.in;
+
+const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+const ids = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+const minus = (a: unknown[], b: unknown[]): unknown[] => a.filter(x => b.indexOf(x) < 0);
+
+/**
+ * Entries newest first, one per object: the newest action, who and when; per setting the oldest
+ * before and the newest after, a setting back at its first value left out; fields added and
+ * removed as the net of the saves
+ */
+function merge(list: Entry[]): Entry[] {
+	const out: Entry[] = [];
+	const at: Record<string, Entry> = {};
+	for (const e of list) {
+		const m = at[objectKey(e)];
+		if (!m) {
+			out.push(at[objectKey(e)] = { ...e, diff: { ...e.diff }, named: e.named.slice() });
+			continue;
+		}
+		// e is older than m
+		const d = m.diff;
+		if (e.kind === 'fieldgroup') {
+			const [ao, ro, an, rn] = [ids(e.diff.added), ids(e.diff.removed), ids(d.added), ids(d.removed)];
+			d.added = minus(ao, rn).concat(minus(an, ro));
+			d.removed = minus(ro, an).concat(minus(rn, ao));
+			d.reordered = !!(d.reordered || e.diff.reordered);
+		} else {
+			for (const p of Object.keys(e.diff)) {
+				const o = e.diff[p];
+				const n = d[p];
+				if (!(p in d)) d[p] = o;
+				else if (Array.isArray(o) && o.length === 2 && Array.isArray(n) && n.length === 2) d[p] = [o[0], n[1]];
+			}
+		}
+		e.named.forEach(x => { if (m.named.indexOf(x) < 0) m.named.push(x); });
+		m.hidden = Math.max(m.hidden, e.hidden);
+	}
+	out.forEach(m => {
+		if (m.kind !== 'fieldgroup') for (const p of Object.keys(m.diff)) {
+			const v = m.diff[p];
+			if (Array.isArray(v) && v.length === 2 && same(v[0], v[1])) delete m.diff[p];
+		}
+	});
+	return out;
+}
+
 /** One block of the dialog; the banner's line goes to `listed` */
 function block(e: Entry, unsaved: string[]): string {
 	const [title, url] = what(e);
 	const act = ACTIONS[e.action] || ACTIONS.saved;
 	const byLine = who(e.user, e.you, e.ts);
-	listed.push(title + ' · ' + label(act[0], act[1]) + ' · ' + byLine);
+	listed.set(objectKey(e), title + ' · ' + label(act[0], act[1]) + ' · ' + byLine);
 	const head = url ? `<a href="${esc(url)}" data-pw-href="${esc(url)}">${esc(title)}</a>` : esc(title);
 	let rows = '';
 	const lines: string[] = [];
@@ -157,24 +208,30 @@ function banner(): void {
 	}
 	const t = TITLES[deps!.screen];
 	b.innerHTML = toHTML(`<p>${esc(label(t[0], t[1]))}</p><ul>` +
-		listed.map(l => `<li>${esc(l)}</li>`).join('') + `</ul><button type="button" class="ui-button pw-button ui-priority-secondary" data-pw-changes="reload">${esc(label('changesReload', 'Reload page'))}</button>`);
+		Array.from(listed.values()).map(l => `<li>${esc(l)}</li>`).join('') + `</ul><button type="button" class="ui-button pw-button ui-priority-secondary" data-pw-changes="reload">${esc(label('changesReload', 'Reload page'))}</button>`);
 }
 
 function show(answer: Answer): void {
 	const unsaved = unsavedNames();
-	let body = '';
-	if (answer.message) {
-		listed.push(answer.message);
-		body = `<p>${esc(answer.message)}</p>`;
-	} else {
-		const hasPageRows = answer.changes.some(e => e.kind === 'page');
-		if (answer.page && !hasPageRows) {
-			body += block({ kind: 'page', action: 'saved', ts: answer.page.modified, user: answer.page.user, you: answer.page.you, object: 0,
-				name: '', label: '', in: '', diff: {}, named: [], hidden: 0 }, unsaved);
-		}
-		answer.changes.forEach(e => { body += block(e, unsaved); });
-		if (answer.more) body += `<p>${esc(label('changesMore', 'More changes were left out.'))}</p>`;
+	// a later check while the dialog is still open merges into what it shows, the new on top
+	if (!dialog || !dialog.open) {
+		kept = [];
+		notes = [];
 	}
+	const note = (s: string): void => { if (notes.indexOf(s) < 0) notes.push(s); };
+	if (answer.message) {
+		listed.set('message', answer.message);
+		note(answer.message);
+	} else {
+		const fresh = answer.changes.slice();
+		if (answer.page && !fresh.some(e => e.kind === 'page')) {
+			fresh.unshift({ kind: 'page', action: 'saved', ts: answer.page.modified, user: answer.page.user, you: answer.page.you, object: answer.page.id,
+				name: '', label: '', in: '', diff: {}, named: [], hidden: 0 });
+		}
+		kept = merge(fresh.concat(kept));
+		if (answer.more) note(label('changesMore', 'More changes were left out.'));
+	}
+	const body = kept.map(e => block(e, unsaved)).join('') + notes.map(n => `<p>${esc(n)}</p>`).join('');
 	const t = TITLES[deps!.screen];
 	if (!dialog) {
 		dialog = document.createElement('dialog');
@@ -189,11 +246,9 @@ function show(answer: Answer): void {
 		});
 		document.body.appendChild(dialog);
 	}
-	// a later check while it is still open: the new changes go on top
-	const old = dialog.open ? dialog.querySelector('.pw-changes-body')!.innerHTML : '';
 	dialog.innerHTML = toHTML(`<div class="pw-changes-head"><p class="pw-ask-message" id="pw-changes-title">${esc(label(t[0], t[1]))}</p>` +
 		`<button type="button" class="pw-drawer-close" data-pw-changes="close" aria-label="${esc(label('close', 'Close'))}">×</button></div>` +
-		`<div class="pw-changes-body">${body}${old}</div><div class="pw-ask-buttons">` +
+		`<div class="pw-changes-body">${body}</div><div class="pw-ask-buttons">` +
 		`<button type="button" class="ui-button pw-button" data-pw-changes="reload">${esc(label('changesReload', 'Reload page'))}</button>` +
 		`<button type="button" class="ui-button pw-button ui-priority-secondary" data-pw-changes="close">${esc(label('changesKeep', 'Keep editing'))}</button></div>`);
 	if (!dialog.open) dialog.showModal();

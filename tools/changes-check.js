@@ -226,6 +226,16 @@ const PAGE_TITLE = 'This page changed elsewhere';
 		check('A Keep editing closes it and lists the change in the banner', !(await p.evaluate(() => document.querySelector('dialog.pw-changes').open)) && /Template/.test(banner) && /uikit/.test(banner), banner);
 		const again = await back(p);
 		check('A shown once: the next return finds nothing new', !again.shown.open && again.answer && !again.answer.changes.length, JSON.stringify(again.answer));
+		// two saves of the template (noChildren there and back): one block, the setting at its first value left out, one banner line (B1.2)
+		await bSave('setup/template/edit?id=' + T_NATIVE, setValues, { noChildren: old }, 'submit');
+		await bSave('setup/template/edit?id=' + T_NATIVE, setValues, { noChildren: now }, 'submit');
+		const twice = await back(p);
+		const blocks = (twice.shown.items || []).filter(i => /^Template /.test(i.head));
+		check('A two saves of the template make one block, noChildren back where it was not listed', twice.shown.open
+			&& twice.answer.changes.filter(e => e.kind === 'template').length === 2 && blocks.length === 1 && !row(blocks[0], 'noChildren'), JSON.stringify(twice.shown.items));
+		await keep(p);
+		const lines = await p.evaluate(() => [...document.querySelectorAll('.pw-changes-banner li')].map(li => li.textContent.trim()));
+		check('A the banner lists the template once', lines.filter(l => /^Template /.test(l)).length === 1, JSON.stringify(lines));
 	});
 
 	// B: example 2, extensions narrowed on an images field, then as an override on the page's template
