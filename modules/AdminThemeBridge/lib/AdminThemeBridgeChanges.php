@@ -773,7 +773,16 @@ trait AdminThemeBridgeChanges {
 		$old = $this->changesPending[$key]['old'];
 		unset($this->changesPending[$key]);
 		if(!$event->return) return;
-		$diff = $this->changeDiff($old, $fieldgroup->getFieldContextArray((int) $field->id));
+		$new = $fieldgroup->getFieldContextArray((int) $field->id);
+		// a side without an override has the field's own value
+		$own = $this->wire()->fields->get((int) $field->id);
+		if($own instanceof Field) {
+			foreach(array_keys($old + $new) as $name) {
+				if(!array_key_exists($name, $old)) $old[$name] = $own->get($name);
+				if(!array_key_exists($name, $new)) $new[$name] = $own->get($name);
+			}
+		}
+		$diff = $this->changeDiff($old, $new);
 		if(count($diff)) $this->changeWrite('context', (int) $field->id, (int) $fieldgroup->id, 'saved', $diff);
 	}
 

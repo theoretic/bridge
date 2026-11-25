@@ -273,6 +273,9 @@ const PAGE_TITLE = 'This page changed elsewhere';
 		it = item(r.shown, /^Field .* on template /);
 		ext = row(it, 'extensions');
 		check('B the override names field and template, with the extensions before and after', r.shown.open && it && /bridge_fixture/.test(it.head) && ext && ext[2] === 'png', JSON.stringify(r.shown.items));
+		// a first override: before is the field's own value, so the types that went are named (B1.3)
+		check('B the override\'s before is the field\'s own extensions, and jpg no longer allowed', ext && ext[1] === old.extensions
+			&& it.lines.some(l => /jpg/.test(l) && /no longer allowed/.test(l)), JSON.stringify(it));
 	});
 
 	// C: a concurrent save of the same page

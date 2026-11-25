@@ -4103,6 +4103,15 @@ if($modules->isInstalled('AdminThemeBridge')) {
 				$clCtx = $clFg->getFieldContext($clField);
 				$clCtx->set('extensions', "$clExt smoke");
 				$wire->fields->saveFieldgroupContext($clCtx, $clFg);
+				if(!isset($clCtxWas['extensions'])) {
+					$clGot = $clRows();
+					$clEnd = end($clGot);
+					$clEndDiff = $clEnd ? json_decode((string) $clEnd['diff'], true) : null;
+					check('change log: a context diff fills a side without an override with the field\'s own value (before of a first override, after of a removed one)',
+						isset($clDiff['extensions']) && $clDiff['extensions'] === array("$clExt smoke", 'txt')
+						&& isset($clEndDiff['extensions']) && $clEndDiff['extensions'] === array('txt', "$clExt smoke"),
+						json_encode(array($clDiff, $clEndDiff)));
+				}
 				check('change log: the context is left as found', $clFg->getFieldContextArray((int) $clField->id) == $clCtxWas, json_encode($clFg->getFieldContextArray((int) $clField->id)));
 			}
 		} finally {
