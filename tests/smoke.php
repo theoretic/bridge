@@ -4187,6 +4187,16 @@ if($modules->isInstalled('AdminThemeBridge')) {
 			&& !array_diff(array_keys($cdItems), $cdDeps['templates']) && !array_diff($cdItemFields, $cdDeps['fields'])
 			&& count($cdDeps['templates']) === count(array_unique($cdDeps['templates'])), json_encode(array('items' => $cdItems, 'depth' => $cdDepth, 'deps' => $cdDeps)));
 		check('deps: the JSON is safe inside <script> (no <, >, &)', $cdJson !== '' && !preg_match('/[<>&]/', $cdJson));
+		// fix B1.1: the snapshot is signed after the changeDeps hooks, so ids a hook adds are signed too
+		$cdSigned = new \ReflectionMethod($cdTheme, 'changeSigned');
+		$cdExtra = $wire->fields->get('bf_files');
+		$cdHook = $wire->addHookAfter('AdminThemeBridge::changeDeps', function(HookEvent $e) use($cdExtra) {
+			if(is_array($e->return) && $cdExtra) $e->return = array_merge($e->return, array('fields' => array_merge($e->return['fields'], array((int) $cdExtra->id))));
+		});
+		$cdHooked = json_decode($cdTheme->changeDepsJson(), true);
+		$wire->removeHook($cdHook);
+		check('deps: the snapshot carries a signature its id part matches; a hook-added id is signed with it', is_array($cdDeps) && is_string($cdDeps['sig']) && strlen($cdDeps['sig']) === 64
+			&& $cdSigned->invoke($cdTheme, $cdDeps) && $cdExtra && is_array($cdHooked) && in_array((int) $cdExtra->id, $cdHooked['fields'], true) && $cdSigned->invoke($cdTheme, $cdHooked));
 		$cdTheme->set('changesWarn', 0);
 		check('deps: with changesWarn off page edit prints none (changeDeps() still answers)', $cdTheme->changeDepsJson() === '' && is_array($cdTheme->changeDeps()));
 		$cdTheme->set('changesWarn', 1);
@@ -4274,7 +4284,7 @@ if($modules->isInstalled('AdminThemeBridge')) {
 			'template' => $caPage->template->id, 'fieldgroup' => $caPage->template->fieldgroup->id, 'fields' => array($caField->id), 'templates' => array($caPage->template->id));
 		$caAs = function($user, array $deps) use($wire, $caTheme) {
 			$wire->users->setCurrentUser($user);
-			return $caTheme->changesAnswer($deps);
+			return $caTheme->changesAnswer($caTheme->changeSign($deps));
 		};
 		$caExt = (string) $caField->get('extensions');
 		$caShowIf = (string) $caField->get('showIf');
@@ -4312,7 +4322,27 @@ if($modules->isInstalled('AdminThemeBridge')) {
 			check('changes: a guest gets nothing (null: 403), the request\'s deps too', $caAs($caGuest, $caDeps) === null
 				&& ($caSet(array('bridgeChanges' => '1', 'deps' => json_encode($caDeps))) || true) && $caTheme->changesRequest() === null);
 			$wire->users->setCurrentUser($caSu);
+			$caSet(array('bridgeChanges' => '1', 'deps' => json_encode($caTheme->changeSign($caDeps))));
 			check('changes: changesRequest() reads the deps parameter', count($caTheme->changesRequest()['changes']) === 1);
+			// fix B1.1: ids taken only as signed (changeSign() at render): unsigned, altered or another user's snapshot gets nothing
+			$wire->users->setCurrentUser($caEd);
+			$caSignedEd = $caTheme->changeSign($caDeps);
+			$caForgedIds = $caSignedEd;
+			$caForgedIds['fields'] = array_merge($caForgedIds['fields'], range(1, 400));
+			$caForgedIds['templates'] = array_merge($caForgedIds['templates'], range(1, 400));
+			$wire->users->setCurrentUser($caSu);
+			$caFromSu = $caTheme->changeSign($caDeps);
+			$wire->users->setCurrentUser($caEd);
+			$caSignedAnswer = $caTheme->changesAnswer($caSignedEd);
+			$caForgedAnswer = $caTheme->changesAnswer($caForgedIds);
+			$caUnsigned = $caTheme->changesAnswer($caDeps);
+			$caOther = $caTheme->changesAnswer($caFromSu);
+			$caMoved = $caTheme->changesAnswer(array_merge($caSignedEd, array('cursor' => 0, 'tab' => 'smokeTabZ')));
+			$wire->users->setCurrentUser($caSu);
+			check('changes: a signed snapshot is answered, its cursor and tab free to move', is_array($caSignedAnswer) && count($caSignedAnswer['changes']) === 1 && is_array($caMoved) && count($caMoved['changes']) >= 1, json_encode($caSignedAnswer));
+			check('changes: forged ids (foreign fields, templates) get nothing', is_array($caForgedAnswer) && $caForgedAnswer['changes'] === array() && $caForgedAnswer['more'] === false, json_encode($caForgedAnswer));
+			check('changes: an unsigned snapshot and one signed for another user get nothing', is_array($caUnsigned) && $caUnsigned['changes'] === array()
+				&& is_array($caOther) && $caOther['changes'] === array(), json_encode(array($caUnsigned, $caOther)));
 			// step 04: the saving tab's id (posted _bridge_tab here; X-Bridge-Tab on AJAX) goes into the row; its own tab skips it
 			$caTabMax = (int) $wire->database->query('SELECT MAX(id) FROM bridge_changes')->fetchColumn();
 			$input->post->_bridge_tab = 'smokeTabA';

@@ -31,7 +31,9 @@ headline until the page reloads.
 ## Who sees what
 
 - The check needs a logged-in user. The server re-checks everything; the screen's snapshot is
-  only a list of ids to look at.
+  only a list of ids to look at. The server signs its ids when it prints them (per session and
+  user, after the `changeDeps()` hooks, so ids a hook adds count too); a snapshot whose ids do not
+  match the signature is told nothing.
 - Page edit: the page must still be editable. When it is not (template access changed, the page
   moved or deleted), the dialog says only "You can no longer save this page". A page the user may
   not list says nothing. Page add needs `page-edit`, field edit `field-admin`, template edit

@@ -147,8 +147,67 @@ trait AdminThemeBridgeChanges {
 		if(!$this->changesWarn) return '';
 		$deps = $this->changeDeps();
 		if(!is_array($deps)) return '';
+		$deps = $this->changeSign($deps);
+		if($deps['sig'] === '') return '';
 		$json = json_encode($deps, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);
 		return is_string($json) ? $json : '';
+	}
+
+	/**
+	 * The snapshot with its signature `sig`: an HMAC of the id part (screen, page id, template,
+	 * fieldgroup, fields, templates) and the user, keyed by a per-session secret made on first use;
+	 * changesAnswer() answers only a snapshot whose id part still matches (cursor, modified, tab are
+	 * not signed: the client moves them). `sig` is '' when the session can hold no secret.
+	 *
+	 * Internal: not on the extension surface.
+	 *
+	 * @param array $deps
+	 * @return array
+	 *
+	 */
+	public function changeSign(array $deps) {
+		$session = $this->wire()->session;
+		$key = $session ? (string) $session->getFor($this, 'changesKey') : '';
+		if($key === '' && $session) {
+			$key = bin2hex(random_bytes(32));
+			$session->setFor($this, 'changesKey', $key);
+		}
+		$deps['sig'] = $key === '' ? '' : hash_hmac('sha256', $this->changeSignBase($deps), $key);
+		return $deps;
+	}
+
+	/**
+	 * Whether the snapshot's `sig` matches its id part, for this session and user
+	 *
+	 * @param array $deps
+	 * @return bool
+	 *
+	 */
+	protected function changeSigned(array $deps) {
+		$session = $this->wire()->session;
+		$key = $session ? (string) $session->getFor($this, 'changesKey') : '';
+		if($key === '' || !isset($deps['sig']) || !is_string($deps['sig']) || $deps['sig'] === '') return false;
+		return hash_equals(hash_hmac('sha256', $this->changeSignBase($deps), $key), $deps['sig']);
+	}
+
+	/**
+	 * The signed part of a snapshot as one string, normalised as changesAnswer() reads it
+	 *
+	 * @param array $deps
+	 * @return string
+	 *
+	 */
+	protected function changeSignBase(array $deps) {
+		$int = function($value) { return is_scalar($value) ? (int) $value : 0; };
+		return (string) json_encode(array(
+			(int) $this->wire()->user->id,
+			isset($deps['screen']) && is_scalar($deps['screen']) ? (string) $deps['screen'] : '',
+			isset($deps['page']['id']) ? $int($deps['page']['id']) : 0,
+			isset($deps['template']) ? $int($deps['template']) : 0,
+			isset($deps['fieldgroup']) ? $int($deps['fieldgroup']) : 0,
+			$this->changeIds($deps, 'fields'),
+			$this->changeIds($deps, 'templates'),
+		));
 	}
 
 	/**
@@ -306,7 +365,8 @@ trait AdminThemeBridgeChanges {
 	/**
 	 * What changed since a snapshot, for the current user (the `?bridgeChanges=1` answer)
 	 *
-	 * The snapshot is only a list of ids to look at, never trusted. Its screen decides what the
+	 * The snapshot is only a list of ids to look at, never trusted: one whose id part does not match
+	 * its signature (changeSign(): unsigned, altered, another session or user) gets nothing. Its screen decides what the
 	 * user must hold: page-edit a page they can still see (else nothing) and edit (else only
 	 * `message`: they can no longer save it); page-add `page-edit`; field-edit `field-admin`;
 	 * template-edit `template-admin`; any other screen gets nothing. One query on the log (rows past
@@ -318,7 +378,7 @@ trait AdminThemeBridgeChanges {
 	 *
 	 * Internal: not on the extension surface.
 	 *
-	 * @param array $deps The snapshot: screen, cursor, page (id, modified), template, fieldgroup, fields, templates, tab
+	 * @param array $deps The snapshot: screen, cursor, page (id, modified), template, fieldgroup, fields, templates, tab, sig
 	 * @return array|null Keys: cursor (the newest row seen), page (who saved it since, or null),
 	 *  changes (rows, newest first: id, kind, action, ts, user, you, object, name, label, in, diff,
 	 *  named, hidden), more (true when rows past the 50 newest were left out), message (only when
@@ -329,9 +389,11 @@ trait AdminThemeBridgeChanges {
 	public function changesAnswer(array $deps) {
 		$user = $this->wire()->user;
 		if(!$user || !$user->isLoggedin()) return null;
+		$signed = $this->changeSigned($deps);
 		$cursor = isset($deps['cursor']) ? max(0, (int) $deps['cursor']) : 0;
 		$screen = isset($deps['screen']) ? (string) $deps['screen'] : '';
 		$out = array('cursor' => $cursor, 'page' => null, 'changes' => array(), 'more' => false);
+		if(!$signed) return $out;
 		$fields = $this->changeIds($deps, 'fields');
 		$templates = $this->changeIds($deps, 'templates');
 		if(!empty($deps['template']) && is_scalar($deps['template'])) $templates[] = (int) $deps['template'];
