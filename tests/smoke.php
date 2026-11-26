@@ -3462,7 +3462,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 1.8.2', $themeVersion === '1.8.2', $themeVersion);
+	check('the theme version is 1.9.0', $themeVersion === '1.9.0', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;

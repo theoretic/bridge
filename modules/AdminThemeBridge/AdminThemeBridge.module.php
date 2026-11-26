@@ -67,7 +67,7 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Bridge',
-			'version' => '1.8.2',
+			'version' => '1.9.0',
 			'summary' => 'Native-component admin shell that still runs every existing Inputfield and Process module.',
 			'author' => 'Alexei Tarasov',
 			'autoload' => 'template=admin',
@@ -444,6 +444,15 @@ class AdminThemeBridge extends AdminThemeFramework implements Module, Configurab
 	protected $changesTableOk = null;
 	protected $changesPending = array();
 	protected $changesPageRows = array();
+
+	/**
+	 * The live search's state for this request (lib/AdminThemeBridgeSearch.php): the text fields
+	 * this user may search (name => [Field, template ids or null for all, multi-language], null
+	 * before it is asked) and what the search asked for ([operator, values], once its query was built)
+	 *
+	 */
+	protected $searchText = null;
+	protected $searchAsked = null;
 
 	/**
 	 * Query parameters that belong to the request, not to the screen: left out of a history entry's URL

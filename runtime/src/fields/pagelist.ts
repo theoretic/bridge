@@ -29,6 +29,8 @@
  *   on a title selects, and with rows selected a tap adds or removes one; the menu of several rows
  *   then shows at that row (fields/pagelist-group.ts `showFor`).
  * - `pageListRefresh` on document (detail: page id) reloads the list holding that page.
+ * - Back in the tab (pw-tab-focus, 1.9.0), open branches whose children changed elsewhere are drawn
+ *   again in place, keeping what is open below them (refreshOpen()).
  * - A container with data-pw-tree (the page tree drawer, 0.25.0, started by Bridge.pageTree()) has
  *   its own options, JSON merged over the global ones (cookieName and cookiePath: where it keeps its
  *   open branches), and stays native with the legacy stack on the page: upstream's script builds
@@ -73,18 +75,22 @@ const next = (e: Element, sel: string): HTMLElement | null => { const n = e.next
 const prev = (e: Element, sel: string): HTMLElement | null => { const n = e.previousElementSibling; return n && n.matches(sel) ? n as HTMLElement : null; };
 const pageId = (item: Element): number => parseInt(item.getAttribute('data-page-id') || '0', 10);
 
-// 'pageListRefresh' (upstream's event to reload a page's children): one document listener for every
-// tree on the page, trees that left the page dropped (audit R6: one listener per tree stayed behind)
-const refreshers = new Map<HTMLElement, (id: number) => void>();
+// 'pageListRefresh' (upstream's event to reload a page's children) and pw-tab-focus (back in this
+// tab, classic/main.js): one document listener each for every tree on the page, trees that left the
+// page dropped (audit R6: one listener per tree stayed behind)
+const refreshers = new Map<HTMLElement, { list: (id: number) => void; open: () => void }>();
 let refreshListening = false;
 function listenRefresh(): void {
 	if (refreshListening) return;
 	refreshListening = true;
-	document.addEventListener('pageListRefresh', e => {
-		const id = parseInt(String((e as CustomEvent).detail), 10);
-		refreshers.forEach((refresh, tree) => { if (tree.isConnected) refresh(id); else refreshers.delete(tree); });
-	});
+	const each = (fn: (r: { list: (id: number) => void; open: () => void }) => void): void =>
+		refreshers.forEach((r, tree) => { if (tree.isConnected) fn(r); else refreshers.delete(tree); });
+	document.addEventListener('pageListRefresh', e => { const id = parseInt(String((e as CustomEvent).detail), 10); each(r => r.list(id)); });
+	document.addEventListener('pw-tab-focus', () => each(r => r.open()));
 }
+
+// what a list of children shows: the same answer draws the same rows
+const print = (d: Data): string => JSON.stringify([d.page.numChildren, d.page.numTotal, d.children]);
 
 function setupTree(container: HTMLElement): void {
 	listenRefresh();
@@ -269,6 +275,25 @@ function setupTree(container: HTMLElement): void {
 		}
 	};
 
+	/** a list of children: the rows, More when there are further ones, the pagination */
+	const build = (id: number, data: Data, paginate: boolean): HTMLElement => {
+		const list = listChildren(data.children);
+		const nextStart = data.start + data.limit;
+		if (data.page.numChildren > nextStart) {
+			const more = el('ul', 'PageListActions actions');
+			const li = el('li', 'PageListActionMore');
+			const a = el('a', '', o.moreLabel);
+			a.href = String(nextStart);
+			a.setAttribute('data-page-id', String(id));
+			li.appendChild(a);
+			more.appendChild(li);
+			list.appendChild(more);
+		}
+		if (paginate && (data.page.numChildren > nextStart || data.start > 0)) list.insertBefore(pagination(id, data.start, data.limit, data.page.numChildren), list.firstChild);
+		return list;
+	};
+	const prints = new WeakMap<HTMLElement, string>();
+
 	async function loadChildren(id: number, target: HTMLElement, start: number, begin: boolean, paginate = true, replace = false): Promise<void> {
 		const loading = spinner();
 		if (!replace) target.appendChild(loading);
@@ -284,21 +309,11 @@ function setupTree(container: HTMLElement): void {
 				ignoreClicks = false;
 				return;
 			}
-			const list = listChildren(data.children);
-			const nextStart = data.start + data.limit;
+			const list = build(id, data, paginate);
 			if (target.classList.contains('PageListItem')) setNum(target, data.page.numChildren, data.page.numTotal);
-			if (data.page.numChildren > nextStart) {
-				const more = el('ul', 'PageListActions actions');
-				const li = el('li', 'PageListActionMore');
-				const a = el('a', '', o.moreLabel);
-				a.href = String(nextStart);
-				a.setAttribute('data-page-id', String(id));
-				li.appendChild(a);
-				more.appendChild(li);
-				list.appendChild(more);
-			}
-			if (paginate && (data.page.numChildren > nextStart || data.start > 0)) list.insertBefore(pagination(id, data.start, data.limit, data.page.numChildren), list.firstChild);
 			let added: HTMLElement = list;
+			// what the list shows, for refreshOpen(); a list grown by More is not refreshed
+			prints.set(begin || !target.classList.contains('PageList') ? list : target, target.classList.contains('PageList') && !replace ? '' : print(data));
 			if (begin) {
 				const top = listChildren([data.page]);
 				const topItem = kids(top, '.PageListItem')[0];
@@ -395,6 +410,47 @@ function setupTree(container: HTMLElement): void {
 		if (parentID === 1) { remove = Array.from(list.children) as HTMLElement[]; list = parentItem; }
 		forceReload(list);
 		void loadChildren(parentID, list, start, false, true, true).then(() => remove.forEach(x => x.remove()));
+	};
+
+	/**
+	 * Back in this tab (1.9.0): each open branch asks for its children again, and one whose answer
+	 * differs from what it shows (pages added, trashed, deleted, moved, renamed or saved elsewhere)
+	 * is drawn again in place. Open rows that are still there keep their branches; the focused row
+	 * keeps the focus. Not while a drag, a selection or an Extras menu is on, nor for the drawer's
+	 * tree (classic/drawers.js builds it again).
+	 */
+	let refreshing = false;
+	const busy = (): boolean => refreshing || legacy() || ignoreClicks || root.matches('.PageListSorting, .PageListSortSaving')
+		|| !!root.querySelector('.PageListActionExtra') || select.selected().length > 0;
+	const refreshOpen = (): void => {
+		if (own || busy()) return;
+		refreshing = true;
+		void Promise.all(Array.from(root.querySelectorAll<HTMLElement>('.PageListItemOpen, .PageListRootHidden > .PageListItem')).map(async item => {
+			const list = next(item, '.PageList');
+			const was = list && prints.get(list);
+			if (!list || !was) return;
+			const id = pageId(item);
+			const data = await fetchData(id, parseInt(item.getAttribute('data-start') || '0', 10) || 0);
+			if (!data || data.error || !Array.isArray(data.children) || print(data) === was || prints.get(list) !== was || !list.isConnected) return;
+			const fresh = build(id, data, true);
+			kids(list, '.PageListItemOpen').forEach(old => {
+				const li = kids(fresh, '.PageListID' + pageId(old))[0];
+				const sub = next(old, '.PageList');
+				if (!li || !sub) return;
+				li.classList.add('PageListItemOpen');
+				li.setAttribute('data-start', old.getAttribute('data-start') || '0');
+				li.after(sub);
+			});
+			const a = document.activeElement;
+			const focused = a && list.contains(a) && a.closest('.PageListItem');
+			list.replaceChildren(...Array.from(fresh.childNodes));
+			prints.set(list, print(data));
+			setNum(item, data.page.numChildren, data.page.numTotal);
+			if (focused && document.activeElement === document.body) {
+				const b = root.querySelector<HTMLElement>('.PageListID' + pageId(focused) + ' > a.PageListPage');
+				if (b) b.focus();
+			}
+		})).catch(err => failed('page tree refresh', err)).then(() => { refreshing = false; updateOpen(); });
 	};
 
 	/* extras ****************************************************************************************/
@@ -570,7 +626,7 @@ function setupTree(container: HTMLElement): void {
 		const a = (e.target as HTMLElement).closest('ul[data-pagination] a');
 		if (a) a.classList.remove(o.paginationHoverClass);
 	});
-	refreshers.set(container, refreshList);
+	refreshers.set(container, { list: refreshList, open: refreshOpen });
 
 	if (o.useHoverActions) {
 		root.classList.add('PageListUseHoverActions');

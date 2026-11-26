@@ -2,7 +2,8 @@
 // (ProcessPageList, "actions" mode) in a real browser engine and verifies that it works without
 // jQuery: open and close with the remembered state, hover actions, Edit as a link and a long press
 // into the native dialog, pagination and More, extra actions over AJAX (hide, unhide), moving a
-// page (a drag on its title, saved order; no Move action since 0.16.0), pageListRefresh, the top nav's nested tree flyouts,
+// page (a drag on its title, saved order; no Move action since 0.16.0), pageListRefresh, open branches
+// drawn again on the return to the tab (L, 1.9.0), the top nav's nested tree flyouts,
 // touch selection (K, Chromium only: tools/lib/touch.cjs). Restores what it changes.
 // Needs a Playwright install with its browsers (any project's node_modules/playwright-core).
 //
@@ -395,6 +396,53 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 	// I: pageListRefresh
 	await page.evaluate((id) => document.dispatchEvent(new CustomEvent('pageListRefresh', { detail: id })), TREE);
 	check('I pageListRefresh reloads the list holding the page', await waitFor((t) => !!document.querySelector(t), T, 10000));
+
+	// L (1.9.0): back in the tab, open branches show what another tab changed, in place
+	{
+		await open('page/');
+		if(!(await page.locator(T + '.PageListItemOpen').count())) await toggle(T);
+		await waitFor((t) => document.querySelectorAll(t + ' + .PageList > .PageListItem').length === 50, T);
+		const first = T + ' + .PageList > .PageListItem:nth-of-type(1)';
+		const firstId = await page.$eval(first, li => li.getAttribute('data-page-id'));
+		const title0 = await page.$eval(first + ' > a.PageListPage', a => a.textContent.trim());
+		// markers on today's elements: a row drawn again loses them
+		await page.evaluate(([t, f]) => { document.querySelector(t).__old = 1; document.querySelector(f).__old = 1; document.querySelector(t + ' > a.PageListPage').focus(); }, [T, first]);
+		const lists = [];
+		const onReq = r => { const m = /page\/list\/\?id=(\d+)/.exec(r.url()); if(m) lists.push(m[1]); };
+		page.on('request', onReq);
+		const back = () => page.evaluate(() => {
+			ProcessWireAdminTheme.tabFocusDelay = 0;
+			window.dispatchEvent(new Event('blur'));
+			window.dispatchEvent(new Event('focus'));
+		});
+		await back();
+		await page.waitForTimeout(2000);
+		const l1 = await page.evaluate(([t, f]) => ({ tree: !!document.querySelector(t).__old, row: !!document.querySelector(f).__old }), [T, first]);
+		check('L nothing changed elsewhere: the focus asks each open branch once and draws nothing again', l1.tree && l1.row && lists.includes('1') && lists.includes(TREE) && new Set(lists).size === lists.length,
+			JSON.stringify({ l1, lists }));
+		// tab B renames the first child
+		const b = await ctx.newPage();
+		const rename = async (title) => {
+			await b.goto(ADMIN + 'page/edit/?id=' + firstId, { waitUntil: 'networkidle' });
+			await b.fill('#Inputfield_title', title);
+			await Promise.all([b.waitForNavigation({ waitUntil: 'networkidle' }), b.evaluate(() => document.getElementById('submit_save').click())]);
+		};
+		await rename(title0 + ' L');
+		lists.length = 0;
+		await back();
+		const renamed = await waitFor(([f, t]) => { const a = document.querySelector(f + ' > a.PageListPage'); return !!a && a.textContent.trim() === t; }, [first, title0 + ' L'], 5000);
+		const l2 = await page.evaluate(([t, f]) => ({ tree: !!document.querySelector(t).__old, open: document.querySelector(t).classList.contains('PageListItemOpen'),
+			row: !!document.querySelector(f).__old, rows: document.querySelectorAll(t + ' + .PageList > .PageListItem').length,
+			pagination: !!document.querySelector(t + ' + .PageList > ul[data-pagination]'), focus: document.activeElement === document.querySelector(t + ' > a.PageListPage') }), [T, first]);
+		check('L a title changed in tab B shows in tab A on its return, the branch drawn again in place and still open', renamed && !l2.row && l2.tree && l2.open && l2.rows === 50 && l2.pagination && l2.focus,
+			JSON.stringify({ renamed, l2, lists }));
+		await rename(title0);
+		await back();
+		check('L and back again', await waitFor(([f, t]) => document.querySelector(f + ' > a.PageListPage').textContent.trim() === t, [first, title0], 5000));
+		page.off('request', onReq);
+		await b.close();
+		await closeTree();
+	}
 
 	await open('page/');
 	await closeTree();

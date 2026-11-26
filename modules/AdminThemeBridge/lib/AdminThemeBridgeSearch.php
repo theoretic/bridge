@@ -23,22 +23,6 @@
 trait AdminThemeBridgeSearch {
 
 	/**
-	 * Text fields this user may search: name => [Field, template IDs or null for all, multi-language]
-	 *
-	 * @var array|null
-	 *
-	 */
-	protected $searchText = null;
-
-	/**
-	 * What the search asked for: [operator, values], once its query was built
-	 *
-	 * @var array|null
-	 *
-	 */
-	protected $searchAsked = null;
-
-	/**
 	 * Hooks for the live search, on ProcessPageSearch requests only
 	 *
 	 */

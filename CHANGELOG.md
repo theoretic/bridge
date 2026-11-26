@@ -1,5 +1,16 @@
 # Changelog
 
+## AdminThemeBridge 1.9.0: open page tree branches follow changes made in other tabs (2026-11-26)
+
+Owner's request: when a branch of the page tree is open in tab A and tab B adds, deletes or renames pages in it, tab A's tree should update that branch by itself.
+
+- **When**: on the return to the tab (`pw-tab-focus`, as the 1.6.0 change warnings), on the tree screen and a page's Children tab. Each open branch asks for its children again (the tree's own JSON, so the same access rules) and is drawn again only when the answer differs from what it shows: a page added, trashed, deleted, moved in or out, renamed, retitled, hidden or published elsewhere, by anyone, also by API scripts (no change log involved).
+- **In place, nothing closes**: open rows that are still there keep their open branches below them (the same elements, not fetched again), the pagination page stays, the focused row keeps the focus, the remembered open branches (cookie) drop rows that went away. Nothing is drawn again when nothing changed.
+- **Waits** while rows are dragged or selected or an Extras menu is open; a branch grown by More is left as it is. The tree drawer keeps its own refresh (it builds itself again on focus, 0.25.0).
+- Also: the live search's two properties move from its trait to the module file (smoke AR1 passes again; failing since 1.8.0).
+- Budgets: pagelist chunk 6331 of 8192 B gzip; no classic script or stylesheet changed.
+- Checks: pagetree-check L (a focus with nothing changed draws nothing again; a title changed in a second tab shows on the return, the branch still open and paginated, the focus kept).
+
 ## AdminThemeBridge 1.8.2: a click on the "Choose file" label opens the file chooser (2026-11-25)
 
 Owner's report: on a file field, clicking the text of the "Choose file" button did nothing; only part of the button around it reacted.

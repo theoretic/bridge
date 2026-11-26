@@ -13,7 +13,8 @@ the screen depends on was changed. The setting is Features > Warn about changes 
 | Page add | the chosen template or the parent's template changed |
 | Field edit | the field was saved, renamed or deleted |
 | Template edit | the template, its fields or a field's override on it changed |
-| Everything else (page tree, Lister, lists, module settings) | nothing: the tree drawer already refreshes on focus, and module settings keep no change trail |
+| Page tree (the tree screen, a page's Children tab) | no dialog: each open branch whose children changed (pages added, trashed, deleted, moved in or out, renamed or saved) is drawn again in place (1.9.0) |
+| Everything else (Lister, lists, module settings) | nothing: the tree drawer builds itself again on focus, and module settings keep no change trail |
 
 Saves made in the same tab never warn. Saves by the same user in another tab do ("you, in another
 tab"). Concurrent page edits only warn: nothing is locked.
@@ -68,6 +69,11 @@ uninstalling the theme drops it.
   only. A page saved that way still shows as saved by someone else, from its `modified` time,
   without the details.
 - **Module settings screens**, the page tree and lists show no dialog.
+- **The page tree** asks for each open branch's children again on the return to the tab (one
+  request per open branch, no change log) and draws a branch again only when the answer differs
+  from what it shows, so saves from anywhere count, the API's too. It waits while rows are dragged
+  or selected or an Extras menu is open; a branch grown by More stays as it is; the order alone
+  changing (a sort elsewhere) shows too, as the answer differs.
 - **A tab that never loses focus** never asks: the check runs on the return to the tab only, not
   on a timer.
 
