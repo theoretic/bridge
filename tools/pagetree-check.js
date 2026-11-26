@@ -425,7 +425,9 @@ const check = (name, ok, info) => { results.push({ ok: !!ok, name, info: info ==
 		const rename = async (title) => {
 			await b.goto(ADMIN + 'page/edit/?id=' + firstId, { waitUntil: 'networkidle' });
 			await b.fill('#Inputfield_title', title);
-			await Promise.all([b.waitForNavigation({ waitUntil: 'networkidle' }), b.evaluate(() => document.getElementById('submit_save').click())]);
+			// the theme saves the editor in place, without a reload: wait for its pw-page-saved
+			await b.evaluate(() => { window.__pwSaved = null; document.addEventListener('pw-page-saved', e => { window.__pwSaved = e.detail || true; }, { once: true }); document.getElementById('submit_save').click(); });
+			await b.waitForFunction(() => !!window.__pwSaved, null, { timeout: 15000 });
 		};
 		await rename(title0 + ' L');
 		lists.length = 0;
