@@ -161,7 +161,7 @@ ul.InputfieldFileList > li { list-style: none; }
 .langTabsNote { position: absolute; top: 2px; right: 0; }
 .langTabsToggle { float: right; margin-right: 1em; cursor: pointer; opacity: .8; }
 /* language tabs: the same tab design as WireTabs (33-tabs.css), smaller; the active tab takes the
- * card colour of the field it sits in */
+ * colour of the field it sits in, the error tint too (--pw-field-bg) */
 .langTabs > ul, ul.pw-lang-tabs { list-style: none; margin: 0 0 10px; padding: 0 2px; display: flex; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
 .langTabs > ul li, ul.pw-lang-tabs li { margin: 0 0 -1px; padding: 0; }
 .langTabs > ul li a, ul.pw-lang-tabs li a {
@@ -178,9 +178,9 @@ ul.InputfieldFileList > li { list-style: none; }
 	opacity: 1; /* LanguageTabs.css dims empty tabs with opacity; the theme dims the label colour instead */
 }
 .langTabs > ul li a:hover, ul.pw-lang-tabs li a:hover { color: var(--foreground); }
-.langTabs > ul li.ui-tabs-active a, .langTabs > ul li.uk-active a, ul.pw-lang-tabs li.uk-active a {
+.langTabs > ul li.ui-tabs-active a, ul.pw-lang-tabs li.uk-active a {
 	line-height: 1.5625rem;
-	background: var(--card);
+	background: var(--pw-field-bg, var(--card));
 	border-color: var(--border);
 	color: var(--foreground);
 	font-weight: 600;
@@ -188,8 +188,9 @@ ul.InputfieldFileList > li { list-style: none; }
 /* empty language value: dim the label only (opacity would let the baseline show through the active tab) */
 /* an empty language (1.2.0): the text colour faded, upright; two public tokens let an extension change
  * both. At .5 the text colour is 4 to 1 on the card in both schemes (the muted colour faded would be
- * 2 to 1); italics were the default before 1.2.0 */
-.langTabs > ul :is(li.pw-empty, li.langTabEmpty):not(.uk-active, .ui-tabs-active) a { color: var(--foreground); opacity: var(--pw-lang-tab-empty-opacity); font-style: var(--pw-lang-tab-empty-style); font-weight: 400; }
+ * 2 to 1); italics were the default before 1.2.0. Core adds langTabEmpty beside the configured
+ * liEmptyClass (pw-empty), so that class alone is enough */
+.langTabs > ul li.langTabEmpty:not(.uk-active, .ui-tabs-active) a { color: var(--foreground); opacity: var(--pw-lang-tab-empty-opacity); font-style: var(--pw-lang-tab-empty-style); font-weight: 400; }
 /* icon + text links inside fields (Add New, Create New, Add Filter): keep a gap */
 .InputfieldContent a > :is(.fa, .fas, .far):first-child { margin-right: .3em; }
 

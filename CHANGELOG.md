@@ -1,5 +1,17 @@
 # Changelog
 
+## AdminThemeBridge 1.9.1: language tabs and repeater headers follow the error tint (2026-11-27)
+
+Owner's report: in a field with an error (a required Title in a repeater item), the field turns pink but its selected language tab stayed white.
+
+- **Language tab**: the active tab now takes the background of the field it sits in, through a private custom property `--pw-field-bg` (the card or the error tint). Light and dark.
+- **File rows** (and the language tabs of their descriptions) have no background of their own any more, so a file field in error shows its tint under them instead of white strips (same look on a normal card).
+- **Same sweep, error tint bleeding into the gutter**: the error rule set the `background` shorthand, which reset the card's `background-clip`, so every error card had a 10px tinted halo outside its outline (most visible in dark). It sets `background-color` now.
+- **Same sweep, repeater item marked for deletion**: the header gets `ui-state-error` when an item is marked for deletion or its trash is hovered (as upstream), but the item header rule outranked it, so nothing showed except the strikethrough. The header now turns to the error tint with red text.
+- Trimmed: the empty language tab rule matches `langTabEmpty` alone (core adds it beside `pw-empty`), the active tab rule drops `.langTabs > ul li.uk-active` (the configured `ul.pw-lang-tabs` covers it).
+- Budgets: theme.css 18427 of 18432 B gzip, fields.css 5925 of 6144. No budget raised.
+- Checks: a smoke line for the four rules; the empty-tab smoke regex follows the single class. Checked on a static fixture (error field, nested error fields, repeater with an item marked for deletion, file field in error) in light and dark.
+
 ## AdminThemeBridge 1.9.0: open page tree branches follow changes made in other tabs (2026-11-26)
 
 Owner's request: when a branch of the page tree is open in tab A and tab B adds, deletes or renames pages in it, tab A's tree should update that branch by itself.

@@ -66,8 +66,9 @@
 /* narrow fields centre them, as upstream does with text-align */
 .InputfieldImageNarrow .InputfieldImageEdit__buttons, .InputfieldImageNarrow .InputfieldImageEdit__buttons > small { justify-content: center; }
 .InputfieldImageEdit__buttons :is(.pw-button, .ui-button) { margin: 0; }
-/* file list rows carry .ui-widget-content (JqueryUI.css: white) */
-.InputfieldFileList .InputfieldFileItem.ui-widget-content, .InputfieldFileItem .InputfieldFileData.ui-widget-content { background: var(--card); color: var(--card-foreground); }
+/* file list rows carry .ui-widget-content (JqueryUI.css: white): no background of their own, so a field
+ * in error shows its tint under them and their language tabs (1.9.1) */
+.InputfieldFileList .InputfieldFileItem.ui-widget-content, .InputfieldFileItem .InputfieldFileData.ui-widget-content { background: none; color: var(--card-foreground); }
 .InputfieldFileDescription input::placeholder, .InputfieldFileTags input::placeholder { color: var(--muted-foreground); }
 /* image picker in the rich-text image dialog */
 #select_images.thumbs img { background-color: var(--card); border-color: var(--border); }

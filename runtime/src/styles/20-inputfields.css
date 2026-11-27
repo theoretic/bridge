@@ -17,7 +17,9 @@
 	width: 100%;
 	border: var(--pw-gutter) solid transparent;
 	border-radius: calc(var(--radius-xl) + var(--pw-gutter));
-	background: var(--card);
+	/* the colour the active language tab merges into (21-controls.css); an error card sets its own */
+	--pw-field-bg: var(--card);
+	background: var(--pw-field-bg);
 	background-clip: padding-box;
 	outline: 1px solid var(--border);
 	outline-offset: calc(var(--pw-gutter) * -1);
@@ -81,6 +83,8 @@
  * .InputfieldRepeaterItem > .InputfieldHeader), which otherwise wins with its own padding and
  * line-height (audit C10); a long label ends in an ellipsis */
 .InputfieldRepeaterItem > .InputfieldHeader, .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldHeader { padding: 10px var(--pw-field-pad); background: var(--pw-item-bg); font-size: .875rem; line-height: 1.25rem; color: var(--foreground); text-overflow: ellipsis; }
+/* marked for deletion, or the trash hovered (fields/repeater.ts adds ui-state-error to the header) */
+.Inputfields .InputfieldRepeaterItem > .InputfieldHeader.ui-state-error { background: var(--pw-danger-bg); color: var(--destructive); }
 /* item controls show on hover upstream: also with keyboard focus inside, and always on touch */
 .Inputfields .InputfieldRepeater .InputfieldRepeaterItem > .InputfieldRepeaterHeaderInit:focus-within > .InputfieldRepeaterItemControls { opacity: 1 !important; }
 /* the controls centred on the header: upstream hangs them from the top (margin-top .5em, icons

@@ -29,7 +29,8 @@
 .ui-state-active, .ui-widget-content .ui-state-active { background: var(--pw-primary); border-color: var(--pw-primary); color: var(--pw-on-primary); }
 .ui-state-default a, .ui-state-default a:link, .ui-state-default a:visited, .ui-state-hover a, .ui-state-hover a:link, .ui-state-focus a, .ui-state-focus a:link { color: inherit; }
 .ui-state-active a, .ui-state-active a:link { color: var(--pw-on-primary); }
-.ui-state-error, .ui-widget-content .ui-state-error { background: var(--pw-danger-bg); border-color: color-mix(in srgb, var(--destructive) 30%, transparent); color: var(--destructive); }
+/* background-color: the shorthand would reset an Inputfield card's background-clip and tint its gutter */
+.ui-state-error, .ui-widget-content .ui-state-error { --pw-field-bg: var(--pw-danger-bg); background-color: var(--pw-field-bg); border-color: color-mix(in srgb, var(--destructive) 30%, transparent); color: var(--destructive); }
 .ui-state-highlight, .ui-widget-content .ui-state-highlight { background: var(--pw-warning-bg); border-color: color-mix(in srgb, var(--warning) 30%, transparent); color: var(--foreground); }
 .ui-widget-overlay { background: rgb(0 0 0 / .5); opacity: 1; }
 /* buttons rendered by jQuery UI .button(): keep ours */

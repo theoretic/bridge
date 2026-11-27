@@ -2294,7 +2294,17 @@ if(isset($bridge)) {
 	check('untranslated language tabs: two tokens on the surface (.5, normal), the rule reads them with the text colour, no italics left',
 		count(array_intersect(array('--pw-lang-tab-empty-opacity', '--pw-lang-tab-empty-style'), $surface['tokens'])) === 2
 		&& (bool) preg_match('/--pw-lang-tab-empty-opacity:\s*\.5;\s*--pw-lang-tab-empty-style:\s*normal;/', $langTok)
-		&& (bool) preg_match('/li\.langTabEmpty\)[^{]*\{color:var\(--foreground\);opacity:var\(--pw-lang-tab-empty-opacity\);font-style:var\(--pw-lang-tab-empty-style\)/', $langTheme));
+		&& (bool) preg_match('/li\.langTabEmpty[^{]*\{color:var\(--foreground\);opacity:var\(--pw-lang-tab-empty-opacity\);font-style:var\(--pw-lang-tab-empty-style\)/', $langTheme));
+	// 1.9.1: the active language tab takes the background of the field it sits in (--pw-field-bg: the card, the
+	// error tint, a file row); the error tint is a background-color, so the card's gutter stays clear; a repeater
+	// item header marked for deletion (or its trash hovered) shows the error tint
+	$langFields = (string) @file_get_contents($themeDir . 'assets/dist/fields.css');
+	check('language tabs follow the field background, the error tint stays inside the card, a repeater item marked for deletion is tinted',
+		strpos($langTheme, '--pw-field-bg: var(--card);background:var(--pw-field-bg);background-clip:padding-box') !== false
+		&& strpos($langTheme, '.ui-state-error,.ui-widget-content .ui-state-error{--pw-field-bg: var(--pw-danger-bg);background-color:var(--pw-field-bg);') !== false
+		&& strpos($langTheme, 'ul.pw-lang-tabs li.uk-active a{line-height:1.5625rem;background:var(--pw-field-bg, var(--card));') !== false
+		&& strpos($langTheme, '.Inputfields .InputfieldRepeaterItem>.InputfieldHeader.ui-state-error{background:var(--pw-danger-bg);color:var(--destructive)}') !== false
+		&& strpos($langFields, '.InputfieldFileData.ui-widget-content{background:none;') !== false);
 	$itemTheme = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
 	$itemFields = (string) @file_get_contents($themeDir . 'assets/dist/fields.css');
 	check('--pw-item-bg is on the surface, the page background in light and var(--secondary) in dark, and the background of asmSelect/tag chips, page list rows and repeater item headers',
@@ -3462,7 +3472,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 1.9.0', $themeVersion === '1.9.0', $themeVersion);
+	check('the theme version is 1.9.1', $themeVersion === '1.9.1', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;
