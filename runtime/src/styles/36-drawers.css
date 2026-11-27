@@ -10,7 +10,6 @@ dialog.pw-drawer {
 	inset: 0 auto 0 0;
 	box-sizing: border-box;
 	width: min(440px, 100vw);
-	height: 100vh;
 	height: 100dvh;
 	max-width: none;
 	max-height: none;

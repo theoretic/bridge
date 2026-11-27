@@ -1,5 +1,16 @@
 # Changelog
 
+## AdminThemeBridge 1.9.2: the Save menu opens over a notice (2026-11-27)
+
+Owner's report: the menu of the floating Save button (Submit with its arrow) opened under the green notice that a save leaves below the row, and on the Bridge Customizer's settings under its preview panel (a fixed panel at z-index 59). The menu must stay above the page content whatever a module positions there.
+
+- **Cause**: the floating Save row (1.7.0) is sticky with `z-index: 50`, which makes it a stacking context, so the menu inside it (`--pw-z-dropdown` 120) could not rise above the row; the notices sit at `--pw-z-notices` 60. The notice that floats below the row after a save in place (`#notices.pw-notices-fixed`) was drawn over the open menu.
+- **Fix, notices**: the row stacks at 70, above the notices and still under the popups (80) and the masthead (90). The notices never cover the row by design (the floating notice is placed below it).
+- **Fix, content of any module**: while the row's menu is open, `#pw-content-body` gets `isolation: isolate`, so every fixed or absolute element inside it (the Customizer preview, or anything at z-index 9999) stacks inside the page body and stays under the row and its menu. Only while the menu is open: a full-screen editor in the body (TinyMCE, CKEditor maximise) still covers the masthead the rest of the time. Elements a module appends to `<body>` itself are outside the page body and keep their own level (dialogs, pickers).
+- Trimmed to stay in budget: the `100vh` fallbacks before `100dvh` in the floating notices, the full-screen dialog on phones and the drawers (every browser with `:has()` has `dvh`).
+- Budgets: theme.css 18429 of 18432 B gzip. No budget raised.
+- Checks: a smoke line for both rules. On a static fixture (row, open menu, floating notice, the Customizer's preview panel, an absolute element at z-index 9999 in the body) the menu is on top of all three; before, the notice, the panel (1.9.0) and the z-index 9999 element covered it; with the menu closed the body is not isolated.
+
 ## AdminThemeBridge 1.9.1: language tabs and repeater headers follow the error tint (2026-11-27)
 
 Owner's report: in a field with an error (a required Title in a repeater item), the field turns pink but its selected language tab stayed white.

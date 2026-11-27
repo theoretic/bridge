@@ -2295,6 +2295,12 @@ if(isset($bridge)) {
 		count(array_intersect(array('--pw-lang-tab-empty-opacity', '--pw-lang-tab-empty-style'), $surface['tokens'])) === 2
 		&& (bool) preg_match('/--pw-lang-tab-empty-opacity:\s*\.5;\s*--pw-lang-tab-empty-style:\s*normal;/', $langTok)
 		&& (bool) preg_match('/li\.langTabEmpty[^{]*\{color:var\(--foreground\);opacity:var\(--pw-lang-tab-empty-opacity\);font-style:var\(--pw-lang-tab-empty-style\)/', $langTheme));
+	// 1.9.2: the floating Save row stacks above the notices (60), and while its menu is open the page body is
+	// isolated, so no module's positioned element in it (the Customizer preview, any z-index) covers the menu
+	$saveCss = (string) @file_get_contents($themeDir . 'assets/dist/theme.css');
+	check('the floating Save row stacks above the notices, and its open menu above anything in the page body',
+		(bool) preg_match('/#pw-content-head-buttons:has\(\.pw-head-button-copy\)\{[^}]*z-index:70;/', $saveCss)
+		&& strpos($saveCss, '#pw-content-head:has([aria-expanded=true])+#pw-content-body{isolation:isolate}') !== false);
 	// 1.9.1: the active language tab takes the background of the field it sits in (--pw-field-bg: the card, the
 	// error tint, a file row); the error tint is a background-color, so the card's gutter stays clear; a repeater
 	// item header marked for deletion (or its trash hovered) shows the error tint
@@ -3472,7 +3478,7 @@ if(isset($bridge) && $bridge) {
 	$aclShell = (string) file_get_contents($themeDir . 'lib/AdminThemeBridgeShell.php');
 	check('renderPrimaryNav() keeps the nav under navCacheKey()', strpos($aclShell, '$key = (string) $this->navCacheKey();') !== false && strpos($aclShell, '$session->getFor($this, $key)') !== false && strpos($aclShell, '$session->setFor($this, $key, $out)') !== false
 		&& strpos($aclShell, '$session->setFor($this, \'prnavKey\', $key)') !== false && strpos($aclShell, 'removeFor($this, (string) $this->navCacheKey())') !== false);
-	check('the theme version is 1.9.1', $themeVersion === '1.9.1', $themeVersion);
+	check('the theme version is 1.9.2', $themeVersion === '1.9.2', $themeVersion);
 	$aclSession = $wire->session;
 	// a fixed nav: the key is what is tested, and $aclBuilt counts the misses
 	$aclBuilt = 0;

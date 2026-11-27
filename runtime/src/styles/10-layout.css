@@ -20,14 +20,21 @@
  * the sticky row's containing block is the whole content, not the head; the body clears it as the
  * head did; the page's colour behind the row keeps content from showing between the buttons. Not in modals (no copies: the dialog shows the buttons in its footer).
  * Flex, not the float (1.8.1): Firefox lays a sticky float out where it is stuck when anything
- * reflows (a thumbnail's hover), and the body cleared it, thousands of pixels down */
+ * reflows (a thumbnail's hover), and the body cleared it, thousands of pixels down.
+ * z-index 70 (1.9.2): above the notices (--pw-z-notices 60), so the Save menu opens over a notice
+ * floating below the row; under the popups (80) and the masthead (90) */
 .pw-content:has(> #pw-content-head .pw-head-button-copy) { display: flex; flex-wrap: wrap; align-items: flex-start; column-gap: 20px; }
 #pw-content-head:has(.pw-head-button-copy) { display: contents; }
 #pw-content-head:has(.pw-head-button-copy) > *, #pw-content-head:has(.pw-head-button-copy) + #pw-content-body { flex: 1 0 100%; min-width: 0; order: 2; }
 #pw-content-head:has(.pw-head-button-copy) > :is(nav, #pw-content-title) { order: 0; }
 #pw-content-head:has(.pw-head-button-copy) > #pw-content-title { flex-basis: 0; }
 #pw-content-head:has(.pw-head-button-copy) + #pw-content-body { margin-top: 20px; }
-#pw-content-head-buttons:has(.pw-head-button-copy) { float: none; flex: 0 1 auto; order: 1; margin-left: auto; position: sticky; top: calc(var(--pw-masthead-h) + var(--pw-notice-gap)); z-index: 50; border-radius: var(--radius-lg); background: var(--pw-bg); box-shadow: 0 0 0 4px var(--pw-bg); }
+/* While the row's Save menu is open the page body is its own stacking context, so nothing in it
+ * (a module's fixed or absolute panel, whatever its z-index: the Customizer preview at 59) rises
+ * above the row and its menu. Only while open: a full-screen editor in the body must still cover
+ * the masthead the rest of the time. */
+#pw-content-head:has([aria-expanded=true]) + #pw-content-body { isolation: isolate; }
+#pw-content-head-buttons:has(.pw-head-button-copy) { float: none; flex: 0 1 auto; order: 1; margin-left: auto; position: sticky; top: calc(var(--pw-masthead-h) + var(--pw-notice-gap)); z-index: 70; border-radius: var(--radius-lg); background: var(--pw-bg); box-shadow: 0 0 0 4px var(--pw-bg); }
 body:has(.pw-head-button-copy) #pw-content-body :is(.pw-head-button, .head_button_clone, a:has(> .pw-head-button), .InputfieldSubmit:not(:has(button:not(.pw-head-button)))) { display: none; }
 
 .pw-footer {

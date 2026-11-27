@@ -55,7 +55,6 @@ body:not(.modal):not(.ProcessLogin):has(> #notices:empty):not(:has(:is(#ProcessP
 body:not(.modal):not(.ProcessLogin) #notices.pw-notices-fixed {
 	position: fixed;
 	padding-top: 0;
-	max-height: calc(100vh - var(--pw-masthead-h) - 2 * var(--pw-notice-gap));
 	max-height: calc(100dvh - var(--pw-masthead-h) - 2 * var(--pw-notice-gap));
 	overflow-y: auto;
 	overscroll-behavior: contain;
