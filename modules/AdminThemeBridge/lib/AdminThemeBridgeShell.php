@@ -614,7 +614,7 @@ trait AdminThemeBridgeShell {
 			case 'larger': return __('Larger', __FILE__);
 			case 'resetScale': return __('Back to 100 %', __FILE__); // the scale shown in percent, a button
 			case 'basedOn': return __('based on ProcessWire %s', __FILE__); // %s is the core version
-			case 'coloursFrom': return __('colours from %s', __FILE__); // %s is a link to AdminThemeBoss
+			case 'coloursFrom': return __('colours from %s', __FILE__); // %s is a link to AdminThemeBoss; unused since 1.9.0, kept for site copies of _footer.php
 		}
 		return $key;
 	}

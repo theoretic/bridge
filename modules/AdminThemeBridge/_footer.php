@@ -19,8 +19,7 @@ if(!defined("PROCESSWIRE")) die();
 			<span>Bridge<?php if($adminTheme->isLoggedIn) echo ' ' . $adminTheme->wire()->sanitizer->entities($adminTheme->version); ?></span>
 			<?php if($adminTheme->isLoggedIn): ?>
 			<small><?php
-				echo sprintf($adminTheme->shellLabel('basedOn'), $config->versionName . '<!--v' . $config->systemVersion . '-->') . ', ' .
-					sprintf($adminTheme->shellLabel('coloursFrom'), "<a href='https://github.com/noelboss/AdminThemeBoss' target='_blank' rel='noopener'>AdminThemeBoss</a>");
+				echo sprintf($adminTheme->shellLabel('basedOn'), $config->versionName . '<!--v' . $config->systemVersion . '-->');
 			?></small>
 			<?php endif; ?>
 		</p>
