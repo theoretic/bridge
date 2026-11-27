@@ -1,6 +1,6 @@
 {
 	"note": "chunks of the last release and of the release before; a build keeps them, `npm run release-chunks` moves the list on (scripts/prune-chunks.mjs)",
-	"version": "1.9.0",
+	"version": "1.9.2",
 	"chunks": [
 		"ask-DsDBpX_y.js",
 		"asmselect-DaLK-WIa.js",
